@@ -13,12 +13,14 @@ full text of the License.
 // Single-device multi-block FFN mixed Cube/Vec kernel, AllGather split variant.
 //
 // Each block owns one logical grid cell (row, col).  Cube computes the three
-// GEMMs, Vec computes the activation and row-local hidden AllGather.  Down
+// GEMMs, Vec computes the activation and the row-local hidden AllGather.  Down
 // projection is sharded by output H columns, so there is no post-down reduce.
 // Cube<->Vec C2V/V2C traffic is issued as directional TMOV (see
 // tpipe_tmov_inl.hpp): TMOV(pipe, tile) pushes and TMOV(tile, pipe) pops, so the
-// TPUSH/TPOP stays implicit.  The GridPipe EAST/WEST gather keeps its own
-// neighbor-cell TPUSH/TPOP.
+// TPUSH/TPOP stays implicit.  The hidden AllGather is now a 真·同时 MPSC over
+// the GridPipe: every cell TBROADCAST<ROW> its own hidden shard concurrently
+// (design doc §4 方案②·前缀偏移) and each receiver TPOP<ROW> drains the other
+// cells' shards from its shared ring.
 
 #include <cstddef>
 #include <cstdint>
@@ -54,7 +56,10 @@ using HiddenF32Tile = GateF32Tile;
 using HiddenF16Tile = Tile<TileType::Vec, half, FFN_TOKEN_TILE, FFN_FFN_TILE, BLayout::RowMajor>;
 using HiddenFullF16Tile = Tile<TileType::Vec, half, FFN_TOKEN_TILE, FFN_FFN_TOTAL_TILE, BLayout::RowMajor>;
 using DownF32Tile = Tile<TileType::Vec, float, FFN_TOKEN_TILE, FFN_MODEL_SHARD_TILE, BLayout::RowMajor>;
-using FfnGatherPipe = GridPipe<HiddenF16Tile, FFN_SLOT_BYTES, FFN_SLOT_COUNT>;
+// The gather pipe opts into the TBROADCAST (scheme-②) region: every cell
+// broadcasts its own hidden shard concurrently, so the per-receiver shared ring
+// + per-source ready/free lanes are wired into each window.
+using FfnGatherPipe = GridPipe<HiddenF16Tile, FFN_SLOT_BYTES, FFN_SLOT_COUNT, FFN_BCAST_SLOT_COUNT, FFN_GRID_GROUP_MAX>;
 
 using ShapeTHShard = Shape<1, 1, 1, FFN_TOKEN_TILE, FFN_MODEL_SHARD_TILE>;
 using StrideTHShard = Stride<FFN_TOKEN_TILE * FFN_MODEL_TILE, FFN_TOKEN_TILE * FFN_MODEL_TILE,
@@ -77,6 +82,11 @@ constexpr int kUbWestCarryF16 = AlignUp(kUbEastCarryF16 + FFN_HIDDEN_BYTES, kUbA
 // Reuse the first carry scratch for the later down shard.  Both carry tiles are
 // dead before DownPipe writes downF32.
 constexpr int kUbDownF32 = kUbEastCarryF16;
+// SwiGLU scratch: SiLU(g) = g/(1+e^-g) is composed from fp32 intrinsics.
+// siluDenom holds 1+exp(-gate); siluTmp holds SiLU(gate) before the * up.
+// Both fp32 [T, Fi] (= FFN_GATE_PARTIAL_BYTES), appended after the carry tiles.
+constexpr int kUbSiluDenom = AlignUp(kUbWestCarryF16 + FFN_HIDDEN_BYTES, kUbAlignBytes);
+constexpr int kUbSilu = AlignUp(kUbSiluDenom + FFN_GATE_PARTIAL_BYTES, kUbAlignBytes);
 
 constexpr int kL1X = 0x00000;
 constexpr int kL1Hidden = 0x10000;
@@ -87,12 +97,13 @@ constexpr int kL1WDown = 0x28000;
 #endif
 
 __global__ AICORE void DistributedFfnGridAllGatherMixedKernel(__gm__ uint8_t *fftsAddr,
-                                                              __gm__ uint8_t *gatherPipeWindow, __gm__ uint8_t *x,
-                                                              __gm__ uint8_t *wGate, __gm__ uint8_t *wUp,
-                                                              __gm__ uint8_t *wDown, __gm__ uint8_t *gatePartial,
-                                                              __gm__ uint8_t *upPartial, __gm__ uint8_t *hiddenIn,
-                                                              __gm__ uint8_t *downPartial, __gm__ uint8_t *yOutput,
-                                                              __gm__ uint8_t *hcclCtxRaw, int gridRows, int gridCols)
+                                                              __gm__ uint8_t *gatherPipeWindow,
+                                                              __gm__ uint8_t *xFull, __gm__ uint8_t *wGateShards,
+                                                              __gm__ uint8_t *wUpShards, __gm__ uint8_t *wDownShards,
+                                                              __gm__ uint8_t *gatePartial, __gm__ uint8_t *upPartial,
+                                                              __gm__ uint8_t *hiddenIn, __gm__ uint8_t *downPartial,
+                                                              __gm__ uint8_t *yFull, __gm__ uint8_t *hcclCtxRaw,
+                                                              int gridRows, int gridCols)
 {
 #ifdef __CCE_AICORE__
     static_assert((FFN_MODEL_TILE % FFN_GRID_COLS) == 0, "AllGather split requires H divisible by gridCols.");
@@ -173,18 +184,22 @@ __global__ AICORE void DistributedFfnGridAllGatherMixedKernel(__gm__ uint8_t *ff
     constexpr int partialTileBytes = FFN_GATE_PARTIAL_BYTES;
     constexpr int hiddenTileBytes = FFN_HIDDEN_FULL_BYTES;
     constexpr int downTileBytes = FFN_DOWN_PARTIAL_BYTES;
-    __gm__ uint8_t *xBlock = x + blockIdx * xTileBytes;
-    __gm__ uint8_t *wGateBlock = wGate + blockIdx * wGateTileBytes;
-    __gm__ uint8_t *wUpBlock = wUp + blockIdx * wUpTileBytes;
-    __gm__ uint8_t *wDownBlock = wDown + blockIdx * wDownTileBytes;
+    int row = blockIdx / gridCols;
+    int col = blockIdx - row * gridCols;
+    // Batcher addressing (see batcher.hpp): x is per-row (broadcast across the
+    // row's cols); the weight shards are per-col (shared across rows); the
+    // gate/up/hidden/down partials are per-cell C2V/V2C working buffers; the
+    // output is written per-row, H-sharded by col, into the Batcher yFull region.
+    __gm__ uint8_t *xBlock = xFull + row * xTileBytes;
+    __gm__ uint8_t *wGateBlock = wGateShards + col * wGateTileBytes;
+    __gm__ uint8_t *wUpBlock = wUpShards + col * wUpTileBytes;
+    __gm__ uint8_t *wDownBlock = wDownShards + col * wDownTileBytes;
     __gm__ uint8_t *gateBlock = gatePartial + blockIdx * partialTileBytes;
     __gm__ uint8_t *upBlock = upPartial + blockIdx * partialTileBytes;
     __gm__ uint8_t *hiddenBlock = hiddenIn + blockIdx * hiddenTileBytes;
     __gm__ uint8_t *downBlock = downPartial + blockIdx * downTileBytes;
-    int row = blockIdx / gridCols;
-    int col = blockIdx - row * gridCols;
     __gm__ uint8_t *yBlock =
-        yOutput + row * FFN_Y_OUTPUT_BYTES + col * FFN_MODEL_SHARD_TILE * static_cast<int>(sizeof(float));
+        yFull + row * FFN_Y_OUTPUT_BYTES + col * FFN_MODEL_SHARD_TILE * static_cast<int>(sizeof(float));
 
     GatePipe gatePipe(reinterpret_cast<__gm__ void *>(gateBlock), kUbGateF32, 0);
     UpPipe upPipe(reinterpret_cast<__gm__ void *>(upBlock), kUbUpF32, 0);
@@ -197,7 +212,14 @@ __global__ AICORE void DistributedFfnGridAllGatherMixedKernel(__gm__ uint8_t *ff
         GW wUpG(reinterpret_cast<__gm__ half *>(wUpBlock));
         GWDown wDownG(reinterpret_cast<__gm__ half *>(wDownBlock));
 
+        // ① act_quant (SVG: online BF16->FP8 activation quant of x).  A3 has no
+        //    FP8/BF16, so the A3 precision map (ffn_config.hpp) collapses BF16/FP8
+        //    -> half: x is already half and TLOADed straight in; act_quant is an
+        //    identity here, kept as a named stage to mirror the tile graph.
         TLOAD(xMat, xG);
+        // Weight unpack (SVG: FP4 -> FP8 in-kernel, never materialised).  A3 has
+        // no FP4/FP8, so the map collapses FP4 -> half: the Batcher-delivered
+        // weight shards are half and TLOADed directly; the unpack is an identity.
         TLOAD(wGateMat, wGateG);
         TLOAD(wUpMat, wUpG);
         TLOAD(wDownMat, wDownG);
@@ -290,18 +312,20 @@ __global__ AICORE void DistributedFfnGridAllGatherMixedKernel(__gm__ uint8_t *ff
         UpF32Tile upF32;
         HiddenF32Tile hiddenF32;
         HiddenF16Tile hiddenF16;
-        HiddenF16Tile eastCarryF16;
-        HiddenF16Tile westCarryF16;
+        HiddenF16Tile shardRecvF16; // TBROADCAST receive scratch: one drained shard at a time
         HiddenFullF16Tile hiddenFullF16;
         DownF32Tile downF32;
+        GateF32Tile siluDenom; // SwiGLU scratch: 1 + exp(-gate)
+        GateF32Tile siluTmp;   // SwiGLU scratch: SiLU(gate) before * up
         TASSIGN(gateF32, kUbGateF32);
         TASSIGN(upF32, kUbUpF32);
         TASSIGN(hiddenF32, kUbHiddenF32);
         TASSIGN(hiddenF16, kUbHiddenF16);
-        TASSIGN(eastCarryF16, kUbEastCarryF16);
-        TASSIGN(westCarryF16, kUbWestCarryF16);
+        TASSIGN(shardRecvF16, kUbEastCarryF16);
         TASSIGN(hiddenFullF16, kUbHiddenFullF16);
         TASSIGN(downF32, kUbDownF32);
+        TASSIGN(siluDenom, kUbSiluDenom);
+        TASSIGN(siluTmp, kUbSilu);
 
         TMOV(gateF32, gatePipe); // C2V pop <- gatePipe
         TMOV(upF32, upPipe);     // C2V pop <- upPipe
@@ -311,19 +335,40 @@ __global__ AICORE void DistributedFfnGridAllGatherMixedKernel(__gm__ uint8_t *ff
         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-        TLRELU(gateF32, gateF32, FFN_PRELU_ALPHA);
-
+        // SwiGLU activation = SiLU(clamp(gate)) * up, all fp32 (matches the
+        // WSE-FFN tile graph "SiLU + clamp(max=10)").  SiLU(g) = g/(1+e^-g) is
+        // composed from existing intrinsics; gen_data.py golden uses the same
+        // clamp+SiLU form.
+        TMAXS(gateF32, gateF32, FFN_SILU_CLAMP_MIN); // clamp gate lower bound (-10)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TMINS(gateF32, gateF32, FFN_SILU_CLAMP_MAX); // clamp gate upper bound (+10)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TMULS(siluDenom, gateF32, -1.0f); // siluDenom = -gate
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TEXP(siluDenom, siluDenom); // siluDenom = exp(-gate)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TADDS(siluDenom, siluDenom, 1.0f); // siluDenom = 1 + exp(-gate)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TDIV(siluTmp, gateF32, siluDenom); // siluTmp = SiLU(gate) = gate/(1+e^-gate)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TMUL(hiddenF32, siluTmp, upF32); // hidden = SiLU(gate) * up
 #ifndef __PTO_AUTO__
         pipe_barrier(PIPE_V);
 #endif
 
-        TMUL(hiddenF32, gateF32, upF32);
-
-#ifndef __PTO_AUTO__
-        pipe_barrier(PIPE_V);
-#endif
-
-        TCVT(hiddenF16, hiddenF32, RoundMode::CAST_RINT);
+        TCVT(hiddenF16, hiddenF32, RoundMode::CAST_RINT); // SVG FP32->BF16/FP8 -> A3 fp32->half
 
 #ifndef __PTO_AUTO__
         pipe_barrier(PIPE_V);
@@ -336,78 +381,45 @@ __global__ AICORE void DistributedFfnGridAllGatherMixedKernel(__gm__ uint8_t *ff
         a2a3_grid::InitGridPipeFromWindow(gatherPipe, shape, coord, window, reinterpret_cast<__gm__ void *>(hcclCtxRaw),
                                           /*pipeId=*/0);
 
-        using pto::GridDirection;
+        using pto::GridGroup;
+
+        // Place this cell's OWN hidden shard into its column slot of the full
+        // hidden, then broadcast that shard to every other cell on the row.
         TINSERT(hiddenFullF16, hiddenF16, 0, static_cast<uint16_t>(col * FFN_FFN_TILE));
 #ifndef __PTO_AUTO__
+        set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
         pipe_barrier(PIPE_V);
 #endif
 
-        bool haveEastCarry = true;
-        bool haveWestCarry = true;
-        for (int step = 0; step < gridCols - 1; ++step) {
-            if (col + 1 < gridCols && haveEastCarry) {
-                if (step == 0) {
+        // 真·同时 MPSC gather (design doc §4 方案②·前缀偏移): every cell
+        // TBROADCASTs its own hidden shard concurrently.  Each source writes its
+        // prefix-offset slot in every receiver's shared ring and rings only its
+        // own per-source ready lane, so K concurrent senders never clobber a
+        // shared counter.  TBROADCAST never blocks here (one shard per source,
+        // ring >= group size ⟹ no slot reuse).
+        TBROADCAST<GridGroup::ROW>(gatherPipe, hiddenF16);
 #ifndef __PTO_AUTO__
-                    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-                    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        pipe_barrier(PIPE_ALL);
 #endif
-                    TPUSH<GridDirection::EAST>(gatherPipe, hiddenF16);
-                } else {
-#ifndef __PTO_AUTO__
-                    set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-                    wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-#endif
-                    TPUSH<GridDirection::EAST>(gatherPipe, eastCarryF16);
-                }
-            }
+        dsb(DSB_DDR);
 
-            if (col > 0 && haveWestCarry) {
-                if (step == 0) {
-#ifndef __PTO_AUTO__
-                    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-                    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-#endif
-                    TPUSH<GridDirection::WEST>(gatherPipe, hiddenF16);
-                } else {
-#ifndef __PTO_AUTO__
-                    set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-                    wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
-#endif
-                    TPUSH<GridDirection::WEST>(gatherPipe, westCarryF16);
-                }
+        // Drain every OTHER cell's shard from the shared ring in ascending srcCol
+        // order (so the directed free-notification chain advances with
+        // consumption) and insert it into the matching column slot.
+        for (int srcCol = 0; srcCol < gridCols; ++srcCol) {
+            if (srcCol == col) {
+                continue; // own shard already inserted above.
             }
-
-            if (col > step) {
-                TPOP<GridDirection::EAST>(gatherPipe, eastCarryF16);
+            TPOP<GridGroup::ROW>(gatherPipe, shardRecvF16, srcCol);
 #ifndef __PTO_AUTO__
-                set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+            set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+            wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-                int srcCol = col - step - 1;
-                TINSERT(hiddenFullF16, eastCarryF16, 0, static_cast<uint16_t>(srcCol * FFN_FFN_TILE));
+            TINSERT(hiddenFullF16, shardRecvF16, 0, static_cast<uint16_t>(srcCol * FFN_FFN_TILE));
 #ifndef __PTO_AUTO__
-                pipe_barrier(PIPE_V);
+            pipe_barrier(PIPE_V);
 #endif
-                haveEastCarry = true;
-            } else {
-                haveEastCarry = false;
-            }
-
-            if (col + step + 1 < gridCols) {
-                TPOP<GridDirection::WEST>(gatherPipe, westCarryF16);
-#ifndef __PTO_AUTO__
-                set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-#endif
-                int srcCol = col + step + 1;
-                TINSERT(hiddenFullF16, westCarryF16, 0, static_cast<uint16_t>(srcCol * FFN_FFN_TILE));
-#ifndef __PTO_AUTO__
-                pipe_barrier(PIPE_V);
-#endif
-                haveWestCarry = true;
-            } else {
-                haveWestCarry = false;
-            }
         }
 
 #ifndef __PTO_AUTO__
@@ -433,32 +445,32 @@ __global__ AICORE void DistributedFfnGridAllGatherMixedKernel(__gm__ uint8_t *ff
 #else
     (void)fftsAddr;
     (void)gatherPipeWindow;
-    (void)x;
-    (void)wGate;
-    (void)wUp;
-    (void)wDown;
+    (void)xFull;
+    (void)wGateShards;
+    (void)wUpShards;
+    (void)wDownShards;
     (void)gatePartial;
     (void)upPartial;
     (void)hiddenIn;
     (void)downPartial;
-    (void)yOutput;
+    (void)yFull;
     (void)hcclCtxRaw;
     (void)gridRows;
     (void)gridCols;
 #endif
 }
 
-void launchDistributedFfnGridAllGatherMixedKernel(uint8_t *ffts, uint8_t *gatherPipeWindow, uint8_t *x, uint8_t *wGate,
-                                                  uint8_t *wUp, uint8_t *wDown, uint8_t *gatePartial,
-                                                  uint8_t *upPartial, uint8_t *hiddenIn, uint8_t *downPartial,
-                                                  uint8_t *yOutput, uint8_t *hcclCtx, int gridRows, int gridCols,
-                                                  void *stream)
+void launchDistributedFfnGridAllGatherMixedKernel(uint8_t *ffts, uint8_t *gatherPipeWindow, uint8_t *xFull,
+                                                  uint8_t *wGateShards, uint8_t *wUpShards, uint8_t *wDownShards,
+                                                  uint8_t *gatePartial, uint8_t *upPartial, uint8_t *hiddenIn,
+                                                  uint8_t *downPartial, uint8_t *yFull, uint8_t *hcclCtx, int gridRows,
+                                                  int gridCols, void *stream)
 {
     int totalBlocks = gridRows * gridCols;
     if (totalBlocks <= 0) {
         return;
     }
     DistributedFfnGridAllGatherMixedKernel<<<totalBlocks, nullptr, stream>>>(
-        ffts, gatherPipeWindow, x, wGate, wUp, wDown, gatePartial, upPartial, hiddenIn, downPartial, yOutput, hcclCtx,
-        gridRows, gridCols);
+        ffts, gatherPipeWindow, xFull, wGateShards, wUpShards, wDownShards, gatePartial, upPartial, hiddenIn,
+        downPartial, yFull, hcclCtx, gridRows, gridCols);
 }

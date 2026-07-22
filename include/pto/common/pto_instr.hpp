@@ -2542,29 +2542,57 @@ PTO_INST RecordEvent TREDUCE(Pipe &pipe, TileAcc &acc, TileRecv &recv, WaitEvent
 }
 
 // ---------------------------------------------------------------------------
-// GridPipe TPUSH broadcast overload: single-source row/column multicast.  This
-// is the SAME verb as the unicast TPUSH above, distinguished purely by the type
-// of the first explicit template argument -- a GridSpan (ROW/COL) selects this
-// overload, a GridDirection selects the unicast one.  The two scoped enums never
-// interconvert, so overload resolution is unambiguous and folds at compile time.
+// GridPipe TBROADCAST overload: 真·同时 MPSC group broadcast (design doc
+// Grid_TPUSH_TPOP_WSE核间握手机制选型 §4 方案②·前缀偏移).  The first explicit
+// template argument is a GridGroup (ROW/COL) -- the participant set -- which
+// also selects this overload against the unicast TPUSH<GridDirection, Dist>
+// above (the two scoped enums never interconvert, so resolution is unambiguous
+// and folds at compile time).
 //
-// One source fans `tile` to every other cell on its row (GridSpan::ROW) or
-// column (GridSpan::COL) in a single op -- a true multicast with ONE publish
-// fence, not a per-hop TPUSH<Dir, k> loop (see GRID_TRY_TPUSH_BCAST_IMPL).
-// Fan-in stays 1, so receivers drain it with the ordinary TPOP<EAST/WEST, dist>
-// (ROW) or TPOP<NORTH/SOUTH, dist> (COL).  There is no Dist parameter: a span
-// always fans to the grid boundary on both of its arms.
+// Unlike the old single-source TPUSH<GridSpan> multicast (fan-in 1, forbidding
+// concurrent senders), TBROADCAST is safe to call from EVERY member of the group
+// at the same instant: each source writes its own prefix-offset slot in every
+// receiver's shared ring and rings only its own per-source ready lane, so K
+// concurrent senders never clobber a shared counter.  This is what makes an
+// AllGather-of-shards -- "every AICORE broadcasts its own shard" -- correct.
+//
+// Receivers drain member `srcRank`'s shard with the TPOP<GridGroup> overload
+// below (one shard per call, in ascending srcRank order so the directed
+// free-notification chain advances with consumption).  See GRID_TBROADCAST_IMPL
+// / GRID_TBPOP_IMPL for the prefix-offset + directed-notification handshake.
 // ---------------------------------------------------------------------------
-template <pto::GridSpan Span, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+template <pto::GridGroup Group, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
           typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
+PTO_INST RecordEvent TBROADCAST(Pipe &pipe, TileProd &tile, WaitEvents &...events)
 {
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPUSH_BCAST_IMPL<Span, Pipe, TileProd>(pipe, tile);
+    GRID_TBROADCAST_IMPL<Group, Pipe, TileProd>(pipe, tile);
 #else
     static_assert(sizeof(Pipe) == 0,
-                  "GridPipe TPUSH<GridSpan> broadcast not supported on this target profile "
+                  "GridPipe TBROADCAST not supported on this target profile "
+                  "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// GridPipe TPOP<GridGroup> overload: drain ONE shard that source `srcRank`
+// broadcast into this receiver's shared ring (the receive half of TBROADCAST).
+// The GridGroup first template argument selects this overload against the
+// unicast TPOP<GridDirection, Dist> above.  `srcRank` is the broadcasting
+// member's rank-in-group (its prefix-offset index); callers advance it in
+// ascending order across the group so the directed free-notification inside
+// GRID_TBPOP_IMPL unlocks producers in consumption order.
+template <pto::GridGroup Group, typename Pipe, typename TileCons, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+          typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, TileCons &tile, int srcRank, WaitEvents &...events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TBPOP_IMPL<Group, Pipe, TileCons>(pipe, tile, srcRank);
+#else
+    static_assert(sizeof(Pipe) == 0,
+                  "GridPipe TPOP<GridGroup> not supported on this target profile "
                   "(design doc section 5.4 forbids silent GM fallback).");
 #endif
     return {};

@@ -10,14 +10,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 // Grid TPUSH/TPOP model + A2/A3 mock support (A2/A3 backend).
 //
-// Design_spec: Grid_TPUSH_TPOP_ISA...V7.md (the IPC_SCB scoreboard route).
+// Design_spec: Grid_TPUSH_TPOP_ISA...V8.md (the IPC_SCB scoreboard route).
 //
 // This header holds ONLY the data model and mock support; the CCE handshake
-// intrinsics themselves live in grid_cce_intrinsic.hpp as the V7 two-name facade
-// layer (copy_ubuf_to_neighbor_ubuf / sync_hscb / get_ipc_scb / wait_ipc_scb ->
-// __builtin_cce_*).  There is deliberately NO intermediate PTO wrapper (the old
-// sync_neighbor_scb / wait_local_spr / mov_local_spr / ScbOperand /
-// neighbor_sram_addr vocabulary is gone, per V7 section 3.4 / section 6 point 4):
+// intrinsics themselves live in grid_cce_intrinsic.hpp as the V8 two-name facade
+// layer (copy_ubuf_to_neighbor_ubuf / sync_hscb / wait_ipc_scb -> __builtin_cce_*).
+// There is deliberately NO intermediate PTO wrapper (the old sync_neighbor_scb /
+// wait_local_spr / mov_local_spr / ScbOperand / neighbor_sram_addr vocabulary is
+// gone, per V8 section 3.4 / section 6 point 4):
 //   * Section 1: GridPipe mesh model + neighbor / K-hop resolvers.
 //   * Section 2: A2/A3 GM-mock support -- boundary faults + the GmSramArena
 //                address-segment model that enforces the NoC "TPOP reads local
@@ -37,20 +37,20 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/arch_macro.hpp>
 #include <pto/common/type.hpp>                 // for AICORE (callable from both host and aicore contexts)
 
-#include <pto/npu/a2a3/grid_cce_intrinsic.hpp> // V7 CCE facade layer (the ONLY handshake-intrinsic layer)
+#include <pto/npu/a2a3/grid_cce_intrinsic.hpp> // V8 CCE facade layer (the ONLY handshake-intrinsic layer)
 
 // ===========================================================================
 // Section 1: GridPipe -- neighbor-core FIFO communication primitives.
 //
-// This is the proposal-level abstraction described in the V7 design spec (the
+// This is the proposal-level abstraction described in the V8 design spec (the
 // IPC_SCB scoreboard handshake route).  The per-(core, direction) FIFO state
 // below is read by the GridTPush.hpp / GridTPop.hpp sequence expansions, which
 // call the CCE facades in grid_cce_intrinsic.hpp: cross-core notify = sync_hscb
 // (SYNC_HSCB / ST_HSCB, a monotone absolute count into the neighbor's direction
-// IPC_SCB); local wait = wait_ipc_scb (WAIT_SPR) peeked by get_ipc_scb
-// (MOV_SPR2X); payload = copy_ubuf_to_neighbor_ubuf (COPY_UBUF_TO_NBR).  On A2/A3
-// there is no cross-core neighbor-IPC_SCB addressing (V7 HW-DEP-1) nor a
-// UB->neighbor-UB write (V7 HW-DEP-0), so those facades run their GM mock and
+// IPC_SCB); local wait = wait_ipc_scb (WAIT_SPR, read+block in one instruction;
+// no MOV_SPR2X peek -- V8); payload = copy_ubuf_to_neighbor_ubuf (COPY_UBUF_TO_NBR).
+// On A2/A3 there is no cross-core neighbor-IPC_SCB addressing (V8 HW-DEP-1) nor a
+// UB->neighbor-UB write (V8 HW-DEP-0), so those facades run their GM mock and
 // Section 2 stands in for the IPC_SCB scoreboards with HCCL shared windows and
 // GM words.
 // ===========================================================================
@@ -97,50 +97,117 @@ AICORE constexpr int GridDirectionIndex(GridDirection d)
 }
 
 // ---------------------------------------------------------------------------
-// Broadcast span (single-source row/column multicast).  A ROW broadcast fans a
-// payload to every other cell on the source's row; a COL broadcast fans along
-// the source's column.  Each span is two opposite 1-D arms -- ROW = EAST+WEST,
-// COL = NORTH+SOUTH (see SpanArmA / SpanArmB).  Because each arm is 1-D, the
-// (direction, distance) pair is a complete fan-in-1 lane key, so a single-source
-// broadcast needs no Scheme-B slot/flag expansion: a receiver east of the source
-// drains it with the ordinary TPOP<EAST, dist>, a receiver west with
-// TPOP<WEST, dist>.  Used by the GridPipe TPUSH<GridSpan> broadcast overload.
+// Broadcast GROUP -- the participant set of a TBROADCAST collective.
+//
+// GROUP replaces the old single-source GridSpan "span" and, with it, the
+// handshake model: a TBROADCAST is no longer one source multicasting to a
+// fan-in-1 span (which forbade concurrent senders).  It is a 真·同时 MPSC
+// channel (see Grid_TPUSH_TPOP_WSE核间握手机制选型 §4 方案②·前缀偏移): every
+// member of the GROUP may broadcast its own shard into each receiver's shared
+// ring *concurrently*.  The prefix-offset assignment (each source owns a
+// disjoint global-index interval) plus per-source ready lanes keep every
+// physical edge SPSC, so K concurrent senders never clobber a shared counter.
+//
+//   GridGroup::ROW = every cell on the source's row    (the row is the group)
+//   GridGroup::COL = every cell on the source's column (the column is the group)
+//
+// A group still decomposes into two opposite 1-D arms for topology description
+// -- ROW = EAST+WEST, COL = NORTH+SOUTH (GroupArmA / GroupArmB) -- but the
+// prefix-offset send addresses peers by their rank-in-group directly, not by
+// arm, so a receiver drains member `srcRank` with TPOP<GridGroup>(pipe, tile,
+// srcRank) regardless of which arm it sits on.
 // ---------------------------------------------------------------------------
-enum class GridSpan : uint8_t
+enum class GridGroup : uint8_t
 {
-    ROW = 0, // fan along the source's row:    EAST arm + WEST arm
-    COL = 1, // fan along the source's column: NORTH arm + SOUTH arm
+    ROW = 0, // group = the source's row:    EAST arm + WEST arm
+    COL = 1, // group = the source's column: NORTH arm + SOUTH arm
 };
 
-// The two opposite GridDirections a span decomposes into.  constexpr so they
-// fold into the non-type template arguments of the per-arm broadcast helpers.
-AICORE constexpr GridDirection SpanArmA(GridSpan s)
+// The two opposite GridDirections a group decomposes into (topology only).
+// constexpr so they fold into non-type template arguments where useful.
+AICORE constexpr GridDirection GroupArmA(GridGroup g)
 {
-    return s == GridSpan::ROW ? GridDirection::EAST : GridDirection::NORTH;
+    return g == GridGroup::ROW ? GridDirection::EAST : GridDirection::NORTH;
 }
 
-AICORE constexpr GridDirection SpanArmB(GridSpan s)
+AICORE constexpr GridDirection GroupArmB(GridGroup g)
 {
-    return s == GridSpan::ROW ? GridDirection::WEST : GridDirection::SOUTH;
+    return g == GridGroup::ROW ? GridDirection::WEST : GridDirection::SOUTH;
 }
 
 // ---------------------------------------------------------------------------
-// GridPipe<TileT, SlotBytes, SlotCount>
+// Scheme-② prefix-offset helpers.  Every member contributes a statically-known
+// count (1 shard for the AllGather demo), so the prefix-offset base of member k
+// is just k (computed locally under SPMD -- variant a, zero atomic).  These
+// helpers map between a member's rank-in-group, its grid coordinate, and the
+// global index space the shared ring is addressed by (slot = gidx % SC).
+// ---------------------------------------------------------------------------
+// Forward declaration: RankFromCoord is defined further down (coordinate
+// bootstrap section); the GroupMemberRank helper below needs it visible here.
+AICORE inline int RankFromCoord(GridCoord coord, GridShape shape);
+
+// Number of members in the group that `coord` belongs to.
+AICORE constexpr int GridGroupSize(GridGroup g, GridShape s)
+{
+    return (g == GridGroup::ROW) ? s.gridCols : s.gridRows;
+}
+
+// This cell's rank within its group = its prefix-offset base (count_k = 1).
+// ROW groups vary along the column axis; COL groups along the row axis.
+AICORE constexpr int RankInGroup(GridGroup g, GridCoord c)
+{
+    return (g == GridGroup::ROW) ? c.col : c.row;
+}
+
+// Coordinate of the member whose rank-in-group is `rankInGroup`, given this
+// cell's coordinate (the member shares this cell's fixed axis).
+AICORE constexpr GridCoord GroupMemberCoord(GridGroup g, GridCoord self, int rankInGroup)
+{
+    return (g == GridGroup::ROW) ? GridCoord{self.row, rankInGroup} : GridCoord{rankInGroup, self.col};
+}
+
+AICORE constexpr int GroupMemberRank(GridGroup g, GridCoord self, GridShape s, int rankInGroup)
+{
+    return RankFromCoord(GroupMemberCoord(g, self, rankInGroup), s);
+}
+
+// Owner (rank-in-group) of global index `gidx`.  With count_k = 1 the prefix
+// partition is the identity, so owner(gidx) = gidx; general variable-count
+// partitions would replace this with a prefix-sum lookup (variant a) or an
+// atomic-add reservation (variant b).  Kept as a named function so the
+// directed-free path reads as the design doc states it ("owner(c + SC)").
+AICORE constexpr int GroupOwnerOfIndex(int gidx)
+{
+    return gidx;
+}
+
+// ---------------------------------------------------------------------------
+// GridPipe<TileT, SlotBytes, SlotCount, BcastSlotCount = 0, GroupMax = 0>
 //
 // One instance describes the FIFO state for a single logical channel that the
 // current core uses; each (core, direction) pair has its own ring buffer with
 // independent prod/cons indices, ready/free signals, and slot region.  Fields
 // are populated by the runtime during InitGridPipe and are read by the lower
 // half (compiler-generated intrinsic expansions).
+//
+// The trailing BcastSlotCount / GroupMax template params opt the pipe into the
+// scheme-② TBROADCAST region appended after the unicast slot rings.  They
+// default to 0, so a plain GridPipe<TileT, SlotBytes, SlotCount> (the unicast-
+// only ReduceSum / K-hop smoke pipes) carries no broadcast state and its window
+// is byte-identical to the pre-TBROADCAST layout.
 // ---------------------------------------------------------------------------
-template <typename TileT_, int SlotBytes_, int SlotCount_>
+template <typename TileT_, int SlotBytes_, int SlotCount_, int BcastSlotCount_ = 0, int GroupMax_ = 0>
 struct GridPipe {
     static_assert(SlotCount_ > 0, "GridPipe requires SlotCount > 0");
     static_assert(SlotBytes_ > 0, "GridPipe requires SlotBytes > 0");
+    static_assert(BcastSlotCount_ >= 0, "GridPipe requires BcastSlotCount >= 0");
+    static_assert(GroupMax_ >= 0, "GridPipe requires GroupMax >= 0");
 
     using TileType = TileT_;
     static constexpr int SlotBytes = SlotBytes_;
     static constexpr int SlotCount = SlotCount_;
+    static constexpr int BcastSlotCount = BcastSlotCount_;
+    static constexpr int GroupMax = GroupMax_;
 
     // Shape + coord cached from runtime (design doc 2.1 / 2.2).
     GridShape shape{};
@@ -161,6 +228,21 @@ struct GridPipe {
     uint32_t prodIndex[kGridDirectionCount] = {0};
     uint32_t consIndex[kGridDirectionCount] = {0};
 
+    // TBROADCAST region (scheme-② 真·同时 MPSC), populated only when GroupMax >
+    // 0.  bcastRingBase is the receiver's shared payload ring (SC slots,
+    // addressed by global index gidx % BcastSlotCount, into which every group
+    // member writes its own disjoint shard).  bcastReadyLanes / bcastFreeLanes
+    // are per-source arrays indexed by rank-in-group: variant-B ready lanes
+    // (one writer each -- the source of that rank -- so every lane is SPSC and
+    // K concurrent senders never clobber a shared counter), and free lanes
+    // (this core, as the single consumer of its own ring, is the sole writer of
+    // each, so the free direction is SPSC too -- no min-credit tree needed,
+    // design doc §7.4).  On native silicon these stand in for additional
+    // IPC_SCB slots; here they are GM words in this core's window.
+    __gm__ uint8_t *bcastRingBase = nullptr;    // [BcastSlotCount * SlotBytes]
+    __gm__ uint32_t *bcastReadyLanes = nullptr; // [GroupMax] -- per-source ready (variant B)
+    __gm__ uint32_t *bcastFreeLanes = nullptr;  // [GroupMax] -- per-source free  (X sole writer)
+
     // Opaque runtime pointer used by the A2/A3 backend to resolve cross-rank
     // addresses (HCCL device context).  Other targets may reinterpret.
     __gm__ void *runtimeCtx = nullptr;
@@ -170,14 +252,14 @@ struct GridPipe {
 };
 
 // ---------------------------------------------------------------------------
-// SFINAE marker: lets pto_instr.hpp's TPUSH/TPOP grid overloads disambiguate
-// against the existing TPipe overloads without ambiguity.
+// SFINAE marker: lets pto_instr.hpp's TPUSH/TPOP/TBROADCAST grid overloads
+// disambiguate against the existing TPipe overloads without ambiguity.
 // ---------------------------------------------------------------------------
 template <typename T>
 struct is_grid_pipe : std::false_type {};
 
-template <typename TileT, int SlotBytes, int SlotCount>
-struct is_grid_pipe<GridPipe<TileT, SlotBytes, SlotCount>> : std::true_type {};
+template <typename TileT, int SlotBytes, int SlotCount, int BcastSlotCount, int GroupMax>
+struct is_grid_pipe<GridPipe<TileT, SlotBytes, SlotCount, BcastSlotCount, GroupMax>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool is_grid_pipe_v = is_grid_pipe<std::remove_reference_t<T>>::value;
@@ -436,11 +518,11 @@ static_assert(GridKHopSelfCheck(), "GridPipe K-hop resolver self-test failed");
 // Section 2: A2/A3 GM-mock support -- boundary-fault sentinels.
 //
 // The IPC_SCB / HSCB handshake mock now lives in the CCE facades themselves
-// (grid_cce_intrinsic.hpp: sync_hscb / get_ipc_scb / wait_ipc_scb GM branches).
+// (grid_cce_intrinsic.hpp: sync_hscb / wait_ipc_scb GM branches).
 // What remains here is purely the mock's out-of-mesh fault reporting: a TPUSH /
 // TPOP whose (dir,dist) target leaves the mesh writes a sentinel GM word that
 // the host launcher polls after each kernel.  Real silicon raises a hardware
-// fault instead; these have no V7 machine-instruction counterpart.
+// fault instead; these have no V8 machine-instruction counterpart.
 // ===========================================================================
 
 namespace pto {
@@ -453,11 +535,11 @@ namespace grid_mock {
 inline constexpr uint32_t kDefaultWfeMaxSpins = PTO_GRID_MOCK_WFE_MAX_SPINS;
 inline constexpr uint32_t kFaultFlagWordOffset = 2 * kGridDirectionCount;
 
-// The SYNC_HSCB / MOV_SPR2X / WAIT_SPR mocks that used to live here are now the
-// GM-mock branches of the CCE facades in grid_cce_intrinsic.hpp (sync_hscb /
-// get_ipc_scb / wait_ipc_scb).  Only the boundary-fault sentinels remain here,
-// because they are pure mock diagnostics (the host launcher polls them) with no
-// V7 machine-instruction counterpart.
+// The SYNC_HSCB / WAIT_SPR mocks that used to live here are now the GM-mock
+// branches of the CCE facades in grid_cce_intrinsic.hpp (sync_hscb /
+// wait_ipc_scb).  Only the boundary-fault sentinels remain here, because they
+// are pure mock diagnostics (the host launcher polls them) with no V8
+// machine-instruction counterpart.
 
 inline AICORE void MockSetFault(__gm__ uint32_t *faultFlag, uint32_t faultCode)
 {
@@ -554,7 +636,7 @@ AICORE constexpr uint32_t PopFaultCode(GridDirection dir)
 // CCE-intrinsic-style API (get_neighbor_sram_addr / copy_ubuf_to_neighbor_ubuf /
 // copy_local_slot_to_ubuf / sram_pop_is_local, with neighbor_sram_addr /
 // NeighborSramOperand operands and a fabricated __builtin_pto_* stub) is gone:
-// per V7, payload PUSH lowers directly to the copy_ubuf_to_neighbor_ubuf CCE
+// per V8, payload PUSH lowers directly to the copy_ubuf_to_neighbor_ubuf CCE
 // facade (grid_cce_intrinsic.hpp) and TPOP's local drain reuses the existing
 // local copy (no Grid-specific intrinsic).  The peer-window / local-slot address
 // resolution is now a plain runtime helper in the demo's gridpipe_payload_inl.hpp.

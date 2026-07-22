@@ -36,22 +36,20 @@ AICORE bool GRID_TRY_TPOP_IMPL(Pipe &pipe, TileCons &tile, uint32_t maxSpins = g
         return false;
     }
 
-    // Step 1 (V7 C1): wait for the upstream ready signal.  ready threshold =
-    //   cons_idx+1.  get_ipc_scb (MOV_SPR2X) fast-path peek, then wait_ipc_scb
-    //   (WAIT_SPR) only if not yet ready.  ready_scb_<dir> occupies IPC_SCB slot
-    //   dirIdx.
+    // Step 1 (V8 C1): wait for the upstream ready signal.  ready threshold =
+    //   cons_idx+1.  WAIT_SPR alone reads the local ready_scb and blocks (read+block
+    //   in one instruction; no MOV_SPR2X peek -- V8).  ready_scb_<dir> occupies
+    //   IPC_SCB slot dirIdx.
     const uint32_t idx = pipe.consIndex[dirIdx];
     const uint32_t expectedReady = idx + 1;
     const uint32_t readySlot = static_cast<uint32_t>(dirIdx);
-    if (get_ipc_scb(pipe.readyScb[dirIdx], readySlot) < expectedReady) {
-        if (!wait_ipc_scb(pipe.readyScb[dirIdx], expectedReady, readySlot, maxSpins)) {
-            // Offset the fault-flag word only when the base scb pointer is real: nullptr + offset
-            // is UB and would slip a non-null (but invalid) pointer past MockSetFault's null guard.
-            __gm__ uint32_t *readyFault =
-                pipe.readyScb[dirIdx] ? pipe.readyScb[dirIdx] + grid_mock::kFaultFlagWordOffset : nullptr;
-            grid_mock::MockSetFault(readyFault, grid_mock::kFaultWaitReadyTimeout);
-            return false;
-        }
+    if (!wait_ipc_scb_sim(pipe.readyScb[dirIdx], expectedReady, readySlot, maxSpins)) {
+        // Offset the fault-flag word only when the base scb pointer is real: nullptr + offset
+        // is UB and would slip a non-null (but invalid) pointer past MockSetFault's null guard.
+        __gm__ uint32_t *readyFault =
+            pipe.readyScb[dirIdx] ? pipe.readyScb[dirIdx] + grid_mock::kFaultFlagWordOffset : nullptr;
+        grid_mock::MockSetFault(readyFault, grid_mock::kFaultWaitReadyTimeout);
+        return false;
     }
 
     // Step 2: compute local SRAM slot address; producer wrote it here.

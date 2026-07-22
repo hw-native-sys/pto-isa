@@ -84,13 +84,15 @@ echo "==================================================="
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "${SCRIPT_DIR}"
 
-# Regenerate per-cell inputs + golden before running.  The host maps all
-# grid_rows * grid_cols cells to blocks on the selected single device.
+# Regenerate full-tensor Batcher data + SwiGLU golden before running.  The host
+# Batcher (batcher.hpp) loads the full weights/x, splits them column-parallel,
+# and collects the output; the host maps all grid_rows * grid_cols cells to
+# blocks on the selected single device.
 if [ "${BUILD_ONLY}" -eq 0 ]; then
     python3 "${SCRIPT_DIR}/scripts/gen_data.py" \
         --grid-rows "${GRID_ROWS}" --grid-cols "${GRID_COLS}" \
         --t "${TOKEN_TILE}" --h "${MODEL_TILE}" --fi "${FFN_TILE}" \
-        --split-mode allgather \
+        --act silu --split-mode allgather \
         --output-dir "${SCRIPT_DIR}/out"
 fi
 

@@ -2,49 +2,45 @@
 # coding=utf-8
 # -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2026 Huawei Technologies Co., Ltd.
-# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
-# CANN Open Software License Agreement Version 2.0 (the "License").
-# Please refer to the License for details. You may not use this file except in compliance with the License.
+# This program is free software; you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License"). Please refer to the License for details.
+# You may not use this file except in compliance with the License.
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 #
-# Data generator for distributed FFN GridPipe demo.
+# Data generator for the distributed FFN GridPipe demo (Batcher / WSE-FFN tile-graph aligned).
 #
-# Layout (M4: grid_rows x grid_cols, row = data-parallel, col = model-parallel):
+# This generator emits the FULL tensors consumed by the host-side Batcher, which simulates the
+# external Batcher module in GM: it owns the full input + the full DRAM-resident weights, splits
+# them column-parallel, broadcasts x to every core, and collects the H-sharded output.  Both the
+# AllGather and ReduceSum variants read the same full-tensor files; the host Batcher slices
+# w_down_full differently per --split-mode (AllGather slices along H, ReduceSum along F).
+#
+# Layout (row = data-parallel, col = model-parallel):
 #   T_total = T_per_row * grid_rows           (rows do not share tokens)
 #   F_total = Fi_per_col * grid_cols          (cols shard the intermediate dim)
-#   Rank r = row * grid_cols + col            (row-major)
-#   Row's token slice  : X_full[row*T : (row+1)*T, :]   shape [T, H]
-#   Col's weight slice : W_gate_full[:, col*Fi:(col+1)*Fi]   etc.
 #
-# Per-rank file layout (fp16 weights / inputs, fp32 golden):
-#   pe_<r>_x.bin       - X       [T, H]    fp16 row-major   -- shared across cols of a row
-#   pe_<r>_w_gate.bin  - W_gate  [H, Fi]   fp16 row-major   -- shared across rows of a col
-#   pe_<r>_w_up.bin    - W_up    [H, Fi]   fp16 row-major
-#   pe_<r>_w_down.bin  - W_down  [Fi, H]   fp16 row-major
-#   golden.bin         - y       [T_total, H]  fp32         -- full output; each row reads its slice
+# Full-tensor files (consumed by FfnBatcher in main_*.cpp):
+#   x_full.bin       - X        [T_total, H]   fp16 row-major   -- broadcast across cols of each row
+#   w_gate_full.bin  - W_gate   [H, F_total]   fp16 row-major   -- split along F (column-parallel)
+#   w_up_full.bin    - W_up     [H, F_total]   fp16 row-major
+#   w_down_full.bin  - W_down   [F_total, H]   fp16 row-major   -- split along F (reduce) / H (allgather)
+#   golden.bin       - y        [T_total, H]   fp32             -- full SwiGLU reference output
 #
-# golden = (PReLU((X_full @ W_gate_full) * (X_full @ W_up_full), alpha=0.1)) @ W_down_full
-#   W_gate_full = hstack(W_gate(col) for col in cols)   shape [H, F_total]
-#   W_up_full   = hstack(W_up(col)   for col in cols)
-#   W_down_full = vstack(W_down(col) for col in cols)   shape [F_total, H]
+# Activation (default --act silu) matches the WSE-FFN tile graph "SiLU + clamp(max=10)":
+#   golden = ( silu(clamp(X @ W_gate, +/-CLAMP)) * (X @ W_up) ) @ W_down
+#   where silu(g) = g / (1 + exp(-g)), rounded to fp16 before the down matmul (kernel-faithful).
+# The legacy PReLU activation is retained via --act prelu for reference only.
 #
-# Compatibility note:
-#   When --grid-rows 1 (M3 1xN), behaviour is byte-identical to the previous
-#   1xN generator: T_total == T_per_row, X is shared across all ranks, golden
-#   is [T, H] fp32.
+# Kernel contract:
+#   - CLAMP = 10.0 and the SiLU form MUST match the kernel constants FFN_SILU_CLAMP_MIN/MAX and
+#     the Vec-branch SiLU composition, or ResultCmp fails.
+#   - fp16 weights/input, fp32 golden, 1e-3 absolute tolerance in PtoTestCommon::ResultCmp.
 #
-# Kernel contract (D-2 / D-6):
-#   - alpha = 0.1.  If kernel hard-codes a different alpha, update BOTH sides.
-#   - Byte sizes must match ffn_config.hpp host mirrors (FFN_W_GATE_BYTES etc.).
-#   - fp16 weights, fp32 golden, 1e-3 absolute tolerance in PtoTestCommon::ResultCmp.
-#
-# Usage (M4 2x2):
-#   python3 gen_data.py --grid-rows 2 --grid-cols 2 --t 16 --h 64 --fi 64 --output-dir ./out
-# Usage (M3 1x2 back-compat via --n-ranks):
-#   python3 gen_data.py --n-ranks 2 --t 16 --h 64 --fi 64 --output-dir ./out
+# Usage (2x2 AllGather):
+#   python3 gen_data.py --grid-rows 2 --grid-cols 2 --t 16 --h 64 --fi 64 --act silu --output-dir ./out
 
 import os
 import argparse
@@ -55,6 +51,7 @@ import numpy as np
 np.random.seed(19)
 
 PRELU_ALPHA = 0.1
+SILU_CLAMP = 10.0
 
 
 @dataclass
@@ -66,7 +63,8 @@ class FfnDataConfig:
     fi: int          # per-rank intermediate dim per col (== FFN_FFN_TILE)
     grid_rows: int
     grid_cols: int
-    split_mode: str = "reduce"
+    split_mode: str = "reduce"   # informational: host slices w_down_full per mode
+    act: str = "silu"            # silu (SwiGLU, default) or prelu (legacy)
     output_dir: str = "./out"
 
 
@@ -74,94 +72,90 @@ def _prelu(x: np.ndarray, alpha: float = PRELU_ALPHA) -> np.ndarray:
     return np.where(x > 0, x, alpha * x)
 
 
+def _silu(x: np.ndarray) -> np.ndarray:
+    # SiLU(x) = x * sigmoid(x) = x / (1 + exp(-x)); np.exp handles fp32 fine.
+    return x / (1.0 + np.exp(-x))
+
+
+def _activate(gate: np.ndarray, act: str) -> np.ndarray:
+    if act == "silu":
+        # SVG: "SiLU + clamp(max=10)" -- clamp gate into +/-10 before SiLU.
+        return _silu(np.clip(gate, -SILU_CLAMP, SILU_CLAMP))
+    if act == "prelu":
+        return _prelu(gate, PRELU_ALPHA)
+    raise ValueError(f"unknown activation: {act}")
+
+
 def gen_data(cfg: FfnDataConfig) -> None:
     t, h, fi = cfg.t, cfg.h, cfg.fi
     grid_rows, grid_cols = cfg.grid_rows, cfg.grid_cols
-    split_mode = cfg.split_mode
+    act = cfg.act
     n_ranks = grid_rows * grid_cols
     t_total = t * grid_rows
     f_total = fi * grid_cols
-    if split_mode == "allgather" and h % grid_cols != 0:
+    if cfg.split_mode == "allgather" and h % grid_cols != 0:
         raise ValueError(f"allgather split requires h ({h}) divisible by grid_cols ({grid_cols})")
-    h_per_col = h // grid_cols
     os.makedirs(cfg.output_dir, exist_ok=True)
 
     src_type = np.float16
     dst_type = np.float32
 
     # Inputs in {0, 1}: keeps fp16 (gate * up) below fp16 max (~65504).
-    # With H = 64 the elementwise hidden ≤ H = 64, hidden*hidden ≤ 4096 safe.
     x_full = np.random.randint(0, 2, [t_total, h]).astype(src_type)
     w_gate_full = np.random.randint(0, 2, [h, f_total]).astype(src_type)
     w_up_full   = np.random.randint(0, 2, [h, f_total]).astype(src_type)
     w_down_full = np.random.randint(0, 2, [f_total, h]).astype(src_type)
 
-    # Reference computation follows the kernel pipeline: gate/up matmuls
-    # accumulate in fp32, activation is rounded to fp16 hidden, and down
-    # matmul accumulates fp32 from that rounded hidden.
+    # Reference computation follows the kernel pipeline: gate/up matmuls accumulate
+    # in fp32, the SwiGLU activation is applied in fp32, hidden is rounded to fp16
+    # (matching the kernel's TCVT before the down GEMM), and the down matmul
+    # accumulates fp32 from that rounded hidden.
     x_f32 = x_full.astype(dst_type)
     gate_full = x_f32 @ w_gate_full.astype(dst_type)
     up_full   = x_f32 @ w_up_full.astype(dst_type)
-    act_full  = _prelu(gate_full * up_full, PRELU_ALPHA)
-    hidden_full = act_full.astype(src_type).astype(dst_type)
-    golden    = (hidden_full @ w_down_full.astype(dst_type)).astype(dst_type)
+    act_full  = _activate(gate_full, act)
+    hidden_full = (act_full * up_full).astype(src_type).astype(dst_type)
+    golden = (hidden_full @ w_down_full.astype(dst_type)).astype(dst_type)
 
-    for row in range(grid_rows):
-        t_start = row * t
-        t_end = t_start + t
-        x_row = x_full[t_start:t_end, :]
+    # Emit full tensors for the host Batcher.
+    x_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "x_full.bin"))
+    w_gate_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "w_gate_full.bin"))
+    w_up_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "w_up_full.bin"))
+    w_down_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "w_down_full.bin"))
+    golden.astype(dst_type).tofile(os.path.join(cfg.output_dir, "golden.bin"))
 
-        for col in range(grid_cols):
-            rank = row * grid_cols + col
-            fi_start = col * fi
-            fi_end = fi_start + fi
-            h_start = col * h_per_col
-            h_end = h_start + h_per_col
-
-            x_path       = os.path.join(cfg.output_dir, f"pe_{rank}_x.bin")
-            w_gate_path  = os.path.join(cfg.output_dir, f"pe_{rank}_w_gate.bin")
-            w_up_path    = os.path.join(cfg.output_dir, f"pe_{rank}_w_up.bin")
-            w_down_path  = os.path.join(cfg.output_dir, f"pe_{rank}_w_down.bin")
-
-            # X is the same for every col rank within the same row.
-            x_row.tofile(x_path)
-            w_gate_full[:, fi_start:fi_end].astype(src_type).tofile(w_gate_path)
-            w_up_full[:, fi_start:fi_end].astype(src_type).tofile(w_up_path)
-            if split_mode == "allgather":
-                w_down = w_down_full[:, h_start:h_end]
-            else:
-                w_down = w_down_full[fi_start:fi_end, :]
-            w_down.astype(src_type).tofile(w_down_path)
-
-            label = "block" if grid_cols == 1 else "rank"
-            print(f"  - {label}{rank} (row={row},col={col}): x{tuple(x_row.shape)} -> {x_path}")
-            print(f"             w_gate[{h},{fi}] -> {w_gate_path}")
-            print(f"             w_up[{h},{fi}]   -> {w_up_path}")
-            print(f"             w_down{tuple(w_down.shape)} -> {w_down_path}")
-
-    golden_path = os.path.join(cfg.output_dir, "golden.bin")
-    golden.tofile(golden_path)
-    print(f"  - golden{tuple(golden.shape)} fp32 -> {golden_path}")
+    print(f"  - x_full{tuple(x_full.shape)} fp16        -> x_full.bin")
+    print(f"  - w_gate_full{tuple(w_gate_full.shape)} fp16 -> w_gate_full.bin")
+    print(f"  - w_up_full{tuple(w_up_full.shape)} fp16   -> w_up_full.bin")
+    print(f"  - w_down_full{tuple(w_down_full.shape)} fp16 -> w_down_full.bin")
+    print(f"  - golden{tuple(golden.shape)} fp32          -> golden.bin")
     print(
-        f"[INFO] Generated FFN data: T={t} (T_total={t_total}) H={h} Fi={fi} (F_total={f_total}) "
-        f"grid={grid_rows}x{grid_cols} n_ranks={n_ranks} split_mode={split_mode}"
+        f"[INFO] Generated FFN Batcher data: T={t} (T_total={t_total}) H={h} Fi={fi} (F_total={f_total}) "
+        f"grid={grid_rows}x{grid_cols} n_ranks={n_ranks} split_mode={cfg.split_mode} act={act}"
     )
-    print(f"[INFO] alpha={PRELU_ALPHA} (must match kernel TLRELU constant FFN_PRELU_ALPHA)")
+    if act == "silu":
+        print(f"[INFO] SwiGLU: silu(clamp(gate,+/-{SILU_CLAMP})) * up (must match kernel "
+              f"FFN_SILU_CLAMP_MIN/MAX and SiLU composition)")
+    else:
+        print(f"[INFO] alpha={PRELU_ALPHA} (legacy PReLU; must match kernel FFN_PRELU_ALPHA)")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate data for distributed FFN GridPipe demo")
     parser.add_argument("--grid-rows", type=int, default=None,
-                        help="Grid rows (M4 2D layout).  If omitted, falls back to --n-ranks (1xN).")
+                        help="Grid rows (2D layout).  If omitted, falls back to --n-ranks (1xN).")
     parser.add_argument("--grid-cols", type=int, default=None,
-                        help="Grid cols (M4 2D layout).  If omitted, falls back to --n-ranks (1xN).")
+                        help="Grid cols (2D layout).  If omitted, falls back to --n-ranks (1xN).")
     parser.add_argument("--n-ranks", type=int, default=2,
                         help="Back-compat: total ranks for 1xN grid (used when --grid-rows/--grid-cols absent)")
     parser.add_argument("--t", type=int, required=True, help="Token count per row (T)")
     parser.add_argument("--h", type=int, required=True, help="Hidden dim (H)")
     parser.add_argument("--fi", type=int, required=True, help="Per-rank intermediate dim per col (Fi)")
     parser.add_argument("--split-mode", choices=("reduce", "allgather"), default="reduce",
-                        help="W_down sharding mode: reduce keeps [Fi,H], allgather keeps [F,Hc]")
+                        help="Informational: how the host Batcher slices w_down_full "
+                             "([Fi,H] reduce / [F,Hc] allgather). Does not change emitted files.")
+    parser.add_argument("--act", choices=("silu", "prelu"), default="silu",
+                        help="Activation for the golden reference: silu (SwiGLU, default) or prelu (legacy)")
     parser.add_argument("--output-dir", type=str, default="./out", help="Output directory")
 
     args = parser.parse_args()
@@ -181,6 +175,7 @@ def main() -> None:
         grid_rows=grid_rows,
         grid_cols=grid_cols,
         split_mode=args.split_mode,
+        act=args.act,
         output_dir=args.output_dir,
     )
     gen_data(cfg)

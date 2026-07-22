@@ -65,6 +65,10 @@ constexpr int kUbHiddenF32 = 0x2000;
 constexpr int kUbHiddenF16 = 0x3000;
 constexpr int kUbDownF32 = 0x4000;
 constexpr int kUbAddF32 = 0x5000;
+// SwiGLU scratch: siluDenom = 1+exp(-gate), siluTmp = SiLU(gate) before * up.
+// Fixed 0x1000 slots match the layout above (valid for default tile sizes).
+constexpr int kUbSiluDenom = 0x6000;
+constexpr int kUbSilu = 0x7000;
 
 constexpr int kL1X = 0x00000;
 constexpr int kL1Hidden = 0x10000;
@@ -75,11 +79,12 @@ constexpr int kL1WDown = 0x28000;
 #endif
 
 __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, __gm__ uint8_t *reducePipeWindow,
-                                                     __gm__ uint8_t *x, __gm__ uint8_t *wGate, __gm__ uint8_t *wUp,
-                                                     __gm__ uint8_t *wDown, __gm__ uint8_t *gatePartial,
-                                                     __gm__ uint8_t *upPartial, __gm__ uint8_t *hiddenIn,
-                                                     __gm__ uint8_t *downPartial, __gm__ uint8_t *yOutput,
-                                                     __gm__ uint8_t *hcclCtxRaw, int gridRows, int gridCols)
+                                                     __gm__ uint8_t *xFull, __gm__ uint8_t *wGateShards,
+                                                     __gm__ uint8_t *wUpShards, __gm__ uint8_t *wDownShards,
+                                                     __gm__ uint8_t *gatePartial, __gm__ uint8_t *upPartial,
+                                                     __gm__ uint8_t *hiddenIn, __gm__ uint8_t *downPartial,
+                                                     __gm__ uint8_t *yFull, __gm__ uint8_t *hcclCtxRaw, int gridRows,
+                                                     int gridCols)
 {
 #ifdef __CCE_AICORE__
     set_ffts_base_addr(reinterpret_cast<uint64_t>(fftsAddr));
@@ -138,15 +143,21 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
     constexpr int partialTileBytes = FFN_GATE_PARTIAL_BYTES;
     constexpr int hiddenTileBytes = FFN_HIDDEN_BYTES;
     constexpr int downTileBytes = FFN_DOWN_PARTIAL_BYTES;
-    __gm__ uint8_t *xBlock = x + blockIdx * xTileBytes;
-    __gm__ uint8_t *wGateBlock = wGate + blockIdx * wGateTileBytes;
-    __gm__ uint8_t *wUpBlock = wUp + blockIdx * wUpTileBytes;
-    __gm__ uint8_t *wDownBlock = wDown + blockIdx * wDownTileBytes;
+    // Batcher addressing (see batcher.hpp): x is per-row (broadcast across the
+    // row's cols); the weight shards are per-col (shared across rows, including
+    // the [Fi,H] w_down row-shard of this ReduceSum variant); the gate/up/hidden/
+    // down partials are per-cell C2V/V2C working buffers; the EAST-reduced output
+    // is written per-row by the sink column into the Batcher yFull region.
+    int row = blockIdx / gridCols;
+    __gm__ uint8_t *xBlock = xFull + row * xTileBytes;
+    __gm__ uint8_t *wGateBlock = wGateShards + (blockIdx - row * gridCols) * wGateTileBytes;
+    __gm__ uint8_t *wUpBlock = wUpShards + (blockIdx - row * gridCols) * wUpTileBytes;
+    __gm__ uint8_t *wDownBlock = wDownShards + (blockIdx - row * gridCols) * wDownTileBytes;
     __gm__ uint8_t *gateBlock = gatePartial + blockIdx * partialTileBytes;
     __gm__ uint8_t *upBlock = upPartial + blockIdx * partialTileBytes;
     __gm__ uint8_t *hiddenBlock = hiddenIn + blockIdx * hiddenTileBytes;
     __gm__ uint8_t *downBlock = downPartial + blockIdx * downTileBytes;
-    __gm__ uint8_t *yBlock = yOutput + (blockIdx / gridCols) * FFN_Y_OUTPUT_BYTES;
+    __gm__ uint8_t *yBlock = yFull + row * FFN_Y_OUTPUT_BYTES;
 
     GatePipe gatePipe(reinterpret_cast<__gm__ void *>(gateBlock), kUbGateF32, 0);
     UpPipe upPipe(reinterpret_cast<__gm__ void *>(upBlock), kUbUpF32, 0);
@@ -159,7 +170,12 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         GW wUpG(reinterpret_cast<__gm__ half *>(wUpBlock));
         GW wDownG(reinterpret_cast<__gm__ half *>(wDownBlock));
 
+        // ① act_quant (SVG: online BF16->FP8 quant of x).  A3 has no FP8/BF16, so
+        //    the A3 precision map (ffn_config.hpp) collapses BF16/FP8 -> half: x
+        //    is already half and TLOADed straight in; act_quant is an identity.
         TLOAD(xMat, xG);
+        // Weight unpack (SVG: FP4 -> FP8 in-kernel).  A3 has no FP4/FP8, so the
+        // map collapses FP4 -> half: shards are half and TLOADed directly.
         TLOAD(wGateMat, wGateG);
         TLOAD(wUpMat, wUpG);
         TLOAD(wDownMat, wDownG);
@@ -254,12 +270,16 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         HiddenF16Tile hiddenF16;
         DownF32Tile downF32;
         DownF32Tile addF32;
+        GateF32Tile siluDenom; // SwiGLU scratch: 1 + exp(-gate)
+        GateF32Tile siluTmp;   // SwiGLU scratch: SiLU(gate) before * up
         TASSIGN(gateF32, kUbGateF32);
         TASSIGN(upF32, kUbUpF32);
         TASSIGN(hiddenF32, kUbHiddenF32);
         TASSIGN(hiddenF16, kUbHiddenF16);
         TASSIGN(downF32, kUbDownF32);
         TASSIGN(addF32, kUbAddF32);
+        TASSIGN(siluDenom, kUbSiluDenom);
+        TASSIGN(siluTmp, kUbSilu);
 
         TMOV(gateF32, gatePipe); // C2V pop <- gatePipe
         TMOV(upF32, upPipe);     // C2V pop <- upPipe
@@ -269,19 +289,38 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
         wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-        TLRELU(gateF32, gateF32, FFN_PRELU_ALPHA);
-
+        // SwiGLU activation = SiLU(clamp(gate)) * up, all fp32 (matches the
+        // WSE-FFN tile graph "SiLU + clamp(max=10)").  SiLU(g) = g/(1+e^-g).
+        TMAXS(gateF32, gateF32, FFN_SILU_CLAMP_MIN); // clamp gate lower bound (-10)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TMINS(gateF32, gateF32, FFN_SILU_CLAMP_MAX); // clamp gate upper bound (+10)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TMULS(siluDenom, gateF32, -1.0f); // siluDenom = -gate
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TEXP(siluDenom, siluDenom); // siluDenom = exp(-gate)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TADDS(siluDenom, siluDenom, 1.0f); // siluDenom = 1 + exp(-gate)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TDIV(siluTmp, gateF32, siluDenom); // siluTmp = SiLU(gate) = gate/(1+e^-gate)
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_V);
+#endif
+        TMUL(hiddenF32, siluTmp, upF32); // hidden = SiLU(gate) * up
 #ifndef __PTO_AUTO__
         pipe_barrier(PIPE_V);
 #endif
 
-        TMUL(hiddenF32, gateF32, upF32);
-
-#ifndef __PTO_AUTO__
-        pipe_barrier(PIPE_V);
-#endif
-
-        TCVT(hiddenF16, hiddenF32, RoundMode::CAST_RINT);
+        TCVT(hiddenF16, hiddenF32, RoundMode::CAST_RINT); // SVG FP32->BF16/FP8 -> A3 fp32->half
 
 #ifndef __PTO_AUTO__
         set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -339,31 +378,33 @@ __global__ AICORE void DistributedFfnGridMixedKernel(__gm__ uint8_t *fftsAddr, _
 #else
     (void)fftsAddr;
     (void)reducePipeWindow;
-    (void)x;
-    (void)wGate;
-    (void)wUp;
-    (void)wDown;
+    (void)xFull;
+    (void)wGateShards;
+    (void)wUpShards;
+    (void)wDownShards;
     (void)gatePartial;
     (void)upPartial;
     (void)hiddenIn;
     (void)downPartial;
-    (void)yOutput;
+    (void)yFull;
     (void)hcclCtxRaw;
     (void)gridRows;
     (void)gridCols;
 #endif
 }
 
-void launchDistributedFfnGridMixedKernel(uint8_t *ffts, uint8_t *reducePipeWindow, uint8_t *x, uint8_t *wGate,
-                                         uint8_t *wUp, uint8_t *wDown, uint8_t *gatePartial, uint8_t *upPartial,
-                                         uint8_t *hiddenIn, uint8_t *downPartial, uint8_t *yOutput, uint8_t *hcclCtx,
-                                         int gridRows, int gridCols, void *stream)
+void launchDistributedFfnGridMixedKernel(uint8_t *ffts, uint8_t *reducePipeWindow, uint8_t *xFull,
+                                         uint8_t *wGateShards, uint8_t *wUpShards, uint8_t *wDownShards,
+                                         uint8_t *gatePartial, uint8_t *upPartial, uint8_t *hiddenIn,
+                                         uint8_t *downPartial, uint8_t *yFull, uint8_t *hcclCtx, int gridRows,
+                                         int gridCols, void *stream)
 {
     int totalBlocks = gridRows * gridCols;
     if (totalBlocks <= 0) {
         return;
     }
-    DistributedFfnGridMixedKernel<<<totalBlocks, nullptr, stream>>>(ffts, reducePipeWindow, x, wGate, wUp, wDown,
-                                                                    gatePartial, upPartial, hiddenIn, downPartial,
-                                                                    yOutput, hcclCtx, gridRows, gridCols);
+    DistributedFfnGridMixedKernel<<<totalBlocks, nullptr, stream>>>(ffts, reducePipeWindow, xFull, wGateShards,
+                                                                    wUpShards, wDownShards, gatePartial, upPartial,
+                                                                    hiddenIn, downPartial, yFull, hcclCtx, gridRows,
+                                                                    gridCols);
 }

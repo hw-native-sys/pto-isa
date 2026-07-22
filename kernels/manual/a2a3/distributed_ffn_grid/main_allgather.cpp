@@ -52,18 +52,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "ffn_config.hpp"
 #include "kernel_launch.hpp"
+#include "batcher.hpp"
 
 struct DeviceResources {
     aclrtStream stream = nullptr;
-    void *x_dev = nullptr;
-    void *w_gate_dev = nullptr;
-    void *w_up_dev = nullptr;
-    void *w_down_dev = nullptr;
     void *gate_partial_dev = nullptr;
     void *up_partial_dev = nullptr;
     void *hidden_dev = nullptr;
     void *down_partial_dev = nullptr;
-    void *y_output_dev = nullptr;
     void *gather_pipe_windows_dev = nullptr;
     void *fake_hccl_ctx_dev = nullptr;
     uint64_t ffts = 0;
@@ -72,18 +68,17 @@ struct DeviceResources {
     size_t rows = static_cast<size_t>(FFN_GRID_ROWS);
     size_t cols = static_cast<size_t>(FFN_GRID_COLS);
     size_t cells = static_cast<size_t>(FFN_GRID_ROWS) * static_cast<size_t>(FFN_GRID_COLS);
-    size_t xBytes = 0;
-    size_t wGateBytes = 0;
-    size_t wUpBytes = 0;
-    size_t wDownBytes = 0;
     size_t gatePartialBytes = 0;
     size_t upPartialBytes = 0;
     size_t hiddenBytes = 0;
     size_t downPartialBytes = 0;
-    size_t yOutputBytes = 0;
     size_t gatherPipeBytes = 0;
 
     std::string dataDir = "./out";
+
+    // GM-simulated Batcher: owns the full input + resident weights + per-col
+    // shards + the output collection region.  Self-frees on destruction.
+    FfnBatcher batcher;
 };
 
 static bool ParseDeviceIdValue(const char *value, int &deviceId)
@@ -233,38 +228,32 @@ static bool AllocateResources(DeviceResources &r)
         return false;
     }
 
-    r.xBytes = r.cells * static_cast<size_t>(FFN_X_BYTES);
-    r.wGateBytes = r.cells * static_cast<size_t>(FFN_W_GATE_BYTES);
-    r.wUpBytes = r.cells * static_cast<size_t>(FFN_W_UP_BYTES);
-    r.wDownBytes = r.cells * static_cast<size_t>(FFN_W_DOWN_BYTES);
+    // Per-cell C2V/V2C working buffers only (x / weights / y now live in the
+    // Batcher GM arena -- full resident weights, per-col shards, per-row x, and
+    // the collected output).
     r.gatePartialBytes = r.cells * static_cast<size_t>(FFN_GATE_PARTIAL_BYTES);
     r.upPartialBytes = r.cells * static_cast<size_t>(FFN_UP_PARTIAL_BYTES);
     r.hiddenBytes = r.cells * static_cast<size_t>(FFN_HIDDEN_FULL_BYTES);
     r.downPartialBytes = r.cells * static_cast<size_t>(FFN_DOWN_PARTIAL_BYTES);
-    r.yOutputBytes = r.rows * static_cast<size_t>(FFN_Y_OUTPUT_BYTES);
 
-    aclrtMalloc(&r.x_dev, r.xBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(&r.w_gate_dev, r.wGateBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(&r.w_up_dev, r.wUpBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(&r.w_down_dev, r.wDownBytes, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc(&r.gate_partial_dev, r.gatePartialBytes, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc(&r.up_partial_dev, r.upPartialBytes, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc(&r.hidden_dev, r.hiddenBytes, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc(&r.down_partial_dev, r.downPartialBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(&r.y_output_dev, r.yOutputBytes, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    if (!r.x_dev || !r.w_gate_dev || !r.w_up_dev || !r.w_down_dev || !r.gate_partial_dev || !r.up_partial_dev ||
-        !r.hidden_dev || !r.down_partial_dev || !r.y_output_dev) {
-        std::cerr << "[ERROR] aclrtMalloc failed" << std::endl;
+    if (!r.gate_partial_dev || !r.up_partial_dev || !r.hidden_dev || !r.down_partial_dev) {
+        std::cerr << "[ERROR] aclrtMalloc(working buffers) failed" << std::endl;
         return false;
     }
 
-    aclrtMemset(r.x_dev, r.xBytes, 0, r.xBytes);
     aclrtMemset(r.gate_partial_dev, r.gatePartialBytes, 0, r.gatePartialBytes);
     aclrtMemset(r.up_partial_dev, r.upPartialBytes, 0, r.upPartialBytes);
     aclrtMemset(r.hidden_dev, r.hiddenBytes, 0, r.hiddenBytes);
     aclrtMemset(r.down_partial_dev, r.downPartialBytes, 0, r.downPartialBytes);
-    aclrtMemset(r.y_output_dev, r.yOutputBytes, 0, r.yOutputBytes);
+
+    if (!r.batcher.Allocate(r.rows, r.cols, /*splitMode=*/"allgather")) {
+        return false;
+    }
 
     if (!InitLocalGridPipeContext(r)) {
         return false;
@@ -277,61 +266,19 @@ static bool AllocateResources(DeviceResources &r)
     }
 
     std::cout << "[INFO] grid=" << r.rows << "x" << r.cols << " cells=" << r.cells << " dataDir=" << r.dataDir
-              << " gatherPipeBytes=" << r.gatherPipeBytes << " yOutputBytes=" << r.yOutputBytes << std::endl;
+              << " gatherPipeBytes=" << r.gatherPipeBytes << std::endl;
     return true;
 }
 
-static bool LoadInputs(DeviceResources &r)
+// Drive the GM-simulated Batcher: load resident full weights into GM, split them
+// into per-column shards, and broadcast the full input.  Replaces the legacy
+// per-cell LoadInputs/LoadWeights (the kernel now reads x per-row, weight shards
+// per-col, and writes output into the Batcher y region).
+static bool LoadBatcherData(DeviceResources &r)
 {
-    std::vector<uint8_t> hostX(r.xBytes);
-    for (size_t cell = 0; cell < r.cells; ++cell) {
-        std::string xPath = r.dataDir + "/pe_" + std::to_string(cell) + "_x.bin";
-        size_t fileSize = 0;
-        uint8_t *dst = hostX.data() + cell * static_cast<size_t>(FFN_X_BYTES);
-        if (!PtoTestCommon::ReadFile(xPath, fileSize, dst, static_cast<size_t>(FFN_X_BYTES)) ||
-            fileSize != static_cast<size_t>(FFN_X_BYTES)) {
-            std::cerr << "[ERROR] X file load mismatch: " << xPath << " (got " << fileSize << " bytes, expected "
-                      << FFN_X_BYTES << ")" << std::endl;
-            return false;
-        }
-    }
-    if (aclrtMemcpy(r.x_dev, r.xBytes, hostX.data(), r.xBytes, ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
-        std::cerr << "[ERROR] aclrtMemcpy(x_dev) failed" << std::endl;
+    if (!r.batcher.LoadResidentWeights(r.dataDir) || !r.batcher.DistributeWeights() ||
+        !r.batcher.BroadcastInput(r.dataDir)) {
         return false;
-    }
-    return true;
-}
-
-static bool LoadWeights(DeviceResources &r)
-{
-    struct WeightSpec {
-        const char *suffix;
-        void *dev;
-        size_t tileBytes;
-        size_t totalBytes;
-    };
-    WeightSpec specs[] = {
-        {"_w_gate.bin", r.w_gate_dev, static_cast<size_t>(FFN_W_GATE_BYTES), r.wGateBytes},
-        {"_w_up.bin", r.w_up_dev, static_cast<size_t>(FFN_W_UP_BYTES), r.wUpBytes},
-        {"_w_down.bin", r.w_down_dev, static_cast<size_t>(FFN_W_DOWN_BYTES), r.wDownBytes},
-    };
-
-    for (const auto &w : specs) {
-        std::vector<uint8_t> hostBuf(w.totalBytes);
-        for (size_t cell = 0; cell < r.cells; ++cell) {
-            std::string path = r.dataDir + "/pe_" + std::to_string(cell) + w.suffix;
-            size_t fileSize = 0;
-            uint8_t *dst = hostBuf.data() + cell * w.tileBytes;
-            if (!PtoTestCommon::ReadFile(path, fileSize, dst, w.tileBytes) || fileSize != w.tileBytes) {
-                std::cerr << "[ERROR] weight load mismatch: " << path << " (got " << fileSize << " bytes, expected "
-                          << w.tileBytes << ")" << std::endl;
-                return false;
-            }
-        }
-        if (aclrtMemcpy(w.dev, w.totalBytes, hostBuf.data(), w.totalBytes, ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
-            std::cerr << "[ERROR] aclrtMemcpy(weight " << w.suffix << ") failed" << std::endl;
-            return false;
-        }
     }
     return true;
 }
@@ -342,7 +289,7 @@ static bool VerifyOutput(DeviceResources &r)
     const size_t outputBytes = r.rows * static_cast<size_t>(FFN_Y_OUTPUT_BYTES);
 
     std::vector<float> outHost(outputElems);
-    if (aclrtMemcpy(outHost.data(), outputBytes, r.y_output_dev, outputBytes, ACL_MEMCPY_DEVICE_TO_HOST) !=
+    if (aclrtMemcpy(outHost.data(), outputBytes, r.batcher.YFull(), outputBytes, ACL_MEMCPY_DEVICE_TO_HOST) !=
         ACL_SUCCESS) {
         std::cerr << "[ERROR] y_output D2H memcpy failed" << std::endl;
         return false;
@@ -435,22 +382,6 @@ static void Cleanup(DeviceResources &r)
         aclrtFree(r.gather_pipe_windows_dev);
         r.gather_pipe_windows_dev = nullptr;
     }
-    if (r.w_gate_dev) {
-        aclrtFree(r.w_gate_dev);
-        r.w_gate_dev = nullptr;
-    }
-    if (r.w_up_dev) {
-        aclrtFree(r.w_up_dev);
-        r.w_up_dev = nullptr;
-    }
-    if (r.w_down_dev) {
-        aclrtFree(r.w_down_dev);
-        r.w_down_dev = nullptr;
-    }
-    if (r.x_dev) {
-        aclrtFree(r.x_dev);
-        r.x_dev = nullptr;
-    }
     if (r.gate_partial_dev) {
         aclrtFree(r.gate_partial_dev);
         r.gate_partial_dev = nullptr;
@@ -467,20 +398,17 @@ static void Cleanup(DeviceResources &r)
         aclrtFree(r.down_partial_dev);
         r.down_partial_dev = nullptr;
     }
-    if (r.y_output_dev) {
-        aclrtFree(r.y_output_dev);
-        r.y_output_dev = nullptr;
-    }
     if (r.stream) {
         aclrtDestroyStream(r.stream);
         r.stream = nullptr;
     }
+    // r.batcher frees its own GM arena in its destructor.
 }
 
 static bool RunSingleDevice()
 {
     DeviceResources r;
-    if (!AllocateResources(r) || !LoadInputs(r) || !LoadWeights(r)) {
+    if (!AllocateResources(r) || !LoadBatcherData(r)) {
         Cleanup(r);
         return false;
     }
@@ -489,12 +417,10 @@ static bool RunSingleDevice()
 
     launchDistributedFfnGridAllGatherMixedKernel(
         reinterpret_cast<uint8_t *>(r.ffts), reinterpret_cast<uint8_t *>(r.gather_pipe_windows_dev),
-        reinterpret_cast<uint8_t *>(r.x_dev), reinterpret_cast<uint8_t *>(r.w_gate_dev),
-        reinterpret_cast<uint8_t *>(r.w_up_dev), reinterpret_cast<uint8_t *>(r.w_down_dev),
+        r.batcher.XFull(), r.batcher.WGateShards(), r.batcher.WUpShards(), r.batcher.WDownShards(),
         reinterpret_cast<uint8_t *>(r.gate_partial_dev), reinterpret_cast<uint8_t *>(r.up_partial_dev),
         reinterpret_cast<uint8_t *>(r.hidden_dev), reinterpret_cast<uint8_t *>(r.down_partial_dev),
-        reinterpret_cast<uint8_t *>(r.y_output_dev), reinterpret_cast<uint8_t *>(r.fake_hccl_ctx_dev), FFN_GRID_ROWS,
-        FFN_GRID_COLS, r.stream);
+        r.batcher.YFull(), reinterpret_cast<uint8_t *>(r.fake_hccl_ctx_dev), FFN_GRID_ROWS, FFN_GRID_COLS, r.stream);
     aclError mixedRet = aclrtSynchronizeStream(r.stream);
     bool gridPipeOk = (mixedRet == ACL_SUCCESS) && CheckGridPipeFaults(r);
 

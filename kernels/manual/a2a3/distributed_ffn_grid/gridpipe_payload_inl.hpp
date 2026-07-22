@@ -16,18 +16,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // live in this demo (not in the public header tree).  We define them here once
 // per kernel translation unit.  These are plain runtime helpers -- address
 // plumbing and tile<->UB adapters -- NOT an intrinsic layer: the actual cross-
-// core handshake runs through the V7 CCE facades in grid_cce_intrinsic.hpp
-// (copy_ubuf_to_neighbor_ubuf / sync_hscb / get_ipc_scb / wait_ipc_scb).
+// core handshake runs through the V8 CCE facades in grid_cce_intrinsic.hpp
+// (copy_ubuf_to_neighbor_ubuf / sync_hscb / wait_ipc_scb).
 //
 //   ResolvePeerSlotAddr(...)      -> resolve an address in our own window to the
 //                                    same byte offset in peerRank's window (mock:
 //                                    contiguous GM windows + CommRemotePtr).
 //   RemoteScbPtr(...)             -> same, for a scoreboard word (sync_hscb dst).
 //   CopyTileToNeighborSramSlot<T> -> extract the tile UB pointer, then call the
-//                                    copy_ubuf_to_neighbor_ubuf facade (V7
+//                                    copy_ubuf_to_neighbor_ubuf facade (V8
 //                                    COPY_UBUF_TO_NBR).
 //   CopyLocalSlotToTile<T>        -> drain this core's local GM slot into the
-//                                    tile with the existing local copy (V7 TPOP
+//                                    tile with the existing local copy (V8 TPOP
 //                                    local read; no cross-core read of payload).
 //   PopSlotIsLocal(...)           -> mock read-locality guard against GmSramArena.
 
@@ -88,7 +88,7 @@ template <typename TileT>
 __tf__ AICORE inline void CopyTileToNeighborSramSlot(__gm__ uint8_t *dstNeighborSlot, TileT &tile, int slotBytes)
 {
     // Producer-side cross-core payload write: extract the tile UB pointer, then
-    // call the copy_ubuf_to_neighbor_ubuf CCE facade (V7 COPY_UBUF_TO_NBR).
+    // call the copy_ubuf_to_neighbor_ubuf CCE facade (V8 COPY_UBUF_TO_NBR).
     auto *srcUb = reinterpret_cast<__ubuf__ uint8_t *>(__cce_get_tile_ptr(tile.data()));
     copy_ubuf_to_neighbor_ubuf(reinterpret_cast<__gm__ void *>(dstNeighborSlot),
                                reinterpret_cast<__ubuf__ void *>(srcUb), static_cast<uint32_t>(slotBytes));
@@ -97,7 +97,7 @@ __tf__ AICORE inline void CopyTileToNeighborSramSlot(__gm__ uint8_t *dstNeighbor
 template <typename TileT>
 __tf__ AICORE inline void CopyLocalSlotToTile(TileT &tile, __gm__ uint8_t *localSlot, int slotBytes)
 {
-    // Consumer-side local-slot drain (V7 TPOP local read; no cross-core read of
+    // Consumer-side local-slot drain (V8 TPOP local read; no cross-core read of
     // payload): GM slot window -> local UB (tile), chunked with the existing
     // local copy.
     auto *dstUb = reinterpret_cast<__ubuf__ uint8_t *>(__cce_get_tile_ptr(tile.data()));

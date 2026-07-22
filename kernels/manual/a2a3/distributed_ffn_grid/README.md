@@ -13,7 +13,7 @@ The `EAST` reduce uses the A2/A3 GridPipe mock backend: local SRAM windows backe
 
 An AllGather variant is also provided in `run_allgather.sh` / `distributed_ffn_grid_allgather`. It gathers hidden shards across columns before down projection, so the post-down ReduceSum is removed and each column writes its own output-H shard.
 
-Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unicast (`TPUSH<dir, dist>` / `TPOP<dir, dist>`) and single-source row/column broadcast (`TPUSH<GridSpan>`). Each capability has a standalone Vec-only smoke test under `smoke/` (see [Smoke tests](#gridpipe-smoke-tests)).
+Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unicast (`TPUSH<dir, dist>` / `TPOP<dir, dist>`) and concurrent group broadcast (`TBROADCAST<GridGroup>` / `TPOP<GridGroup>`). Each capability has a standalone Vec-only smoke test under `smoke/` (see [Smoke tests](#gridpipe-smoke-tests)).
 
 ## Files
 
@@ -23,24 +23,26 @@ Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unica
 | `CMakeLists.txt` | Builds the host executables and mixed Cube/Vec device kernel shared libraries. |
 | `run_reducesum.sh` | Sets up CANN, generates ReduceSum data, configures CMake, builds, and runs the ReduceSum demo. |
 | `run_allgather.sh` | Sets up CANN, generates AllGather data, configures CMake, builds, and runs the AllGather demo. |
-| `ffn_config.hpp` | Compile-time grid shape, tile shape, GridPipe window sizes, buffer sizes, and PReLU alpha. |
+| `ffn_config.hpp` | Compile-time grid shape, tile shape, GridPipe window sizes, buffer sizes, SwiGLU clamp bounds, the A3 precision-mapping table, and Batcher GM arena byte sizes. |
 | `kernel_launch.hpp` | Host-side mixed kernel launch declaration. |
-| `main_reducesum.cpp` | ReduceSum host driver: ACL setup, fake HCCL context/local GridPipe windows, device buffers, data loading, kernel launch, golden comparison, and cleanup. |
-| `distributed_ffn_grid_reducesum_compute_kernel.cpp` | ReduceSum mixed Cube/Vec kernel. Cube computes GEMMs; Vec computes activation/cast and GridPipe `EAST` reduce. |
+| `main_reducesum.cpp` | ReduceSum host driver: ACL setup, fake HCCL context/local GridPipe windows, working buffers, Batcher load/distribute/broadcast, kernel launch, golden comparison, and cleanup. |
+| `distributed_ffn_grid_reducesum_compute_kernel.cpp` | ReduceSum mixed Cube/Vec kernel. Cube computes GEMMs; Vec computes the SwiGLU activation/cast and the GridPipe `EAST` reduce. |
 | `main_allgather.cpp` | AllGather host driver. |
 | `distributed_ffn_grid_allgather_compute_kernel.cpp` | AllGather mixed Cube/Vec kernel. Vec gathers hidden shards; Cube writes output-H shards. |
+| `batcher.hpp` | Host-side GM-simulated **Batcher**: owns the full input + the full DRAM-resident weights in GM, splits them column-parallel into per-col shards, broadcasts x per-row, and exposes the output-collection region. Replaces the legacy per-cell X/weight load path. |
 | `tpipe_tmov_inl.hpp` | Directional `TMOV` overloads that lower Cube↔Vec C2V/V2C transfers to the existing `TPUSH`/`TPOP`, so the kernel body never spells out the handshake. |
 | `gridpipe_payload_inl.hpp` | Local GridPipe payload hooks and fake-window remote pointer adapter. |
 | `smoke/` | Standalone GridPipe feature smoke tests. `khop_smoke_{config,kernel,launch}` + `main_khop_smoke.cpp` + `run_khop_smoke.sh` cover routed K-hop unicast; `bcast_smoke_*` + `run_bcast_smoke.sh` cover single-source row/column broadcast. Both build through the parent `CMakeLists.txt`. |
-| `../../../../include/pto/npu/a2a3/grid_intrinsic.hpp` | Consolidated GridPipe A2/A3 intrinsic layer. Section 3 is the V6 IPC_SCB scoreboard API (`sync_neighbor_scb`/`wait_local_spr`/`mov_local_spr`) used by GridPipe ready/free waits and notifications; Section 4 is the neighbor SRAM address + payload transfer API (`copy_ubuf_to_neighbor_ubuf`/`copy_local_slot_to_ubuf`), plus the `GmSramArena` address-segment SRAM model and the `sram_pop_is_local` TPOP read-locality guard. |
-| `scripts/gen_data.py` | Generates per-cell fp16 X/weight shards and an fp32 golden reference. |
+| `../../../../include/pto/npu/a2a3/grid_cce_intrinsic.hpp` | V8 GridPipe CCE facade layer: `copy_ubuf_to_neighbor_ubuf` (G1 `COPY_UBUF_TO_NBR`), `sync_hscb` (G2 `SYNC_HSCB`/`ST_HSCB`), `wait_ipc_scb`/`wait_ipc_scb_sim` (G3 `WAIT_SPR`, read+block in one instruction, no `MOV_SPR2X` peek). Each forwards 1:1 to a `__builtin_cce_*` under `PTO_GRID_CCE_NATIVE`, else emulates the same semantics with a GM word + cache maintenance. |
+| `../../../../include/pto/npu/a2a3/grid_intrinsic.hpp` | GridPipe A2/A3 data model + mock support: Section 1 is the mesh model + neighbor / K-hop / group resolvers; Section 2 is the GM-mock boundary-fault sentinels; Section 3 is the `GmSramArena` address-segment SRAM model + the TPOP read-locality guard. |
+| `scripts/gen_data.py` | Generates the FULL fp16 X/weight tensors (`x_full`, `w_gate_full`, `w_up_full`, `w_down_full`) the Batcher consumes, plus an fp32 SwiGLU `golden` reference. |
 | `build/` | Ignored generated build directory. |
 | `out/` | Ignored generated data directory. |
 
 ## Execution Flow
 
 1. `run_reducesum.sh` parses arguments. Defaults are `gridRows=2`, `gridCols=2`, `T=16`, `H=64`, `Fi=64`, and `n-ranks=1`.
-2. Unless `--build-only` is set, `scripts/gen_data.py` generates per-cell input and weight files plus `golden.bin`.
+2. Unless `--build-only` is set, `scripts/gen_data.py` generates the full-tensor Batcher inputs (`x_full`, `w_gate_full`, `w_up_full`, `w_down_full`) plus the SwiGLU `golden.bin`.
 3. CMake builds two targets:
    - `distributed_ffn_grid_reducesum_mixed_kernel`: `dav-c220` mixed Cube/Vec.
    - `distributed_ffn_grid_reducesum`: host executable.
@@ -54,7 +56,7 @@ rankNum = gridRows * gridCols
 winSize = FFN_GRID_WINDOW_BYTES
 ```
 
-7. The host loads X and weights into row-major per-cell buffers.
+7. The host **Batcher** (`batcher.hpp`) loads the full input + full DRAM-resident weights into GM, splits the weights column-parallel into per-col shards, and broadcasts x per-row (see [Batcher (GM-simulated)](#batcher-gm-simulated)).
 8. The host obtains the FFTS base address with `rtGetC2cCtrlAddr()` and launches `DistributedFfnGridMixedKernel` once with `gridRows * gridCols` blocks.
 9. Inside each block, Cube and Vec branches exchange intermediate tiles through A2/A3 `TPipe` FIFOs. The kernel issues these C2V/V2C transfers as a directional `TMOV` (`TMOV(pipe, tile)` to produce, `TMOV(tile, pipe)` to consume); the underlying `TPUSH`/`TPOP` stays implicit (see `tpipe_tmov_inl.hpp`):
 
@@ -64,7 +66,7 @@ Cube:
   X[row] @ W_up[col]   -> upPartial[row,col]   --TMOV C2V-->
 
 Vec:
-  hidden[row,col] = fp16(PReLU(gatePartial) * upPartial)
+  hidden[row,col] = fp16(SwiGLU(gatePartial) * upPartial)   # SiLU(clamp(gate)) * up
   hidden[row,col] --TMOV V2C-->
 
 Cube:
@@ -79,6 +81,21 @@ The cross-cell `EAST`/`WEST` reduce and gather keep their explicit GridPipe `TPU
 10. The host synchronizes the stream, checks GridPipe fault flags, copies `yOutput` back, and compares it with `golden.bin`.
 
 ## Key Designs
+
+### Batcher (GM-simulated), SwiGLU, and the A3 precision map
+
+This demo is aligned to the WSE-FFN tile-level expansion (`WSE-FFN-tile级全展开图.svg`), which casts an external **Batcher** as the owner of the full input and the full DRAM-resident weights, responsible for splitting/distributing them to cores and collecting the output. A2/A3 has no such hardware, so `batcher.hpp` simulates the Batcher entirely in GM:
+
+- **Full weights resident in GM** (`w_gate_full`/`w_up_full` `[H,F]`, `w_down_full` `[F,H]`), mirroring the SVG's `DRAM 常驻` store.
+- **Distribute** slices those full weights column-parallel and writes a contiguous per-col shard (`[H,Fi]` gate/up; `[F,Hc]` AllGather or `[Fi,H]` ReduceSum for down) into a per-col GM region. Each core then TLOADs its own shard (DRAM→L1 stream), exactly like a core streaming its Batcher-delivered weight tile.
+- **Broadcast** writes the full `x` into GM; every column in a row reads the same `x` (broadcast, "复制 broadcast → N 核"). This also drops the legacy per-cell duplication: `x` is per-row, weights are per-col.
+- **Collect**: cores write their y shards (AllGather) / the EAST reduce writes the per-row sum (ReduceSum) straight into the Batcher `y` region of GM.
+
+The kernel addresses Batcher storage by `(row, col)`: `x = xFull + row*…`, `w = wShards + col*…`, `y = yFull + row*… (+ col*Hc)`.
+
+The SVG activation is **SwiGLU = SiLU(clamp(gate)) · up** ("SiLU + clamp(max=10)"). The Vec branch composes SiLU from existing intrinsics in fp32: `SiLU(g) = g / (1 + e^-g)` via `TMAXS`/`TMINS` (clamp ±10), `TMULS(-1)` → `TEXP` → `TADDS(1)` (denominator), `TDIV`, then `TMUL` with `up`. `gen_data.py` uses the identical clamp+SiLU for the golden reference.
+
+The SVG also carries low precisions A3 does not support (FP4 weights, FP8 activations, BF16 I/O). Per the extension design every tile-graph precision is mapped to **one A3-supported dtype** (see the table in `ffn_config.hpp`): FP4/FP8/BF16 → `half`, FP32 accumulators/output stay `float`. The `act_quant` and weight-`unpack` stages therefore exist as named, zero-cost identity points in the kernel — they document where the SVG casts would live without adding any A3-unsupported conversion. The fp16/fp32 data path already *is* the mapped result.
 
 ### Mixed Cube/Vec launch
 
@@ -107,7 +124,7 @@ All cells run on one device. `gridRows` controls data-parallel token tiles, and 
 
 ### Local GridPipe mock
 
-The host allocates `gridRows * gridCols` local SRAM windows, backed by GM in the mock. `TPUSH<EAST>` resolves the east neighbor's SRAM slot with `get_neighbor_sram_addr`, writes the payload, then publishes the ready counter; `TPOP<EAST>` waits on the local ready counter, loads the local SRAM slot, and returns free credit to the west neighbor.
+The host allocates `gridRows * gridCols` local SRAM windows, backed by GM in the mock. `TPUSH<EAST>` resolves the east neighbor's SRAM slot with the `ResolvePeerSlotAddr` runtime helper, writes the payload, then publishes the ready counter; `TPOP<EAST>` waits on the local ready counter, loads the local SRAM slot, and returns free credit to the west neighbor.
 
 The mock uses GM flag polling and cache maintenance to emulate the intended LPU WSE `SPR` / `WFE` behavior on A2/A3.
 
@@ -124,32 +141,25 @@ segment c = [base + c*winSize, base + (c+1)*winSize)   // base == windowsIn[0]
 This makes the NoC contract explicit and **enforced**: the fabric can only *write* across cores, never *read*.
 
 - `TPUSH<dir>` writes a payload into the **neighbor's** segment — a cross-segment write, exactly what the fabric does.
-- `TPOP<dir>` may only drain **this core's own** segment. `GRID_TRY_TPOP_IMPL` calls the `sram_pop_is_local` guard before the payload read; on a cross-segment read it raises `kFaultPopNonLocal` (`0x205`, "pop non-local segment") and aborts the pop. The host's `CheckGridPipeFaults` surfaces it.
+- `TPOP<dir>` may only drain **this core's own** segment. `GRID_TRY_TPOP_IMPL` calls the `PopSlotIsLocal` guard before the payload read; on a cross-segment read it raises `kFaultPopNonLocal` (`0x205`, "pop non-local segment") and aborts the pop. The host's `CheckGridPipeFaults` surfaces it.
 
-On native hardware `sram_pop_is_local` is a no-op (`true`): a TPOP read address is local by construction because the fabric has no remote-read path. The guard exists only because the A2/A3 mock backs SRAM with a GM window that *can* physically read any address, so without it a demo could silently rely on a remote read the silicon cannot perform. A compile-time `static_assert(GmSramArenaSelfCheck())` is built into every A2/A3 kernel, so a regression in the segment math fails the build rather than mis-routing a pop.
+On native hardware `PopSlotIsLocal` is a no-op (`true`): a TPOP read address is local by construction because the fabric has no remote-read path. The guard exists only because the A2/A3 mock backs SRAM with a GM window that *can* physically read any address, so without it a demo could silently rely on a remote read the silicon cannot perform. A compile-time `static_assert(GmSramArenaSelfCheck())` is built into every A2/A3 kernel, so a regression in the segment math fails the build rather than mis-routing a pop.
 
 > The `pto::comm` variants (`TREDUCE` / `TGATHER`) intentionally do **not** follow this rule: they are a root-pulls-from-every-rank collective (HCCL/RDMA-style remote reads), a different memory model from the WSE NoC. Only the GridPipe `TPUSH`/`TPOP` path is constrained to write-only.
 
 ### IPC_SCB scoreboard intrinsic API
 
-GridPipe ready/free synchronization follows the V6 IPC_SCB scoreboard route, exposed as CCE-intrinsic-style APIs in `include/pto/npu/a2a3/grid_intrinsic.hpp` (Section 3). The canonical call form keeps hardware semantic operands first and the mock backend operand last:
+GridPipe ready/free synchronization follows the V8 IPC_SCB scoreboard route. The handshake intrinsics live in `include/pto/npu/a2a3/grid_cce_intrinsic.hpp` as a thin CCE facade layer — each facade forwards 1:1 to a `__builtin_cce_*` under `PTO_GRID_CCE_NATIVE`, and otherwise emulates the same semantics in the A2/A3 mock with a GM word + cache maintenance (`dcci`/`dsb`):
 
-- `sync_neighbor_scb(kind, dir, dist, abs_count, operand)` (V6 `SYNC_HSCB`/`ST_HSCB`) stores this core's new absolute count into the peer's `ready_scb`/`free_scb` IPC_SCB `dist` hops away.
-- `wait_local_spr(kind, dir, threshold, operand, maxSpins)` (V6 `WAIT_SPR`) blocks until the **local** `ready_scb`/`free_scb` IPC_SCB reaches `threshold`.
-- `mov_local_spr(kind, dir, operand)` (V6 `MOV_SPR2X`) non-blocking peek of the local scoreboard, used for the fast path before `wait_local_spr`.
+- `copy_ubuf_to_neighbor_ubuf(dstNeighborSlot, src, bytes)` (V8 `COPY_UBUF_TO_NBR`, G1 — the only new machine instruction / HW-DEP-0) writes a local UB payload into the resolved neighbor L1/SRAM slot. Not self-syncing; data-ready is announced by the following `sync_hscb(READY)`.
+- `sync_hscb(peerScb, absCount)` (V8 `SYNC_HSCB`/`ST_HSCB`, G2 — reused HSCB store + neighbor IPC_SCB addressing / HW-DEP-1) stores this core's new monotone absolute count into the peer's `ready_scb`/`free_scb` IPC_SCB. The `(kind, dir, dist)` machine operands are resolved into `peerScb` by the caller's `RemoteScbPtr` runtime helper, so the facade operates on the resolved target.
+- `wait_ipc_scb(localScb, threshold, slot)` (V8 `WAIT_SPR`, G3 — reused IPC_SCB blocking wait) reads + blocks in **one** instruction: the entry reads the local IPC_SCB and proceeds if it is already `>= threshold`, else blocks the current pipe until the peer's `sync_hscb` store raises it. V8 dropped the V7 `MOV_SPR2X` non-blocking peek — there is no separate read step. The demo calls the `wait_ipc_scb_sim(..., maxSpins)` mock wrapper, which adds a spin-timeout fault sentinel so a handshake deadlock fails the test instead of hanging; the documented hardware interface is the void `wait_ipc_scb`.
 
-GridPipe payload address resolution goes through the same header (Section 4):
+Payload address resolution (turning a local slot / scoreboard word into the same byte offset in a peer's GM window) is a plain runtime helper in the demo's `gridpipe_payload_inl.hpp` (`ResolvePeerSlotAddr` / `RemoteScbPtr`), not an intrinsic. TPOP's local drain reuses the existing local `copy_gm_to_ubuf` — the NoC is write-only, so there is deliberately **no cross-core read** of payload — guarded by the `GmSramArena` segment check `PopSlotIsLocal` so a mis-wired cross-segment read is rejected instead of silently serviced.
 
-- `get_neighbor_sram_addr(dst, src, dir, peerRank, operand)` resolves a local slot offset to the same offset in a neighbor SRAM slot address register.
-- `copy_ubuf_to_neighbor_ubuf(dst, src, bytes, config)` (V6 `COPY_UBUF_TO_NBR`) writes a local UB payload into the neighbor's UB/L1 slot.
-- `copy_local_slot_to_ubuf(dst, src, bytes, config)` drains this core's own slot into the tile. V6 has **no cross-core read** of payload: native lowering is the existing local TLOAD/TMOV (an interface placeholder here); the A2/A3 mock reads the GM-backed local slot.
-- `sram_pop_is_local(slot, bytes, callerRank, operand)` is the TPOP read-locality guard (see the address-segment model above): native lowering returns `true`, while the A2/A3 mock checks `slot` against `callerRank`'s `GmSramArena` segment so a cross-segment read is rejected instead of silently serviced.
+Native lowering targets the real CCE HSCB/IPC_SCB stack (`__sync_hscb`/`__st_hscb`; `__builtin_cce___wait_ipc_scb`, or the closest-real `__wait_ast_scb`, for the blocking wait — the header exposes no blocking `WAIT_SPR` on IPC_SCB yet). The current A2/A3 mock stands in for those IPC_SCB scoreboards with GM words + cache maintenance. Once native hardware provides neighbor-IPC_SCB addressing (V8 HW-DEP-1) and the `COPY_UBUF_TO_NBR` builtin (V8 HW-DEP-0), GridPipe call sites do not change — flip `PTO_GRID_CCE_NATIVE` on and the facades route to the real builtins.
 
-Native lowering targets the real CCE HSCB/IPC_SCB stack (`__sync_hscb`/`__st_hscb`, `get_ipc_scb_*`, and `try_wait(CROSS_CORE)` for the wait, since the header exposes no blocking `WAIT_SPR` on IPC_SCB yet); the current A2/A3 mock stands in for those IPC_SCB scoreboards with GM words + cache maintenance, and degrades `WAIT_SPR` to a spin-poll. Once native hardware provides neighbor-IPC_SCB addressing (V6 HW-DEP-1) and the `COPY_UBUF_TO_NBR` builtin (V6 HW-DEP-0), GridPipe call sites do not need to change.
-
-`TPUSH<EAST>` peeks/waits on the local `free_scb` with `mov_local_spr`/`wait_local_spr`, writes the payload slot, then publishes its `prod_idx` to the downstream `ready_scb` with `sync_neighbor_scb`. `TPOP<EAST>` waits on the local `ready_scb`, reads the payload slot, then publishes its `cons_idx` to the upstream `free_scb`.
-
-On current A2/A3 boards, `NeighborCounterOperand::addr` points to a GM-backed counter in the local/fake peer GridPipe window, and `NeighborSramOperand::runtimeCtx` points to the fake HCCL context. When real hardware supports neighbor SPR/WFE counters and neighbor SRAM address registers, this demo should be adapted by compiling GridPipe with `PTO_GRID_COUNTER_NATIVE_INTRINSIC` and `PTO_GRID_SRAM_NATIVE_INTRINSIC` and providing the compiler builtins. In that mode the mock operands are ignored, and the host/device setup should move from fake GM windows to hardware-provided per-neighbor counter/event registers and SRAM slot bases while keeping the GridPipe `TPUSH/TPOP` call sites unchanged.
+`TPUSH<EAST>` waits the local `free_scb` with `wait_ipc_scb`, writes the payload slot, then publishes `prod_idx` to the downstream `ready_scb` with `sync_hscb`. `TPOP<EAST>` waits the local `ready_scb`, reads the payload slot, then publishes `cons_idx` to the upstream `free_scb`.
 
 ### fp32 EAST reduction
 
@@ -157,18 +167,20 @@ The reduce slot carries fp32 `[T, H]`, so `FFN_SLOT_BYTES = T * H * 4`. This kee
 
 ### Routed K-hop unicast
 
-`TPUSH<dir, dist>` / `TPOP<dir, dist>` extend the nearest-neighbor pipe to a routed unicast `dist` hops along `dir` (Scheme A). The payload write resolves the slot in the `dist`-hop neighbor's segment, and the ready/free scoreboard stores carry the same `dist` operand through `sync_neighbor_scb`, so the receiver `dist` hops downstream pops the tile with no relays in between. `dist == 1` reproduces the original nearest-neighbor behavior. Fan-in stays 1 (one upstream per direction/distance), so no slot/flag expansion is needed.
+`TPUSH<dir, dist>` / `TPOP<dir, dist>` extend the nearest-neighbor pipe to a routed unicast `dist` hops along `dir` (Scheme A). The payload write resolves the slot in the `dist`-hop neighbor's segment, and the ready/free scoreboard stores are routed to the `dist`-hop peer's IPC_SCB (resolved via `RemoteScbPtr`) and issued through `sync_hscb`, so the receiver `dist` hops downstream pops the tile with no relays in between. `dist == 1` reproduces the original nearest-neighbor behavior. Fan-in stays 1 (one upstream per direction/distance), so no slot/flag expansion is needed.
 
-### Single-source row/column broadcast
+### Concurrent group broadcast (TBROADCAST)
 
-`TPUSH<GridSpan>` (`ROW` or `COL` as the first template argument selects the multicast overload) lets one source cell broadcast its tile to every other cell in its row or column as one op: the per-target writes are batched with no inter-target fence, the whole broadcast pays a single publish fence, then all ready doorbells fire. It is not lowered to a per-hop `TPUSH` loop. Receivers drain with the ordinary `TPOP<dir, dist>` toward the source (`EAST`/`WEST` for a row span, `NORTH`/`SOUTH` for a column span).
+`TBROADCAST<GridGroup>` (`ROW` or `COL` as the first template argument) broadcasts a cell's tile to every other cell in its row (`ROW`) or column (`COL`) as one op: the per-target writes into each receiver's shared ring are batched with no inter-target fence, the whole broadcast pays a single publish fence, then per-source ready lanes fire. It is not lowered to a per-hop `TPUSH` loop.
+
+Unlike the old single-source `TPUSH<GridSpan>` multicast (fan-in 1, which forbade concurrent senders), `TBROADCAST` is a 真·同时 MPSC channel (design doc `Grid_TPUSH_TPOP_WSE核间握手机制选型 §4 方案②·前缀偏移`): every member of the group may call it at the same instant. Each source writes only its own prefix-offset slot in each receiver's shared ring and rings only its own per-source ready lane, so K concurrent senders never clobber a shared counter. This is what makes the AllGather-of-shards ("every AICORE broadcasts its own shard") correct. Receivers drain member `srcRank`'s shard with `TPOP<GridGroup>(pipe, tile, srcRank)` (ascending srcRank, so the directed free-notification chain advances with consumption). See `Grid_TPUSH_TBROADCAST_TREDUCE_接口设计说明.md` for the full handshake.
 
 ### GridPipe smoke tests
 
 The two capabilities above each have a Vec-only data-movement smoke test under `smoke/` (no Cube, no matmul, no data files; in-process verification on the same GM-backed mock as the FFN demos):
 
 - `khop_smoke` — a `1 x cols` row; each cell pushes a stamped fp32 `[T, W]` tile `DIST` hops east, the receiver pops and stores it; the host checks `out[c] == in[c-DIST]`.
-- `bcast_smoke` — one source cell (`--src`) broadcasts its stamped tile to its whole row (or column with `--span-col 1`); every other cell pops at its own direction/distance and stores it; the host checks `out[cell] == in[source]`. The default 1x5 row with the source at col 2 exercises both arms in one run.
+- `bcast_smoke` — one source cell (`--src`) broadcasts its stamped tile to its whole row (or column with `--span-col 1`) via `TBROADCAST<GridGroup>`; every other cell drains it with `TPOP<GridGroup>(pipe, tile, src)` and stores it; the host checks `out[cell] == in[source]`. The default 1x5 row with the source at col 2 exercises receivers on both sides of the source in one run.
 
 ### AllGather variant
 
