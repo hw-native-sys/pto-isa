@@ -317,13 +317,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirinDev0000/header.hpp"
 #endif
 
-// Async L2 cache prefetch via SDMA CMO. Same backend file is reused across A2/A3
-// and A5 because the SDMA infrastructure is common to both architectures
-// (the actual SQE-field differences are handled inside the SDMA helpers via
-// `#ifdef PTO_NPU_ARCH_A5`). Guarded so that costmodel and CPU sim builds
-// pick up their own variant from the blocks below.
+// Async L2 cache prefetch via SDMA CMO. Dispatch through per-architecture
+// wrappers while sharing the common SDMA implementation.
 #if defined(__CCE_AICORE__) && !(defined(__CPU_SIM) || defined(__COSTMODEL))
-#include "pto/npu/TPrefetchAsync.hpp"
+#ifdef PTO_NPU_ARCH_A2A3
+#include "pto/npu/a2a3/TPrefetchAsync.hpp"
+#endif
+#ifdef PTO_NPU_ARCH_A5
+#include "pto/npu/a5/TPrefetchAsync.hpp"
+#endif
 #endif
 
 #ifdef __CPU_SIM
