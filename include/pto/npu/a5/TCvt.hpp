@@ -3085,5 +3085,48 @@ PTO_INTERNAL void TCVT_IMPL(TileDataD& dst, TileDataS& src, TmpTileData& tmp, Ro
     TCVT_IMPL<NeedSetCtrl>(dst, src, mode);
 }
 
+// Public TCVT passes NeedSetCtrl as a function argument so all architectures
+// share one declaration. Dispatch it back to A5's compile-time control path.
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD& dst, TileDataS& src, RoundMode mode, SaturationMode satMode, bool needSetCtrl)
+{
+    if (needSetCtrl) {
+        TCVT_IMPL<true>(dst, src, mode, satMode);
+    } else {
+        TCVT_IMPL<false>(dst, src, mode, satMode);
+    }
+}
+
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void TCVT_IMPL(TileDataD& dst, TileDataS& src, RoundMode mode, bool needSetCtrl)
+{
+    if (needSetCtrl) {
+        TCVT_IMPL<true>(dst, src, mode);
+    } else {
+        TCVT_IMPL<false>(dst, src, mode);
+    }
+}
+
+template <typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(
+    TileDataD& dst, TileDataS& src, TmpTileData& tmp, RoundMode mode, SaturationMode satMode, bool needSetCtrl)
+{
+    if (needSetCtrl) {
+        TCVT_IMPL<true>(dst, src, tmp, mode, satMode);
+    } else {
+        TCVT_IMPL<false>(dst, src, tmp, mode, satMode);
+    }
+}
+
+template <typename TileDataD, typename TileDataS, typename TmpTileData>
+PTO_INTERNAL void TCVT_IMPL(TileDataD& dst, TileDataS& src, TmpTileData& tmp, RoundMode mode, bool needSetCtrl)
+{
+    if (needSetCtrl) {
+        TCVT_IMPL<true>(dst, src, tmp, mode);
+    } else {
+        TCVT_IMPL<false>(dst, src, tmp, mode);
+    }
+}
+
 } // namespace pto
 #endif

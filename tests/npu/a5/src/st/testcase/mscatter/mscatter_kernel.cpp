@@ -240,25 +240,32 @@ template <
     int kPadRows, int kPadCols, int64_t kRtValidRows, int64_t kRtValidCols, int64_t kRtTableR, int64_t kRtTableC>
 inline AICORE void runElem2DDyn(__gm__ T __out__* out, __gm__ T __in__* src, __gm__ TIdx __in__* indices)
 {
-    using SrcShape = pto::Shape<1, 1, 1, kSrcRows, kSrcCols>;
-    using SrcStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
-    using IdxShape = pto::Shape<1, 1, 1, kSrcRows, kSrcCols>;
-    using IdxStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
-    using OutShape = pto::Shape<1, 1, 1, 1, kTableSize>;
-    using OutStride = pto::Stride<1, 1, 1, kTableSize, 1>;
+    using SrcShape = pto::Shape<1, 1, 1, -1, -1>;
+    using SrcStride = pto::Stride<1, 1, 1, -1, -1>;
+    using IdxShape = pto::Shape<1, 1, 1, -1, -1>;
+    using IdxStride = pto::Stride<1, 1, 1, -1, -1>;
+    using OutShape = pto::Shape<1, 1, 1, -1, -1>;
+    using OutStride = pto::Stride<1, 1, 1, -1, -1>;
 
-    GlobalTensor<T, SrcShape, SrcStride> srcGlobal(src);
-    GlobalTensor<TIdx, IdxShape, IdxStride> idxGlobal(indices);
-    GlobalTensor<T, OutShape, OutStride> outGlobal(out);
+    SrcShape srcShape(kRtValidRows, kRtValidCols);
+    SrcStride srcStride(kRtValidCols, (int64_t)1);
+    IdxShape idxShape(kRtValidRows, kRtValidCols);
+    IdxStride idxStride(kRtValidCols, (int64_t)1);
+    OutShape outShape(kRtTableR, kRtTableC);
+    OutStride outStride(kRtTableC, (int64_t)1);
 
-    using SrcTile = Tile<TileType::Vec, T, kSrcRows, kSrcCols, BLayout::RowMajor, kSrcRows, kSrcCols>;
-    using IdxTile = Tile<TileType::Vec, TIdx, kSrcRows, kSrcCols, BLayout::RowMajor, kSrcRows, kSrcCols>;
+    GlobalTensor<T, SrcShape, SrcStride> srcGlobal(src, srcShape, srcStride);
+    GlobalTensor<TIdx, IdxShape, IdxStride> idxGlobal(indices, idxShape, idxStride);
+    GlobalTensor<T, OutShape, OutStride> outGlobal(out, outShape, outStride);
 
-    SrcTile srcTile;
-    IdxTile idxTile;
+    using SrcTile = Tile<TileType::Vec, T, kPadRows, kPadCols, BLayout::RowMajor, -1, -1>;
+    using IdxTile = Tile<TileType::Vec, TIdx, kPadRows, kPadCols, BLayout::RowMajor, -1, -1>;
 
-    constexpr int idxBytes = ((kSrcRows * kSrcCols * (int)sizeof(TIdx) + 31) / 32) * 32;
-    constexpr int srcBytes = ((kSrcRows * kSrcCols * (int)sizeof(T) + 31) / 32) * 32;
+    SrcTile srcTile(static_cast<unsigned>(kRtValidRows), static_cast<unsigned>(kRtValidCols));
+    IdxTile idxTile(static_cast<unsigned>(kRtValidRows), static_cast<unsigned>(kRtValidCols));
+
+    constexpr int idxBytes = ((kPadRows * kPadCols * (int)sizeof(TIdx) + 31) / 32) * 32;
+    constexpr int srcBytes = ((kPadRows * kPadCols * (int)sizeof(T) + 31) / 32) * 32;
     TASSIGN(idxTile, 0x0);
     TASSIGN(srcTile, idxBytes);
 
