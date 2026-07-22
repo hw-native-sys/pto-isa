@@ -491,9 +491,9 @@ PTO_INTERNAL void TPowIntegerCompute(T& dstReg, T& baseReg, T& expReg, MaskReg& 
     T tmpExpReg = expReg;
     MaskReg tmpMask = mask;
     for (uint16_t j = 0; j < maxLoop; j++) {
-        GetPowI(dstReg, tmpBaseReg, tmpExpReg, mask);
+        PowIntegerCore(dstReg, tmpBaseReg, tmpExpReg, mask);
     }
-    ProcessSpecialCaseForPowI(dstReg, baseReg, expReg, tmpMask);
+    ProcessSpecialCaseForPowI<ConvType>(dstReg, baseReg, expReg, tmpMask);
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride>
@@ -520,7 +520,7 @@ PTO_INTERNAL void TPowInteger(__ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp
 
                 LoadSrcData(baseReg, base, i * BaseStride + j * nElemPerRpt, mask);
                 LoadSrcData(expReg, exp, i * ExpStride + j * nElemPerRpt, mask);
-                GetPowICompute<ConvType>(dstReg, baseReg, expReg, mask);
+                TPowIntegerCompute<ConvType>(dstReg, baseReg, expReg, mask);
                 StoreDstData(dstReg, dst, i * DstStride + j * nElemPerRpt, mask);
             }
         }
@@ -551,7 +551,7 @@ PTO_INTERNAL void TPowInteger(__ubuf__ T* dst, __ubuf__ T* base, T exp, unsigned
                 dstReg = initRetReg;
 
                 LoadSrcData(baseReg, base, i * BaseStride + j * nElemPerRpt, mask);
-                GetPowICompute<ConvType>(dstReg, baseReg, expReg, mask);
+                TPowIntegerCompute<ConvType>(dstReg, baseReg, expReg, mask);
                 StoreDstData(dstReg, dst, i * DstStride + j * nElemPerRpt, mask);
             }
         }
@@ -672,7 +672,7 @@ __tf__ PTO_INTERNAL void TPowSImpl(
         PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
 #endif
     } else if constexpr (IsIntegerNum<T>) {
-        PowI::PowIComputeImpl<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
+        PowI::TPowInteger<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
     }
 }
 
