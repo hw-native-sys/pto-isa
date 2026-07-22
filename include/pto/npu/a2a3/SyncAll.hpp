@@ -180,7 +180,7 @@ PTO_INTERNAL void SYNCALL_SOFT_MIX_IMPL(
 #if defined(__DAV_CUBE__)
     (void)ubWorkspace;
     const int32_t totalBlocks = (usedCores != 0) ? usedCores : SYNCALL_GET_MIX_PARTICIPANT_COUNT();
-    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX(totalBlocks);
+    const int32_t blockIdx = SYNCALL_GET_MIX_PARTICIPANT_IDX();
     __gm__ int32_t* localSyncGM = gmWorkspace + blockIdx * SYNCALL_SOFT_SLOT_INT32;
 
     const int32_t curValue = SYNCALL_SOFT_GM_LOAD(localSyncGM) + 1;
