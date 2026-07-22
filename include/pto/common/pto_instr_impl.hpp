@@ -214,9 +214,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TLoad.hpp"
 #include "pto/npu/a5/TSubView.hpp"
 #include "pto/npu/a5/TGetScaleAddr.hpp"
-#ifdef __DAV_VEC__
 #include "pto/npu/a5/TCvt.hpp"
-#endif
 #include "pto/npu/a5/TStore.hpp"
 #include "pto/npu/a5/TMrgSort.hpp"
 #include "pto/npu/a5/TMatmul.hpp"
