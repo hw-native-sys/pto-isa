@@ -3027,10 +3027,8 @@ PTO_INTERNAL void TQUANT_IMPL(
             std::is_same<typename TileDataOut::DType, float4_e2m1x2_t>::value,
             "Fix: MXFP4_E2M1 output has to be float4_e2m1x2_t");
     }
+    constexpr bool exp2D = (TileDataExp::Rows > 1);
     // Create 1D flat views — TQuant operates on flattened buffers internally.
-    constexpr int expN = TileDataExp::Rows * TileDataExp::Cols;
-    FlatTile1D<TileDataExp> flatExp(1, expN);
-    TRESHAPE_IMPL(flatExp, *exp);
     constexpr int maxN = TileDataMax::Rows * TileDataMax::Cols;
     FlatTile1D<TileDataMax> flatMax(1, maxN);
     TRESHAPE_IMPL(flatMax, *max);
@@ -3110,8 +3108,6 @@ PTO_INTERNAL void TQUANT_IMPL(
         TQUANT_IMPL<quant_type, scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
             dst, src, exp, max, scaling);
     }
-    // Reshape exp back to user's original tile shape. Max and scaling are scratch buffers.
-    TRESHAPE_IMPL(*exp, flatExp);
 }
 } // namespace pto
 #endif // TQUANT_HPP
