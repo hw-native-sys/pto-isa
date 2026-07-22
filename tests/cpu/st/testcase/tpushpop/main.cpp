@@ -54,6 +54,9 @@ struct ScopedCpuStubHooks {
     {
         pto::cpu_sim::register_hooks(nullptr, nullptr);
         cpu_sim::reset_execution_context();
+        g_pipe_hook_storage = nullptr;
+        g_pipe_hook_size = 0;
+        g_pipe_hook_last_key = 0;
     }
 };
 
@@ -418,8 +421,11 @@ TEST_F(TPushPopTest, v2c_split_with_injected_pipe_hook_waits_for_both_lanes_befo
     using VecTile = Tile<TileType::Vec, float, 8, 16, BLayout::RowMajor, 8, 16>;
     using MatTile = Tile<TileType::Mat, float, 16, 16, BLayout::RowMajor, 16, 16>;
 
-    Pipe::reset_for_cpu_sim();
-    Pipe pipe((__gm__ void*)nullptr, 0x0, 0x10000);
+    HookedV2CPipe::SharedStateStorage storage{};
+    g_pipe_hook_call_count.store(0, std::memory_order_relaxed);
+    g_pipe_hook_storage = &storage;
+    g_pipe_hook_size = 0;
+    g_pipe_hook_last_key = 0;
 
     ScopedCpuStubHooks hooks(nullptr, reinterpret_cast<void *>(MockPipeSharedStateHook));
     HookedV2CPipe::reset_for_cpu_sim();

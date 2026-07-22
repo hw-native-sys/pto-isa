@@ -100,8 +100,6 @@ AICORE void TCmps(
 template <typename TileDataDst, typename TileDataSrc, typename T>
 PTO_INTERNAL void TCMPS_IMPL(TileDataDst& dst, TileDataSrc& src0, T src1, CmpMode cmpMode)
 {
-    using T = typename TileDataSrc::DType;
-
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
 

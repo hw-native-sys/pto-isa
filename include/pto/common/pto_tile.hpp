@@ -1282,8 +1282,20 @@ public:
     PTO_INTERNAL void SetDstMposition(uint16_t dstMposition) { dstMposition_ = dstMposition; }
     PTO_INTERNAL uint16_t GetDstMposition() const { return dstMposition_; }
 #endif
+#ifdef __CPU_SIM
+    PTO_INTERNAL std::uintptr_t GetAssignedAddress() const { return assignedAddress_; }
+#endif
+
 private:
+#ifdef __CPU_SIM
+    AICORE void assignData(TileDType data, std::uintptr_t assignedAddress = 0)
+    {
+        data_ = data;
+        assignedAddress_ = assignedAddress;
+    }
+#else
     AICORE void assignData(TileDType data) { data_ = data; }
+#endif
     TileDType data_;
 #ifdef __CPU_SIM
     std::uintptr_t assignedAddress_ = 0;
@@ -1622,9 +1634,19 @@ public:
             data()[offset] += summand;
         }
     }
+
+    PTO_INTERNAL std::uintptr_t GetAssignedAddress() const { return assignedAddress_; }
 #endif
 private:
+#ifdef __CPU_SIM
+    AICORE void assignData(TileDType data, std::uintptr_t assignedAddress = 0)
+    {
+        data_ = data;
+        assignedAddress_ = assignedAddress;
+    }
+#else
     AICORE void assignData(TileDType data) { data_ = data; }
+#endif
     bool isKAligned_; // K-Alignedment for A3
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)

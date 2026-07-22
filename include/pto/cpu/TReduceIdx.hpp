@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/pto_tile.hpp>
 #include "pto/cpu/tile_offsets.hpp"
+#include <type_traits>
 
 namespace pto {
 enum class ElementCmp {
@@ -44,14 +45,15 @@ PTO_INTERNAL void CheckArgTiles()
     using T = typename TileSrc::DType;
     using TIdx = typename TileDst::DType;
     static_assert(
-        std::is_same_v<T, float> || std::is_same_v<T, half>,
-        "TColArgMin(Max) TRowArgMin(Max): The data type of src must be one of: `half`, `float`");
+        std::is_integral_v<T> || std::is_same_v<T, float> || std::is_same_v<T, half> ||
+            std::is_same_v<T, bfloat16_t>,
+        "TColArgMin(Max) TRowArgMin(Max): The data type of src must be integral, half, bfloat16_t, or float");
     static_assert(
         std::is_same_v<TIdx, int32_t> || std::is_same_v<TIdx, uint32_t>,
         "TColArgMin(Max) TRowArgMin(Max): The data type of dstIdx must be one of: `int32_t`, `uint32_t`");
 
     static_assert(
-        TileDst::Loc == TileType::Vec && TileDst::Loc == TileType::Vec,
+        TileDst::Loc == TileType::Vec && TileSrc::Loc == TileType::Vec,
         "TColArgMin(Max) TRowArgMin(Max): TileType of src and dst tiles must be `TileType::Vec`.");
 }
 

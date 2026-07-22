@@ -62,18 +62,15 @@ const pipe_t PIPE_ALL = 6;
 const pipe_t PIPE_FIX = 7;
 inline void pipe_barrier(pipe_t pipe) { (void)pipe; }
 
-#define aclFloat16ToFloat(x) (float)(x)
-#define aclInit(x)
-#define aclrtSetDevice(x)
+#define aclFloat16ToFloat(x) ((float)(x))
 
 enum
 {
+    ACL_MEM_MALLOC_HUGE_FIRST = 0,
     ACL_MEMCPY_HOST_TO_DEVICE = 0,
     ACL_MEMCPY_DEVICE_TO_HOST = 1,
     ACL_MEMCPY_DEVICE_TO_DEVICE = 2,
 };
-
-#define aclFloat16ToFloat(x) ((float)(x))
 
 static inline int aclrtMallocHost(void** p, size_t sz)
 {
@@ -82,35 +79,6 @@ static inline int aclrtMallocHost(void** p, size_t sz)
     return 0;
 }
 
-#define aclrtMalloc(a, b, c) aclrtMallocHost(a, b)
-
-#define aclrtMemcpy(dst, sz_dst, src, sz_src, type)                            \
-    {                                                                          \
-        for (size_t i = 0; i < sz_src && i < sz_dst; i++)                      \
-            reinterpret_cast<char*>(dst)[i] = reinterpret_cast<char*>(src)[i]; \
-    }
-
-inline int aclrtMemset(void* dst, size_t dstSize, int value, size_t count)
-{
-    constexpr int ACL_SUCCESS = 0;
-    constexpr int ACL_ERROR_GE_PARAM_INVALID = 145000;
-
-    if (count == 0) {
-        return ACL_SUCCESS;
-    }
-    if (dst == nullptr || count > dstSize) {
-        return ACL_ERROR_GE_PARAM_INVALID;
-    }
-    std::fill_n(reinterpret_cast<uint8_t*>(dst), count, static_cast<uint8_t>(value));
-    return ACL_SUCCESS;
-}
-
-#define aclrtSynchronizeStream(x) (0)
-#define aclrtFree(x) free(x)
-#define aclrtFreeHost(x) free(x)
-#define aclrtDestroyStream(x)
-#define aclrtResetDevice(x)
-#define aclFinalize(x)
 #define set_flag(a, b, c)
 #define wait_flag(a, b, c)
 #define __cce_get_tile_ptr(x) x
@@ -131,6 +99,8 @@ inline uint64_t sbitset0(uint64_t value, int)
     return value;
 }
 
+inline uint32_t get_block_idx();
+
 #include <pto/cpu/trace.hpp>
 
 /* <Hccl> */
@@ -142,8 +112,6 @@ static constexpr uint32_t HCCL_MAX_RANK_NUM = 64;
 
 static constexpr uint32_t QUANT_SCALAR_REG_OFFSET = 0;
 static constexpr uint32_t QUANT_VECTOR_REG_OFFSET = 1;
-
-struct HcclRootInfo {};
 
 struct HcclRootInfo {};
 

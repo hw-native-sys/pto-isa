@@ -14,8 +14,20 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/common/debug.h"
 #include "pto/common/event.hpp"
 #include "pto/common/fifo.hpp"
+#ifndef __CPU_SIM
 #include "pto/npu/a2a3/grid_intrinsic.hpp"
+#endif
 #include "pto/common/tassign_check.hpp"
+
+namespace pto {
+struct MrgSortExecutedNumList {
+    uint16_t mrgSortList0;
+    uint16_t mrgSortList1;
+    uint16_t mrgSortList2;
+    uint16_t mrgSortList3;
+};
+} // namespace pto
+
 #include "pto/common/pto_instr_impl.hpp"
 #ifdef __CPU_SIM
 #include "pto/cpu/trace.hpp"
@@ -101,84 +113,6 @@ template <Op OpCode>
 PTO_INST void TSYNC()
 {
     MAP_INSTR_IMPL_T_OUTS(TSYNC, PTO_TEMPLATE_ARGS(OpCode), 0);
-}
-
-template <SyncCoreType CoreType = SyncCoreType::AIVOnly>
-PTO_INST void SYNCALL()
-{
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
-    SYNCALL_IMPL<CoreType>();
-#else
-    PTO_STATIC_ASSERT(CoreType != CoreType, "SYNCALL is not supported on this backend.");
-#endif
-}
-
-template <SyncAllMode Mode, SyncCoreType CoreType = SyncCoreType::AIVOnly, typename GlobalData, typename TileData,
-          std::enable_if_t<is_global_data_v<GlobalData> && is_tile_data_v<TileData> && TileData::Loc == TileType::Vec,
-                           int> = 0>
-PTO_INST void SYNCALL(GlobalData &gmWorkspace, TileData &ubWorkspace, int32_t usedCores = 0)
-{
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
-    if constexpr (Mode == SyncAllMode::Hard) {
-        (void)gmWorkspace;
-        (void)ubWorkspace;
-        (void)usedCores;
-        SYNCALL_IMPL<CoreType>();
-    } else {
-#ifndef __PTO_AUTO__
-        SYNCALL_SOFT_IMPL<CoreType>(gmWorkspace.data(), ubWorkspace.data(), usedCores);
-#endif
-    }
-#else
-    PTO_STATIC_ASSERT(Mode != Mode, "SYNCALL is not supported on this backend.");
-#endif
-}
-
-template <SyncAllMode Mode, SyncCoreType CoreType = SyncCoreType::AICOnly, typename GlobalData, typename TileData,
-          std::enable_if_t<is_global_data_v<GlobalData> && is_tile_data_v<TileData> && TileData::Loc == TileType::Mat,
-                           int> = 0>
-PTO_INST void SYNCALL(GlobalData &gmWorkspace, TileData &l1Workspace, int32_t usedCores = 0)
-{
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
-    PTO_STATIC_ASSERT(CoreType == SyncCoreType::AICOnly, "GM+L1 overload is for AIC-only mode.");
-    if constexpr (Mode == SyncAllMode::Hard) {
-        (void)gmWorkspace;
-        (void)l1Workspace;
-        (void)usedCores;
-        SYNCALL_IMPL<CoreType>();
-    } else {
-#ifndef __PTO_AUTO__
-        SYNCALL_SOFT_AIC_IMPL(gmWorkspace.data(), l1Workspace.data(), usedCores);
-#endif
-    }
-#else
-    PTO_STATIC_ASSERT(Mode != Mode, "SYNCALL is not supported on this backend.");
-#endif
-}
-
-template <
-    SyncAllMode Mode, SyncCoreType CoreType = SyncCoreType::Mix, typename GlobalData, typename UbTileData,
-    typename L1TileData,
-    std::enable_if_t<is_global_data_v<GlobalData> && is_tile_data_v<UbTileData> && UbTileData::Loc == TileType::Vec &&
-                         is_tile_data_v<L1TileData> && L1TileData::Loc == TileType::Mat,
-                     int> = 0>
-PTO_INST void SYNCALL(GlobalData &gmWorkspace, UbTileData &ubWorkspace, L1TileData &l1Workspace, int32_t usedCores = 0)
-{
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
-    if constexpr (Mode == SyncAllMode::Hard) {
-        (void)gmWorkspace;
-        (void)ubWorkspace;
-        (void)l1Workspace;
-        (void)usedCores;
-        SYNCALL_IMPL<CoreType>();
-    } else {
-#ifndef __PTO_AUTO__
-        SYNCALL_SOFT_MIX_IMPL<CoreType>(gmWorkspace.data(), ubWorkspace.data(), l1Workspace.data(), usedCores);
-#endif
-    }
-#else
-    PTO_STATIC_ASSERT(Mode != Mode, "SYNCALL is not supported on this backend.");
-#endif
 }
 
 template <SyncCoreType CoreType = SyncCoreType::AIVOnly>
@@ -490,14 +424,6 @@ PTO_INST RecordEvent TCONCAT(
 
 template <typename TileData, typename GlobalData, typename... WaitEvents>
 PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, WaitEvents&... events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL(TCONCAT, dst, src0, src1, dstIdx, src0Idx, src1Idx);
-    return {};
-}
-
-template <typename TileData, typename GlobalData, typename... WaitEvents>
-PTO_INST RecordEvent TSTORE(GlobalData &dst, TileData &src, WaitEvents &...events)
 {
     TSYNC(events...);
     MAP_INSTR_IMPL_T(TSTORE, PTO_TEMPLATE_ARGS(TileData, GlobalData, AtomicType::AtomicNone), dst, src);
@@ -2004,25 +1930,6 @@ PTO_INST RecordEvent TEXP(TileDataDst& dst, TileDataSrc& src, WaitEvents&... eve
     return {};
 }
 
-template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename ExpTile,
-          typename TmpTile, typename... WaitEvents>
-PTO_INST RecordEvent TPOW(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp, WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL_T(TPOW, PTO_TEMPLATE_ARGS(PrecisionType), dst, base, exp, tmp);
-    return {};
-}
-
-template <auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename TmpTile,
-          typename... WaitEvents>
-PTO_INST RecordEvent TPOWS(DstTile &dst, BaseTile &base, typename DstTile::DType exp, TmpTile &tmp,
-                           WaitEvents &...events)
-{
-    TSYNC(events...);
-    MAP_INSTR_IMPL_T(TPOWS, PTO_TEMPLATE_ARGS(PrecisionType), dst, base, exp, tmp);
-    return {};
-}
-
 template <
     auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename ExpTile, typename TmpTile,
     typename... WaitEvents>
@@ -2518,22 +2425,7 @@ template <typename TileData, typename Pipe, typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(TileData& tile, Pipe& pipe, WaitEvents&... events)
 {
     TSYNC(events...);
-    TPUSH_IMPL<Pipe, TileProd, Split>(pipe, tile, subBlockId);
-    return {};
-}
-
-template <
-    typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileCons>, int> = 0,
-    typename... WaitEvents>
-PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, WaitEvents&... events)
-{
-    TSYNC(events...);
-    PTO_INSTR_SCOPE_OUTS(TPUSH, 0, tile, pipe);
-#ifdef __CPU_SIM
-    TPUSH_REVERSED_IMPL<TileData, Pipe>(tile, pipe);
-#else
-    TPUSH_IMPL(tile, pipe);
-#endif
+    TPUSH_IMPL<TileData, Pipe>(tile, pipe);
     return {};
 }
 
@@ -2629,77 +2521,12 @@ template <typename Pipe, typename... WaitEvents>
 PTO_INST RecordEvent TFREE(Pipe& pipe, WaitEvents&... events)
 {
     TSYNC(events...);
-    PTO_INSTR_SCOPE(TALLOC, pipe, gmTensor);
-#ifdef __CPU_SIM
-    TALLOC_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
-#else
-    TALLOC_IMPL(pipe, gmTensor);
-#endif
-    return {};
-}
-#endif
-
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)
-template <HistByte byte, typename TileDataDst, typename TileDataSrc, typename TileDataIdx, typename... WaitEvents>
-PTO_INST RecordEvent THISTOGRAM(TileDataDst& dst, TileDataSrc& src, TileDataIdx& idx, WaitEvents&... events)
-{
-    TSYNC(events...);
-    PTO_INSTR_SCOPE_OUTS(TPUSH, 0, pipe, gmTensor);
-#ifdef __CPU_SIM
-    TPUSH_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
-#else
-    TPUSH_IMPL(pipe, gmTensor);
-#endif
-    return {};
-}
-
-template <typename Pipe, typename TileProd, typename TConfig, typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
-{
-    TSYNC(events...);
-    TPUSH_IMPL<Pipe, TileProd, TConfig>(pipe, tile);
-    return {};
-}
-
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
-PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...events)
-{
-    TSYNC(events...);
-    PTO_INSTR_SCOPE(TPOP, pipe, gmTensor);
-#ifdef __CPU_SIM
-    TPOP_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
-#else
-    TPOP_IMPL(pipe, gmTensor);
-#endif
-    return {};
-}
-
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
-PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents &...events)
-{
-    TSYNC(events...);
-    PTO_INSTR_SCOPE_OUTS(TFREE, 0, pipe, gmTensor);
-#ifdef __CPU_SIM
-    TFREE_GLOBAL_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
-#else
-    TFREE_IMPL(pipe, gmTensor);
-#endif
-    return {};
-}
-
-template <typename Pipe, typename... WaitEvents>
-PTO_INST RecordEvent TFREE(Pipe &pipe, WaitEvents &...events)
-{
-    TSYNC(events...);
-    PTO_INSTR_SCOPE_OUTS(TFREE, 0, pipe);
     TFREE_IMPL<Pipe>(pipe);
     return {};
 }
 #endif
 
-#if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)
 template <HistByte byte, typename TileDataDst, typename TileDataSrc, typename TileDataIdx, typename... WaitEvents>
 PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx &idx, WaitEvents &...events)
 {
@@ -2806,6 +2633,7 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut& dst, TileDataIn& src, WaitEven
     return {};
 }
 
+#ifndef __CPU_SIM
 // ---------------------------------------------------------------------------
 // GridPipe TPUSH / TPOP overloads (design doc section 4.1, "neighbor-core
 // FIFO" form).  These coexist with the cluster-local TPipe overloads above:
@@ -2880,6 +2708,7 @@ PTO_INST RecordEvent TPUSH(Pipe &pipe, TileProd &tile, WaitEvents &...events)
 #endif
     return {};
 }
+#endif
 
 } // namespace pto
 #endif

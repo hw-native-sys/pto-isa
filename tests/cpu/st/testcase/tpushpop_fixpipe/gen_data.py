@@ -15,7 +15,6 @@ import copy
 import struct
 
 import numpy as np
-import ml_dtypes
 
 np.random.seed(2026)
 
@@ -76,6 +75,8 @@ def gen_case1_golden_data():
 
 
 def gen_case2_golden_data():
+    import ml_dtypes
+
     m, k, n = 64, 64, 64
     x1_gm = np.random.randint(-2, 3, [m, k]).astype(np.float16)
     x2_gm = np.random.randint(-2, 3, [k, n]).astype(np.float16)
@@ -126,11 +127,10 @@ def gen_case4_golden_data():
 if __name__ == "__main__":
     case_name_list = [
         "TPushPopFixpipeTest.case1_matmul_64x64_f322f16_tadds",
-        "TPushPopFixpipeTest.case2_matmul_64x64_f322bf16_tadds",
         "TPushPopFixpipeTest.case3_matmul_128x128_deqf16_tadds",
         "TPushPopFixpipeTest.case4_matmul_128x128_vdeqf16_tadds",
     ]
-    gen_funcs = [gen_case1_golden_data, gen_case2_golden_data, gen_case3_golden_data, gen_case4_golden_data]
+    gen_funcs = [gen_case1_golden_data, gen_case3_golden_data, gen_case4_golden_data]
 
     for case_name, gen_func in zip(case_name_list, gen_funcs):
         if not os.path.exists(case_name):

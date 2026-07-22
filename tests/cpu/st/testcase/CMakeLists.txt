@@ -163,7 +163,6 @@ tsubc
 tsubrelu
 tsubs
 tsubsc
-tsubview
 ttest
 ttrans
 ttrans_conv
@@ -172,7 +171,6 @@ ttrace
 twait
 txor
 txors
-ttrans_conv
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})

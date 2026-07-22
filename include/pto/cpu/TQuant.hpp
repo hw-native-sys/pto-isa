@@ -187,11 +187,30 @@ inline uint8_t ComputeSharedExponent(float maxAbsValue)
     return static_cast<uint8_t>(exponent - 8u);
 }
 
+template <typename NvFormatSpec>
+inline uint8_t ComputeNvSharedExponent(float maxAbsValue)
+{
+    if (maxAbsValue == 0.0f) {
+        return 0;
+    }
+    constexpr float descaleMultiplier = NvFormatSpec::descaleMultiplier;
+    const float descale = maxAbsValue * descaleMultiplier;
+    const uint32_t bits = FloatToBits(descale);
+    const uint32_t exponent = (bits & 0x7F800000u) >> 23;
+    const uint32_t mantissa = bits & 0x007FFFFFu;
+    if (exponent == 0xFFu) {
+        return mantissa == 0u ? 0xFEu : 0xFFu;
+    }
+    const bool roundUp = mantissa > 0u && exponent != 0xFEu && !(exponent == 0u && mantissa <= 0x00400000u);
+    return static_cast<uint8_t>(exponent + (roundUp ? 1u : 0u));
+}
+
 inline uint8_t ComputeE2M1SharedExponent(float maxAbsValue)
 {
     const uint32_t bits = FloatToBits(maxAbsValue);
-    uint32_t exponent = (bits & 0x7F800000u) >> 23;
-    if (exponent == 0xFFu) {
+    const uint32_t exponent = (bits & 0x7F800000u) >> 23;
+    const uint32_t mantissa = bits & 0x007FFFFFu;
+    if (exponent == 0xFFu && mantissa != 0u) {
         return 0xFFu;
     }
     if (exponent <= 2u) {
@@ -199,6 +218,8 @@ inline uint8_t ComputeE2M1SharedExponent(float maxAbsValue)
     }
     return static_cast<uint8_t>(exponent - 2u);
 }
+
+constexpr int SCALE_MIN_EXP = -127;
 
 inline float ComputeMxScalingFromExponent(uint8_t e8m0)
 {
@@ -276,7 +297,7 @@ inline float ComputeMxGroupMax(TileDataSrc& src, int axis, int group)
             maxAbsBf16Bits = std::max(maxAbsBf16Bits, AbsBf16BitsFromFloat(value));
         }
     }
-    if constexpr (quant_type == QuantType::MXFP4_E2M1) {
+    if constexpr (quant_type == QuantType::MXFP4_E2M1 && scale_alg == QuantScaleAlg::OCP) {
         maxAbsValue = Bf16BitsToFloat(maxAbsBf16Bits);
     }
     return maxAbsValue;

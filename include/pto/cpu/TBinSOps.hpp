@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 #include <pto/common/pto_tile.hpp>
 #include "pto/cpu/tile_offsets.hpp"
 
@@ -285,8 +286,15 @@ PTO_INTERNAL void TAXPY_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDa
         for (size_t r = 0; r < row; ++r) {
             const size_t dstIdx = GetTileElementOffset<TileDataDst>(r, c);
             const size_t srcIdx = GetTileElementOffset<TileDataSrc>(r, c);
-            dst.data()[dstIdx] = static_cast<typename TileDataDst::DType>(
-                dst.data()[dstIdx] + static_cast<typename TileDataDst::DType>(src.data()[srcIdx] * scalar));
+            if constexpr (
+                std::is_same_v<typename TileDataDst::DType, half> &&
+                std::is_same_v<typename TileDataSrc::DType, half>) {
+                volatile auto product = static_cast<typename TileDataDst::DType>(src.data()[srcIdx] * scalar);
+                volatile auto result = static_cast<typename TileDataDst::DType>(dst.data()[dstIdx] + product);
+                dst.data()[dstIdx] = result;
+            } else {
+                dst.data()[dstIdx] = static_cast<typename TileDataDst::DType>(dst.data()[dstIdx] + src.data()[srcIdx] * scalar);
+            }
         }
     }
 }
