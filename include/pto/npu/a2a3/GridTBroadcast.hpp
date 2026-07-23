@@ -81,8 +81,8 @@ AICORE bool GRID_TRY_TBROADCAST_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpi
     static_assert(Pipe::GroupMax > 0, "TBROADCAST requires a GridPipe opted into broadcast (GroupMax > 0)");
     static_assert(Pipe::BcastSlotCount > 0, "TBROADCAST requires BcastSlotCount > 0");
 
-    const int myRank = pto::RankInGroup(Group, pipe.coord); // prefix-offset base, count_k = 1
-    const int groupSize = pto::GridGroupSize(Group, pipe.shape);
+    const int myRank = pto::RankInGroup(Group, pipe.coord, pipe.groupRect); // prefix-offset base, count_k = 1
+    const int groupSize = pto::GridGroupSize(Group, pipe.shape, pipe.groupRect);
     const uint32_t gidx = static_cast<uint32_t>(myRank); // this source's single global index
     const uint32_t slotOff =
         (gidx % static_cast<uint32_t>(Pipe::BcastSlotCount)) * static_cast<uint32_t>(Pipe::SlotBytes);
@@ -93,7 +93,7 @@ AICORE bool GRID_TRY_TBROADCAST_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpi
     // freed the previous occupant of slot gidx%SC.
     if (gidx >= static_cast<uint32_t>(Pipe::BcastSlotCount)) {
         const uint32_t freeThreshold = gidx + 1 - static_cast<uint32_t>(Pipe::BcastSlotCount);
-        __gm__ uint32_t *myFreeLane = pipe.bcastFreeLanes + myRank;
+        __gm__ uint32_t *myFreeLane = pipe.bcastFreeLanes + myRank * grid_mock::kBcastLaneStrideU32;
         if (!wait_ipc_scb_sim(myFreeLane, freeThreshold, /*slot=*/0, maxSpins)) {
             __gm__ uint32_t *freeFault = myFreeLane ? myFreeLane + grid_mock::kFaultFlagWordOffset : nullptr;
             grid_mock::MockSetFault(freeFault, grid_mock::kFaultWaitFreeTimeout);
@@ -110,7 +110,7 @@ AICORE bool GRID_TRY_TBROADCAST_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpi
         if (m == myRank) {
             continue; // do not send to self; this core's own shard stays local.
         }
-        const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, m);
+        const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, m, pipe.groupRect);
         __gm__ uint8_t *peerSlot = a2a3_grid_payload::ResolvePeerSlotAddr(pipe.runtimeCtx, myRingSlot, peerRank);
         a2a3_grid_payload::CopyTileToNeighborSramSlot<TileProd>(peerSlot, tile, Pipe::SlotBytes);
     }
@@ -127,13 +127,13 @@ AICORE bool GRID_TRY_TBROADCAST_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpi
     // for THIS source (lane[myRank]) is overwritten with gidx+1 by exactly one
     // writer (us), so the per-lane edge stays SPSC regardless of how many other
     // sources are broadcasting concurrently.
-    __gm__ uint32_t *myReadyLane = pipe.bcastReadyLanes + myRank;
+    __gm__ uint32_t *myReadyLane = pipe.bcastReadyLanes + myRank * grid_mock::kBcastLaneStrideU32;
     const uint32_t readyValue = gidx + 1;
     for (int m = 0; m < groupSize; ++m) {
         if (m == myRank) {
             continue;
         }
-        const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, m);
+        const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, m, pipe.groupRect);
         __gm__ uint32_t *peerReady = a2a3_grid_payload::RemoteScbPtr(pipe.runtimeCtx, myReadyLane, peerRank);
         sync_hscb(peerReady, readyValue);
     }
@@ -165,13 +165,13 @@ AICORE bool GRID_TRY_TBPOP_IMPL(Pipe &pipe, TileCons &tile, int srcRank,
     static_assert(Pipe::GroupMax > 0, "TPOP<GridGroup> requires a broadcast GridPipe (GroupMax > 0)");
     static_assert(Pipe::BcastSlotCount > 0, "TPOP<GridGroup> requires BcastSlotCount > 0");
 
-    const int groupSize = pto::GridGroupSize(Group, pipe.shape);
+    const int groupSize = pto::GridGroupSize(Group, pipe.shape, pipe.groupRect);
     const uint32_t gidx = static_cast<uint32_t>(srcRank);
     const uint32_t readyThreshold = gidx + 1;
 
     // Wait for source srcRank's shard to land.  Per-source lane (variant B): the
     // only writer is the source of that rank, so this single wait is SPSC.
-    __gm__ uint32_t *readyLane = pipe.bcastReadyLanes + srcRank;
+    __gm__ uint32_t *readyLane = pipe.bcastReadyLanes + srcRank * grid_mock::kBcastLaneStrideU32;
     if (!wait_ipc_scb_sim(readyLane, readyThreshold, /*slot=*/0, maxSpins)) {
         __gm__ uint32_t *readyFault = readyLane ? readyLane + grid_mock::kFaultFlagWordOffset : nullptr;
         grid_mock::MockSetFault(readyFault, grid_mock::kFaultWaitReadyTimeout);
@@ -199,10 +199,10 @@ AICORE bool GRID_TRY_TBPOP_IMPL(Pipe &pipe, TileCons &tile, int srcRank,
     const uint32_t nextGidx = gidx + static_cast<uint32_t>(Pipe::BcastSlotCount);
     if (nextGidx < static_cast<uint32_t>(groupSize)) {
         const int nextOwner = pto::GroupOwnerOfIndex(static_cast<int>(nextGidx));
-        const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, nextOwner);
+        const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, nextOwner, pipe.groupRect);
         // The producer's free lane lives in ITS window at lane[nextOwner]; this
         // core is the sole writer of that lane (single consumer of this ring).
-        __gm__ uint32_t *producerFreeLane = pipe.bcastFreeLanes + nextOwner;
+        __gm__ uint32_t *producerFreeLane = pipe.bcastFreeLanes + nextOwner * grid_mock::kBcastLaneStrideU32;
         __gm__ uint32_t *peerFree = a2a3_grid_payload::RemoteScbPtr(pipe.runtimeCtx, producerFreeLane, peerRank);
         sync_hscb(peerFree, readyThreshold); // value = srcRank + 1 = nextOwner's free threshold
     }

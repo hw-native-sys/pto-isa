@@ -76,6 +76,18 @@ struct GridCoord {
     int col = 0; // 0 .. gridCols-1
 };
 
+// Half-open sub-rectangle [row0, row1) x [col0, col1) describing an arbitrary
+// rectangular group member set (GridGroup::SUBRECT).  ROW / COL are the special
+// cases rect = {r, r+1, 0, cols} / {0, rows, c, c+1}; a general SUBRECT lets a
+// single TBROADCAST reach every cell in the rectangle (any-to-any via the mock's
+// logical-rank window addressing, including diagonal / far peers).
+struct GridRect {
+    int row0 = 0;
+    int row1 = 0;
+    int col0 = 0;
+    int col1 = 0;
+};
+
 // ---------------------------------------------------------------------------
 // Direction enum (design doc section 3.1).  Strongly-typed to avoid clashing
 // with the cluster-local pto::Direction enum used by TPipe.
@@ -119,8 +131,12 @@ AICORE constexpr int GridDirectionIndex(GridDirection d)
 // ---------------------------------------------------------------------------
 enum class GridGroup : uint8_t
 {
-    ROW = 0, // group = the source's row:    EAST arm + WEST arm
-    COL = 1, // group = the source's column: NORTH arm + SOUTH arm
+    ROW = 0,     // group = the source's row:    EAST arm + WEST arm
+    COL = 1,     // group = the source's column: NORTH arm + SOUTH arm
+    SUBRECT = 2, // group = an arbitrary sub-rectangle [row0,row1)x[col0,col1)
+                 //          (runtime-described via pipe.groupRect).  It subsumes
+                 //          ROW/COL and needs no arm decomposition: members are
+                 //          addressed by rank-in-rect directly.
 };
 
 // The two opposite GridDirections a group decomposes into (topology only).
@@ -146,29 +162,44 @@ AICORE constexpr GridDirection GroupArmB(GridGroup g)
 // bootstrap section); the GroupMemberRank helper below needs it visible here.
 AICORE inline int RankFromCoord(GridCoord coord, GridShape shape);
 
-// Number of members in the group that `coord` belongs to.
-AICORE constexpr int GridGroupSize(GridGroup g, GridShape s)
+// Number of members in the group that `coord` belongs to.  The trailing
+// `rect` is consulted only for SUBRECT (ROW/COL ignore it); defaulting it keeps
+// every existing ROW/COL call site unchanged.
+AICORE constexpr int GridGroupSize(GridGroup g, GridShape s, GridRect rect = {})
 {
-    return (g == GridGroup::ROW) ? s.gridCols : s.gridRows;
+    return (g == GridGroup::ROW) ? s.gridCols
+         : (g == GridGroup::COL) ? s.gridRows
+         : ((rect.row1 - rect.row0) * (rect.col1 - rect.col0));
 }
 
 // This cell's rank within its group = its prefix-offset base (count_k = 1).
-// ROW groups vary along the column axis; COL groups along the row axis.
-AICORE constexpr int RankInGroup(GridGroup g, GridCoord c)
+// ROW groups vary along the column axis; COL groups along the row axis; SUBRECT
+// uses a row-major rank within [row0,row1)x[col0,col1).
+AICORE constexpr int RankInGroup(GridGroup g, GridCoord c, GridRect rect = {})
 {
-    return (g == GridGroup::ROW) ? c.col : c.row;
+    return (g == GridGroup::ROW) ? c.col
+         : (g == GridGroup::COL) ? c.row
+         : ((c.row - rect.row0) * (rect.col1 - rect.col0) + (c.col - rect.col0));
 }
 
 // Coordinate of the member whose rank-in-group is `rankInGroup`, given this
-// cell's coordinate (the member shares this cell's fixed axis).
-AICORE constexpr GridCoord GroupMemberCoord(GridGroup g, GridCoord self, int rankInGroup)
+// cell's coordinate (the member shares this cell's fixed axis for ROW/COL).
+// SUBRECT inverts the row-major rank entirely from `rect` (self-independent).
+AICORE constexpr GridCoord GroupMemberCoord(GridGroup g, GridCoord self, int rankInGroup, GridRect rect = {})
 {
-    return (g == GridGroup::ROW) ? GridCoord{self.row, rankInGroup} : GridCoord{rankInGroup, self.col};
+    if (g == GridGroup::ROW) {
+        return GridCoord{self.row, rankInGroup};
+    }
+    if (g == GridGroup::COL) {
+        return GridCoord{rankInGroup, self.col};
+    }
+    const int colSpan = rect.col1 - rect.col0;
+    return GridCoord{rect.row0 + rankInGroup / colSpan, rect.col0 + rankInGroup % colSpan};
 }
 
-AICORE constexpr int GroupMemberRank(GridGroup g, GridCoord self, GridShape s, int rankInGroup)
+AICORE constexpr int GroupMemberRank(GridGroup g, GridCoord self, GridShape s, int rankInGroup, GridRect rect = {})
 {
-    return RankFromCoord(GroupMemberCoord(g, self, rankInGroup), s);
+    return RankFromCoord(GroupMemberCoord(g, self, rankInGroup, rect), s);
 }
 
 // Owner (rank-in-group) of global index `gidx`.  With count_k = 1 the prefix
@@ -212,6 +243,10 @@ struct GridPipe {
     // Shape + coord cached from runtime (design doc 2.1 / 2.2).
     GridShape shape{};
     GridCoord coord{};
+    // Sub-rectangle of the active group (GridGroup::SUBRECT only); ignored by
+    // ROW/COL.  Set by the kernel after InitGridPipeFromWindow from a host/config
+    // supplied rectangle so a single TBROADCAST can target any cell range.
+    GridRect groupRect{};
 
     // Per-direction state.  Index by GridDirectionIndex(dir).
     //
@@ -534,6 +569,15 @@ namespace grid_mock {
 
 inline constexpr uint32_t kDefaultWfeMaxSpins = PTO_GRID_MOCK_WFE_MAX_SPINS;
 inline constexpr uint32_t kFaultFlagWordOffset = 2 * kGridDirectionCount;
+
+// TBROADCAST per-source ready/free lane stride.  Each lane occupies a FULL
+// cache line (64 B) so that concurrent producers -- each writing its own lane
+// word -- never land on the same cache line.  Packing all GroupMax lanes into
+// one 64 B line (the old 4 B stride) let producers' write-back (line-granular)
+// stores clobber each other's words (lost-update / word-tearing), which
+// silently dropped doorbell writes and caused spurious "wait ready timeout".
+inline constexpr uint32_t kBcastLaneStride = 64; // bytes; one lane per cache line
+inline constexpr uint32_t kBcastLaneStrideU32 = kBcastLaneStride / sizeof(uint32_t); // == 16 (u32 step per lane)
 
 // The SYNC_HSCB / WAIT_SPR mocks that used to live here are now the GM-mock
 // branches of the CCE facades in grid_cce_intrinsic.hpp (sync_hscb /

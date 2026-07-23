@@ -211,17 +211,35 @@ static bool Verify(Resources &r)
         return false;
     }
 
-    // Golden: every non-source cell holds its span source's stamp (source cell
-    // index + 1); the source cell itself stays zero (it does not store).
+    // Golden: every non-source participant holds the source's stamp (source cell
+    // index + 1); the source cell and any non-participant cell stay zero.
+    //   * ROW/COL : non-source cells on the span hold their span source's stamp.
+    //   * SUBRECT : in-rectangle non-source cells hold the single rect source's
+    //               stamp; the source and every out-of-rect cell stay zero.
     double maxDiff = 0.0;
     size_t firstBadCell = SIZE_MAX;
+    size_t subrectSrcCell = SIZE_MAX;
+    if constexpr (BCAST_SUBRECT != 0) {
+        const int colSpan = BCAST_RECT_C1 - BCAST_RECT_C0;
+        const int srcRow = BCAST_RECT_R0 + BCAST_RECT_SRC / colSpan;
+        const int srcCol = BCAST_RECT_C0 + BCAST_RECT_SRC % colSpan;
+        subrectSrcCell = static_cast<size_t>(srcRow) * r.cols + srcCol;
+    }
     for (int row = 0; row < r.rows; ++row) {
         for (int col = 0; col < r.cols; ++col) {
             size_t cell = static_cast<size_t>(row) * r.cols + col;
-            int myIdx = (BCAST_SPAN_COL != 0) ? row : col;
             float expected = 0.0f;
-            if (myIdx != BCAST_SRC) {
-                expected = static_cast<float>(SpanSourceCell(row, col, r.cols) + 1);
+            if constexpr (BCAST_SUBRECT != 0) {
+                const bool inRect = row >= BCAST_RECT_R0 && row < BCAST_RECT_R1 &&
+                                    col >= BCAST_RECT_C0 && col < BCAST_RECT_C1;
+                if (inRect && cell != subrectSrcCell) {
+                    expected = static_cast<float>(subrectSrcCell + 1);
+                }
+            } else {
+                int myIdx = (BCAST_SPAN_COL != 0) ? row : col;
+                if (myIdx != BCAST_SRC) {
+                    expected = static_cast<float>(SpanSourceCell(row, col, r.cols) + 1);
+                }
             }
             const float *tile = outHost.data() + cell * static_cast<size_t>(BCAST_TILE_ELEMS);
             for (int e = 0; e < BCAST_TILE_ELEMS; ++e) {
@@ -238,9 +256,14 @@ static bool Verify(Resources &r)
         }
     }
 
-    std::cout << "[INFO] broadcast smoke: span=" << (BCAST_SPAN_COL != 0 ? "COL" : "ROW") << " src=" << BCAST_SRC
-              << " grid=" << r.rows << "x" << r.cols << " tile=" << BCAST_T << "x" << BCAST_W << " max diff=" << maxDiff
-              << std::endl;
+    std::cout << "[INFO] broadcast smoke: group="
+              << (BCAST_SUBRECT != 0 ? "SUBRECT" : (BCAST_SPAN_COL != 0 ? "COL" : "ROW"))
+              << " src=" << (BCAST_SUBRECT != 0 ? BCAST_RECT_SRC : BCAST_SRC) << " grid=" << r.rows << "x" << r.cols;
+    if constexpr (BCAST_SUBRECT != 0) {
+        std::cout << " rect=[r" << BCAST_RECT_R0 << ":" << BCAST_RECT_R1 << ",c" << BCAST_RECT_C0 << ":"
+                  << BCAST_RECT_C1 << "]";
+    }
+    std::cout << " tile=" << BCAST_T << "x" << BCAST_W << " max diff=" << maxDiff << std::endl;
     if (maxDiff != 0.0) {
         std::cerr << "[ERROR] mismatch (max diff " << maxDiff << ", first bad cell " << firstBadCell << ")"
                   << std::endl;
@@ -330,8 +353,14 @@ int main(int argc, char **argv)
 
     std::cout << "\n================================================================" << std::endl;
     std::cout << "  GridPipe single-source broadcast smoke test" << std::endl;
-    std::cout << "  span=" << (BCAST_SPAN_COL != 0 ? "COL" : "ROW") << " src=" << BCAST_SRC << " grid=" << BCAST_ROWS
-              << "x" << BCAST_COLS << " tile=" << BCAST_T << "x" << BCAST_W << std::endl;
+    std::cout << "  group=" << (BCAST_SUBRECT != 0 ? "SUBRECT" : (BCAST_SPAN_COL != 0 ? "COL" : "ROW"))
+              << " src=" << (BCAST_SUBRECT != 0 ? BCAST_RECT_SRC : BCAST_SRC) << " grid=" << BCAST_ROWS << "x"
+              << BCAST_COLS;
+    if constexpr (BCAST_SUBRECT != 0) {
+        std::cout << " rect=[r" << BCAST_RECT_R0 << ":" << BCAST_RECT_R1 << ",c" << BCAST_RECT_C0 << ":"
+                  << BCAST_RECT_C1 << "]";
+    }
+    std::cout << " tile=" << BCAST_T << "x" << BCAST_W << std::endl;
     std::cout << "================================================================" << std::endl;
 
     bool ok = Run();

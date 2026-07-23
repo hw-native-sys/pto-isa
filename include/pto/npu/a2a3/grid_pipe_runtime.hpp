@@ -35,8 +35,9 @@ namespace a2a3_grid {
 //     + dir * SlotCount * SlotBytes                slot ring for that direction
 //   kSlotRegionOffset + 5*SlotCount*SlotBytes      TBROADCAST region (only if GroupMax > 0):
 //     + 0                                            shared payload ring [BcastSlotCount * SlotBytes]
-//     + BcastSlotCount*SlotBytes                     per-source ready lanes [GroupMax] u32 (variant B)
-//     + GroupMax*4                                    per-source free  lanes [GroupMax] u32 (X sole writer)
+//     + BcastSlotCount*SlotBytes                     per-source ready lanes [GroupMax * 64 B] (variant B;
+//                                                    one cache line per lane -- see kBcastLaneStride)
+//     + GroupMax*64                                   per-source free  lanes [GroupMax * 64 B] (X sole writer)
 //
 // The unicast slot region is sized to (kGridDirectionCount * SlotCount * SlotBytes).
 // The TBROADCAST region is appended only when GroupMax > 0; a unicast-only pipe
@@ -74,7 +75,7 @@ inline constexpr uint32_t kBcastRingBytes()
 template <int GroupMax>
 inline constexpr uint32_t kBcastLaneBytes()
 {
-    return static_cast<uint32_t>(GroupMax) * sizeof(uint32_t);
+    return static_cast<uint32_t>(GroupMax) * grid_mock::kBcastLaneStride; // one 64 B cache line per lane
 }
 
 template <int SlotBytes, int SlotCount, int BcastSlotCount, int GroupMax>
@@ -144,7 +145,7 @@ AICORE inline void InitGridPipeFromWindow(Pipe &pipe, GridShape shape, GridCoord
         const uint32_t readyOff =
             ringOff + static_cast<uint32_t>(Pipe::BcastSlotCount) * static_cast<uint32_t>(Pipe::SlotBytes);
         const uint32_t freeOff =
-            readyOff + static_cast<uint32_t>(Pipe::GroupMax) * static_cast<uint32_t>(sizeof(uint32_t));
+            readyOff + static_cast<uint32_t>(Pipe::GroupMax) * grid_mock::kBcastLaneStride; // ready region = GroupMax lanes * 64 B
         pipe.bcastRingBase = window + ringOff;
         pipe.bcastReadyLanes = reinterpret_cast<__gm__ uint32_t *>(window + readyOff);
         pipe.bcastFreeLanes = reinterpret_cast<__gm__ uint32_t *>(window + freeOff);

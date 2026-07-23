@@ -65,6 +65,7 @@ class FfnDataConfig:
     grid_cols: int
     split_mode: str = "reduce"   # informational: host slices w_down_full per mode
     act: str = "silu"            # silu (SwiGLU, default) or prelu (legacy)
+    pure_ncut: bool = False      # 方案① flat 32-cell topology (broadcast x, I/H split across all cells)
     output_dir: str = "./out"
 
 
@@ -87,6 +88,9 @@ def _activate(gate: np.ndarray, act: str) -> np.ndarray:
 
 
 def gen_data(cfg: FfnDataConfig) -> None:
+    if cfg.pure_ncut:
+        gen_data_pure_ncut(cfg)
+        return
     t, h, fi = cfg.t, cfg.h, cfg.fi
     grid_rows, grid_cols = cfg.grid_rows, cfg.grid_cols
     act = cfg.act
@@ -133,6 +137,61 @@ def gen_data(cfg: FfnDataConfig) -> None:
         f"[INFO] Generated FFN Batcher data: T={t} (T_total={t_total}) H={h} Fi={fi} (F_total={f_total}) "
         f"grid={grid_rows}x{grid_cols} n_ranks={n_ranks} split_mode={cfg.split_mode} act={act}"
     )
+
+
+def gen_data_pure_ncut(cfg: FfnDataConfig) -> None:
+    """Flat full-tensor data for the pure 1D N-cut 32-cell AllGather topology (方案①).
+
+    Emits the full tensors the host Batcher slices flat-32-way: x is broadcast to
+    all 32 cells; w_gate/w_up are split along the intermediate I; w_down along the
+    output H.  Full intermediate I = fi * grid_rows * grid_cols (fi is the per-cell
+    I_shard).  Files are identical in shape to the 2D mode when grid_rows=1, but
+    the topology is a single 4x8 mesh sharing one broadcast x.
+    """
+    t, h, fi = cfg.t, cfg.h, cfg.fi
+    grid_rows, grid_cols = cfg.grid_rows, cfg.grid_cols
+    act = cfg.act
+    cells = grid_rows * grid_cols
+    i_full = fi * cells
+    if h % cells != 0:
+        raise ValueError(f"pure-ncut requires h ({h}) divisible by cell count ({cells})")
+    if i_full % cells != 0:
+        raise ValueError(f"pure-ncut requires I ({i_full}) divisible by cell count ({cells})")
+    os.makedirs(cfg.output_dir, exist_ok=True)
+
+    src_type = np.float16
+    dst_type = np.float32
+
+    # Inputs in {0, 1}: keeps fp16 (gate * up) below fp16 max (~65504).
+    x_full = np.random.randint(0, 2, [t, h]).astype(src_type)
+    w_gate_full = np.random.randint(0, 2, [h, i_full]).astype(src_type)
+    w_up_full   = np.random.randint(0, 2, [h, i_full]).astype(src_type)
+    w_down_full = np.random.randint(0, 2, [i_full, h]).astype(src_type)
+
+    # Same SwiGLU/clamp golden as the 2D mode; the kernel's 2-phase gather rebuilds
+    # this identical full hidden on every cell before the down GEMM.
+    x_f32 = x_full.astype(dst_type)
+    gate_full = x_f32 @ w_gate_full.astype(dst_type)
+    up_full   = x_f32 @ w_up_full.astype(dst_type)
+    act_full  = _activate(gate_full, act)
+    hidden_full = (act_full * up_full).astype(src_type).astype(dst_type)
+    golden = (hidden_full @ w_down_full.astype(dst_type)).astype(dst_type)
+
+    x_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "x_full.bin"))
+    w_gate_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "w_gate_full.bin"))
+    w_up_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "w_up_full.bin"))
+    w_down_full.astype(src_type).tofile(os.path.join(cfg.output_dir, "w_down_full.bin"))
+    golden.astype(dst_type).tofile(os.path.join(cfg.output_dir, "golden.bin"))
+
+    print(f"  - x_full{tuple(x_full.shape)} fp16           -> x_full.bin (broadcast to {cells} cells)")
+    print(f"  - w_gate_full{tuple(w_gate_full.shape)} fp16 -> w_gate_full.bin (split along I={i_full})")
+    print(f"  - w_up_full{tuple(w_up_full.shape)} fp16     -> w_up_full.bin (split along I={i_full})")
+    print(f"  - w_down_full{tuple(w_down_full.shape)} fp16 -> w_down_full.bin (split along H={h})")
+    print(f"  - golden{tuple(golden.shape)} fp32           -> golden.bin")
+    print(
+        f"[INFO] Generated pure-1D-N-cut FFN data: T={t} H={h} I={i_full} (I_shard={fi}) "
+        f"grid={grid_rows}x{grid_cols} cells={cells} act={act}"
+    )
     if act == "silu":
         print(f"[INFO] SwiGLU: silu(clamp(gate,+/-{SILU_CLAMP})) * up (must match kernel "
               f"FFN_SILU_CLAMP_MIN/MAX and SiLU composition)")
@@ -156,6 +215,9 @@ def main() -> None:
                              "([Fi,H] reduce / [F,Hc] allgather). Does not change emitted files.")
     parser.add_argument("--act", choices=("silu", "prelu"), default="silu",
                         help="Activation for the golden reference: silu (SwiGLU, default) or prelu (legacy)")
+    parser.add_argument("--pure-ncut", action="store_true",
+                        help="方案① flat 32-cell topology: broadcast x, split I (gate/up) and H (down) "
+                             "across all grid_rows*grid_cols cells. I_full = fi * cells.")
     parser.add_argument("--output-dir", type=str, default="./out", help="Output directory")
 
     args = parser.parse_args()
@@ -176,6 +238,7 @@ def main() -> None:
         grid_cols=grid_cols,
         split_mode=args.split_mode,
         act=args.act,
+        pure_ncut=args.pure_ncut,
         output_dir=args.output_dir,
     )
     gen_data(cfg)

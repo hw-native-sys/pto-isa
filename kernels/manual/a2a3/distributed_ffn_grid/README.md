@@ -2,34 +2,38 @@
 
 ## Goal
 
-`distributed_ffn_grid_reducesum` validates a single-device logical FFN grid on A2/A3. The host runs one process on the selected device and launches `gridRows * gridCols` blocks. Each block owns one logical cell:
+This demo validates the three distributed-FFN GridPipe collective interfaces — **TPUSH**, **TBROADCAST**, **TREDUCE** — on a single-device logical FFN grid on A2/A3. The host runs one process on the selected device and launches `gridRows * gridCols` blocks; each block owns one logical cell. There are **four examples**, one per (interface, FFN pattern), all on the same pure 1D N-cut 4×8 = 32-cell topology with the real DeepSeek-v4 Pro shapes (M=T=8, H=7168, I=3072):
 
-- Rows are data-parallel token slices.
-- Columns are model-parallel FFN intermediate shards.
-- The mixed Cube/Vec kernel computes gate/up, activation, down projection, and row-local `EAST` reduce in one launch.
-- The last column in each row writes the final fp32 `[T, H]` output tile, which the host compares with `golden.bin` using `1e-3` tolerance.
+| Example (run script / executable) | Interface verified | FFN pattern | Cross-cell collective |
+| --- | --- | --- | --- |
+| `run_tpush_reducesum.sh` / `distributed_ffn_grid_tpush_reducesum` | **TPUSH** | ReduceSum | explicit `TPOP<Dir>` + `TADD` + `TPUSH<Dir>` (the A3 lowering of `TREDUCE`) |
+| `run_tpush_allgather.sh` / `distributed_ffn_grid_tpush_allgather` | **TPUSH** | AllGather | nearest-neighbor `TPUSH`/`TPOP` relay gather (fan-in-1 DAG) |
+| `run_tbroadcast_allgather.sh` / `distributed_ffn_grid_tbroadcast_allgather` | **TBROADCAST** | AllGather | `TBROADCAST<GridGroup>` MPSC group broadcast |
+| `run_treduce_reducesum.sh` / `distributed_ffn_grid_treduce_reducesum` | **TREDUCE** | ReduceSum | fused `TREDUCE<Dir, Sum>` receive-combine-forward |
 
-The `EAST` reduce uses the A2/A3 GridPipe mock backend: local SRAM windows backed by GM in the mock, fake `HcclDeviceContext` window pointers, ready/free counters, `dcci/dsb` fences, and spin waits. This validates the programming model and same-device mock path; it is not multi-card communication validation.
+Each example compares its `[T, H]` output with `golden.bin` using `1e-3` tolerance. The two ReduceSum-pattern examples (`treduce_reducesum`, `tpush_reducesum`) pass **bit-exact** on the NPU; the two AllGather-pattern examples exercise the documented A2/A3 GM-scoreboard mock, whose all-to-all gather is unreliable under the shared-NPU spin handshake (see [Reliability notes](#reliability-notes)).
 
-An AllGather variant is also provided in `run_allgather.sh` / `distributed_ffn_grid_allgather`. It gathers hidden shards across columns before down projection, so the post-down ReduceSum is removed and each column writes its own output-H shard.
+The cross-cell collectives use the A2/A3 GridPipe mock backend: local SRAM windows backed by GM in the mock, fake `HcclDeviceContext` window pointers, ready/free counters, `dcci/dsb` fences, and spin waits. This validates the programming model and same-device mock path; it is not multi-card communication validation.
 
-Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unicast (`TPUSH<dir, dist>` / `TPOP<dir, dist>`) and concurrent group broadcast (`TBROADCAST<GridGroup>` / `TPOP<GridGroup>`). Each capability has a standalone Vec-only smoke test under `smoke/` (see [Smoke tests](#gridpipe-smoke-tests)).
+Beyond these FFN examples, GridPipe also supports routed K-hop unicast (`TPUSH<dir, dist>` / `TPOP<dir, dist>`) and concurrent group broadcast (`TBROADCAST<GridGroup>` / `TPOP<GridGroup>`). Each capability has a standalone Vec-only smoke test under `smoke/` (see [Smoke tests](#gridpipe-smoke-tests)).
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
 | `README.md` / `README_zh.md` | English / Chinese documentation. |
-| `CMakeLists.txt` | Builds the host executables and mixed Cube/Vec device kernel shared libraries. |
-| `run_reducesum.sh` | Sets up CANN, generates ReduceSum data, configures CMake, builds, and runs the ReduceSum demo. |
-| `run_allgather.sh` | Sets up CANN, generates AllGather data, configures CMake, builds, and runs the AllGather demo. |
+| `CMakeLists.txt` | Builds the four host executables and their mixed Cube/Vec device kernel shared libraries. |
+| `run_treduce_reducesum.sh` / `run_tpush_reducesum.sh` | Set up CANN, generate data, configure CMake, build, and run the TREDUCE / TPUSH ReduceSum examples. |
+| `run_tbroadcast_allgather.sh` / `run_tpush_allgather.sh` | Set up CANN, generate data, configure CMake, build, and run the TBROADCAST / TPUSH AllGather examples. |
 | `ffn_config.hpp` | Compile-time grid shape, tile shape, GridPipe window sizes, buffer sizes, SwiGLU clamp bounds, the A3 precision-mapping table, and Batcher GM arena byte sizes. |
-| `kernel_launch.hpp` | Host-side mixed kernel launch declaration. |
-| `main_reducesum.cpp` | ReduceSum host driver: ACL setup, fake HCCL context/local GridPipe windows, working buffers, Batcher load/distribute/broadcast, kernel launch, golden comparison, and cleanup. |
-| `distributed_ffn_grid_reducesum_compute_kernel.cpp` | ReduceSum mixed Cube/Vec kernel. Cube computes GEMMs; Vec computes the SwiGLU activation/cast and the GridPipe `EAST` reduce. |
-| `main_allgather.cpp` | AllGather host driver. |
-| `distributed_ffn_grid_allgather_compute_kernel.cpp` | AllGather mixed Cube/Vec kernel. Vec gathers hidden shards; Cube writes output-H shards. |
-| `batcher.hpp` | Host-side GM-simulated **Batcher**: owns the full input + the full DRAM-resident weights in GM, splits them column-parallel into per-col shards, broadcasts x per-row, and exposes the output-collection region. Replaces the legacy per-cell X/weight load path. |
+| `kernel_launch.hpp` | Host-side mixed kernel launch declarations (one per example). |
+| `main_treduce_reducesum.cpp` / `main_tpush_reducesum.cpp` | ReduceSum host drivers: ACL setup, fake HCCL context / local GridPipe windows, working buffers, Batcher load/distribute, kernel launch, golden comparison, cleanup. |
+| `distributed_ffn_grid_treduce_reducesum_compute_kernel.cpp` | TREDUCE ReduceSum kernel: the EAST+SOUTH reduce uses the fused `TREDUCE<Dir, Sum>`. |
+| `distributed_ffn_grid_tpush_reducesum_compute_kernel.cpp` | TPUSH ReduceSum kernel: same compute, but the EAST+SOUTH reduce is spelled with explicit `TPOP<Dir>` + `TADD` + `TPUSH<Dir>`. |
+| `main_tbroadcast_allgather.cpp` / `main_tpush_allgather.cpp` | AllGather host drivers. |
+| `distributed_ffn_grid_tbroadcast_allgather_compute_kernel.cpp` | TBROADCAST AllGather kernel: the two gather phases use `TBROADCAST<GridGroup>` + `TPOP<GridGroup>`. |
+| `distributed_ffn_grid_tpush_allgather_compute_kernel.cpp` | TPUSH AllGather kernel: the two gather phases use a bidirectional `TPUSH`/`TPOP` relay. |
+| `batcher.hpp` | Host-side GM-simulated **Batcher**: owns the full input + the full DRAM-resident weights in GM, splits them column-parallel into per-cell shards, broadcasts x, and exposes the output-collection region. |
 | `tpipe_tmov_inl.hpp` | Directional `TMOV` overloads that lower Cube↔Vec C2V/V2C transfers to the existing `TPUSH`/`TPOP`, so the kernel body never spells out the handshake. |
 | `gridpipe_payload_inl.hpp` | Local GridPipe payload hooks and fake-window remote pointer adapter. |
 | `smoke/` | Standalone GridPipe feature smoke tests. `khop_smoke_{config,kernel,launch}` + `main_khop_smoke.cpp` + `run_khop_smoke.sh` cover routed K-hop unicast; `bcast_smoke_*` + `run_bcast_smoke.sh` cover single-source row/column broadcast. Both build through the parent `CMakeLists.txt`. |
@@ -38,6 +42,13 @@ Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unica
 | `scripts/gen_data.py` | Generates the FULL fp16 X/weight tensors (`x_full`, `w_gate_full`, `w_up_full`, `w_down_full`) the Batcher consumes, plus an fp32 SwiGLU `golden` reference. |
 | `build/` | Ignored generated build directory. |
 | `out/` | Ignored generated data directory. |
+
+## Reliability notes
+
+Run with `-r npu` (the `sim`/`camodel` modes fail `aclrtSetDevice` 507033); on a shared host every run must go through `task-submit`.
+
+- **ReduceSum-pattern examples pass bit-exact.** `treduce_reducesum` and `tpush_reducesum` both produce `max diff = 0` vs `golden.bin` (~3 ms). The EAST/SOUTH reduce is a fan-in-1 chain (a DAG), which the GM-scoreboard mock drives reliably. The H-chunked reduce uses one GridPipe slot per H-segment (`FFN_RS_REDUCE_SLOT_COUNT = kHSegs`); a smaller slot count reuses slots across segments and deadlocks on the cross-segment *free* doorbell.
+- **AllGather-pattern examples are mock-limited, for a now-precise reason.** Both build and run end-to-end. Per-cell diagnostics show the **row relay (phase B, `[8,768]` = 12 KB payload) is bit-correct** and the **backward scatter is perfect** (all 32 cells end with byte-identical `hidden_full`); the drift comes **only from the col relay (phase C) forward**, whose tile is `[8,3072]` = **48 KB**. Payload size is the strict correlate: **12 KB (row relay) ✓ · 32 KB (`reduce`) ✓ · 48 KB (col relay) ✗**. The mock's `copy_ubuf_to_neighbor_ubuf` / `copy_gm_to_ubuf` async MTE DMA plus the `pipe_barrier(PIPE_ALL)+dsb` publish/drain fence probabilistically fail to fully complete a 48 KB transfer before the ready doorbell (or the next read), so the col-relay sink occasionally assembles a `hidden_full` missing part of a row-block; the (correct) backward scatter then broadcasts that same wrong block to every cell → down-GEMM drift (~1–7 %, occasionally worse under contention). The DMA chunk size is **not** the cause (256 B vs 8 KB both still drift), nor is same-tile MTE2→V reuse (a decoupled `recvTile` also drifts). `tbroadcast_allgather` (MPSC) separately loses per-source ready lanes under 8-way concurrency → `wait ready timeout`. A bit-exact AllGather on this mock needs either a **chunked col relay (≤32 KB payload per relay)** or the produce/consume-split launch refactor; tracked separately.
 
 ## Execution Flow
 
