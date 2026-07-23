@@ -35,9 +35,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hcomm/ccu/hccl_ccu_res.h"
 #include "hcomm/ccu/ccu_assist_pub.h"
 
-#include "pto/npu/comm/async/ccu/ccu_types.hpp"
-#include "pto/npu/comm/async/ccu/ccu_gate_registry.hpp"
-#include "pto/npu/comm/async/ccu/ccu_scatter_kernel.hpp"
+#include "pto/comm/async/ccu/ccu_types.hpp"
+#include "pto/comm/async/ccu/ccu_gate_registry.hpp"
+#include "pto/comm/async/ccu/ccu_scatter_kernel.hpp"
 
 #include <gtest/gtest.h>
 #include "../comm_mpi.h"

@@ -138,10 +138,5 @@ PTO_INTERNAL void TFILLPAD_EXPAND_IMPL(TileDataDst& dst, TileDataSrc& src)
     TFILLPAD_IMPL<TileDataDst, TileDataSrc, false>(dst, src);
 }
 
-template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TFILLPAD_EXPAND_IMPL(TileDataDst &dst, TileDataSrc &src)
-{
-    TFILLPAD_EXPAND(dst, src);
-}
 } // namespace pto
 #endif

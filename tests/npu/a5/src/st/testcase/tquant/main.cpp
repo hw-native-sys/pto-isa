@@ -212,7 +212,7 @@ void RunMxFp4E2M1Case(LaunchFunc launch)
     CompareMxFp4Outputs(dstFileSize, dstExpFileSize);
 }
 
-template <int validRows, int validCols, int mode>
+template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 void test_tquant_mxfp8()
 {
     RunMxFp8Case<validRows, validCols, mode, float>([](uint8_t* dst, float* src, uint8_t* dstExp, void* stream) {
@@ -220,7 +220,7 @@ void test_tquant_mxfp8()
     });
 }
 
-template <int validRows, int validCols, int mode>
+template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 void test_tquant_mxfp8_bf16()
 {
     RunMxFp8Case<validRows, validCols, mode, uint16_t>([](uint8_t* dst, uint16_t* src, uint8_t* dstExp, void* stream) {
@@ -271,7 +271,7 @@ void test_tquant_mxfp4_e2m1_fp16()
     });
 }
 
-template <int validRows, int validCols>
+template <int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 void test_tquant_mxfp4_e2m1_bf16()
 {
     RunMxFp4E2M1Case<validRows, validCols>([](uint8_t* dst, uint16_t* src, uint8_t* dstExp, void* stream) {

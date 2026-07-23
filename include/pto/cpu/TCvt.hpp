@@ -27,9 +27,10 @@ inline void PrintFloatBits(double val, const char* name)
     constexpr uint32_t expShift = 52;
     uint64_t bits = *reinterpret_cast<const uint64_t*>(&val);
     std::printf(
-        "[PTO][TCVT] %s: %.17g bits=0x%016lx sign=%lu exp=%lu(0x%lx) mantissa=0x%lx\n", name, val, bits,
-        (unsigned long)((bits >> signShift) & 1), (unsigned long)((bits >> expShift) & 0x7FF),
-        (unsigned long)((bits >> expShift) & 0x7FF), (unsigned long)(bits & 0xFFFFFFFFFFFFF));
+        "[PTO][TCVT] %s: %.17g bits=0x%016llx sign=%lu exp=%lu(0x%lx) mantissa=0x%lx\n", name, val,
+        static_cast<unsigned long long>(bits), (unsigned long)((bits >> signShift) & 1),
+        (unsigned long)((bits >> expShift) & 0x7FF), (unsigned long)((bits >> expShift) & 0x7FF),
+        (unsigned long)(bits & 0xFFFFFFFFFFFFF));
 }
 
 inline void PrintFloatBits(float val, const char* name)

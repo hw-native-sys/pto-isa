@@ -29,6 +29,7 @@ public:
 struct UrmaTestContext {
     int deviceId{-1};
     void* devBuf{nullptr};
+    aclrtStream stream{nullptr};
     UrmaWorkspaceManager urmaMgr;
 
     bool AllocHugePageBuffer(size_t commBytesNeeded) { return true; }

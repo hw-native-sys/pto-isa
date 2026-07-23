@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define ELEMENT_OP_HPP
 
 #include <cmath>
+#include <type_traits>
 
 #include "pto/common/pto_tile.hpp"
 #include "pto/cpu/common.hpp"
@@ -85,6 +86,17 @@ enum class ElementOp {
     OP_SUBCS,
 };
 
+template <typename DType>
+static DType CpuSimRoundElement(DType value)
+{
+    if constexpr (std::is_same_v<DType, half>) {
+        volatile DType rounded = value;
+        return rounded;
+    } else {
+        return value;
+    }
+}
+
 template <typename DType, ElementOp op>
 struct ElementOpCal {
     static void apply(DType& dst, DType& src0, DType& src1, size_t) { assert(false && "Unsupported element op."); }
@@ -135,9 +147,17 @@ struct ElementOpCal<DType, ElementOp::OP_DIV> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_MULADDDST> {
-    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = static_cast<DType>(src0 * src1) + dst; }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
+    {
+        const DType product = CpuSimRoundElement<DType>(src0 * src1);
+        dst = CpuSimRoundElement<DType>(product + dst);
+    }
 
-    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = static_cast<DType>(src0 * src1) + dst; }
+    static void apply(DType& dst, const DType& src0, const DType& src1)
+    {
+        const DType product = CpuSimRoundElement<DType>(src0 * src1);
+        dst = CpuSimRoundElement<DType>(product + dst);
+    }
 };
 
 template <typename DType>
@@ -151,12 +171,14 @@ template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_FUSEDMULADDRELU> {
     static void apply(DType& dst, DType& src0, DType& src1, size_t)
     {
-        dst = ReLU(static_cast<DType>(src0 * dst) + src1);
+        const DType product = CpuSimRoundElement<DType>(src0 * dst);
+        dst = ReLU(CpuSimRoundElement<DType>(product + src1));
     }
 
     static void apply(DType& dst, const DType& src0, const DType& src1)
     {
-        dst = ReLU(static_cast<DType>(src0 * dst) + src1);
+        const DType product = CpuSimRoundElement<DType>(src0 * dst);
+        dst = ReLU(CpuSimRoundElement<DType>(product + src1));
     }
 };
 

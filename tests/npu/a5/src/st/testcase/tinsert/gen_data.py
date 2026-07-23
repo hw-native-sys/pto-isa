@@ -217,7 +217,7 @@ def gen_nz_split_custom(dtype, valid_row, dst_rows, cols):
     ds = np.dtype(dtype).itemsize
     arr = rand_data(dtype, (valid_row, cols))
     arr.tofile("input_arr.bin")
-    result = np.zeros((dst_rows, cols), dtype=dtype)
+    result = np.full((dst_rows, cols), dtype(1), dtype=dtype)
     result[:valid_row, :] = arr
     nd_to_nz(result, dst_rows, cols, ds).tofile("golden_output.bin")
 

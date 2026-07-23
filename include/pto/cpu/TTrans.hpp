@@ -377,18 +377,7 @@ PTO_INTERNAL void TTRANS_IMPL(DstTileData& dst, SrcTileData& src, TmpTileData& t
         "Data type sizes between source and destination tiles must match.");
 
     if constexpr (is_conv_tile_v<SrcTileData> && is_conv_tile_v<DstTileData>) {
-        constexpr Layout src_layout = SrcTileData::layout;
-        constexpr Layout dst_layout = DstTileData::layout;
-
-        if constexpr (src_layout == Layout::NCHW && dst_layout == Layout::NC1HWC0) {
-            TTRANS_NCHW2NC1HWC0(dst, src);
-        } else if constexpr (src_layout == Layout::NC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
-            TTRANS_NC1HWC02C1HWN1N0C0(dst, src);
-        } else if constexpr (src_layout == Layout::GNCHW && dst_layout == Layout::GNC1HWC0) {
-            TTRANS_GNCHW2NC1HWC0(dst, src);
-        } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
-            TTRANS_GNC1HWC02C1HWN1N0C0(dst, src);
-        }
+        TTRANS_CONV_IMPL(dst, src);
     } else if constexpr (is_tile_data_v<SrcTileData> && is_tile_data_v<DstTileData>) {
         static_assert(
             SrcTileData::ValidRow == DstTileData::ValidCol && SrcTileData::ValidCol == DstTileData::ValidRow,

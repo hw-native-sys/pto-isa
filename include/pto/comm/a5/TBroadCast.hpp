@@ -38,8 +38,7 @@ PTO_INTERNAL void TBROADCAST_CCU_IMPL(
     ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData,
     const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, stagingTileData);
+    CcuStoreTriggerRoot(parallelGroup, srcGlobalData, stagingTileData, ctx, events...);
 }
 
 template <
@@ -49,8 +48,8 @@ PTO_INTERNAL void TBROADCAST_CCU_IMPL(
     ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
     const CcuTriggerContext& ctx, WaitEvents&... events)
 {
-    WaitAllEvents(events...);
-    pto::comm::ccu::CkeTriggerFromTile(ctx.ckeSlotVA, ctx.mask, pingTile);
+    CcuStoreTriggerRoot(parallelGroup, srcGlobalData, pingTile, ctx, events...);
+    (void)pongTile;
 }
 
 } // namespace comm

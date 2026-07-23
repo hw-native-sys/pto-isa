@@ -70,7 +70,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TPairReduceSum.hpp"
 #else
 #include "pto/npu/a2a3/TAssign.hpp"
-#include "pto/npu/a2a3/TAlias.hpp"
 #include "pto/npu/a2a3/TSync.hpp"
 #include "pto/npu/a2a3/SyncAll.hpp"
 #include "pto/npu/a2a3/TAdd.hpp"
@@ -215,9 +214,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TLoad.hpp"
 #include "pto/npu/a5/TSubView.hpp"
 #include "pto/npu/a5/TGetScaleAddr.hpp"
-#ifdef __DAV_VEC__
 #include "pto/npu/a5/TCvt.hpp"
-#endif
 #include "pto/npu/a5/TStore.hpp"
 #include "pto/npu/a5/TMrgSort.hpp"
 #include "pto/npu/a5/TMatmul.hpp"
@@ -257,7 +254,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TRowExpandExpdif.hpp"
 #include "pto/npu/a5/TPartAdd.hpp"
 #include "pto/npu/a5/TPartMul.hpp"
+#include "pto/npu/a5/TPartArgMax.hpp"
 #include "pto/npu/a5/TPartMax.hpp"
+#include "pto/npu/a5/TPartArgMin.hpp"
 #include "pto/npu/a5/TPartMin.hpp"
 #include "pto/npu/a5/TPow.hpp"
 #include "pto/npu/a5/TQuant.hpp"
@@ -318,13 +317,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/kirinDev0000/header.hpp"
 #endif
 
-// Async L2 cache prefetch via SDMA CMO. Same backend file is reused across A2/A3
-// and A5 because the SDMA infrastructure is common to both architectures
-// (the actual SQE-field differences are handled inside the SDMA helpers via
-// `#ifdef PTO_NPU_ARCH_A5`). Guarded so that costmodel and CPU sim builds
-// pick up their own variant from the blocks below.
+// Async L2 cache prefetch via SDMA CMO. Dispatch through per-architecture
+// wrappers while sharing the common SDMA implementation.
 #if defined(__CCE_AICORE__) && !(defined(__CPU_SIM) || defined(__COSTMODEL))
-#include "pto/npu/TPrefetchAsync.hpp"
+#ifdef PTO_NPU_ARCH_A2A3
+#include "pto/npu/a2a3/TPrefetchAsync.hpp"
+#endif
+#ifdef PTO_NPU_ARCH_A5
+#include "pto/npu/a5/TPrefetchAsync.hpp"
+#endif
 #endif
 
 #ifdef __CPU_SIM

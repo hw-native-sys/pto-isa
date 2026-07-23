@@ -49,7 +49,7 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
         if constexpr (CMode == Coalesce::Elem) {
             for (std::size_t j = 0; j < validCol; ++j) {
                 const size_t dstOff = GetTileElementOffset<TileDst>(i, j);
-                const size_t idx = static_cast<size_t>(indexes.data()[GetTileElementOffset<TileInd>(i, j)]);
+                const size_t idx = static_cast<size_t>(indexes.data()[GetDataElementOffset(indexes, i, j)]);
 
                 if constexpr (Mode == GatherOOB::Clamp) {
                     dst.data()[dstOff] = base[std::clamp(idx, static_cast<size_t>(0), capacity - 1)];

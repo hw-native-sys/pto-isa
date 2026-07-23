@@ -178,6 +178,39 @@ add("MGATHERTest.case_row_int32_unaligned_3x8_8rows", lambda n: case_row(n, np.i
 add("MGATHERTest.case_row_int32_unaligned_9x16_16rows", lambda n: case_row(n, np.int32, 9, 16, 16))
 
 
+def case_elem2d_dyn(name, dtype, valid_r, valid_c, table_total, oob="undefined", idx_kind="random"):
+    rng = np.random.default_rng(hash(name) & 0xFFFFFFFF)
+    table = make_table(dtype, table_total)
+    if idx_kind == "random":
+        idx = make_idx_random(rng, (valid_r, valid_c), table_total)
+    elif idx_kind == "oob":
+        idx = make_idx_with_oob(rng, (valid_r, valid_c), table_total, max(1, (valid_r * valid_c) // 2))
+    else:
+        raise ValueError(idx_kind)
+    golden = golden_elem(table, idx, oob)
+    return table, idx, golden
+
+
+add(
+    "MGATHERTest.case_elem2d_dyn_user_float_1x9_in_1x16_3x10",
+    lambda n: case_elem2d_dyn(n, np.float32, 1, 9, 3 * 10, idx_kind="random"),
+)
+add(
+    "MGATHERTest.case_elem2d_dyn_int32_4x8_in_4x8_64size",
+    lambda n: case_elem2d_dyn(n, np.int32, 4, 8, 64, idx_kind="random"),
+)
+add(
+    "MGATHERTest.case_elem2d_dyn_float_3x3_in_3x8_64size",
+    lambda n: case_elem2d_dyn(n, np.float32, 3, 3, 64, idx_kind="random"),
+)
+add(
+    "MGATHERTest.case_elem2d_dyn_half_8x16_in_8x16_4x32",
+    lambda n: case_elem2d_dyn(n, np.float16, 8, 16, 4 * 32, idx_kind="random"),
+)
+add("MGATHERTest.case_row_dyn_int32_3x16_8rows", lambda n: case_row(n, np.int32, 3, 16, 8))
+add("MGATHERTest.case_row_dyn_half_4x32_16rows", lambda n: case_row(n, np.float16, 4, 32, 16))
+
+
 if __name__ == "__main__":
     for name, fn in CASES:
         if not os.path.exists(name):

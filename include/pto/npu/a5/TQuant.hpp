@@ -20,6 +20,77 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+namespace tquant_detail {
+
+constexpr int16_t kF32StorageBits = 32;
+constexpr int16_t kF32MantissaBits = 23;
+constexpr uint32_t kF32PositiveInfBits = 0x7F800000u;
+constexpr int16_t kBf16StorageBits = 16;
+constexpr int16_t kBf16MantissaBits = 7;
+constexpr uint16_t kBf16PositiveInfBits = 0x7F80u;
+constexpr int16_t kIeee754ExponentBits = 8;
+constexpr int16_t kFp4CodeBits = 4;
+constexpr int16_t kPackedByteBits = 8;
+constexpr int16_t kVectorLaneBits = 32;
+constexpr int16_t kSignBitCount = 1;
+constexpr uint32_t kSingleBitMask = 1u;
+
+template <typename BitsT, int16_t StorageBits, int16_t ExponentBits, int16_t MantissaBits, BitsT PositiveInfBits>
+struct FloatBitFieldLayout {
+    using BitsType = BitsT;
+
+    static constexpr int16_t storageBits = StorageBits;
+    static constexpr int16_t exponentBits = ExponentBits;
+    static constexpr int16_t mantissaBits = MantissaBits;
+    static constexpr int16_t signBitOffset = storageBits - kSignBitCount;
+    static constexpr int16_t signClearShift = kSignBitCount;
+    static constexpr int16_t exponentOffset = mantissaBits;
+    static constexpr uint32_t exponentBias = (kSingleBitMask << (exponentBits - kSignBitCount)) - kSingleBitMask;
+    static constexpr int32_t negativeExponentBias = -static_cast<int32_t>(exponentBias);
+    static constexpr BitsT signMask = static_cast<BitsT>(BitsT{kSingleBitMask} << signBitOffset);
+    static constexpr BitsT absMask = static_cast<BitsT>(~signMask);
+    static constexpr BitsT positiveInfBits = PositiveInfBits;
+};
+
+using F32BitFieldLayout =
+    FloatBitFieldLayout<uint32_t, kF32StorageBits, kIeee754ExponentBits, kF32MantissaBits, kF32PositiveInfBits>;
+using Bf16BitFieldLayout =
+    FloatBitFieldLayout<uint16_t, kBf16StorageBits, kIeee754ExponentBits, kBf16MantissaBits, kBf16PositiveInfBits>;
+
+template <int16_t CodeBits, int16_t PackedByteBits = kPackedByteBits, int16_t VectorLaneBits = kVectorLaneBits>
+struct PackedSubBytePairLayout {
+    static constexpr int16_t codeBits = CodeBits;
+    static constexpr int16_t packedByteBits = PackedByteBits;
+    static constexpr int16_t vectorLaneBits = VectorLaneBits;
+    static constexpr int16_t lowCodeShift = vectorLaneBits - codeBits;
+    static constexpr int16_t highCodeShift = vectorLaneBits - packedByteBits;
+};
+
+using Fp4PackedPairLayout = PackedSubBytePairLayout<kFp4CodeBits>;
+
+template <typename SourceFloatLayout, typename PackedPairLayout>
+struct Fp4E2M1CodeLayout {
+    static constexpr int16_t exponentBits = 2;
+    static constexpr int16_t mantissaBits = 1;
+    static constexpr uint32_t maxExponentDelta = (1u << exponentBits) - 2u;
+    static constexpr uint32_t maxBiasedExponent = SourceFloatLayout::exponentBias + maxExponentDelta;
+    static constexpr int32_t magicRoundingExponentOffset = SourceFloatLayout::mantissaBits - mantissaBits;
+    static constexpr int16_t magnitudeCodeShift = mantissaBits;
+    static constexpr uint32_t signBitMask = 1u << (PackedPairLayout::codeBits - 1);
+    static constexpr uint32_t maxMagnitudeCode = signBitMask - 1u;
+    static constexpr int32_t negativeCodeOffset = -static_cast<int32_t>(signBitMask);
+};
+
+using Fp4E2M1Code = Fp4E2M1CodeLayout<F32BitFieldLayout, Fp4PackedPairLayout>;
+
+struct FlatTile1DLayout {
+    static constexpr int rows = 1;
+    static constexpr int runtimeValidExtent = -1;
+    static constexpr int sFractalSize = TileConfig::fractalABSize;
+};
+
+} // namespace tquant_detail
+
 struct NvMxFp8E4M3Spec {
     static constexpr float descaleMultiplier = 1.0f / 448.0f;
     static constexpr uint32_t b16SpecialScaleBits = 0x7F81u;
@@ -219,7 +290,9 @@ template <typename T, bool fp16AsBf16ForMax = true>
 PTO_INTERNAL void AbsReduceMax_b16_DintlvWindow(
     __ubuf__ T* srcPtr, uint32_t offset, uint32_t remaining, RegTensor<T>& vb16_max)
 {
+    constexpr uint16_t kBf16AbsMask = 0x7FFF;
     RegTensor<T> vb16_in_1, vb16_in_2;
+    RegTensor<uint16_t> vu16_abs_1, vu16_abs_2, vu16_bf16_abs_mask;
     uint32_t even_count = (remaining + 1) / 2;
     uint32_t odd_count = remaining / 2;
     MaskReg preg_vl0 = CreatePredicate<T>(even_count);
@@ -887,8 +960,9 @@ template <typename T>
 PTO_INTERNAL void ExtractE2M1ExponentAndScalingVL(
     __ubuf__ T* maxPtr, __ubuf__ uint8_t* expPtr, __ubuf__ T* scalingPtr, uint32_t off, uint32_t rem)
 {
-    static_assert(std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
-                  "ExtractE2M1ExponentAndScalingVL: T must be bfloat16_t or half");
+    static_assert(
+        std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
+        "ExtractE2M1ExponentAndScalingVL: T must be bfloat16_t or half");
     constexpr uint16_t kBf16ExpMask = 0x7F80;
     constexpr uint16_t kBf16MantissaMask = 0x007F;
     constexpr uint16_t kFp4E2M1MaxExp = 0x0100;
@@ -896,8 +970,8 @@ PTO_INTERNAL void ExtractE2M1ExponentAndScalingVL(
     constexpr uint16_t kFp4Nan = 0x00FF;
     constexpr uint16_t kBf16Nan = 0x7FC0;
 
-    __ubuf__ uint16_t *maxPtr_u16 = (__ubuf__ uint16_t *)maxPtr;
-    __ubuf__ uint16_t *scalingPtr_u16 = (__ubuf__ uint16_t *)scalingPtr;
+    __ubuf__ uint16_t* maxPtr_u16 = (__ubuf__ uint16_t*)maxPtr;
+    __ubuf__ uint16_t* scalingPtr_u16 = (__ubuf__ uint16_t*)scalingPtr;
     RegTensor<uint16_t> vu16_max_abs, vu16_max_exp, vu16_mantissa;
     RegTensor<uint16_t> vu16_shared_exp, vu16_scale_value, vu16_recip_scale;
     RegTensor<uint16_t> vu16_max_exp_value, vu16_scale_bias, vu16_fp4_nan;
@@ -923,7 +997,7 @@ PTO_INTERNAL void ExtractE2M1ExponentAndScalingVL(
     vsub(vu16_shared_exp, vu16_max_exp, vu16_max_exp_value, preg_b16, MODE_ZEROING);
     vshrs(vu16_scale_value, vu16_shared_exp, 7, preg_b16, MODE_ZEROING);
     vsel(vu16_scale_value, vu16_fp4_nan, vu16_scale_value, preg_nan);
-    vsts(vu16_scale_value, (__ubuf__ uint16_t *)expPtr, off / sizeof(T), PK_B16, preg_b16);
+    vsts(vu16_scale_value, (__ubuf__ uint16_t*)expPtr, off / sizeof(T), PK_B16, preg_b16);
 
     vsub(vu16_recip_scale, vu16_scale_bias, vu16_shared_exp, preg_b16, MODE_ZEROING);
     vsel(vu16_recip_scale, vu16_nan, vu16_recip_scale, preg_nan);
@@ -1060,10 +1134,17 @@ PTO_INTERNAL void CalcQuantizedFP8Values_B16_Window(
     uint32_t even_count = (remaining + 1) / 2;
     uint32_t odd_count = remaining / 2;
     uint32_t b8_count = remaining;
+    uint32_t f32_count_1_even = (even_count + 1) / 2;
+    uint32_t f32_count_1_odd = even_count / 2;
+    uint32_t f32_count_2_even = (odd_count + 1) / 2;
+    uint32_t f32_count_2_odd = odd_count / 2;
     MaskReg preg_b16_1 = CreatePredicate<T>(even_count);
     MaskReg preg_b16_2 = CreatePredicate<T>(odd_count);
+    MaskReg preg_f32_1_even = CreatePredicate<float>(f32_count_1_even);
+    MaskReg preg_f32_1_odd = CreatePredicate<float>(f32_count_1_odd);
+    MaskReg preg_f32_2_even = CreatePredicate<float>(f32_count_2_even);
+    MaskReg preg_f32_2_odd = CreatePredicate<float>(f32_count_2_odd);
     MaskReg preg_b8 = CreatePredicate<uint8_t>(b8_count);
-    vlds((vector_u16 &)vb16_scaling, (__ubuf__ uint16_t *)scalingPtr, 8 * i, E2B_B16);
     vlds(vb16_in_1, vb16_in_2, srcPtr, offset_b16, DINTLV_B16);
     if constexpr (std::is_same<T, half>::value) {
         ApplyHalfScalingToFP8Window(
@@ -1079,10 +1160,10 @@ PTO_INTERNAL void CalcQuantizedFP8Values_B16_Window(
         vcvt(vb32_cvt_4, vb16_out_2, preg_b16_2, PART_ODD);
     }
     // fp32->fp8 P0..P3 writes to bytes 0..3 of each 32-bit slot; pair with mod-4 index.
-    vcvt(vb8_p0, vb32_cvt_1, preg_b16_1, ROUND_R, RS_ENABLE, PART_P0);
-    vcvt(vb8_p1, vb32_cvt_3, preg_b16_2, ROUND_R, RS_ENABLE, PART_P1);
-    vcvt(vb8_p2, vb32_cvt_2, preg_b16_1, ROUND_R, RS_ENABLE, PART_P2);
-    vcvt(vb8_p3, vb32_cvt_4, preg_b16_2, ROUND_R, RS_ENABLE, PART_P3);
+    vcvt(vb8_p0, vb32_cvt_1, preg_f32_1_even, ROUND_R, RS_ENABLE, PART_P0);
+    vcvt(vb8_p1, vb32_cvt_3, preg_f32_2_even, ROUND_R, RS_ENABLE, PART_P1);
+    vcvt(vb8_p2, vb32_cvt_2, preg_f32_1_odd, ROUND_R, RS_ENABLE, PART_P2);
+    vcvt(vb8_p3, vb32_cvt_4, preg_f32_2_odd, ROUND_R, RS_ENABLE, PART_P3);
     vor(vb8_or1, vb8_p0, vb8_p1, preg_b8);
     vor(vb8_or2, vb8_p2, vb8_p3, preg_b8);
     vor(vb8_out, vb8_or1, vb8_or2, preg_b8);
@@ -1144,7 +1225,9 @@ PTO_INTERNAL void CalcQuantizedFP8Values_2D(
 
 PTO_INTERNAL void CalcE2M1SignedCodeI32(vector_s32& signedCode, vector_f32 scaled, MaskReg& preg_f32)
 {
-    constexpr uint32_t kInfBits = 0x7F800000;
+    using F32 = tquant_detail::F32BitFieldLayout;
+    using E2M1 = tquant_detail::Fp4E2M1Code;
+
     vector_u32 vu32_abs_bits, vu32_exp, vu32_tmp;
     vector_bool preg_sign, preg_nan;
 
@@ -1154,9 +1237,9 @@ PTO_INTERNAL void CalcE2M1SignedCodeI32(vector_s32& signedCode, vector_f32 scale
     vshrs(vu32_abs_bits, vu32_abs_bits, F32::signClearShift, preg_f32, MODE_ZEROING);
     vcmps_gt(preg_nan, vu32_abs_bits, F32::positiveInfBits, preg_f32);
 
-    vshrs(vu32_exp, vu32_abs_bits, (int16_t)23, preg_f32, MODE_ZEROING);
-    vmaxs(vu32_exp, vu32_exp, (uint32_t)127, preg_f32, MODE_ZEROING);
-    vmins(vu32_exp, vu32_exp, (uint32_t)129, preg_f32, MODE_ZEROING);
+    vshrs(vu32_exp, vu32_abs_bits, F32::exponentOffset, preg_f32, MODE_ZEROING);
+    vmaxs(vu32_exp, vu32_exp, F32::exponentBias, preg_f32, MODE_ZEROING);
+    vmins(vu32_exp, vu32_exp, E2M1::maxBiasedExponent, preg_f32, MODE_ZEROING);
 
     vadds((vector_s32&)vu32_tmp, (vector_s32&)vu32_exp, E2M1::magicRoundingExponentOffset, preg_f32, MODE_ZEROING);
     vshls(vu32_tmp, vu32_tmp, F32::exponentOffset, preg_f32, MODE_ZEROING);
@@ -1166,7 +1249,7 @@ PTO_INTERNAL void CalcE2M1SignedCodeI32(vector_s32& signedCode, vector_f32 scale
     vadds((vector_s32&)vu32_exp, (vector_s32&)vu32_exp, F32::negativeExponentBias, preg_f32, MODE_ZEROING);
     vshls(vu32_exp, vu32_exp, E2M1::magnitudeCodeShift, preg_f32, MODE_ZEROING);
     vadd(vu32_abs_bits, vu32_abs_bits, vu32_exp, preg_f32, MODE_ZEROING);
-    vmins(vu32_abs_bits, vu32_abs_bits, (uint32_t)7, preg_f32, MODE_ZEROING);
+    vmins(vu32_abs_bits, vu32_abs_bits, E2M1::maxMagnitudeCode, preg_f32, MODE_ZEROING);
 
     vadds(signedCode, (vector_s32&)vu32_abs_bits, E2M1::negativeCodeOffset, preg_f32, MODE_ZEROING);
     vsel(signedCode, signedCode, (vector_s32&)vu32_abs_bits, preg_sign);
@@ -1177,6 +1260,8 @@ PTO_INTERNAL void CalcE2M1SignedCodeI32(vector_s32& signedCode, vector_f32 scale
 PTO_INTERNAL void PackE2M1SignedCodeBytes(
     vector_u8& packedBytes, vector_s32 evenCode, vector_s32 oddCode, vector_u8& packIndex, MaskReg& preg_f32)
 {
+    using Pack = tquant_detail::Fp4PackedPairLayout;
+
     vector_u32 vu32_even, vu32_odd;
 
     vshls(vu32_even, (vector_u32&)evenCode, Pack::lowCodeShift, preg_f32, MODE_ZEROING);
@@ -1189,15 +1274,15 @@ PTO_INTERNAL void PackE2M1SignedCodeBytes(
 
 PTO_INTERNAL void SaturateBf16NaNToPosInf(vector_u16& value, MaskReg& preg_b16)
 {
-    constexpr uint16_t kBf16AbsMask = 0x7FFF;
-    constexpr uint16_t kBf16Inf = 0x7F80;
+    using Bf16 = tquant_detail::Bf16BitFieldLayout;
+
     vector_u16 v_abs, v_abs_mask, v_inf;
     vector_bool preg_nan;
 
-    vbr(v_abs_mask, kBf16AbsMask);
-    vbr(v_inf, kBf16Inf);
+    vbr(v_abs_mask, Bf16::absMask);
+    vbr(v_inf, Bf16::positiveInfBits);
     vand(v_abs, value, v_abs_mask, preg_b16, MODE_ZEROING);
-    vcmps_gt(preg_nan, v_abs, kBf16Inf, preg_b16);
+    vcmps_gt(preg_nan, v_abs, Bf16::positiveInfBits, preg_b16);
     vsel(value, v_inf, value, preg_nan);
 }
 
@@ -1258,26 +1343,7 @@ PTO_INTERNAL void CalcQuantizedFP4E2M1Values_Half_Tail(
     MaskReg preg_b16 = CreatePredicate<half>(groupSize);
     MaskReg preg_f32 = CreatePredicate<float>(packedBytesPerGroup);
     MaskReg preg_all_b16 = pset_b16(PAT_ALL);
-    MaskReg preg_idx = pset_b8(PAT_ALL);
-
-    vector_u8 v_idx;
-    vci((RegTensor<int8_t> &)v_idx, (int8_t)0, INC_ORDER);
-    vmuls((RegTensor<int16_t> &)v_idx, (RegTensor<int16_t> &)v_idx, (int16_t)4, preg_idx);
-
-    uint32_t windowCount = totalGroups / 8;
-    for (uint16_t window = 0; window < (uint16_t)windowCount; ++window) {
-        CalcQuantizedFP4E2M1Values_Half_Window(srcPtr, scalingPtr, dstPtr, window, v_idx);
-    }
-
-    uint32_t tailGroups = totalGroups - windowCount * 8;
-    if (tailGroups == 0) {
-        return;
-    }
-
     UnalignReg ureg_out;
-    __ubuf__ half *srcTailPtr = srcPtr + windowCount * 256;
-    __ubuf__ half *scalingTailPtr = scalingPtr + windowCount * 8;
-    __ubuf__ uint8_t *dstWritePtr = dstPtr + windowCount * 128;
     for (uint16_t group = 0; group < (uint16_t)tailGroups; ++group) {
         RegTensor<half> v_input;
         vector_bf16 v_scaling_bf16;
@@ -1361,13 +1427,11 @@ PTO_INTERNAL void CalcQuantizedFP4E2M1Values_Bf16(
     __ubuf__ bfloat16_t* srcPtr, __ubuf__ bfloat16_t* scalingPtr, __ubuf__ uint8_t* dstPtr, uint32_t totalGroups)
 {
     constexpr uint32_t kGroupSize = 32;
-    constexpr uint32_t kPackedBytesPerGroup = kGroupSize / 2;
     constexpr uint32_t kGroupsPerWindow = 8;
     constexpr uint32_t kElementsPerWindow = kGroupSize * kGroupsPerWindow;
     constexpr uint32_t kPackedBytesPerWindow = kElementsPerWindow / 2;
     constexpr uint32_t kPackedBytesPerHalfWindow = kPackedBytesPerWindow / 2;
     uint32_t groupSize = kGroupSize;
-    uint32_t packedBytesPerGroup = kPackedBytesPerGroup;
     MaskReg preg_b16_window = pset_b16(PAT_ALL);
     MaskReg preg_b16_group = CreatePredicate<bfloat16_t>(groupSize);
     MaskReg preg_idx = pset_b8(PAT_ALL);
@@ -1402,6 +1466,11 @@ PTO_INTERNAL void CalcQuantizedFP4E2M1Values_Bf16(
     if (tailGroups == 0) {
         return;
     }
+
+    CalcQuantizedFP4E2M1Values_Bf16_Tail(
+        srcPtr + windowCount * kElementsPerWindow, scalingPtr + windowCount * kGroupsPerWindow,
+        dstPtr + windowCount * kPackedBytesPerWindow, tailGroups, preg_b16_group, v_idx);
+}
 
 // FP32 -> MXFP8 quantization: shared exponent extraction + FP8 conversion.
 template <QuantScaleAlg scale_alg, unsigned StaticRows, unsigned StaticCols>
@@ -2943,22 +3012,23 @@ PTO_INTERNAL void TQUANT_IMPL(
     TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
 {
     using T = typename TileDataSrc::DType;
-    static_assert(quant_type == QuantType::MXFP8 || quant_type == QuantType::MXFP4_E2M1,
-                  "Fix: MX quant overload supports MXFP8/MXFP4_E2M1.");
+    static_assert(
+        quant_type == QuantType::MXFP8 || quant_type == QuantType::MXFP4_E2M1,
+        "Fix: MX quant overload supports MXFP8/MXFP4_E2M1.");
     if constexpr (quant_type == QuantType::MXFP8) {
         static_assert(
             std::is_same<T, float32_t>::value || std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
             "Fix: MXFP8 input has to be float32, bfloat16, or float16 (half)");
     } else {
-        static_assert(std::is_same<T, half>::value || std::is_same<T, bfloat16_t>::value,
-                      "Fix: MXFP4_E2M1 input has to be float16 (half) or bfloat16");
-        static_assert(std::is_same<typename TileDataOut::DType, float4_e2m1x2_t>::value,
-                      "Fix: MXFP4_E2M1 output has to be float4_e2m1x2_t");
+        static_assert(
+            std::is_same<T, half>::value || std::is_same<T, bfloat16_t>::value,
+            "Fix: MXFP4_E2M1 input has to be float16 (half) or bfloat16");
+        static_assert(
+            std::is_same<typename TileDataOut::DType, float4_e2m1x2_t>::value,
+            "Fix: MXFP4_E2M1 output has to be float4_e2m1x2_t");
     }
+    constexpr bool exp2D = (TileDataExp::Rows > 1);
     // Create 1D flat views — TQuant operates on flattened buffers internally.
-    constexpr int expN = TileDataExp::Rows * TileDataExp::Cols;
-    FlatTile1D<TileDataExp> flatExp(1, expN);
-    TRESHAPE_IMPL(flatExp, *exp);
     constexpr int maxN = TileDataMax::Rows * TileDataMax::Cols;
     FlatTile1D<TileDataMax> flatMax(1, maxN);
     TRESHAPE_IMPL(flatMax, *max);
@@ -3038,8 +3108,6 @@ PTO_INTERNAL void TQUANT_IMPL(
         TQUANT_IMPL<quant_type, scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
             dst, src, exp, max, scaling);
     }
-    // Reshape exp back to user's original tile shape. Max and scaling are scratch buffers.
-    TRESHAPE_IMPL(*exp, flatExp);
 }
 } // namespace pto
 #endif // TQUANT_HPP

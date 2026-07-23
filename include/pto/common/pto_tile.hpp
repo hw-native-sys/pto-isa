@@ -1282,8 +1282,20 @@ public:
     PTO_INTERNAL void SetDstMposition(uint16_t dstMposition) { dstMposition_ = dstMposition; }
     PTO_INTERNAL uint16_t GetDstMposition() const { return dstMposition_; }
 #endif
+#ifdef __CPU_SIM
+    PTO_INTERNAL std::uintptr_t GetAssignedAddress() const { return assignedAddress_; }
+#endif
+
 private:
+#ifdef __CPU_SIM
+    AICORE void assignData(TileDType data, std::uintptr_t assignedAddress = 0)
+    {
+        data_ = data;
+        assignedAddress_ = assignedAddress;
+    }
+#else
     AICORE void assignData(TileDType data) { data_ = data; }
+#endif
     TileDType data_;
 #ifdef __CPU_SIM
     std::uintptr_t assignedAddress_ = 0;
@@ -1488,7 +1500,7 @@ public:
         }
         return data_;
     }
-    const TileDType &data() const
+    const TileDType& data() const
     {
         if (!data_) {
             internalBuffer.resize(Rows * Cols);
@@ -1588,6 +1600,7 @@ public:
     PTO_INTERNAL void ResetMadMode() { set_ctrl(sbitset0(get_ctrl(), MAD_MODE_BIT)); }
 #endif
 
+#if defined(__CPU_SIM)
     static constexpr size_t GetSizeInUnits()
     {
         // One unit is sizeof(DType)
@@ -1600,7 +1613,6 @@ public:
 
     static constexpr size_t GetSizeInBytes() { return GetSizeInUnits() * sizeof(DType); }
 
-#if defined(__CPU_SIM)
     DType GetElement(int64_t r, int64_t c)
     {
         return GetProperDataPart(data(), GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c));
@@ -1622,9 +1634,19 @@ public:
             data()[offset] += summand;
         }
     }
+
+    PTO_INTERNAL std::uintptr_t GetAssignedAddress() const { return assignedAddress_; }
 #endif
 private:
+#ifdef __CPU_SIM
+    AICORE void assignData(TileDType data, std::uintptr_t assignedAddress = 0)
+    {
+        data_ = data;
+        assignedAddress_ = assignedAddress;
+    }
+#else
     AICORE void assignData(TileDType data) { data_ = data; }
+#endif
     bool isKAligned_; // K-Alignedment for A3
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)

@@ -22,7 +22,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // __COSTMODEL, so the host compilation pass for this dual-pass CCE TU still
 // needs the explicit include to resolve the global-scope `using` aliases below.
 #include "pto/common/pto_tile.hpp"
-#include "pto/npu/comm/async/sdma/sdma_workspace_manager.hpp"
+#include "pto/comm/async/sdma/sdma_workspace_manager.hpp"
 
 #include "tprefetch_async_kernel.h"
 

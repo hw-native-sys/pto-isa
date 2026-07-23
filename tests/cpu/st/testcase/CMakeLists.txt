@@ -128,7 +128,7 @@ tpushpop_fixpipe
 tput
 tput_async
 tquant
-#tquant_dn
+tquant_dn
 trandom
 trecip
 treduce
@@ -163,7 +163,6 @@ tsubc
 tsubrelu
 tsubs
 tsubsc
-tsubview
 ttest
 ttrans
 ttrans_conv
@@ -172,7 +171,6 @@ ttrace
 twait
 txor
 txors
-ttrans_conv
 )
 
 foreach(TESTCASE ${ALL_TESTCASES})

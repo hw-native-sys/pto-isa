@@ -29,6 +29,7 @@ import json
 import posixpath
 import re
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 import mkdocs_gen_files
@@ -55,7 +56,56 @@ SKIP_PREFIXES = (
 
 SKIP_CONTAINS = ("/__pycache__/", "/CMakeFiles/")
 
+SKIP_EXACT = {
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "CONTRIBUTING_zh.md",
+    "ReleaseNote.md",
+    "ReleaseNote_zh.md",
+    "SECURITY.md",
+    "SECURITY_zh.md",
+    "docs/menu_ops_development.md",
+}
+
 ASSET_EXTS = {".svg", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bnf"}
+
+PUBLISHED_MD_PREFIXES = ("docs/isa/",)
+
+PUBLISHED_MD_EXACT = {"docs/getting-started.md", "docs/getting-started_zh.md"}
+
+PUBLISHED_ASSET_PREFIXES = ("docs/figures/",)
+
+HANDWRITTEN_MKDOCS_MD = {"index.md", "index_zh.md"}
+
+GENERATED_MKDOCS_ROOTS = (
+    ".claude",
+    ".codex",
+    "agents",
+    "assembly",
+    "cmake",
+    "demos",
+    "docs",
+    "include",
+    "kernels",
+    "manual",
+    "scripts",
+    "tests",
+)
+
+GENERATED_MKDOCS_FILES = (
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "CONTRIBUTING_zh.md",
+    "README.md",
+    "README_zh.md",
+    "ReleaseNote.md",
+    "ReleaseNote_zh.md",
+    "SECURITY.md",
+    "SECURITY_zh.md",
+    "all-pages.md",
+    "all-pages_zh.md",
+    "lang-map.json",
+)
 
 # Directory names whose README is the canonical index page.
 # Used by _en_url_to_zh_url to map e.g. /docs/isa/ -> /docs/isa/README_zh/.
@@ -87,6 +137,13 @@ README_DIRS = {
     "npu",
     "pto",
     "comm",
+    "introduction",
+    "programming-model",
+    "machine-model",
+    "memory-model",
+    "state-and-types",
+    "syntax-and-operands",
+    "instruction-families",
 }
 
 
@@ -114,6 +171,14 @@ def _should_skip(rel_posix: str) -> bool:
     if rel_posix.endswith((".pyc",)):
         return True
     return False
+
+
+def _is_published_md(rel_posix: str) -> bool:
+    return rel_posix in PUBLISHED_MD_EXACT or rel_posix.startswith(PUBLISHED_MD_PREFIXES)
+
+
+def _is_published_asset(rel_posix: str) -> bool:
+    return rel_posix.startswith(PUBLISHED_ASSET_PREFIXES)
 
 
 ABS_LINK_RE = re.compile(r"\]\(/((?!http)[^)]+)\)")
@@ -883,6 +948,33 @@ class IsaReferenceIndexConfig:
     empty_msg: str
 
 
+def _write_isa_reference_index(config: IsaReferenceIndexConfig) -> None:
+    """Write a generated ISA reference index page."""
+    with mkdocs_gen_files.open(config.out_path, "w") as f:
+        f.write(f"{config.heading}\n\n")
+        f.write(config.preamble)
+        if not config.isa_pages:
+            f.write(config.empty_msg)
+            return
+
+        f.write(f"{config.section_heading}\n\n")
+        for instr, _ in config.isa_pages:
+            link = f"../docs/isa/{instr}.md"
+            bare = instr[:-3] if instr.endswith("_zh") else instr
+            display = bare.split("/")[-1]
+            f.write(f"- [{display}]({link})\n")
+        f.write("\n")
+
+
+def _zh_md_path(rel: str) -> str:
+    p = Path(rel)
+    if p.name == "README.md":
+        return p.with_name("README_zh.md").as_posix()
+    if p.name == "index.md":
+        return p.with_name("index_zh.md").as_posix()
+    return p.with_name(f"{p.stem}_zh.md").as_posix()
+
+
 def _rel_md_link(from_rel: str, to_rel: str) -> str:
     base = Path(from_rel).parent.as_posix()
     base = "." if base in ("", ".") else base
@@ -893,6 +985,27 @@ def _format_section_entry(rel: str, top: str) -> str:
     """Return a markdown list entry for a single page in a section."""
     label = rel if top == "(root)" else rel[len(top) + 1 :]
     return f"- [{label}]({rel})\n"
+
+
+def _write_sections(f, sections: dict[str, list[str]]) -> None:
+    """Write section headings and page entries to an open file handle."""
+    for top in sorted(sections):
+        f.write(f"## {top}\n\n")
+        for rel in sections[top]:
+            f.write(_format_section_entry(rel, top))
+        f.write("\n")
+
+
+def _existing_root_zh_doc_for(rel: str) -> str | None:
+    if not rel.startswith("docs/isa/"):
+        return None
+
+    stem = Path(rel).stem
+    root_name = stem.replace("-", "_").upper() + "_zh.md"
+    for candidate in (f"docs/isa/{root_name}", f"docs/isa/comm/{root_name}"):
+        if (REPO_ROOT / candidate).exists():
+            return candidate
+    return None
 
 
 def _zh_context_links_for(rel: str) -> list[tuple[str, str]]:
@@ -920,6 +1033,48 @@ def _zh_context_links_for(rel: str) -> list[tuple[str, str]]:
     ):
         links.append(("中文 ISA 指令参考入口", "docs/isa/README_zh.md"))
     return links
+
+
+def _write_missing_zh_wrapper(en_rel: str, zh_rel: str) -> None:
+    title = _extract_first_heading(REPO_ROOT / en_rel)
+    with mkdocs_gen_files.open(zh_rel, "w") as f:
+        f.write(f"# {title}\n\n")
+        f.write("自动生成的中文入口页，用于保证中文导航保持在中文路径下。\n\n")
+        f.write("## 当前状态\n\n")
+        f.write(
+            f"- [对应英文页面]({_rel_md_link(zh_rel, en_rel)})\n"
+            f"- [中文手册入口]({_rel_md_link(zh_rel, 'docs/PTO-Virtual-ISA-Manual_zh.md')})\n"
+        )
+
+        existing_zh = _existing_root_zh_doc_for(en_rel)
+        if existing_zh:
+            f.write(f"- [现有中文指令说明]({_rel_md_link(zh_rel, existing_zh)})\n")
+
+        for label, target in _zh_context_links_for(en_rel):
+            f.write(f"- [{label}]({_rel_md_link(zh_rel, target)})\n")
+
+        f.write("\n## 说明\n\n")
+        f.write(
+            "当前 PTO ISA 的新英文手册结构已经展开，但对应的中文正文尚未完全按新结构补齐。"
+            "在中文导航中点击本页时，你仍然停留在中文路径下；若需要完整细节，请使用上面的英文页面或已有中文参考页。\n"
+        )
+
+
+def _generate_missing_zh_wrappers(copied_md: list[str]) -> list[str]:
+    generated: list[str] = []
+    existing = set(copied_md)
+
+    for en_rel in NAV_PAGES_EN:
+        if en_rel.endswith("_zh.md"):
+            continue
+        zh_rel = _zh_md_path(en_rel)
+        if zh_rel in existing or not (REPO_ROOT / en_rel).exists():
+            continue
+        _write_missing_zh_wrapper(en_rel, zh_rel)
+        generated.append(zh_rel)
+        existing.add(zh_rel)
+
+    return generated
 
 
 def _write_all_pages_index(
@@ -1035,6 +1190,10 @@ def main() -> None:
     # Chinese counterparts, generate Chinese wrapper pages so the Chinese
     # sidebar stays on Chinese URLs instead of falling back to English paths.
     copied_md.extend(_generate_missing_zh_wrappers(copied_md))
+
+    isa_dir = REPO_ROOT / "docs" / "isa"
+    isa_pages_en: list[tuple[str, str]] = []
+    isa_pages_zh: list[tuple[str, str]] = []
 
     if isa_dir.exists():
         for p in sorted(isa_dir.glob("*.md")):

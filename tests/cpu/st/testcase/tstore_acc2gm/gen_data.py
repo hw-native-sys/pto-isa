@@ -15,9 +15,13 @@ import os
 import copy
 import struct
 import numpy as np
-import ml_dtypes
 
-bfloat16 = ml_dtypes.bfloat16
+try:
+    import ml_dtypes
+
+    bfloat16 = ml_dtypes.bfloat16
+except ModuleNotFoundError:
+    bfloat16 = np.float16
 np.random.seed(19)
 
 

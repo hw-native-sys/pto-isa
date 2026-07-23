@@ -18,13 +18,13 @@ namespace comm {
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, AtomicType atomicType>
 PTO_INTERNAL void TPUT_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& src1)
 {
-    Copy_Data<GlobalDstData, GlobalSrcData, atomicType>(dst, src);
+    Copy_Data(src, dst);
 }
 
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
 PTO_INTERNAL void TPUT_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& ping, TileData& pong)
 {
-    Copy_Data<GlobalDstData, GlobalSrcData, atomicType>(dst, src);
+    Copy_Data(src, dst);
 }
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>

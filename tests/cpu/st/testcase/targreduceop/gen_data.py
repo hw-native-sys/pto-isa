@@ -16,13 +16,17 @@ import numpy as np
 np.random.seed(19)
 
 
+def is_dst_val_case(element_op: str):
+    return element_op in ["row_val_min", "row_val_max", "col_val_min", "col_val_max"]
+
+
 def gen_golden_data_trowexpandop(param, element_op: str):
     dtype = param.dtype
     row, col = [param.tile_row, param.tile_col]
 
     input1 = np.random.uniform(low=-20, high=20, size=[param.in_row, param.in_col]).astype(dtype)
     golden = np.zeros((param.out_row, param.out_col)).astype(param.idxtype)
-    use_dst_val = element_op in ["row_val_min", "row_val_max"]
+    use_dst_val = is_dst_val_case(element_op)
 
     if use_dst_val:
         golden_val = np.zeros((param.out_val_row, param.out_val_col)).astype(dtype)
@@ -33,16 +37,22 @@ def gen_golden_data_trowexpandop(param, element_op: str):
         golden[:row, :1] = np.argmin(input1_valid, axis=1, keepdims=True)
     elif element_op == "row_max":
         golden[:row, :1] = np.argmax(input1_valid, axis=1, keepdims=True)
-    elif element_op == "col_min":
-        golden[:1, :col] = np.argmin(input1_valid, axis=0, keepdims=True)
-    elif element_op == "col_max":
-        golden[:1, :col] = np.argmax(input1_valid, axis=0, keepdims=True)
     elif element_op == "row_val_min":
         golden[:row, :1] = np.argmin(input1_valid, axis=1, keepdims=True)
         golden_val[:row, :1] = np.min(input1_valid, axis=1, keepdims=True)
     elif element_op == "row_val_max":
         golden[:row, :1] = np.argmax(input1_valid, axis=1, keepdims=True)
         golden_val[:row, :1] = np.max(input1_valid, axis=1, keepdims=True)
+    elif element_op == "col_min":
+        golden[:1, :col] = np.argmin(input1_valid, axis=0, keepdims=True)
+    elif element_op == "col_max":
+        golden[:1, :col] = np.argmax(input1_valid, axis=0, keepdims=True)
+    elif element_op == "col_val_min":
+        golden[:1, :col] = np.argmin(input1_valid, axis=0, keepdims=True)
+        golden_val[:1, :col] = np.min(input1_valid, axis=0, keepdims=True)
+    elif element_op == "col_val_max":
+        golden[:1, :col] = np.argmax(input1_valid, axis=0, keepdims=True)
+        golden_val[:1, :col] = np.max(input1_valid, axis=0, keepdims=True)
     else:
         raise ValueError(element_op)
 
@@ -71,7 +81,7 @@ class TRowExpandOpParams:
 def generate_case_name(param, element_op: str):
     idxtype_str = {np.uint32: "uint32", np.int32: "int32"}[param.idxtype]
     dtype_str = {np.float32: "float", np.float16: "half"}[param.dtype]
-    use_dst_val = element_op in ["row_val_min", "row_val_max"]
+    use_dst_val = is_dst_val_case(element_op)
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -92,7 +102,16 @@ if __name__ == "__main__":
         TRowExpandOpParams(np.int32, np.float16, 16, 256),
         TRowExpandOpParams(np.uint32, np.float32, 16, 16, 32, 32, 64, 64, 32, 32),
     ]
-    operations_list = ["row_min", "row_max", "col_min", "col_max", "row_val_min", "row_val_max"]
+    operations_list = [
+        "row_min",
+        "row_max",
+        "row_val_min",
+        "row_val_max",
+        "col_min",
+        "col_max",
+        "col_val_min",
+        "col_val_max",
+    ]
 
     combinations = [(param, element_op) for param in case_params_list for element_op in operations_list]
 

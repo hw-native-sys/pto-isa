@@ -68,5 +68,6 @@ repos:
         entry: bash scripts/oat_check.sh
         language: system
         pass_filenames: true
+        require_serial: true
         types: [file]
         verbose: true

@@ -14,9 +14,11 @@ import numpy as np
 
 class DataFormat(Enum):
     NCHW2NC1HWC0 = 1
-    NC1HWC02C1HWN1N0C0 = 2
-    GNCHW2GNC1HWC0 = 3
-    GNC1HWC02C1HWN1N0C0 = 4
+    NC1HWC02NCHW = 2
+    NC1HWC02C1HWN1N0C0 = 3
+    GNCHW2GNC1HWC0 = 4
+    GNC1HWC02C1HWN1N0C0 = 5
+    NCDHW2C1DHWN1N0C0 = 6
 
 
 def pack_matrix_to_fp4(matrix):
@@ -65,6 +67,34 @@ def golden_NCHW2NC1HWC0(g_info):
     output_arr.tofile("./golden.bin")
     print(f"Golden - {output_arr.shape}")
     
+    return input_arr, output_arr
+
+
+def golden_NC1HWC02NCHW(g_info):
+    assert g_info.src_shape_0 == g_info.dst_shape_0
+    assert g_info.src_shape_2 == g_info.dst_shape_2
+    assert g_info.src_shape_3 == g_info.dst_shape_3
+
+    n = g_info.src_shape_0
+    c1 = g_info.src_shape_1
+    h = g_info.src_shape_2
+    w = g_info.src_shape_3
+    c0 = g_info.src_shape_4
+
+    dtype_size = np.dtype(g_info.data_type).itemsize
+    assert c0 == 32 // dtype_size
+
+    c = g_info.dst_shape_1
+    assert c == c1 * c0
+
+    input_arr = np.random.randint(1, 5, size=(n, c1, h, w, c0)).astype(g_info.data_type)
+    input_arr.tofile("./input.bin")
+
+    output_arr = input_arr.transpose(0, 1, 4, 2, 3).reshape(n, c, h, w)
+
+    output_arr.tofile("./golden.bin")
+    print(f"Golden - {output_arr.shape}")
+
     return input_arr, output_arr
 
 
@@ -175,6 +205,43 @@ def golden_GNC1HWC02C1HWN1N0C0(g_info):
     return input_arr, output_arr
 
 
+def golden_NCDHW2C1DHWN1N0C0(g_info):
+    n = g_info.src_shape_0
+    c = g_info.src_shape_1
+    d = g_info.src_shape_2
+    h = g_info.src_shape_3
+    w = g_info.src_shape_4
+
+    c1dhw = g_info.dst_shape_0
+    n1 = g_info.dst_shape_1
+    n0 = g_info.dst_shape_2
+    c0 = g_info.dst_shape_3
+
+    c1 = c1dhw // (d * w * h)
+    dtype_size = np.dtype(g_info.data_type).itemsize
+
+    assert c0 == 32 // dtype_size
+    assert n1 == (n + n0 - 1) // n0
+    assert c1 == (c + c0 - 1) // c0
+
+    input_arr = np.random.randint(1, 5, size=(n, c, d, h, w)).astype(g_info.data_type)
+    input_arr.tofile("./input.bin")
+
+    padded_n = n1 * n0
+    padding_n = padded_n - n
+    padded_c = c1 * c0
+    padding_c = padded_c - c
+    if padding_n > 0 or padding_c > 0:
+        input_arr = np.pad(input_arr, ((0, padding_n), (0, padding_c), (0, 0), (0, 0), (0, 0)), mode='constant')
+
+    output_arr = input_arr.reshape(n1, n0, c1, c0, d, h, w).transpose(4, 2, 5, 6, 0, 1, 3)
+
+    output_arr.tofile("./golden.bin")
+    print(f"Golden - {output_arr.shape}")
+
+    return input_arr, output_arr
+
+
 def gen_golden_data(g_info):
     """
     Generates aligned runtime raw binaries for C++ unit test validation suites.
@@ -189,22 +256,34 @@ def gen_golden_data(g_info):
         golden_NCHW2NC1HWC0(g_info)
 
     # -------------------------------------------------------------
-    # MODE 2: NC1HWC0 -> C1HWN1N0C0
+    # MODE 2: NC1HWC0 -> NCHW
+    # -------------------------------------------------------------
+    elif mode == DataFormat.NC1HWC02NCHW.value:
+        golden_NC1HWC02NCHW(g_info)
+
+    # -------------------------------------------------------------
+    # MODE 3: NC1HWC0 -> C1HWN1N0C0
     # -------------------------------------------------------------
     elif mode == DataFormat.NC1HWC02C1HWN1N0C0.value:
         golden_NC1HWC02C1HWN1N0C0(g_info)
 
     # -------------------------------------------------------------
-    # MODE 3: GNCHW -> GNC1HWC0
+    # MODE 4: GNCHW -> GNC1HWC0
     # -------------------------------------------------------------
     elif mode == DataFormat.GNCHW2GNC1HWC0.value:
         golden_GNCHW2NC1HWC0(g_info)
 
     # -------------------------------------------------------------
-    # MODE 4: GNC1HWC0 -> GC1HWN1N0C0
+    # MODE 5: GNC1HWC0 -> GC1HWN1N0C0
     # -------------------------------------------------------------
     elif mode == DataFormat.GNC1HWC02C1HWN1N0C0.value:
         golden_GNC1HWC02C1HWN1N0C0(g_info)
+
+    # -------------------------------------------------------------
+    # MODE 6: NCDHW -> C1DHWN1N0C0
+    # -------------------------------------------------------------
+    elif mode == DataFormat.NCDHW2C1DHWN1N0C0.value:
+        golden_NCDHW2C1DHWN1N0C0(g_info)
 
     else:
         pass
@@ -279,6 +358,9 @@ test_cases_registry = [
     TTRANSParams("GNC1HWC02C1HWN1N0C0_3", np.uint16, DataFormat.GNC1HWC02C1HWN1N0C0.value, 11, 3, 2, 16, 16, 3, 2, 16, 2, 8, 16, 2),
     TTRANSParams("GNC1HWC02C1HWN1N0C0_4", np.int32, DataFormat.GNC1HWC02C1HWN1N0C0.value, 4, 8, 3, 7, 8, 8, 3, 7, 1, 4, 8, 3),
     TTRANSParams("GNC1HWC02C1HWN1N0C0_5", np.int8, DataFormat.GNC1HWC02C1HWN1N0C0.value, 4, 2, 3, 7, 32, 2, 3, 7, 1, 8, 32, 1),
+
+    TTRANSParams("NCDHW2C1DHWN1N0C0_1", np.float32, DataFormat.NCDHW2C1DHWN1N0C0.value, 5, 3, 3, 4, 8, 96, 1, 16, 8, 1),
+    TTRANSParams("NCDHW2C1DHWN1N0C0_2", np.int32, DataFormat.NCDHW2C1DHWN1N0C0.value, 18, 2, 4, 5, 3, 60, 2, 16, 8, 1)
 ]
 
 SUITE_NAME = "TTRANSConvTest"

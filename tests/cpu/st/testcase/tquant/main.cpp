@@ -281,7 +281,7 @@ void TestFP8ExactMatch()
         EXPECT_EQ(expTile.data()[GetTileElementOffset<ExpTile>(row, 0)], expectedExp);
         EXPECT_FLOAT_EQ(max.data()[row], maxAbs);
         for (int col = 0; col < 32; ++col) {
-            EXPECT_FLOAT_EQ(scaling.data()[GetTileElementOffset<ScaleTile>(row, col)], expectedScaling);
+            EXPECT_FLOAT_EQ(scaling.data()[row], expectedScaling);
             const uint8_t expectedByte =
                 EncodeE4M3Fn(src.data()[GetTileElementOffset<SrcTile>(row, col)] * expectedScaling);
             EXPECT_EQ(static_cast<uint8_t>(dst.data()[GetTileElementOffset<DstTile>(row, col)]), expectedByte);
@@ -605,7 +605,7 @@ void ExpectMxFp4PackedBytes(SrcTile& src, DstTile& dst, int row, int group, floa
         const uint8_t expected = cpu_quant::EncodeE2M1Magic(cpu_quant::ApplyE2M1ScaleForSource<SrcT>(
             src.data()[GetTileElementOffset<SrcTile>(row, col0)], expectedScaling));
         const uint8_t actual = dst.GetElement(row, col0).RawData();
-        EXPECT_EQ(actual, actual);
+        EXPECT_EQ(actual, expected);
     }
 }
 
@@ -630,7 +630,7 @@ void ExpectMxFp4Result(SrcTile& src, DstTile& dst, ExpTile& exp, MaxTile& max, M
     }
 }
 
-template <typename SrcT, int validRows = 2, int validCols = 128>
+template <typename SrcT, int validRows = 2, int validCols = 128, QuantScaleAlg scaleAlg = QuantScaleAlg::OCP>
 void RunMxFp4E2M1NdCase(MxFp4Case caseId)
 {
     constexpr int groupCols = validCols / 32;
@@ -737,7 +737,8 @@ void TestFp8NzReordersExponentsExactly()
     }
     for (int row = 0; row < 16; ++row) {
         for (int col = 0; col < 64; ++col) {
-            const float scale = scaling.data()[GetTileElementOffset<ScaleTile>(row, col)];
+            const int group = col / 32;
+            const float scale = scaling.data()[row * (SrcTile::Cols / 32) + group];
             const uint8_t expectedByte = EncodeE4M3Fn(src.data()[GetTileElementOffset<SrcTile>(row, col)] * scale);
             EXPECT_EQ(static_cast<uint8_t>(dst.data()[GetTileElementOffset<DstTile>(row, col)]), expectedByte);
         }

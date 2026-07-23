@@ -171,7 +171,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void simt_mscatter_row_kernel(
     const uint32_t colSeg = ty / kRowWarps;
 
 #pragma unroll(1)
-    for (uint32_t row = rowWarp; row < ValidRows; row += kRowWarps) {
+    for (uint32_t row = rowWarp; row < validRows; row += kRowWarps) {
         const uint32_t rawIdx = static_cast<uint32_t>(indices[row]);
         uint32_t doWrite;
         const uint32_t safeIdx = scatter_remap<Oob>(rawIdx, tableRows, doWrite);
@@ -248,9 +248,9 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void simt_mscatter_elem_kernel(
     const uint32_t tid = threadIdx.y * mscatter_cfg::WARP_SIZE + threadIdx.x;
 
 #pragma unroll(1)
-    for (uint32_t i = tid; i < kTotalElems; i += kLaunchThreads) {
-        const uint32_t r = (ValidCols == 1u) ? i : (i / ValidCols);
-        const uint32_t c = (ValidCols == 1u) ? 0u : (i - r * ValidCols);
+    for (uint32_t i = tid; i < totalElems; i += kLaunchThreads) {
+        const uint32_t r = (validCols == 1u) ? i : (i / validCols);
+        const uint32_t c = (validCols == 1u) ? 0u : (i - r * validCols);
         const uint32_t srcOff = tile_offset_2d<TileSrc>(r, c);
         const uint32_t idxOff = tile_offset_2d<TileIdx>(r, c);
         const uint32_t rawIdx = static_cast<uint32_t>(indices[idxOff]);
@@ -382,14 +382,14 @@ __tf__ AICORE void MScatterScalarImpl(
         doWrite = 1u;
         safeIdx = rawIdx;
     } else if constexpr (Oob == ScatterOOB::Skip) {
-        doWrite = (rawIdx < TableSize) ? 1u : 0u;
+        doWrite = (rawIdx < tableSize) ? 1u : 0u;
         safeIdx = rawIdx;
     } else if constexpr (Oob == ScatterOOB::Clamp) {
         doWrite = 1u;
-        safeIdx = (rawIdx >= TableSize) ? (TableSize - 1u) : rawIdx;
+        safeIdx = (rawIdx >= tableSize) ? (tableSize - 1u) : rawIdx;
     } else {
         doWrite = 1u;
-        safeIdx = rawIdx % TableSize;
+        safeIdx = rawIdx % tableSize;
     }
     if (doWrite) {
         if constexpr (Atomic == ScatterAtomicOp::None) {
@@ -492,13 +492,21 @@ PTO_INTERNAL void MSCATTER_IMPL(GlobalTable& table, TileSrc& src, TileIdx& indic
 
     __gm__ T* tablePtr = reinterpret_cast<__gm__ T*>(table.data());
 
-    constexpr uint32_t kValidRows = static_cast<uint32_t>(TileSrc::ValidRow);
-    constexpr uint32_t kValidCols = static_cast<uint32_t>(TileSrc::ValidCol);
+    constexpr int kSrcValidRowS = TileSrc::ValidRow;
+    constexpr int kSrcValidColS = TileSrc::ValidCol;
+    constexpr uint32_t kValidRowsT = (kSrcValidRowS > 0) ? static_cast<uint32_t>(kSrcValidRowS) : 0u;
+    constexpr uint32_t kValidColsT = (kSrcValidColS > 0) ? static_cast<uint32_t>(kSrcValidColS) : 0u;
+
+    const uint32_t validRows = src.GetValidRow();
+    const uint32_t validCols = src.GetValidCol();
 
     if constexpr (Mode == Coalesce::Row) {
-        constexpr uint32_t TableRows = static_cast<uint32_t>(ShapeType::staticShape[3]);
-        MScatterRowImpl<T, TIdx, Atomic, Oob, Conflict, TileSrc, TileIdx, kValidRows, kValidCols, TableRows>(
-            tablePtr, src.data(), indices.data());
+        using TableShape = typename GlobalTable::Shape;
+        constexpr int64_t kTableRowsS = TableShape::staticShape[3];
+        constexpr uint32_t kTableRowsT = (kTableRowsS > 0) ? static_cast<uint32_t>(kTableRowsS) : 0u;
+        const uint32_t tableRows = static_cast<uint32_t>(table.GetShape(GlobalTensorDim::DIM_3));
+        MScatterRowImpl<T, TIdx, Atomic, Oob, Conflict, kValidRowsT, kValidColsT, kTableRowsT, TileSrc, TileIdx>(
+            tablePtr, src.data(), indices.data(), validRows, validCols, tableRows);
     } else {
         using TableShape = typename GlobalTable::Shape;
         constexpr int64_t kTS0 = TableShape::staticShape[0];
@@ -515,8 +523,8 @@ PTO_INTERNAL void MSCATTER_IMPL(GlobalTable& table, TileSrc& src, TileIdx& indic
         if constexpr (TileSrc::ValidRow == 1 && TileSrc::ValidCol == 1) {
             MScatterScalarImpl<T, TIdx, Atomic, Oob, TileSrc, TileIdx>(tablePtr, src.data(), indices.data(), tableSize);
         } else {
-            MScatterElemImpl<T, TIdx, Atomic, Oob, Conflict, TileSrc, TileIdx, kValidRows, kValidCols, TableSize>(
-                tablePtr, src.data(), indices.data());
+            MScatterElemImpl<T, TIdx, Atomic, Oob, Conflict, kValidRowsT, kValidColsT, kTableSizeT, TileSrc, TileIdx>(
+                tablePtr, src.data(), indices.data(), validRows, validCols, tableSize);
         }
     }
 }
