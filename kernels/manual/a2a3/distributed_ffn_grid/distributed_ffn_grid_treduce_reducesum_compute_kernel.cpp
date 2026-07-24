@@ -217,8 +217,14 @@ __global__ AICORE void DistributedFfnGridTreduceReduceSumMixedKernel(
             using DownBPanel = Tile<TileType::Mat, half, kDownKBase, kHBase, BLayout::ColMajor, kDownKBase, kHBase, SLayout::RowMajor>;
             using DownBGlobal = GlobalTensor<half, Shape<1, 1, 1, kDownKBase, kHBase>,
                                              Stride<kDownKBase * kH, kDownKBase * kH, kDownKBase * kH, kH, 1>>;
+            // partialBuf holds each cell's [T,H] down partial in SEGMENT-MAJOR form:
+            // segment nTile ([T,kHBase]) is stored CONTIGUOUSLY (T-stride kHBase) at
+            // offset nTile*(T*kHBase), so the phase-B group fan-in
+            // (reduce_group_to_ubuf) can read every row-mate's segment as one
+            // contiguous byte range.  partialBuf / rowPartialBuf are INTERMEDIATE;
+            // only the final y output keeps the strided [T,H] golden layout below.
             using GPartialSeg = GlobalTensor<float, Shape<1, 1, 1, kT, kHBase>,
-                                             Stride<kT * kH, kT * kH, kT * kH, kH, 1>>;
+                                             Stride<kT * kHBase, kT * kHBase, kT * kHBase, kHBase, 1>>;
             DownLeft aDown;
             DownRight bDown;
             DownAcc cDown;
@@ -255,7 +261,8 @@ __global__ AICORE void DistributedFfnGridTreduceReduceSumMixedKernel(
                 set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
                 wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
-                GPartialSeg segGm(reinterpret_cast<__gm__ float *>(partialBlock) + nOff); // [8,H_base] at H-off
+                GPartialSeg segGm(reinterpret_cast<__gm__ float *>(partialBlock) +
+                                  nTile * (kT * kHBase)); // segment-major: contiguous [T,kHBase]
                 TSTORE(segGm, cDown);
 #ifndef __PTO_AUTO__
                 pipe_barrier(PIPE_ALL);
@@ -335,43 +342,43 @@ __global__ AICORE void DistributedFfnGridTreduceReduceSumMixedKernel(
     }
 
     // =========================== phase B: EAST 8-way reduce (row, H-chunked) ===========================
+    // Group fan-in (reduce_group_to_ubuf).  Each cell wrote its full-H partial to
+    // partialBuf in phase A; the host stream barrier makes every row-mate's
+    // partial visible here.  The row SINK (col == gridCols-1) folds all 8
+    // row-mates' segment-h partials directly out of partialBuf with one
+    // N->1 reduce intrinsic.  Member k == cell (row, k), so members are visited
+    // col0..col7 -- the SAME order the EAST relay accumulated in, hence the FP
+    // sum is bit-identical (IEEE-754 add is commutative).  Non-sink cells have
+    // nothing to do (their partial is already in GM).
     if (phase == 1) {
         if constexpr (DAV_VEC) {
-            __gm__ uint8_t *partialBlock = partialBuf + cell * FFN_RS_PARTIAL_BYTES;
-            __gm__ uint8_t *rowPartialBlock = rowPartialBuf + row * FFN_RS_ROW_PARTIAL_BYTES; // sink (col 7) writes
-            __gm__ uint8_t *window = reduceWindow + cell * FFN_RS_REDUCE_WIN;
-            FfnReducePipe reducePipe;
-            GridShape shape{gridRows, gridCols};
-            GridCoord coord{row, col};
-            a2a3_grid::InitGridPipeFromWindow(reducePipe, shape, coord, window,
-                                              reinterpret_cast<__gm__ void *>(hcclCtxRaw), /*pipeId=*/0);
-
-            ReduceSegTile seg;
-            ReduceSegTile recv;
-            TASSIGN(seg, 0x0000);
-            TASSIGN(recv, 0x8000);
-            using GSeg = GlobalTensor<float, Shape<1, 1, 1, kT, kHBase>,
-                                      Stride<kT * kH, kT * kH, kT * kH, kH, 1>>;
-            for (int h = 0; h < kHSegs; ++h) {
-                const int hOff = h * kHBase;
-                GSeg segGm(reinterpret_cast<__gm__ float *>(partialBlock) + hOff);
-                TLOAD(seg, segGm);
-#ifndef __PTO_AUTO__
-                set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-#endif
-                // Fused receive-add-forward along EAST; sink (col 7) keeps the row sum.
-                TREDUCE<GridDirection::EAST, ReduceOp::Sum>(reducePipe, seg, recv);
-#ifndef __PTO_AUTO__
-                pipe_barrier(PIPE_ALL);
-#endif
-                dsb(DSB_DDR);
-                if (col + 1 == gridCols) {
+            if (col + 1 == gridCols) {
+                __gm__ uint8_t *rowPartialBlock = rowPartialBuf + row * FFN_RS_ROW_PARTIAL_BYTES;
+                ReduceSegTile seg;      // reduce accumulator / result
+                ReduceSegTile scratch;  // in-core combine scratch
+                TASSIGN(seg, 0x0000);
+                TASSIGN(scratch, 0x8000);
+                // rowPartialBuf is SEGMENT-MAJOR (matches partialBuf): segment h is a
+                // contiguous [T,kHBase] block at offset h*(T*kHBase), T-stride kHBase.
+                using GSegContig = GlobalTensor<float, Shape<1, 1, 1, kT, kHBase>,
+                                                Stride<kT * kHBase, kT * kHBase, kT * kHBase, kHBase, 1>>;
+                for (int h = 0; h < kHSegs; ++h) {
+                    const int hSegOff = h * (kT * kHBase); // segment-major offset (floats)
+                    // Contribution arena = cell (row, 0..gridCols-1)'s segment-h
+                    // partials.  Cell (row, k) sits at partialBuf + (row*gridCols+k)*PPB
+                    // + hSegOff; consecutive row members are uniformly spaced by PPB.
+                    __gm__ const float *base =
+                        reinterpret_cast<__gm__ const float *>(
+                            partialBuf + static_cast<int64_t>(row) * gridCols * FFN_RS_PARTIAL_BYTES) +
+                        hSegOff;
+                    GRID_TREDUCE_GROUP_IMPL<GridGroup::ROW, ReduceOp::Sum, float>(seg, scratch, base,
+                                                                                  FFN_RS_REDUCE_TILE_BYTES, gridCols,
+                                                                                  GridRect{}, FFN_RS_PARTIAL_BYTES);
 #ifndef __PTO_AUTO__
                     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
                     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
-                    GSeg outGm(reinterpret_cast<__gm__ float *>(rowPartialBlock) + hOff);
+                    GSegContig outGm(reinterpret_cast<__gm__ float *>(rowPartialBlock) + hSegOff);
                     TSTORE(outGm, seg);
 #ifndef __PTO_AUTO__
                     pipe_barrier(PIPE_ALL);
@@ -384,41 +391,36 @@ __global__ AICORE void DistributedFfnGridTreduceReduceSumMixedKernel(
     }
 
     // =========================== phase C: SOUTH 4-way reduce (col 7, H-chunked) ===========================
+    // Group fan-in (reduce_group_to_ubuf).  Phase B left one row partial per row
+    // in rowPartialBuf; the column SINK (row == gridRows-1) folds all 4 rows'
+    // segment-h partials out of rowPartialBuf with one N->1 reduce intrinsic.
+    // Member k == row k at rowPartialBuf + k*RPPB (uniform stride RPPB); the
+    // row0..row3 order matches the SOUTH relay accumulation (bit-identical).
     if (phase == 2) {
         if constexpr (DAV_VEC) {
-            __gm__ uint8_t *rowPartialBlock = rowPartialBuf + row * FFN_RS_ROW_PARTIAL_BYTES;
-            __gm__ uint8_t *window = reduceWindow + cell * FFN_RS_REDUCE_WIN;
-            FfnReducePipe reducePipe;
-            GridShape shape{gridRows, gridCols};
-            GridCoord coord{row, col};
-            a2a3_grid::InitGridPipeFromWindow(reducePipe, shape, coord, window,
-                                              reinterpret_cast<__gm__ void *>(hcclCtxRaw), /*pipeId=*/0);
-
-            ReduceSegTile seg;
-            ReduceSegTile recv;
-            TASSIGN(seg, 0x0000);
-            TASSIGN(recv, 0x8000);
-            using GSeg = GlobalTensor<float, Shape<1, 1, 1, kT, kHBase>,
-                                      Stride<kT * kH, kT * kH, kT * kH, kH, 1>>;
-            for (int h = 0; h < kHSegs; ++h) {
-                const int hOff = h * kHBase;
-                GSeg segGm(reinterpret_cast<__gm__ float *>(rowPartialBlock) + hOff);
-                TLOAD(seg, segGm);
-#ifndef __PTO_AUTO__
-                set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-                wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
-#endif
-                TREDUCE<GridDirection::SOUTH, ReduceOp::Sum>(reducePipe, seg, recv);
-#ifndef __PTO_AUTO__
-                pipe_barrier(PIPE_ALL);
-#endif
-                dsb(DSB_DDR);
-                if (row + 1 == gridRows) {
+            if (row + 1 == gridRows) {
+                ReduceSegTile seg;
+                ReduceSegTile scratch;
+                TASSIGN(seg, 0x0000);
+                TASSIGN(scratch, 0x8000);
+                // rowPartialBuf is SEGMENT-MAJOR (segment h contiguous at h*(T*kHBase));
+                // yFull keeps the strided [T,H] golden layout (segment h at column
+                // offset h*kHBase, T-stride H), so the read and the store use different
+                // offsets here.
+                using GYSeg = GlobalTensor<float, Shape<1, 1, 1, kT, kHBase>,
+                                           Stride<kT * kH, kT * kH, kT * kH, kH, 1>>;
+                for (int h = 0; h < kHSegs; ++h) {
+                    const int hSegOff = h * (kT * kHBase); // segment-major offset into rowPartialBuf
+                    const int hStridedOff = h * kHBase;    // strided column offset into yFull [T,H]
+                    __gm__ const float *base = reinterpret_cast<__gm__ const float *>(rowPartialBuf) + hSegOff;
+                    GRID_TREDUCE_GROUP_IMPL<GridGroup::COL, ReduceOp::Sum, float>(seg, scratch, base,
+                                                                                  FFN_RS_REDUCE_TILE_BYTES, gridRows,
+                                                                                  GridRect{}, FFN_RS_ROW_PARTIAL_BYTES);
 #ifndef __PTO_AUTO__
                     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
                     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
-                    GSeg outGm(reinterpret_cast<__gm__ float *>(yFull) + hOff);
+                    GYSeg outGm(reinterpret_cast<__gm__ float *>(yFull) + hStridedOff);
                     TSTORE(outGm, seg);
 #ifndef __PTO_AUTO__
                     pipe_barrier(PIPE_ALL);

@@ -111,6 +111,43 @@ AICORE void GRID_TREDUCE_IMPL(Pipe &pipe, TileAcc &acc, TileRecv &recv)
     }
 }
 
+// Forward declaration: TileUbPtr is provided by the demo's
+// gridpipe_payload_inl.hpp (same pluggable payload-hook contract as the other
+// a2a3_grid_payload helpers).  Kept out-of-line so this group-reduce facade
+// stays tile-agnostic (it hands the reduce_group_to_ubuf intrinsic raw UB ptrs).
+namespace a2a3_grid_payload {
+template <typename TileT>
+__tf__ AICORE __ubuf__ void *TileUbPtr(TileT &tile);
+} // namespace a2a3_grid_payload
+
+// ===========================================================================
+// GRID_TREDUCE_GROUP_IMPL: N->1 group fan-in reduce.  The TARGET core (caller
+// == sink) reads every member's resolved contribution slot and folds them
+// element-wise with Op into `acc`, via the reduce_group_to_ubuf intrinsic (the
+// new reduce-semantics CCE instruction, grid_cce_intrinsic.hpp).  This is the
+// hardware-accelerated single-instruction form of an N->1 fan-in -- a DIFFERENT
+// collective shape from the directional GRID_TREDUCE_IMPL relay above (§7.1):
+// every member's contribution is read directly by the sink, not relayed hop by
+// hop.  The directional relay above stays available for nearest-neighbor chains.
+//
+// `scratch` is the in-core combine scratch (one member's worth of UB; required
+// by the A3 mock's in-core Vec combine).  `groupSlotBase` / `memberStride` /
+// `memberCount` describe the resolved per-member contribution arena -- e.g. the
+// contributors' partial buffer laid out uniform-stride.  The combine folds
+// members in ascending index order (member 0 seeds acc), so an SPMD row/col
+// fan-in reproduces the relay's left-to-right accumulation bit-for-bit (FP add
+// is commutative).
+// ===========================================================================
+template <pto::GridGroup Group, pto::comm::ReduceOp Op, typename T, typename TileAcc, typename TileScratch>
+AICORE void GRID_TREDUCE_GROUP_IMPL(TileAcc &acc, TileScratch &scratch, __gm__ const T *groupSlotBase,
+                                    uint32_t bytes, uint32_t memberCount, pto::GridRect rect = {},
+                                    uint32_t memberStride = 0)
+{
+    __ubuf__ T *dst = reinterpret_cast<__ubuf__ T *>(a2a3_grid_payload::TileUbPtr<TileAcc>(acc));
+    __ubuf__ T *scr = reinterpret_cast<__ubuf__ T *>(a2a3_grid_payload::TileUbPtr<TileScratch>(scratch));
+    reduce_group_to_ubuf<Group, Op, T>(dst, groupSlotBase, bytes, memberCount, rect, memberStride, scr);
+}
+
 } // namespace pto
 
 #endif // PTO_A2A3_GRID_TREDUCE_HPP

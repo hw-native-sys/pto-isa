@@ -63,6 +63,8 @@ template <typename TileT>
 __tf__ AICORE void CopyTileToNeighborSramSlot(__gm__ uint8_t *dstNeighborSlot, TileT &tile, int slotBytes);
 template <typename TileT>
 __tf__ AICORE void CopyLocalSlotToTile(TileT &tile, __gm__ uint8_t *localSlot, int slotBytes);
+template <typename TileT>
+__tf__ AICORE __ubuf__ void *TileUbPtr(TileT &tile);
 
 } // namespace a2a3_grid_payload
 } // namespace pto
@@ -101,18 +103,73 @@ AICORE bool GRID_TRY_TBROADCAST_IMPL(Pipe &pipe, TileProd &tile, uint32_t maxSpi
         }
     }
 
-    // Phase 1: fence-free batched payload writes.  Each peer receives the tile
-    // directly in its OWN shared ring at slot gidx%SC -- the disjoint
-    // prefix-offset assignment guarantees no two sources write the same slot of
-    // the same receiver, so the payloads never collide.
+    // Phase 1: payload fan-out.  Each peer receives the tile directly in its OWN
+    // shared ring at slot gidx%SC -- the disjoint prefix-offset assignment
+    // guarantees no two sources write the same slot of the same receiver, so the
+    // payloads never collide.
+    //
+    // The fan-out collapses to ONE bcast_ubuf_to_group intrinsic (the new
+    // broadcast-semantics CCE instruction, grid_cce_intrinsic.hpp) whenever the
+    // group's per-member receive slots form a uniform-stride arena.  ROW and COL
+    // always do: their members occupy consecutive grid ranks, so member m's slot
+    // is groupSlotBase + m*memberStride.  A SUBRECT whose members are NOT
+    // uniformly spaced (a multi-row rectangle) cannot be one base+stride arena
+    // and falls back to the per-member copy_ubuf_to_neighbor_ubuf loop below.
     __gm__ uint8_t *myRingSlot = pipe.bcastRingBase + slotOff; // offset is identical in every window
-    for (int m = 0; m < groupSize; ++m) {
-        if (m == myRank) {
-            continue; // do not send to self; this core's own shard stays local.
+    const int rankFirst = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, 0, pipe.groupRect);
+    __gm__ uint8_t *slotFirst = a2a3_grid_payload::ResolvePeerSlotAddr(pipe.runtimeCtx, myRingSlot, rankFirst);
+    uint32_t memberStride = static_cast<uint32_t>(Pipe::SlotBytes);
+    bool uniformArena = false;
+    if constexpr (Group == pto::GridGroup::ROW || Group == pto::GridGroup::COL) {
+        // ROW/COL members are always uniformly spaced (consecutive col / row ranks).
+        uniformArena = (groupSize > 1);
+        if (groupSize > 1) {
+            const int rankSecond = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, 1, pipe.groupRect);
+            __gm__ uint8_t *slotSecond = a2a3_grid_payload::ResolvePeerSlotAddr(pipe.runtimeCtx, myRingSlot, rankSecond);
+            memberStride =
+                static_cast<uint32_t>(reinterpret_cast<uint64_t>(slotSecond) - reinterpret_cast<uint64_t>(slotFirst));
         }
-        const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, m, pipe.groupRect);
-        __gm__ uint8_t *peerSlot = a2a3_grid_payload::ResolvePeerSlotAddr(pipe.runtimeCtx, myRingSlot, peerRank);
-        a2a3_grid_payload::CopyTileToNeighborSramSlot<TileProd>(peerSlot, tile, Pipe::SlotBytes);
+    } else {
+        // SUBRECT: verify uniform spacing at runtime.  A single-row sub-rectangle
+        // is uniform (consecutive cols); a multi-row one wraps at row boundaries
+        // and is not, so it takes the per-member fallback.
+        uniformArena = (groupSize > 1);
+        if (groupSize > 1) {
+            const int rankSecond = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, 1, pipe.groupRect);
+            __gm__ uint8_t *slotSecond = a2a3_grid_payload::ResolvePeerSlotAddr(pipe.runtimeCtx, myRingSlot, rankSecond);
+            const uint64_t stride0 =
+                reinterpret_cast<uint64_t>(slotSecond) - reinterpret_cast<uint64_t>(slotFirst);
+            memberStride = static_cast<uint32_t>(stride0);
+            __gm__ uint8_t *prev = slotSecond;
+            for (int m = 2; m < groupSize && uniformArena; ++m) {
+                const int rankM = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, m, pipe.groupRect);
+                __gm__ uint8_t *slotM = a2a3_grid_payload::ResolvePeerSlotAddr(pipe.runtimeCtx, myRingSlot, rankM);
+                if (reinterpret_cast<uint64_t>(slotM) - reinterpret_cast<uint64_t>(prev) != stride0) {
+                    uniformArena = false;
+                }
+                prev = slotM;
+            }
+        }
+    }
+    __ubuf__ void *srcUb = a2a3_grid_payload::TileUbPtr<TileProd>(tile);
+    if (uniformArena) {
+        // One intrinsic fans the tile out to every member's slot.  This includes
+        // this source's OWN slot (member myRank); that write is harmless -- a
+        // receiver never drains its own shard (srcRank == myRank is skipped), and
+        // the bytes written are this source's own shard anyway.
+        bcast_ubuf_to_group<Group>(reinterpret_cast<__gm__ void *>(slotFirst), srcUb,
+                                   static_cast<uint32_t>(Pipe::SlotBytes), static_cast<uint32_t>(groupSize),
+                                   pipe.groupRect, memberStride);
+    } else {
+        // Non-uniform SUBRECT fallback: one copy_ubuf_to_neighbor_ubuf per peer.
+        for (int m = 0; m < groupSize; ++m) {
+            if (m == myRank) {
+                continue; // do not send to self; this core's own shard stays local.
+            }
+            const int peerRank = pto::GroupMemberRank(Group, pipe.coord, pipe.shape, m, pipe.groupRect);
+            __gm__ uint8_t *peerSlot = a2a3_grid_payload::ResolvePeerSlotAddr(pipe.runtimeCtx, myRingSlot, peerRank);
+            a2a3_grid_payload::CopyTileToNeighborSramSlot<TileProd>(peerSlot, tile, Pipe::SlotBytes);
+        }
     }
 
     // Single publish fence (data-before-ready, design doc C2) for the ENTIRE

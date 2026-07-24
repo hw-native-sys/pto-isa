@@ -111,6 +111,19 @@ __tf__ AICORE inline void CopyLocalSlotToTile(TileT &tile, __gm__ uint8_t *local
     }
 }
 
+// Extract a tile's UB pointer (__ubuf__ void*) for the new group broadcast /
+// reduce CCE intrinsics (bcast_ubuf_to_group / reduce_group_to_ubuf), which take
+// raw __ubuf__ pointers (dtype-agnostic on the bcast side, typed T on the reduce
+// side) rather than tile objects.  Mirrors the extraction inside
+// CopyTileToNeighborSramSlot / CopyLocalSlotToTile, factored out so the public
+// GridTBroadcast.hpp / GridTReduce.hpp facades (which are tile-agnostic and
+// cannot call __cce_get_tile_ptr directly) can hand the intrinsics a UB pointer.
+template <typename TileT>
+__tf__ AICORE inline __ubuf__ void *TileUbPtr(TileT &tile)
+{
+    return reinterpret_cast<__ubuf__ void *>(__cce_get_tile_ptr(tile.data()));
+}
+
 AICORE inline bool PopSlotIsLocal(__gm__ void *runtimeCtx, __gm__ uint8_t *localSlot, uint32_t bytes, int callerRank)
 {
     // Enforce the NoC "TPOP only pops local SRAM" rule: the read is legal only

@@ -60,9 +60,21 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdint>
 
 #include <pto/common/arch_macro.hpp>
-#include <pto/common/type.hpp> // AICORE + address-space qualifiers
+#include <pto/common/constants.hpp> // REPEAT_BYTE (reduce A3-mock Vec-combine repeat chunking)
+#include <pto/common/type.hpp>      // AICORE + address-space qualifiers
+#include <pto/comm/comm_types.hpp>  // pto::comm::ReduceOp (Sum/Max/Min) -- reduce combine
 
 namespace pto {
+
+// Forward declarations of the GridPipe group/topology types.  They are defined
+// in grid_intrinsic.hpp, which includes THIS header (so a real include here
+// would be circular).  The broadcast/reduce group intrinsics below only need
+// their NAMES -- GridGroup as a non-type template parameter and GridRect as an
+// unused by-reference group descriptor -- so forward declarations suffice.
+// (Their underlying-type / field definitions are complete by the time any
+// translation unit that instantiates these templates is compiled.)
+enum class GridGroup : uint8_t;
+struct GridRect;
 
 // ---------------------------------------------------------------------------
 // ScbKind: the G2 SYNC_HSCB `kind` machine operand (V8 §3.3 G2).  READY stores the
@@ -235,6 +247,188 @@ AICORE inline bool wait_ipc_scb_sim(__gm__ uint32_t *localScb, uint32_t threshol
 #else
     (void)slot;
     return grid_cce_detail::poll_ipc_scb_ge(localScb, threshold, maxSpins);
+#endif
+}
+
+// ===========================================================================
+// (4) BCAST_UBUF_TO_GROUP  ->  bcast_ubuf_to_group  ->  __builtin_cce_bcast_ubuf_to_group
+//
+// Single-source group broadcast: the source core (caller == root) copies its
+// local UB tile once into every member's resolved receive slot in the group.
+// This is the hardware-accelerated single-instruction form of the Tier-2
+// TBROADCAST<Group> handshake fan-out (design: CCE-Intrinsic接口规范-广播与归约
+// 语义扩展设计 §6.1 / §7.3).  It is a byte-level PURE copy (it does NOT read
+// element values), so the facade is dtype-agnostic (void* + bytes), mirroring
+// copy_ubuf_to_neighbor_ubuf above.  NOT self-syncing: data-ready is still
+// announced by the caller's sync_hscb(READY) after the publish fence (§7.3).
+//
+// `groupSlotBase` is the RESOLVED per-member receive-slot arena base (member 0's
+// slot); member m's slot = groupSlotBase + m*memberStride (memberStride==0 means
+// packed, stride == bytes).  The Tier-2 caller resolves member spacing from the
+// group topology (ROW/COL are uniformly spaced; a SUBRECT whose members are not
+// uniformly spaced -- a multi-row rectangle -- is handled by the caller, which
+// falls back to a per-member copy for that case).
+// ===========================================================================
+template <pto::GridGroup Group>
+AICORE inline void bcast_ubuf_to_group(__gm__ void *groupSlotBase, __ubuf__ void *src, uint32_t bytes,
+                                       uint32_t memberCount, const pto::GridRect &rect, uint32_t memberStride)
+{
+    (void)rect; // ROW/COL ignore; SUBRECT range already folded into base/stride by the caller.
+    const uint32_t stride = (memberStride == 0) ? bytes : memberStride;
+#if defined(PTO_GRID_CCE_NATIVE)
+    (void)memberCount; // native: member count is encoded into the group descriptor.
+    __builtin_cce_bcast_ubuf_to_group(src, groupSlotBase, bytes, stride, /*group_desc=*/0);
+#elif defined(__CPU_SIM)
+    // CPU_SIM: __gm__/__ubuf__ collapse to ordinary host pointers and the CCE DMA
+    // intrinsic is not declared, so a byte loop (no memcpy, lint-clean) stands in
+    // for the multicast.  Each member receives the identical payload.
+    auto *s = reinterpret_cast<const uint8_t *>(src);
+    for (uint32_t k = 0; k < memberCount; ++k) {
+        auto *d = reinterpret_cast<uint8_t *>(groupSlotBase) + static_cast<uint64_t>(k) * stride;
+        for (uint32_t i = 0; i < bytes; ++i) {
+            d[i] = s[i];
+        }
+    }
+#else
+    // A3 mock: chunked UB -> GM-window copy of `src` into every member's slot
+    // (mirrors copy_ubuf_to_neighbor_ubuf's 256B-chunked A3-mock pump).
+    constexpr uint32_t kChunkBytes = 256;
+    auto *dstBase = reinterpret_cast<__gm__ uint8_t *>(groupSlotBase);
+    auto *srcBytes = reinterpret_cast<__ubuf__ uint8_t *>(src);
+    for (uint32_t k = 0; k < memberCount; ++k) {
+        __gm__ uint8_t *d = dstBase + static_cast<uint64_t>(k) * stride;
+        for (uint32_t off = 0; off < bytes; off += kChunkBytes) {
+            uint32_t chunk = (bytes - off > kChunkBytes) ? kChunkBytes : (bytes - off);
+            copy_ubuf_to_gm_align_b8(d + off, srcBytes + off, 0, 1, chunk, 0, 0, 0, 0);
+        }
+    }
+#endif
+}
+
+// ===========================================================================
+// (5) REDUCE_GROUP_TO_UBUF  ->  reduce_group_to_ubuf<T>  ->
+//   __builtin_cce_reduce_group_to_ubuf_{b16,b32}
+//
+// Group fan-in reduce to the target core: the target core (caller == sink)
+// reads every member's resolved contribution slot in the group, folds them
+// element-wise with Op (Sum/Max/Min), and writes the result to local UB.  This
+// is the hardware-accelerated single-instruction form of the Tier-2 N->1 reduce
+// (the TREDUCE directional relay / TADD loop) -- design: §6.2 / §7.3.  It is a
+// genuine N->1 fan-in, a different collective SHAPE from the directional relay
+// (§7.1); the Tier-2 caller chooses it for whole-row / whole-column reduces.
+//
+// Element-wise combine MUST know the element width, so the facade is templated
+// on T and dispatches the native builtin by sizeof(T): _b16 for half /
+// bfloat16_t (2B), _b32 for float (4B), mirroring the pto_copy_*<T> sizeof
+// dispatch.  NOT self-syncing (same contract as bcast / copy_ubuf_to_neighbor).
+//
+// `groupSlotBase` is the RESOLVED per-member contribution-slot arena base
+// (const: reduce only reads contributions); member m's slot = groupSlotBase +
+// m*memberStride.  The combine folds in ASCENDING member order (member 0 seeds
+// dst, member k>=1 folds in), so an SPMD row/col fan-in reproduces the relay's
+// left-to-right accumulation BIT-FOR-BIT (IEEE-754 add is commutative, so the
+// relay's `acc := acc + recv` per hop and the reduce's `out += member_k` give
+// identical results when members are visited in the same order).
+//
+// `combineScratch` is the A3-mock combine scratch (one member's worth of UB).
+// It is REQUIRED on the A3 mock (no on-transit combine: the in-core Vec op
+// vadd/vmax/vmin needs each member k>=1 in UB) and IGNORED on native (hardware
+// reduce tree) and __CPU_SIM (host loop reads members directly).
+// ===========================================================================
+template <pto::GridGroup Group, pto::comm::ReduceOp Op, typename T>
+AICORE inline void reduce_group_to_ubuf(__ubuf__ T *dst, __gm__ const T *groupSlotBase, uint32_t bytes,
+                                        uint32_t memberCount, const pto::GridRect &rect, uint32_t memberStride,
+                                        __ubuf__ T *combineScratch = nullptr)
+{
+    static_assert(sizeof(T) == 2 || sizeof(T) == 4,
+                  "reduce_group_to_ubuf: T must be 2B (half/bfloat16_t) or 4B (float)");
+    (void)rect;
+    const uint32_t stride = (memberStride == 0) ? bytes : memberStride;
+#if defined(PTO_GRID_CCE_NATIVE)
+    (void)memberCount;
+    (void)combineScratch;
+    if constexpr (sizeof(T) == 2) {
+        __builtin_cce_reduce_group_to_ubuf_b16(dst, groupSlotBase, bytes, stride,
+                                               /*op=*/static_cast<uint32_t>(Op), /*group_desc=*/0);
+    } else {
+        __builtin_cce_reduce_group_to_ubuf_b32(dst, groupSlotBase, bytes, stride,
+                                               /*op=*/static_cast<uint32_t>(Op), /*group_desc=*/0);
+    }
+#elif defined(__CPU_SIM)
+    (void)combineScratch;
+    // host typed element-wise combine (no memcpy): member 0 seeds dst, k>=1 folds.
+    auto *out = reinterpret_cast<T *>(dst);
+    const uint32_t n = bytes / sizeof(T);
+    for (uint32_t k = 0; k < memberCount; ++k) {
+        const T *in = reinterpret_cast<const T *>(reinterpret_cast<const uint8_t *>(groupSlotBase)
+                                                      + static_cast<uint64_t>(k) * stride);
+        if (k == 0) {
+            for (uint32_t i = 0; i < n; ++i) {
+                out[i] = in[i];
+            }
+            continue;
+        }
+        if constexpr (Op == pto::comm::ReduceOp::Sum) {
+            for (uint32_t i = 0; i < n; ++i) {
+                out[i] = out[i] + in[i];
+            }
+        } else if constexpr (Op == pto::comm::ReduceOp::Max) {
+            for (uint32_t i = 0; i < n; ++i) {
+                out[i] = out[i] > in[i] ? out[i] : in[i];
+            }
+        } else {
+            for (uint32_t i = 0; i < n; ++i) {
+                out[i] = out[i] < in[i] ? out[i] : in[i];
+            }
+        }
+    }
+#else
+    // A3 mock: per-member GM->UB pull (member 0 -> accumulator dst, k>=1 ->
+    // scratch) + an in-core Vec combine (vadd/vmax/vmin), mirroring the existing
+    // ReduceTiles (TADD/TMAX/TMIN) path.  One scratch buffer is reused per member.
+    auto *acc = reinterpret_cast<__ubuf__ T *>(dst);
+    auto *scr = reinterpret_cast<__ubuf__ T *>(combineScratch);
+    auto *baseBytes = reinterpret_cast<__gm__ const uint8_t *>(groupSlotBase);
+    auto *accBytes = reinterpret_cast<__ubuf__ uint8_t *>(acc);
+    auto *scrBytes = reinterpret_cast<__ubuf__ uint8_t *>(scr);
+    constexpr uint32_t kChunkBytes = 256;
+    // member 0: contribution -> accumulator.
+    for (uint32_t off = 0; off < bytes; off += kChunkBytes) {
+        uint32_t chunk = (bytes - off > kChunkBytes) ? kChunkBytes : (bytes - off);
+        copy_gm_to_ubuf_align_b8(accBytes + off, baseBytes + off, 0, 1, chunk, 0, 0, 0, 0);
+    }
+    const uint32_t elemsPerRepeat = static_cast<uint32_t>(REPEAT_BYTE) / sizeof(T); // 64 (float) / 128 (half)
+    const uint32_t totalRepeats = bytes / static_cast<uint32_t>(REPEAT_BYTE);
+    for (uint32_t k = 1; k < memberCount; ++k) {
+        __gm__ const uint8_t *mk = baseBytes + static_cast<uint64_t>(k) * stride;
+        for (uint32_t off = 0; off < bytes; off += kChunkBytes) {
+            uint32_t chunk = (bytes - off > kChunkBytes) ? kChunkBytes : (bytes - off);
+            copy_gm_to_ubuf_align_b8(scrBytes + off, mk + off, 0, 1, chunk, 0, 0, 0, 0);
+        }
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_ALL); // MTE2 (GM->UB) -> V (combine)
+#endif
+        // in-core element-wise combine acc OP= scr, chunked into <=255 repeats.
+        for (uint32_t r = 0; r < totalRepeats;) {
+            uint32_t chunk = totalRepeats - r;
+            if (chunk > 255u) {
+                chunk = 255u;
+            }
+            __ubuf__ T *a = acc + r * elemsPerRepeat;
+            __ubuf__ T *s = scr + r * elemsPerRepeat;
+            if constexpr (Op == pto::comm::ReduceOp::Sum) {
+                vadd(a, a, s, static_cast<uint8_t>(chunk), 1, 1, 1, 8, 8, 8);
+            } else if constexpr (Op == pto::comm::ReduceOp::Max) {
+                vmax(a, a, s, static_cast<uint8_t>(chunk), 1, 1, 1, 8, 8, 8);
+            } else {
+                vmin(a, a, s, static_cast<uint8_t>(chunk), 1, 1, 1, 8, 8, 8);
+            }
+            r += chunk;
+        }
+#ifndef __PTO_AUTO__
+        pipe_barrier(PIPE_ALL); // V (combine) -> next MTE2 (GM->UB into scratch)
+#endif
+    }
 #endif
 }
 
