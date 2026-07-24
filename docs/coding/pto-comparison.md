@@ -5,7 +5,7 @@ This document compares PTO with other mainstream operator development approaches
 ## Comparison Overview
 
 | Feature | PTO | AscendC | TBE | CUDA |
-| --------- | ----- | --------- | ----- | ------ |
+|---------|-----|---------|-----|------|
 | **Abstraction Level** | Medium (Tile-level) | Low (Register-level) | High (Operator-level) | Low (Thread-level) |
 | **Cross-generation Compatibility** | ✅ Excellent | ⚠️ Needs adaptation | ✅ Good | ❌ Platform-bound |
 | **Performance Control** | ✅ High | ✅ Highest | ⚠️ Medium | ✅ High |
@@ -14,20 +14,18 @@ This document compares PTO with other mainstream operator development approaches
 | **Debugging Difficulty** | Medium | Hard | Easy | Hard |
 | **Use Cases** | High-performance custom ops | Extreme optimization | Rapid prototyping | NVIDIA GPU |
 
-______________________________________________________________________
+---
 
 ## 1. PTO vs AscendC
 
 ### PTO Advantages
 
-#### Higher Abstraction Level
-
+**Higher Abstraction Level**
 - PTO operates on Tiles (2D data blocks), while AscendC requires manual register management
 - Automatic handling of data alignment and layout conversion
 - Easier to understand and maintain
 
-#### Cross-generation Compatibility
-
+**Cross-generation Compatibility**
 ```cpp
 // PTO code runs on A2/A3/A5 without modification
 using TileT = Tile<TileType::Vec, float, 16, 16>;
@@ -35,22 +33,19 @@ TLOAD(tile, globalTensor);
 TADD(result, tile1, tile2);
 ```
 
-#### Development Efficiency
-
+**Development Efficiency**
 - Fewer lines of code (typically 30-50% reduction)
 - Faster development cycle
 - Easier performance tuning
 
 ### AscendC Advantages
 
-#### Ultimate Performance Control
-
+**Ultimate Performance Control**
 - Direct control of hardware registers
 - Can achieve optimal instruction scheduling
 - Suitable for scenarios requiring extreme performance
 
-#### Lower-level Hardware Access
-
+**Lower-level Hardware Access**
 - Can use all hardware features
 - Finer-grained pipeline control
 
@@ -59,14 +54,13 @@ TADD(result, tile1, tile2);
 - **Choose PTO**: Most custom operator development, need cross-generation compatibility
 - **Choose AscendC**: Need to squeeze last 5-10% performance, targeting specific hardware only
 
-______________________________________________________________________
+---
 
 ## 2. PTO vs TBE
 
 ### PTO Advantages
 
-#### Better Performance Control
-
+**Better Performance Control**
 ```cpp
 // PTO allows precise control of tiling and pipeline
 for (int k = 0; k < K; k += tileK) {
@@ -76,22 +70,19 @@ for (int k = 0; k < K; k += tileK) {
 }
 ```
 
-#### More Flexible Operator Implementation
-
+**More Flexible Operator Implementation**
 - Can implement complex custom logic
 - Supports dynamic shapes and masks
 - Easier to implement operator fusion
 
 ### TBE Advantages
 
-#### Higher Development Efficiency
-
+**Higher Development Efficiency**
 - Based on TensorFlow/PyTorch high-level APIs
 - Automatic optimization and scheduling
 - Faster prototyping
 
-#### Simpler Learning Curve
-
+**Simpler Learning Curve**
 - Python-like programming model
 - Rich operator library
 - Comprehensive documentation and examples
@@ -101,14 +92,13 @@ for (int k = 0; k < K; k += tileK) {
 - **Choose PTO**: Need high-performance custom operators with clear performance requirements
 - **Choose TBE**: Rapid prototyping, standard operator implementation
 
-______________________________________________________________________
+---
 
 ## 3. PTO vs CUDA
 
 ### PTO Advantages
 
-#### Cross-platform Portability
-
+**Cross-platform Portability**
 ```cpp
 // PTO code runs on different Ascend generations
 // A2/A3/A5 without modification
@@ -117,34 +107,29 @@ ______________________________________________________________________
 // Needs rewrite for AMD/Intel GPUs
 ```
 
-#### Higher Abstraction Level
-
+**Higher Abstraction Level**
 - Tile-based programming vs thread-based
 - Automatic memory hierarchy management
 - Less boilerplate code
 
-#### Better Compiler Optimization
-
+**Better Compiler Optimization**
 - Compiler understands high-level semantics
 - Automatic pipeline optimization
 - Better instruction scheduling
 
 ### CUDA Advantages
 
-#### Mature Ecosystem
-
+**Mature Ecosystem**
 - Extensive libraries (cuBLAS, cuDNN, Thrust)
 - Rich community resources
 - Comprehensive tooling (Nsight, nvprof)
 
-#### Fine-grained Control
-
+**Fine-grained Control**
 - Thread-level control
 - Shared memory management
 - Warp-level primitives
 
-#### Wider Hardware Support
-
+**Wider Hardware Support**
 - Runs on all NVIDIA GPUs
 - Large installed base
 
@@ -153,14 +138,13 @@ ______________________________________________________________________
 - **Choose PTO**: Developing for Ascend NPU, need portability across generations
 - **Choose CUDA**: Developing for NVIDIA GPU, need mature ecosystem
 
-______________________________________________________________________
+---
 
 ## 4. Code Comparison Examples
 
 ### 4.1 Vector Addition
 
 **PTO**:
-
 ```cpp
 __global__ __aicore__ void VecAdd(
     __gm__ float* out,
@@ -181,7 +165,6 @@ __global__ __aicore__ void VecAdd(
 ```
 
 **CUDA**:
-
 ```cpp
 __global__ void VecAdd(
     float* out,
@@ -198,7 +181,6 @@ __global__ void VecAdd(
 ```
 
 **Comparison**:
-
 - PTO: Tile-based, processes 4096 elements per iteration
 - CUDA: Thread-based, processes 1 element per thread
 - PTO: Fewer memory transactions, better bandwidth utilization
@@ -207,7 +189,6 @@ __global__ void VecAdd(
 ### 4.2 Matrix Multiplication
 
 **PTO**:
-
 ```cpp
 __global__ __aicore__ void MatMul(
     __gm__ float* C,
@@ -236,7 +217,6 @@ __global__ __aicore__ void MatMul(
 ```
 
 **CUDA**:
-
 ```cpp
 __global__ void MatMul(
     float* C,
@@ -270,20 +250,19 @@ __global__ void MatMul(
 ```
 
 **Comparison**:
-
 - PTO: Hardware matrix multiply instruction (TMATMUL)
 - CUDA: Manual loop-based multiplication
 - PTO: Simpler code, better performance
 - CUDA: More explicit memory management
 
-______________________________________________________________________
+---
 
 ## 5. Performance Comparison
 
 ### 5.1 Development Time
 
 | Task | PTO | AscendC | TBE | CUDA |
-| ------ | ----- | --------- | ----- | ------ |
+|------|-----|---------|-----|------|
 | Simple element-wise op | 1 hour | 2 hours | 30 min | 1 hour |
 | GEMM optimization | 1 day | 3 days | N/A | 2 days |
 | Complex fused op | 2 days | 5 days | 1 day | 3 days |
@@ -293,23 +272,22 @@ ______________________________________________________________________
 **Relative Performance** (normalized to PTO = 1.0):
 
 | Operator | PTO | AscendC | TBE | CUDA (on GPU) |
-| ---------- | ----- | --------- | ----- | --------------- |
+|----------|-----|---------|-----|---------------|
 | Vector Add | 1.0 | 1.05 | 0.8 | 1.2 |
 | GEMM | 1.0 | 1.1 | 0.7 | 1.3 |
 | Softmax | 1.0 | 1.05 | 0.75 | 1.1 |
 | Custom Fusion | 1.0 | 1.15 | 0.6 | N/A |
 
 **Notes**:
-
 - AscendC can achieve 5-15% better performance with expert optimization
 - TBE has 20-40% overhead due to abstraction
 - CUDA performance on different hardware (not directly comparable)
 
-______________________________________________________________________
+---
 
 ## 6. Selection Decision Tree
 
-```text
+```
 Start
   │
   ├─ Need cross-generation compatibility?
@@ -331,21 +309,19 @@ Start
   └─ Default → PTO ✅
 ```
 
-______________________________________________________________________
+---
 
 ## 7. Migration Guide
 
 ### 7.1 CUDA to PTO
 
 **Key Differences**:
-
 - Thread → Tile
 - `__shared__` memory → L1 Tile
 - `__syncthreads()` → Event-based sync
 - Manual loops → Tile operations
 
 **Example**:
-
 ```cpp
 // CUDA
 __global__ void kernel() {
@@ -369,12 +345,11 @@ __global__ __aicore__ void kernel() {
 ### 7.2 TBE to PTO
 
 **Key Differences**:
-
 - High-level ops → Low-level Tile ops
 - Automatic scheduling → Manual pipeline
 - Python → C++
 
-______________________________________________________________________
+---
 
 ## References
 

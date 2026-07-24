@@ -29,7 +29,7 @@ constexpr uint64_t kAicHardTilingKey = 3001;
 #if defined(SYNCALL_MIX_BUILD_AIC)
 PTO_SYNCALL_MIX_AIC_KERNEL_META(RunHardSyncAllAIC_3001_mix_aic, 1, 0);
 
-extern "C" __global__ AICORE void RunHardSyncAllAIC_3001_mix_aic(__gm__ int32_t __out__ *out)
+extern "C" __global__ AICORE void RunHardSyncAllAIC_3001_mix_aic(__gm__ int32_t __out__* out)
 {
     (void)out;
     SYNCALL<SyncCoreType::AICOnly>();
@@ -39,15 +39,12 @@ extern "C" __global__ AICORE void RunHardSyncAllAIC_3001_mix_aic(__gm__ int32_t 
 #if defined(SYNCALL_MIX_BUILD_AIV)
 PTO_SYNCALL_MIX_AIC_KERNEL_META(RunHardSyncAllAIC_3001_mix_aiv, 1, 0);
 
-extern "C" __global__ AICORE void RunHardSyncAllAIC_3001_mix_aiv(__gm__ int32_t __out__ *out)
-{
-    (void)out;
-}
+extern "C" __global__ AICORE void RunHardSyncAllAIC_3001_mix_aiv(__gm__ int32_t __out__* out) { (void)out; }
 #endif
 
 #if defined(SYNCALL_MIX_BUILD_AIC) && !defined(SYNCALL_MIX_REGISTER_BUILD)
 namespace {
-const char *GetRegisterElfPath(const void *anchor)
+const char* GetRegisterElfPath(const void* anchor)
 {
 #if defined(SYNCALL_MIX_REGISTER_OBJECT_PATH)
     (void)anchor;
@@ -62,7 +59,7 @@ const char *GetRegisterElfPath(const void *anchor)
 #endif
 }
 
-std::vector<char> ReadBinaryFile(const char *path)
+std::vector<char> ReadBinaryFile(const char* path)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -84,24 +81,25 @@ std::vector<char> ReadBinaryFile(const char *path)
 }
 } // namespace
 
-void LaunchHardSyncAllAIC(int32_t *out, void *stream)
+void LaunchHardSyncAllAIC(int32_t* out, void* stream)
 {
-    const char *path = GetRegisterElfPath(reinterpret_cast<const void *>(&LaunchHardSyncAllAIC));
+    const char* path = GetRegisterElfPath(reinterpret_cast<const void*>(&LaunchHardSyncAllAIC));
     static const std::vector<char> kernelBin = ReadBinaryFile(path);
 
     rtDevBinary_t binary{RT_DEV_BINARY_MAGIC_ELF, 0, kernelBin.data(), kernelBin.size()};
-    void *handle = nullptr;
+    void* handle = nullptr;
     rtError_t ret = rtRegisterAllKernel(&binary, &handle);
     if (ret != RT_ERROR_NONE || handle == nullptr) {
         ret = rtBinaryLoadWithoutTilingKey(kernelBin.data(), kernelBin.size(), &handle);
         if (ret != RT_ERROR_NONE || handle == nullptr) {
-            std::fprintf(stderr, "register A5 AIC-only hard kernel failed, path=%s, size=%zu, ret=%d\n", path,
-                         kernelBin.size(), ret);
+            std::fprintf(
+                stderr, "register A5 AIC-only hard kernel failed, path=%s, size=%zu, ret=%d\n", path, kernelBin.size(),
+                ret);
             std::abort();
         }
     }
 
-    void *args[] = {out};
+    void* args[] = {out};
     rtArgsEx_t argsInfo{};
     argsInfo.args = args;
     argsInfo.argsSize = sizeof(args);

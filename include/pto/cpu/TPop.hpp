@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<!is_global_data_v<TileCons>, int> = 0>
-PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
+PTO_INTERNAL void TPOP_IMPL(Pipe& pipe, TileCons& tile)
 {
     constexpr bool participateNoSplitC2V = cpu_pipe::ShouldNoSplitC2VConsumerLaneParticipate<Pipe, TileCons, Split>();
     // The second vector lane pops only when the dual-lane C2V protocol is active (>=2 vector
@@ -44,15 +44,15 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
 
 template <
     typename TileCons, typename Pipe,
-    std::enable_if_t<(is_tile_data_v<TileCons> || is_conv_tile_v<TileCons>)&&!is_global_data_v<TileCons>, int> = 0>
-PTO_INTERNAL void TPOP_REVERSED_IMPL(TileCons &tile, Pipe &pipe)
+    std::enable_if_t<(is_tile_data_v<TileCons> || is_conv_tile_v<TileCons>) && !is_global_data_v<TileCons>, int> = 0>
+PTO_INTERNAL void TPOP_REVERSED_IMPL(TileCons& tile, Pipe& pipe)
 {
     TPOP_IMPL<Pipe, TileCons, TileSplitAxis::TILE_NO_SPLIT>(pipe, tile);
 }
 
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TPOP_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
+template <
+    typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TPOP_GLOBAL_IMPL(Pipe& pipe, GlobalData& gmTensor)
 {
     if (pipe.cons.getWaitStatus()) {
         pipe.cons.template wait<GlobalData, Split>();
@@ -60,13 +60,13 @@ PTO_INTERNAL void TPOP_GLOBAL_IMPL(Pipe &pipe, GlobalData &gmTensor)
     const std::size_t slotIndex = static_cast<std::size_t>(pipe.cons.getTileId() % Pipe::RingFiFo::SLOT_NUM);
     const std::size_t entryBase =
         slotIndex * Pipe::RingFiFo::SLOT_SIZE + static_cast<std::size_t>(pipe.cons.entryOffset);
-    auto *addr = reinterpret_cast<typename GlobalData::DType *>(
+    auto* addr = reinterpret_cast<typename GlobalData::DType*>(
         reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) + entryBase);
     TASSIGN_IMPL(gmTensor, addr);
 }
 
 template <typename Pipe, TileSplitAxis Split>
-PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
+PTO_INTERNAL void TFREE_IMPL(Pipe& pipe)
 {
     if ((!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() || !cpu_pipe::IsDualLaneC2VActive()) &&
         cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {
@@ -78,14 +78,14 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 }
 
 template <typename Pipe>
-PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
+PTO_INTERNAL void TFREE_IMPL(Pipe& pipe)
 {
     TFREE_IMPL<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
 }
 
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TFREE_GLOBAL_IMPL(Pipe &pipe, GlobalData &)
+template <
+    typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TFREE_GLOBAL_IMPL(Pipe& pipe, GlobalData&)
 {
     if ((!cpu_pipe::ShouldNoSplitC2VConsumerLaneFree<Pipe, Split>() || !cpu_pipe::IsDualLaneC2VActive()) &&
         cpu_pipe::IsInactiveNoSplitVecConsumerLane<Pipe, Split>()) {

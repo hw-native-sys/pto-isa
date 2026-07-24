@@ -23,7 +23,7 @@ The primary interface is the `<grp_axis, mx_alg>` template:
 template <int grp_axis, auto mx_alg, typename TileDataOut = void, typename TileDataSrc = void,
           typename TileDataExp = void, typename TileDataMax = void, typename TileDataScaling = void,
           typename... WaitEvents>
-PTO_INST RecordEvent TQuant(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
+PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
                             TileDataScaling *scaling, WaitEvents &... events);
 ```
 
@@ -147,7 +147,7 @@ TMOV(fp8NZTile, fp8Tile);   // stock 2-arg ND→NZ; correct for DN data (RowMajo
 
 ```
 src[M×N] (fp32)
-  ──TQuant<0, MxQuantAlg::OcpMxFp8E4M3>──▶ fp8[M×N] + e8[M̂×N] (DN exponent)
+  ──TQUANT<0, MxQuantAlg::OcpMxFp8E4M3>──▶ fp8[M×N] + e8[M̂×N] (DN exponent)
   ──TMOV(ND→NZ)──────────────────────────▶ fp8NZ
   ──TMOV<0>(DN→ZZ)───────────────────────▶ e8ZZ
   ──feed to cube MMAD_MX──────────────────▶ C[M×N]
@@ -157,7 +157,7 @@ src[M×N] (fp32)
 
 ```cpp
 // DN quantize (groups on axis 0)
-TQuant<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
+TQUANT<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8DnTile, &maxTile, &scalingTile);
 // Data ND→NZ (stock)
 TMOV(fp8NZTile, fp8Tile);
 // Exponent DN→ZZ (new)

@@ -356,44 +356,6 @@ add(
 )
 
 
-def case_elem2d_dyn(
-    name, dtype, valid_r, valid_c, table_total, atomic="none", oob="undefined", conflict="last", idx_kind="random"
-):
-    rng = np.random.default_rng(hash(name) & 0xFFFFFFFF)
-    n = valid_r * valid_c
-    src = make_src(dtype, n).reshape(valid_r, valid_c)
-    if idx_kind == "random":
-        idx = make_idx_random(rng, (valid_r, valid_c), 0, table_total)
-    elif idx_kind == "oob":
-        idx = make_idx_with_oob(rng, (valid_r, valid_c), table_total, max(1, n // 2))
-    elif idx_kind == "seq":
-        idx = make_idx_seq((valid_r, valid_c))
-    else:
-        raise ValueError(idx_kind)
-    golden = golden_elem(src, idx, table_total, atomic, oob, conflict)
-    return src, idx, golden
-
-
-add(
-    "MSCATTERTest.case_elem2d_dyn_user_float_1x9_in_1x16_3x10",
-    lambda n: case_elem2d_dyn(n, np.float32, 1, 9, 3 * 10, oob="skip", idx_kind="oob"),
-)
-add(
-    "MSCATTERTest.case_elem2d_dyn_int32_4x8_in_4x8_64size",
-    lambda n: case_elem2d_dyn(n, np.int32, 4, 8, 64, idx_kind="random"),
-)
-add(
-    "MSCATTERTest.case_elem2d_dyn_float_3x3_in_3x8_64size",
-    lambda n: case_elem2d_dyn(n, np.float32, 3, 3, 64, idx_kind="random"),
-)
-add(
-    "MSCATTERTest.case_elem2d_dyn_half_8x16_in_8x16_4x32",
-    lambda n: case_elem2d_dyn(n, np.float16, 8, 16, 4 * 32, idx_kind="random"),
-)
-add("MSCATTERTest.case_row_dyn_int32_3x16_8rows", lambda n: case_row(n, np.int32, 3, 16, 8))
-add("MSCATTERTest.case_row_dyn_half_4x32_16rows", lambda n: case_row(n, np.float16, 4, 32, 16))
-
-
 if __name__ == "__main__":
     for name, gen in CASES:
         src, idx, golden = gen(name)

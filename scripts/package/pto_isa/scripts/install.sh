@@ -13,8 +13,8 @@ OPERATE_FAILED="0x0001"
 PARAM_INVALID="0x0002"
 FILE_NOT_EXIST="0x0080"
 FILE_NOT_EXIST_DES="File not found."
-PTO_COMPATIBILITY_CEHCK_ERR="0x0092"
-PTO_COMPATIBILITY_CEHCK_ERR_DES="PtoMath compatibility check error."
+PTO_COMPATIBILITY_CHECK_ERR="0x0092"
+PTO_COMPATIBILITY_CHECK_ERR_DES="PtoMath compatibility check error."
 PERM_DENIED="0x0093"
 PERM_DENIED_DES="Permission denied."
 
@@ -50,7 +50,7 @@ PTO_COMMON_FILE="${CURR_PATH}/pto_common.sh"
 
 ARCH_INFO=$(grep -e "arch" "$RUN_PKG_INFO_FILE" | cut --only-delimited -d"=" -f2-)
 
-# defaluts info determinated by user's inputs
+# defaluts info determined by user's inputs
 ASCEND_INSTALL_INFO="ascend_install.info"
 TARGET_INSTALL_PATH="${DEFAULT_INSTALL_PATH}" #--input-path
 TARGET_USERNAME="${CURR_OPERATE_USER}"
@@ -343,7 +343,7 @@ check_install_path() {
   if [ x"${temp_path}" = "x" ]; then
     temp_path="/"
   fi
-  # covert relative path to absolute path
+  # convert relative path to absolute path
   local prefix=$(echo "${temp_path}" | cut -d"/" -f1 | cut -d"~" -f1)
   if [ "x${prefix}" = "x" ]; then
     TARGET_INSTALL_PATH="${temp_path}"
@@ -357,7 +357,7 @@ check_install_path() {
       exit 1
     fi
   fi
-  # covert '~' to home path
+  # convert '~' to home path
   local home=$(echo "${TARGET_INSTALL_PATH}" | cut -d"~" -f1)
   if [ "x${home}" = "x" ]; then
     local temp_path_value=$(echo "${TARGET_INSTALL_PATH}" | cut -d"~" -f2)
@@ -527,7 +527,7 @@ get_opts() {
         ;;
       -*)
         echo "[PTO] [ERROR]: ERR_NO:${PARAM_INVALID};ERR_DES:Unsupported parameters [$1],\
- operation execute failed. Please use [--help] to see the useage."
+ operation execute failed. Please use [--help] to see the usage."
         exitlog
         exit 1
         ;;
@@ -580,7 +580,7 @@ init_env() {
   is_multi_version_pkg "pkg_is_multi_version" "$VERSION_INFO_FILE"
   get_package_version "RUN_PKG_VERSION" "$VERSION_INFO_FILE"
 
-  # creat log folder and log file
+  # create log folder and log file
   comm_init_log
 
   logandprint "[INFO]: Execute the pto run package."

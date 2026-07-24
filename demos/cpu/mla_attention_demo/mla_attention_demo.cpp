@@ -66,8 +66,8 @@ struct VerifyStats {
     bool has_nan_or_inf = false;
 };
 
-VerifyStats verify_allclose(const std::vector<float> &actual, const std::vector<float> &ref, float abs_tol,
-                            float rel_tol, float denom_eps)
+VerifyStats verify_allclose(
+    const std::vector<float>& actual, const std::vector<float>& ref, float abs_tol, float rel_tol, float denom_eps)
 {
     VerifyStats stats;
     if (actual.size() != ref.size() || actual.empty()) {
@@ -114,10 +114,10 @@ VerifyStats verify_allclose(const std::vector<float> &actual, const std::vector<
     return stats;
 }
 
-void mla_reference(const std::vector<float> &q, const std::vector<float> &k, const std::vector<float> &v,
-                   const std::vector<float> &wq, const std::vector<float> &wk, const std::vector<float> &wv,
-                   const std::vector<float> &wo, std::vector<float> &out, int batch, int heads, int seq_len,
-                   int head_dim, int latent_dim)
+void mla_reference(
+    const std::vector<float>& q, const std::vector<float>& k, const std::vector<float>& v, const std::vector<float>& wq,
+    const std::vector<float>& wk, const std::vector<float>& wv, const std::vector<float>& wo, std::vector<float>& out,
+    int batch, int heads, int seq_len, int head_dim, int latent_dim)
 {
     const double scale = 1.0 / std::sqrt(static_cast<double>(latent_dim));
 
@@ -209,9 +209,9 @@ void mla_reference(const std::vector<float> &q, const std::vector<float> &k, con
     }
 }
 
-void mla_pto(const std::vector<float> &q, const std::vector<float> &k, const std::vector<float> &v,
-             const std::vector<float> &wq, const std::vector<float> &wk, const std::vector<float> &wv,
-             const std::vector<float> &wo, std::vector<float> &out)
+void mla_pto(
+    const std::vector<float>& q, const std::vector<float>& k, const std::vector<float>& v, const std::vector<float>& wq,
+    const std::vector<float>& wk, const std::vector<float>& wv, const std::vector<float>& wo, std::vector<float>& out)
 {
     // Multi-Latent Attention (MLA) in PTO instructions (per batch/head):
     //   Q_lat = Q * Wq   where Q:(S×D), Wq:(D×R) -> Q_lat:(S×R)
@@ -269,10 +269,10 @@ void mla_pto(const std::vector<float> &q, const std::vector<float> &k, const std
     const float scale = 1.0f / std::sqrt(static_cast<float>(kR));
 
     // Load projection weights once (shared across all heads/batches in this demo).
-    GlobalWqr wqGlobal(const_cast<float *>(wq.data()));
-    GlobalWqr wkGlobal(const_cast<float *>(wk.data()));
-    GlobalWqr wvGlobal(const_cast<float *>(wv.data()));
-    GlobalWor woGlobal(const_cast<float *>(wo.data()));
+    GlobalWqr wqGlobal(const_cast<float*>(wq.data()));
+    GlobalWqr wkGlobal(const_cast<float*>(wk.data()));
+    GlobalWqr wvGlobal(const_cast<float*>(wv.data()));
+    GlobalWor woGlobal(const_cast<float*>(wo.data()));
 
     WDrPlain wqTile;
     WDrPlain wkTile;
@@ -295,14 +295,14 @@ void mla_pto(const std::vector<float> &q, const std::vector<float> &k, const std
     for (int b = 0; b < kB; ++b) {
         for (int h = 0; h < kH; ++h) {
             // 1) Load Q/K/V tiles for this (batch, head).
-            const float *q_ptr = &q[idx4(b, h, 0, 0, kH, kS, kD)];
-            const float *k_ptr = &k[idx4(b, h, 0, 0, kH, kS, kD)];
-            const float *v_ptr = &v[idx4(b, h, 0, 0, kH, kS, kD)];
-            float *o_ptr = &out[idx4(b, h, 0, 0, kH, kS, kD)];
+            const float* q_ptr = &q[idx4(b, h, 0, 0, kH, kS, kD)];
+            const float* k_ptr = &k[idx4(b, h, 0, 0, kH, kS, kD)];
+            const float* v_ptr = &v[idx4(b, h, 0, 0, kH, kS, kD)];
+            float* o_ptr = &out[idx4(b, h, 0, 0, kH, kS, kD)];
 
-            GlobalQ qGlobal(const_cast<float *>(q_ptr));
-            GlobalK kGlobal(const_cast<float *>(k_ptr));
-            GlobalV vGlobal(const_cast<float *>(v_ptr));
+            GlobalQ qGlobal(const_cast<float*>(q_ptr));
+            GlobalK kGlobal(const_cast<float*>(k_ptr));
+            GlobalV vGlobal(const_cast<float*>(v_ptr));
             GlobalO oGlobal(o_ptr);
 
             QPlain qTile;
@@ -396,7 +396,7 @@ int main()
 
     std::mt19937 rng(kRngSeed);
     std::normal_distribution<float> dist(0.0f, 1.0f);
-    auto fill_scaled = [&](std::vector<float> &buf) {
+    auto fill_scaled = [&](std::vector<float>& buf) {
         for (std::size_t i = 0; i < buf.size(); ++i) {
             buf[i] = dist(rng) * kInitScale;
         }
@@ -448,8 +448,8 @@ int main()
     std::cout << "checksum(out) = " << checksum << "\n";
     std::cout << "perf: avg_ms=" << (elapsed_s * 1e3) << " approx_matmul_flops=" << matmul_flops
               << " gflops=" << gflops;
-    if (const char *peak_env = std::getenv("PTO_CPU_PEAK_GFLOPS")) {
-        char *end = nullptr;
+    if (const char* peak_env = std::getenv("PTO_CPU_PEAK_GFLOPS")) {
+        char* end = nullptr;
         const double peak = std::strtod(peak_env, &end);
         if (end != peak_env && peak > 0.0) {
             std::cout << " peak_gflops=" << peak << " mfu=" << (gflops / peak);

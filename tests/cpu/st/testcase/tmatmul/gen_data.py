@@ -69,7 +69,7 @@ class tmatmulParams:
         self.ctype = ctype
         self.m = m
         self.k = k
-        self.n = n
+        self.n = n 
         self.repeats = repeats
         self.is_bias = is_bias
         if (bias_type):

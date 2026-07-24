@@ -38,10 +38,12 @@ AICORE inline void WaitFlag(uint32_t id)
     wait_flag(srcPipe, dstPipe, static_cast<event_t>(id));
 }
 
-template <typename T, typename U, typename S, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
-          uint32_t singleCoreN>
-AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ S *&currentSrc1, __gm__ T *&currentDst, __gm__ T *out,
-                                 __gm__ U *src0, __gm__ S *src1)
+template <
+    typename T, typename U, typename S, int m, int k, int n, uint32_t singleCoreM, uint32_t singleCoreK,
+    uint32_t singleCoreN>
+AICORE inline void InitGMOffsets(
+    __gm__ U*& currentSrc0, __gm__ S*& currentSrc1, __gm__ T*& currentDst, __gm__ T* out, __gm__ U* src0,
+    __gm__ S* src1)
 {
     // Work partition (SPMD-style):
     // - Each core owns a contiguous C tile of shape [singleCoreM, singleCoreN].
@@ -57,14 +59,13 @@ AICORE inline void InitGMOffsets(__gm__ U *&currentSrc0, __gm__ S *&currentSrc1,
     currentDst = out + gmOffsetC;
 }
 
-template <typename TileMatA, typename TileMatB, typename LeftTile, typename RightTile, typename ResTile, int m, int k,
-          int n, uint32_t stepKa, uint32_t stepKb, uint32_t singleCoreK>
-AICORE inline void ProcessKIteration(uint32_t kIter, uint32_t i, uint32_t j,
-                                     __gm__ typename TileMatA::DType *currentSrc0,
-                                     __gm__ typename TileMatB::DType *currentSrc1, TileMatA aMatTile[BUFFER_NUM],
-                                     TileMatB bMatTile[BUFFER_NUM], LeftTile aTile[BUFFER_NUM],
-                                     RightTile bTile[BUFFER_NUM], ResTile &cTile, uint8_t &mte2DBFlag,
-                                     uint8_t &mte1DBFlag)
+template <
+    typename TileMatA, typename TileMatB, typename LeftTile, typename RightTile, typename ResTile, int m, int k, int n,
+    uint32_t stepKa, uint32_t stepKb, uint32_t singleCoreK>
+AICORE inline void ProcessKIteration(
+    uint32_t kIter, uint32_t i, uint32_t j, __gm__ typename TileMatA::DType* currentSrc0,
+    __gm__ typename TileMatB::DType* currentSrc1, TileMatA aMatTile[BUFFER_NUM], TileMatB bMatTile[BUFFER_NUM],
+    LeftTile aTile[BUFFER_NUM], RightTile bTile[BUFFER_NUM], ResTile& cTile, uint8_t& mte2DBFlag, uint8_t& mte1DBFlag)
 {
     using U = typename TileMatA::DType;
     using S = typename TileMatB::DType;
@@ -127,7 +128,7 @@ AICORE inline void ProcessKIteration(uint32_t kIter, uint32_t i, uint32_t j,
 }
 
 template <typename ResTile, int m, int n, uint32_t singleCoreK>
-AICORE inline void StoreResult(ResTile &cTile, __gm__ typename ResTile::DType *currentDst, uint32_t i, uint32_t j)
+AICORE inline void StoreResult(ResTile& cTile, __gm__ typename ResTile::DType* currentDst, uint32_t i, uint32_t j)
 {
     using T = typename ResTile::DType;
     constexpr uint32_t baseM = ResTile::Rows;
@@ -166,17 +167,18 @@ AICORE inline void InitSyncFlags()
     SetFlag<PIPE_M, PIPE_MTE1>(1);
 }
 
-template <typename T, typename U, typename S, typename B, uint32_t blockDim, int m, int k, int n, int validM,
-          int validK, int validN, uint32_t singleCoreM, uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM,
-          uint32_t baseK, uint32_t baseN, uint32_t stepM, uint32_t stepKa, uint32_t stepKb, uint32_t stepN>
-AICORE inline void RunGemmE2E(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
+template <
+    typename T, typename U, typename S, typename B, uint32_t blockDim, int m, int k, int n, int validM, int validK,
+    int validN, uint32_t singleCoreM, uint32_t singleCoreK, uint32_t singleCoreN, uint32_t baseM, uint32_t baseK,
+    uint32_t baseN, uint32_t stepM, uint32_t stepKa, uint32_t stepKb, uint32_t stepN>
+AICORE inline void RunGemmE2E(__gm__ T* out, __gm__ U* src0, __gm__ S* src1)
 {
 #if (__CHECK_FEATURE_AT_PRECOMPILE) || (__CCE_AICORE__ == 220 && defined(__DAV_C220_CUBE__))
-    __gm__ U *currentSrc0 = nullptr;
-    __gm__ S *currentSrc1 = nullptr;
-    __gm__ T *currentDst = nullptr;
-    InitGMOffsets<T, U, S, m, k, n, singleCoreM, singleCoreK, singleCoreN>(currentSrc0, currentSrc1, currentDst, out,
-                                                                           src0, src1);
+    __gm__ U* currentSrc0 = nullptr;
+    __gm__ S* currentSrc1 = nullptr;
+    __gm__ T* currentDst = nullptr;
+    InitGMOffsets<T, U, S, m, k, n, singleCoreM, singleCoreK, singleCoreN>(
+        currentSrc0, currentSrc1, currentDst, out, src0, src1);
 
     using TileMatA =
         Tile<TileType::Mat, U, baseM, baseK * stepKa, BLayout::ColMajor, baseM, baseK * stepKa, SLayout::RowMajor>;
@@ -218,9 +220,10 @@ AICORE inline void RunGemmE2E(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
     for (uint32_t i = 0; i < mLoop; i++) {
         for (uint32_t j = 0; j < nLoop; j++) {
             for (uint32_t kIter = 0; kIter < kLoop; kIter++) {
-                ProcessKIteration<TileMatA, TileMatB, LeftTile, RightTile, ResTile, m, k, n, stepKa, stepKb,
-                                  singleCoreK>(kIter, i, j, currentSrc0, currentSrc1, aMatTile, bMatTile, aTile, bTile,
-                                               cTile, mte2DBFlag, mte1DBFlag);
+                ProcessKIteration<
+                    TileMatA, TileMatB, LeftTile, RightTile, ResTile, m, k, n, stepKa, stepKb, singleCoreK>(
+                    kIter, i, j, currentSrc0, currentSrc1, aMatTile, bMatTile, aTile, bTile, cTile, mte2DBFlag,
+                    mte1DBFlag);
             }
             StoreResult<ResTile, m, n, singleCoreK>(cTile, currentDst, i, j);
         }
@@ -235,7 +238,7 @@ AICORE inline void RunGemmE2E(__gm__ T *out, __gm__ U *src0, __gm__ S *src1)
 #endif
 }
 
-__global__ AICORE void gemm_kernel_entry(__gm__ void *out, __gm__ void *src0, __gm__ void *src1)
+__global__ AICORE void gemm_kernel_entry(__gm__ void* out, __gm__ void* src0, __gm__ void* src1)
 {
     constexpr uint32_t blockDim = 24;
     constexpr int m = 6144, n = 6144, k = 6144;
@@ -250,13 +253,14 @@ __global__ AICORE void gemm_kernel_entry(__gm__ void *out, __gm__ void *src0, __
     constexpr uint32_t stepKb = 4;
     constexpr uint32_t stepN = 1;
 
-    RunGemmE2E<float, half, half, float, blockDim, m, k, n, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM,
-               baseK, baseN, stepM, stepKa, stepKb, stepN>(reinterpret_cast<__gm__ float *>(out),
-                                                           reinterpret_cast<__gm__ half *>(src0),
-                                                           reinterpret_cast<__gm__ half *>(src1));
+    RunGemmE2E<
+        float, half, half, float, blockDim, m, k, n, m, k, n, singleCoreM, singleCoreK, singleCoreN, baseM, baseK,
+        baseN, stepM, stepKa, stepKb, stepN>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ half*>(src0),
+        reinterpret_cast<__gm__ half*>(src1));
 }
 
-extern "C" void call_kernel(uint32_t blockDim, void *stream, uint8_t *out, uint8_t *src0, uint8_t *src1)
+extern "C" void call_kernel(uint32_t blockDim, void* stream, uint8_t* out, uint8_t* src0, uint8_t* src1)
 {
     gemm_kernel_entry<<<blockDim, nullptr, stream>>>(out, src0, src1);
 }

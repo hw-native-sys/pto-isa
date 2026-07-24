@@ -29,7 +29,7 @@ namespace comm {
 namespace ccu {
 namespace st {
 
-inline int RunCcuStMain(int argc, char **argv, void (*cleanup)())
+inline int RunCcuStMain(int argc, char** argv, void (*cleanup)())
 {
     setvbuf(stderr, nullptr, _IONBF, 0);
     CommMpiInit(&argc, &argv);

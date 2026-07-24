@@ -16,26 +16,27 @@ using namespace pto;
 
 constexpr uint16_t BLOCK_CUBE_M_N = 16;
 
-template <int atomicType, typename accDataType, typename dstDataType, typename srcDataType, int gShape0, int gShape1,
-          int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3,
-          int gWholeShape4, int validM, int validN, int validK, int reluMode = 0, int format = 0>
-__global__ AICORE void TStoreAcc2gmNz2nd(__gm__ dstDataType *out, __gm__ srcDataType *src0, __gm__ srcDataType *src1)
+template <
+    int atomicType, typename accDataType, typename dstDataType, typename srcDataType, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3,
+    int gWholeShape4, int validM, int validN, int validK, int reluMode = 0, int format = 0>
+__global__ AICORE void TStoreAcc2gmNz2nd(__gm__ dstDataType* out, __gm__ srcDataType* src0, __gm__ srcDataType* src1)
 {
-    constexpr int gStride[5] = {gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4,
-                                gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, gWholeShape4,
-                                1};
+    constexpr int gStride[5] = {
+        gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape2 * gWholeShape3 * gWholeShape4,
+        gWholeShape3 * gWholeShape4, gWholeShape4, 1};
     constexpr int M = (validM + BLOCK_CUBE_M_N - 1) / BLOCK_CUBE_M_N * BLOCK_CUBE_M_N;
     constexpr int N = (validN + BLOCK_CUBE_M_N - 1) / BLOCK_CUBE_M_N * BLOCK_CUBE_M_N;
     constexpr int K = (validK + BLOCK_CUBE_M_N - 1) / BLOCK_CUBE_M_N * BLOCK_CUBE_M_N;
     constexpr int Rows = M;
     constexpr int Cols = N;
 
-    using GlobalDataSrc0 =
-        GlobalTensor<srcDataType, pto::Shape<1, 1, 1, validM, validK>,
-                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<srcDataType, pto::Shape<1, 1, 1, validK, validN>,
-                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        srcDataType, pto::Shape<1, 1, 1, validM, validK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        srcDataType, pto::Shape<1, 1, 1, validK, validN>,
+        pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
 
     using DynShapeDim5 = pto::Shape<gShape0, gShape1, gShape2, gShape3, gShape4>;
     using DynStridDim5 = pto::Stride<gStride[0], gStride[1], gStride[2], gStride[3], gStride[4]>;
@@ -45,8 +46,9 @@ __global__ AICORE void TStoreAcc2gmNz2nd(__gm__ dstDataType *out, __gm__ srcData
             (format == 1), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NHWC>,
             std::conditional_t<
                 (format == 2), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NCHW>,
-                std::conditional_t<(format == 3), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NCDHW>,
-                                   GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5>>>>>;
+                std::conditional_t<
+                    (format == 3), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NCDHW>,
+                    GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5>>>>>;
 
     GlobalDataSrc0 src0Global(src0);
     GlobalDataSrc1 src1Global(src1);
@@ -106,27 +108,28 @@ __global__ AICORE void TStoreAcc2gmNz2nd(__gm__ dstDataType *out, __gm__ srcData
     out = dstGlobal.data();
 }
 
-template <int atomicType, typename accDataType, typename dstDataType, typename srcDataType, int gShape0, int gShape1,
-          int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3,
-          int gWholeShape4, int validM, int validN, int validK, int reluMode = 0, int format = 0>
-__global__ AICORE void TStoreAcc2gmScalarNz2nd(__gm__ dstDataType *out, __gm__ srcDataType *src0,
-                                               __gm__ srcDataType *src1, float scalarQuant)
+template <
+    int atomicType, typename accDataType, typename dstDataType, typename srcDataType, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3,
+    int gWholeShape4, int validM, int validN, int validK, int reluMode = 0, int format = 0>
+__global__ AICORE void TStoreAcc2gmScalarNz2nd(
+    __gm__ dstDataType* out, __gm__ srcDataType* src0, __gm__ srcDataType* src1, float scalarQuant)
 {
-    constexpr int gStride[5] = {gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4,
-                                gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, gWholeShape4,
-                                1};
+    constexpr int gStride[5] = {
+        gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape2 * gWholeShape3 * gWholeShape4,
+        gWholeShape3 * gWholeShape4, gWholeShape4, 1};
     constexpr int M = (validM + BLOCK_CUBE_M_N - 1) / BLOCK_CUBE_M_N * BLOCK_CUBE_M_N;
     constexpr int N = (validN + BLOCK_CUBE_M_N - 1) / BLOCK_CUBE_M_N * BLOCK_CUBE_M_N;
     constexpr int K = (validK + BLOCK_CUBE_M_N - 1) / BLOCK_CUBE_M_N * BLOCK_CUBE_M_N;
     constexpr int Rows = M;
     constexpr int Cols = N;
 
-    using GlobalDataSrc0 =
-        GlobalTensor<srcDataType, pto::Shape<1, 1, 1, validM, validK>,
-                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<srcDataType, pto::Shape<1, 1, 1, validK, validN>,
-                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        srcDataType, pto::Shape<1, 1, 1, validM, validK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        srcDataType, pto::Shape<1, 1, 1, validK, validN>,
+        pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
 
     using DynShapeDim5 = pto::Shape<gShape0, gShape1, gShape2, gShape3, gShape4>;
     using DynStridDim5 = pto::Stride<gStride[0], gStride[1], gStride[2], gStride[3], gStride[4]>;
@@ -136,8 +139,9 @@ __global__ AICORE void TStoreAcc2gmScalarNz2nd(__gm__ dstDataType *out, __gm__ s
             (format == 1), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NHWC>,
             std::conditional_t<
                 (format == 2), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NCHW>,
-                std::conditional_t<(format == 3), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NCDHW>,
-                                   GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5>>>>>;
+                std::conditional_t<
+                    (format == 3), GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5, Layout::NCDHW>,
+                    GlobalTensor<dstDataType, DynShapeDim5, DynStridDim5>>>>>;
     GlobalDataSrc0 src0Global(src0);
     GlobalDataSrc1 src1Global(src1);
     GlobalDataOut dstGlobal(out);
@@ -182,7 +186,7 @@ __global__ AICORE void TStoreAcc2gmScalarNz2nd(__gm__ dstDataType *out, __gm__ s
     set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
     wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
 #endif
-    uint64_t preQuantScalar = static_cast<uint64_t>(*reinterpret_cast<int32_t *>(&scalarQuant));
+    uint64_t preQuantScalar = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&scalarQuant));
     if (sizeof(dstDataType) == 1) {
         constexpr bool sign = (std::is_same_v<dstDataType, int8_t>) ? true : false;
         preQuantScalar = (preQuantScalar & ~(static_cast<uint64_t>(1) << 46)) | (static_cast<uint64_t>(sign) << 46);
@@ -203,123 +207,125 @@ __global__ AICORE void TStoreAcc2gmScalarNz2nd(__gm__ dstDataType *out, __gm__ s
 }
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream)
+void LaunchTStoreAcc2gmNz2nd(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
 {
-    if constexpr (tilingKey == 1) {
+    if constexpr (tilingKey == 0) {
+        TStoreAcc2gmNz2nd<1, float, float, float, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, 32>(
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
+    } else if constexpr (tilingKey == 1) {
         TStoreAcc2gmNz2nd<1, float, float, float, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, 16>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
     } else if constexpr (tilingKey == 2) {
         TStoreAcc2gmNz2nd<0, float, float, float, 1, 1, 1, 31, 32, 1, 1, 1, 31, 32, 31, 32, 15>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
     } else if constexpr (tilingKey == 3) {
         TStoreAcc2gmNz2nd<0, float, float, half, 1, 1, 1, 65, 128, 1, 1, 1, 65, 128, 65, 128, 96>(
-            reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1));
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1));
     } else if constexpr (tilingKey == 4) {
         TStoreAcc2gmNz2nd<0, float, half, half, 1, 1, 1, 73, 64, 1, 1, 1, 73, 64, 73, 64, 32>(
-            reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1));
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1));
     } else if constexpr (tilingKey == 5) {
         TStoreAcc2gmNz2nd<1, float, float, bfloat16_t, 1, 1, 1, 13, 32, 1, 1, 1, 13, 32, 13, 32, 25>(
-            reinterpret_cast<float *>(out), reinterpret_cast<bfloat16_t *>(src0), reinterpret_cast<bfloat16_t *>(src1));
+            reinterpret_cast<float*>(out), reinterpret_cast<bfloat16_t*>(src0), reinterpret_cast<bfloat16_t*>(src1));
     } else if constexpr (tilingKey == 6) {
         TStoreAcc2gmNz2nd<0, float, bfloat16_t, bfloat16_t, 1, 1, 1, 100, 222, 1, 1, 1, 100, 222, 100, 222, 60>(
-            reinterpret_cast<bfloat16_t *>(out), reinterpret_cast<bfloat16_t *>(src0),
-            reinterpret_cast<bfloat16_t *>(src1));
+            reinterpret_cast<bfloat16_t*>(out), reinterpret_cast<bfloat16_t*>(src0),
+            reinterpret_cast<bfloat16_t*>(src1));
     } else if constexpr (tilingKey == 7) {
         TStoreAcc2gmNz2nd<1, int32_t, int32_t, int8_t, 1, 1, 1, 44, 128, 1, 1, 1, 44, 128, 44, 128, 27>(
-            reinterpret_cast<int32_t *>(out), reinterpret_cast<int8_t *>(src0), reinterpret_cast<int8_t *>(src1));
+            reinterpret_cast<int32_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1));
     } else if constexpr (tilingKey == 21) {
         TStoreAcc2gmNz2nd<0, float, float, float, 1, 1, 1, 117, 97, 1, 1, 1, 117, 97, 117, 97, 71, 1>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1));
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
     }
 }
 
 template <int tilingKey>
-void LaunchTStoreAcc2gmScalarNz2nd(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream, float scalarQuant)
+void LaunchTStoreAcc2gmScalarNz2nd(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant)
 {
     if constexpr (tilingKey == 1) {
         TStoreAcc2gmScalarNz2nd<0, int32_t, half, int8_t, 1, 1, 1, 64, 64, 1, 1, 1, 64, 64, 64, 64, 64>(
-            reinterpret_cast<half *>(out), reinterpret_cast<int8_t *>(src0), reinterpret_cast<int8_t *>(src1),
+            reinterpret_cast<half*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
             scalarQuant);
     } else if constexpr (tilingKey == 2) {
         TStoreAcc2gmScalarNz2nd<0, int32_t, int8_t, int8_t, 1, 1, 1, 31, 32, 1, 1, 1, 31, 32, 31, 32, 26>(
-            reinterpret_cast<int8_t *>(out), reinterpret_cast<int8_t *>(src0), reinterpret_cast<int8_t *>(src1),
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
             scalarQuant);
     } else if constexpr (tilingKey == 3) {
         TStoreAcc2gmScalarNz2nd<0, int32_t, uint8_t, int8_t, 1, 1, 1, 16, 32, 1, 1, 1, 16, 32, 16, 32, 17>(
-            reinterpret_cast<uint8_t *>(out), reinterpret_cast<int8_t *>(src0), reinterpret_cast<int8_t *>(src1),
+            reinterpret_cast<uint8_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
             scalarQuant);
     } else if constexpr (tilingKey == 5) {
         TStoreAcc2gmScalarNz2nd<1, float, int8_t, half, 1, 1, 1, 25, 35, 1, 1, 1, 25, 35, 25, 35, 32>(
-            reinterpret_cast<int8_t *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1),
-            scalarQuant);
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), scalarQuant);
     } else if constexpr (tilingKey == 6) {
         TStoreAcc2gmScalarNz2nd<0, float, uint8_t, float, 1, 1, 1, 16, 20, 1, 1, 1, 16, 20, 16, 20, 25>(
-            reinterpret_cast<uint8_t *>(out), reinterpret_cast<float *>(src0), reinterpret_cast<float *>(src1),
+            reinterpret_cast<uint8_t*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
             scalarQuant);
     } else if constexpr (tilingKey == 7) {
         TStoreAcc2gmScalarNz2nd<0, float, half, half, 1, 1, 1, 49, 65, 1, 1, 1, 49, 65, 49, 65, 37>(
-            reinterpret_cast<half *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1), scalarQuant);
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), scalarQuant);
     } else if constexpr (tilingKey == 8) {
         TStoreAcc2gmScalarNz2nd<0, float, bfloat16_t, half, 1, 1, 1, 160, 79, 1, 1, 1, 160, 79, 160, 79, 51>(
-            reinterpret_cast<bfloat16_t *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1),
+            reinterpret_cast<bfloat16_t*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1),
             scalarQuant);
     } else if constexpr (tilingKey == 21) {
         TStoreAcc2gmScalarNz2nd<0, float, int8_t, half, 1, 1, 1, 77, 34, 1, 1, 1, 77, 34, 77, 34, 81, 1>(
-            reinterpret_cast<int8_t *>(out), reinterpret_cast<half *>(src0), reinterpret_cast<half *>(src1),
-            scalarQuant);
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), scalarQuant);
     }
 }
 
-template void LaunchTStoreAcc2gmNz2nd<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void LaunchTStoreAcc2gmNz2nd<0>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<4>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<5>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<6>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<7>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
-template void LaunchTStoreAcc2gmScalarNz2nd<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<8>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<9>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                               float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<10>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                                float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<1>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<2>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<3>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<4>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<5>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<6>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<7>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<8>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<9>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<10>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
-template void LaunchTStoreAcc2gmNz2nd<21>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void LaunchTStoreAcc2gmNz2nd<21>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
-template void LaunchTStoreAcc2gmScalarNz2nd<21>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                                float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<21>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
-template void LaunchTStoreAcc2gmNz2nd<31>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<32>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<33>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<34>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmScalarNz2nd<31>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                                float scalarQuant);
+template void LaunchTStoreAcc2gmNz2nd<31>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<32>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<33>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<34>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmScalarNz2nd<31>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
 
-template void LaunchTStoreAcc2gmNz2nd<41>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<42>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<43>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<44>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmScalarNz2nd<41>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                                float scalarQuant);
-template void LaunchTStoreAcc2gmScalarNz2nd<51>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream,
-                                                float scalarQuant);
-template void LaunchTStoreAcc2gmNz2nd<51>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<52>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<53>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
-template void LaunchTStoreAcc2gmNz2nd<54>(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template void LaunchTStoreAcc2gmNz2nd<41>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<42>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<43>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<44>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmScalarNz2nd<41>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmScalarNz2nd<51>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);
+template void LaunchTStoreAcc2gmNz2nd<51>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<52>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<53>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTStoreAcc2gmNz2nd<54>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);

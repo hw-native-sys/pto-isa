@@ -38,16 +38,6 @@ license: CANN Open Software License Agreement Version 2.0
 - **指令功能解释**: 详细解释每个ISA指令在算子实现中的作用
 - **代码生成**: 输出完整的kernel代码实现
 
-### 近期 PR 复盘驱动的质量门
-
-开发或生成融合算子时，先把以下检查写入实现和测试，而不是在评审后补救：
-
-- **同步与跨核 FIFO**：PR #61、#77、#85、#93、#95、#100 反复暴露 `TPUSH`/`TPOP`/`TFREE`、hook 注入、`subblock_dim`、split lane 和 fine-grained sync 的组合风险。涉及这些路径时，至少覆盖 C2V/V2C、split/no-split、`subblock_dim=1/2`、hook/no-hook，以及目标后端（CPU-SIM、A2/A3、A5）。
-- **地址、stride、layout**：PR #86 和 #95 的评审指出过 ColMajor DN stride、golden 数据布局、`entryOffset` 作用位置、split-N subblock 偏移问题。写 TLOAD/TSTORE 或 partial tile 搬运前，先明确 base offset、row offset、column offset、entry offset、split-lane offset 的公式，并用能区分 RowMajor/ColMajor/flattened rows/multi-column 的 golden case 验证。
-- **模板契约**：PR #92 要求用命名常量和 `static_assert` 保护 constexpr tile-type dispatch。新增模板或重载时，必须明确 tile 类型、layout、dtype、backend-only 资源的约束，不要把 magic number 留在调度逻辑中。
-- **测试闭环**：PR #85 暴露过 CMake 注册了不存在 testcase 目录的问题。新增 ST case 时检查：目录存在、局部 `CMakeLists.txt` 存在、父级 CMake 已注册、gtest 名称和 `gen_data.py` 输出一致、golden 数据能暴露目标 bug。
-- **性能声明**：PR #100 的 chunked `TPUSH` benchmark 说明同步次数会直接影响性能。任何“更快”的融合路径都要给出 backend、shape、命令和 before/after 数字；热循环要分别审查 contiguous、strided、split、fallback 路径。
-
 ## 工作流程
 
 当用户指定算子功能后，遵循以下工作流程：
@@ -116,7 +106,7 @@ license: CANN Open Software License Agreement Version 2.0
 
 **最小化原则**: 使用最少的指令完成功能，减少数据搬运。
 
-**数据流优化**: 
+**数据流优化**:
 - **Vector计算**: 遵循 gm → ub → vector → ub → gm 的基本数据流
 - **Cube计算(矩阵乘)**: 遵循 GM → L1 → L0A/L0B → L0C → GM 的矩阵数据流
 
@@ -197,7 +187,7 @@ GELU(x) = x * Φ(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
 数据流: GlobalMemory[srcGlobal] → UnifiedBuffer[srcTile]
 输入: GlobalTensor对象，描述GM上的数据布局
 输出: Tile对象，存储加载到UB的数据
-同步需求: 
+同步需求:
   - 推荐使用Event同步: Event<Op::TLOAD, Op::NextOp>
   - 或手动同步: set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0)
 
@@ -263,14 +253,14 @@ event4 = TMAX(dstTile, src0Tile, src1Tile, event3);
 ```
 矩阵乘法: TMATMUL
 功能: 矩阵乘法计算 C = A * B
-数据流: 
+数据流:
   - GM → L1: GlobalMemory[矩阵A/B] → L1Buffer[MatTile] (TLOAD)
   - L1 → L0A/L0B: L1Buffer[MatTile] → L0Buffer[Left/RightTile] (TMOV)
   - L0A/L0B → L0C: 矩阵乘法计算 (TMATMUL)
   - L0C → GM: L0Buffer[AccTile] → GlobalMemory[结果] (TSTORE)
 输入: 矩阵A和B (通过MatTile加载)
 输出: 矩阵C (通过AccTile存储)
-同步需求: 
+同步需求:
   - TLOAD完成后: Event<Op::TLOAD, Op::TMOV> 或 set_flag(PIPE_MTE2, PIPE_MTE1)
   - TMOV完成后: Event<Op::TMOV, Op::TMATMUL> 或 set_flag(PIPE_MTE1, PIPE_M)
   - TMATMUL完成后: Event<Op::TMATMUL, Op::TSTORE_VEC> 或 set_flag(PIPE_M, PIPE_FIX)
@@ -311,7 +301,7 @@ TSTORE(dstGlobal, cTile);
 数据流: UnifiedBuffer[dstTile] → GlobalMemory[dstGlobal]
 输入: Tile对象，UB上的数据
 输出: GlobalTensor对象，GM上的数据
-同步需求: 
+同步需求:
   - 推荐使用Event同步: Event<Op::LastOp, Op::TSTORE_VEC>
   - 或手动同步: set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0)
 
@@ -768,34 +758,34 @@ __global__ AICORE void runOperator(__gm__ T *out, __gm__ T *srcA, __gm__ T *srcB
         // Vector计算：逐元素操作、激活函数、归约等
         TLOAD(vecTile, srcGlobal);
         TADD(dstTile, src0Tile, src1Tile);
-        
+
         // V2C: TPUSH数据到Cube核
         TPUSH<V2CPipe, VecTileNZ, TileSplitAxis::TILE_NO_SPLIT>(pipe, vecTile);
-        
+
         // C2V: TPOP从Cube核接收数据
         TPOP<C2VPipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, recvTile);
         TFREE<C2VPipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
-        
+
         TSTORE(dstGlobal, dstTile);
     }
-    
+
     // Cube核执行路径
     if constexpr (DAV_CUBE) {
         // Cube计算：矩阵乘法
         TLOAD(matTileA, srcAGlobal);
         TLOAD(matTileB, srcBGlobal);
-        
+
         // V2C: TPOP从Vector核接收数据
         TPOP<V2CPipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, matTileB);
         TFREE<V2CPipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
-        
+
         TMOV(leftTile, matTileA);
         TMOV(rightTile, matTileB);
         TMATMUL(accTile, leftTile, rightTile);
-        
+
         // C2V: TPUSH数据到Vector核
         TPUSH<C2VPipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, accTile);
-        
+
         TSTORE(dstGlobal, accTile);
     }
 }
@@ -1073,7 +1063,7 @@ __global__ AICORE void runSoftmax(__gm__ T *out, __gm__ T *src)
     TileData expTile(vRows, vCols);
     TileData dstTile(vRows, vCols);
     SumTileData sumTile(vRows, 1);
-    
+
     TASSIGN(srcTile, 0x0);
     TASSIGN(expTile, sizeof(T) * TileData::Numel);
     TASSIGN(sumTile, 2 * sizeof(T) * TileData::Numel);

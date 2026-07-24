@@ -31,9 +31,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace ascendc_path {
 
-#define CEIL(x, y) ((((x) + (y)-1) / (y)) * y)
+#define CEIL(x, y) ((((x) + (y) - 1) / (y)) * y)
 
-at::Tensor run_fa_custom(const at::Tensor &q, const at::Tensor &k, const at::Tensor &v, bool is_causal)
+at::Tensor run_fa_custom(const at::Tensor& q, const at::Tensor& k, const at::Tensor& v, bool is_causal)
 {
     at::Tensor out = at::empty(q.sizes(), at::TensorOptions().dtype(at::kFloat).device(q.options().device()));
 
@@ -44,8 +44,9 @@ at::Tensor run_fa_custom(const at::Tensor &q, const at::Tensor &k, const at::Ten
     constexpr int CUBE_S0 = kFaCubeS0;
     constexpr int CUBE_S1 = kFaCubeS1;
 
-    assert((head_size == SUPPORTED_HEAD_SIZE || head_size == SUPPORTED_HEAD_SIZE2) &&
-           "Head Size has to be 64 or 128 for now");
+    assert(
+        (head_size == SUPPORTED_HEAD_SIZE || head_size == SUPPORTED_HEAD_SIZE2) &&
+        "Head Size has to be 64 or 128 for now");
     assert(s0 % CUBE_S0 == 0 && "S0 has to be CUBE_S0 multiple");
 
     // Dynamic tiling selection logic

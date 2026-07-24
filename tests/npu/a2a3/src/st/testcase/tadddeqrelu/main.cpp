@@ -16,21 +16,19 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTADDDEQRELUTestCase(void *out, void *src0, void *src1, aclrtStream stream);
+void launchTADDDEQRELUTestCase(void* out, void* src0, void* src1, aclrtStream stream);
 
 class TADDDEQRELUTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -50,20 +48,20 @@ bool TADDDEQRELUTestFramework()
 
     size_t srcByteSize = row * col * sizeof(int32_t);
     size_t dstByteSize = row * col * sizeof(aclFloat16);
-    int32_t *src0Host;
-    int32_t *src1Host;
-    aclFloat16 *dstHost;
-    int32_t *src0Device;
-    int32_t *src1Device;
-    aclFloat16 *dstDevice;
+    int32_t* src0Host;
+    int32_t* src1Host;
+    aclFloat16* dstHost;
+    int32_t* src0Device;
+    int32_t* src1Device;
+    aclFloat16* dstDevice;
 
-    aclrtMallocHost((void **)(&src0Host), srcByteSize);
-    aclrtMallocHost((void **)(&src1Host), srcByteSize);
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&src0Host), srcByteSize);
+    aclrtMallocHost((void**)(&src1Host), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
 
-    aclrtMalloc((void **)&src0Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input0.bin", srcByteSize, src0Host, srcByteSize);
     ReadFile(GetGoldenDir() + "/input1.bin", srcByteSize, src1Host, srcByteSize);

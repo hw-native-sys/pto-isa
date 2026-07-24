@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW>
-__global__ AICORE void runTAdd(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1, int vRows,
-                               int vCols)
+__global__ AICORE void runTAdd(
+    __gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1, int vRows, int vCols)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
@@ -54,29 +54,30 @@ __global__ AICORE void runTAdd(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     out = dstGlobal.data();
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
-void LaunchTAdd(T *out, T *src0, T *src1, void *stream)
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
+void LaunchTAdd(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
         runTAdd<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1), vRows, vCols);
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(src1), vRows, vCols);
     else
         runTAdd<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW>
             <<<1, nullptr, stream>>>(out, src0, src1, vRows, vCols);
 }
 
-template void LaunchTAdd<aclFloat16, 16, 64, 16, 128, 16, 128, 16, 64>(aclFloat16 *out, aclFloat16 *src0,
-                                                                       aclFloat16 *src1, void *stream);
-template void LaunchTAdd<float, 16, 32, 16, 64, 16, 32, 16, 32>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTAdd<int16_t, 32, 128, 32, 128, 32, 256, 32, 128>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                      void *stream);
-template void LaunchTAdd<int32_t, 16, 32, 16, 64, 16, 32, 16, 32>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                  void *stream);
-template void LaunchTAdd<aclFloat16, 16, 64, 16, 128, 16, 128, 16, 63>(aclFloat16 *out, aclFloat16 *src0,
-                                                                       aclFloat16 *src1, void *stream);
-template void LaunchTAdd<float, 16, 32, 16, 64, 16, 32, 16, 31>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTAdd<int16_t, 32, 128, 32, 128, 32, 256, 32, 127>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                      void *stream);
-template void LaunchTAdd<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                  void *stream);
+template void LaunchTAdd<aclFloat16, 16, 64, 16, 128, 16, 128, 16, 64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTAdd<float, 16, 32, 16, 64, 16, 32, 16, 32>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTAdd<int16_t, 32, 128, 32, 128, 32, 256, 32, 128>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTAdd<int32_t, 16, 32, 16, 64, 16, 32, 16, 32>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTAdd<aclFloat16, 16, 64, 16, 128, 16, 128, 16, 63>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTAdd<float, 16, 32, 16, 64, 16, 32, 16, 31>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTAdd<int16_t, 32, 128, 32, 128, 32, 256, 32, 127>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTAdd<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);

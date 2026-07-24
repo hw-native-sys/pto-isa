@@ -25,6 +25,7 @@ def get_include_files():
 
     return data_files
 
+
 setup(
     name="pto-isa",
     version="9.1.0",
@@ -34,7 +35,6 @@ setup(
     packages=find_packages(exclude=["tests*", "demos*", "scripts*", "kernels*"]),
     data_files=get_include_files(),
     include_package_data=True,
-    python_requires=">=3.9",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",

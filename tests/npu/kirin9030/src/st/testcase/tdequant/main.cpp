@@ -16,21 +16,19 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename dstType, typename srcType, int kTRows_, int kTCols_, int vRows, int vCols>
-void launchTDequant(dstType *out, srcType *src, dstType *scale, dstType *offset, void *stream);
+void launchTDequant(dstType* out, srcType* src, dstType* scale, dstType* offset, void* stream);
 
 class TDEQUANTTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -51,18 +49,18 @@ void test_tdequant()
 
     dstType *dstHost, *scaleHost, *offsetHost;
     dstType *dstDevice, *scaleDevice, *offsetDevice;
-    srcType *srcHost;
-    srcType *srcDevice;
+    srcType* srcHost;
+    srcType* srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&scaleHost), paraFileSize);
-    aclrtMallocHost((void **)(&offsetHost), paraFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&scaleHost), paraFileSize);
+    aclrtMallocHost((void**)(&offsetHost), paraFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scaleDevice, paraFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&offsetDevice, paraFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scaleDevice, paraFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&offsetDevice, paraFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     ReadFile(GetGoldenDir() + "/scale.bin", paraFileSize, scaleHost, paraFileSize);
@@ -73,8 +71,8 @@ void test_tdequant()
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(scaleDevice, paraFileSize, scaleHost, paraFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(offsetDevice, paraFileSize, offsetHost, paraFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTDequant<dstType, srcType, kTRows_, kTCols_, vRows, vCols>(dstDevice, srcDevice, scaleDevice, offsetDevice,
-                                                                     stream);
+    launchTDequant<dstType, srcType, kTRows_, kTCols_, vRows, vCols>(
+        dstDevice, srcDevice, scaleDevice, offsetDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -104,32 +102,14 @@ void test_tdequant()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TDEQUANTTest, case1)
-{
-    test_tdequant<float, int16_t, 64, 64, 64, 64>();
-}
+TEST_F(TDEQUANTTest, case1) { test_tdequant<float, int16_t, 64, 64, 64, 64>(); }
 
-TEST_F(TDEQUANTTest, case2)
-{
-    test_tdequant<float, int16_t, 128, 128, 64, 64>();
-}
+TEST_F(TDEQUANTTest, case2) { test_tdequant<float, int16_t, 128, 128, 64, 64>(); }
 
-TEST_F(TDEQUANTTest, case3)
-{
-    test_tdequant<float, int16_t, 128, 128, 63, 63>();
-}
+TEST_F(TDEQUANTTest, case3) { test_tdequant<float, int16_t, 128, 128, 63, 63>(); }
 
-TEST_F(TDEQUANTTest, case4)
-{
-    test_tdequant<float, int8_t, 64, 64, 64, 64>();
-}
+TEST_F(TDEQUANTTest, case4) { test_tdequant<float, int8_t, 64, 64, 64, 64>(); }
 
-TEST_F(TDEQUANTTest, case5)
-{
-    test_tdequant<float, int8_t, 128, 128, 64, 64>();
-}
+TEST_F(TDEQUANTTest, case5) { test_tdequant<float, int8_t, 128, 128, 64, 64>(); }
 
-TEST_F(TDEQUANTTest, case6)
-{
-    test_tdequant<float, int8_t, 128, 128, 63, 63>();
-}
+TEST_F(TDEQUANTTest, case6) { test_tdequant<float, int8_t, 128, 128, 63, 63>(); }

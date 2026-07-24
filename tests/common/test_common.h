@@ -41,8 +41,7 @@ namespace PtoTestCommon {
     if (!(x))                 \
         ASSERT_TRUE(false);
 
-typedef enum
-{
+typedef enum {
     DT_UNDEFINED = -1,
     FLOAT = 0,
     HALF = 1,
@@ -62,7 +61,7 @@ typedef enum
     BF16 = 27
 } printDataType;
 
-bool ReadFile(const std::string &filePath, size_t &fileSize, void *buffer, size_t bufferSize)
+bool ReadFile(const std::string& filePath, size_t& fileSize, void* buffer, size_t bufferSize)
 {
     struct stat sBuf;
     int fileStatus = stat(filePath.data(), &sBuf);
@@ -82,7 +81,7 @@ bool ReadFile(const std::string &filePath, size_t &fileSize, void *buffer, size_
         return false;
     }
 
-    std::filebuf *buf = file.rdbuf();
+    std::filebuf* buf = file.rdbuf();
     size_t size = buf->pubseekoff(0, std::ios::end, std::ios::in);
     if (size == 0) {
         ERROR_LOG("file size is 0");
@@ -95,13 +94,13 @@ bool ReadFile(const std::string &filePath, size_t &fileSize, void *buffer, size_
         return false;
     }
     buf->pubseekpos(0, std::ios::in);
-    buf->sgetn(static_cast<char *>(buffer), size);
+    buf->sgetn(static_cast<char*>(buffer), size);
     fileSize = size;
     file.close();
     return true;
 }
 
-bool WriteFile(const std::string &filePath, const void *buffer, size_t size)
+bool WriteFile(const std::string& filePath, const void* buffer, size_t size)
 {
     if (buffer == nullptr) {
         ERROR_LOG("Write file failed. buffer is nullptr");
@@ -129,7 +128,7 @@ bool WriteFile(const std::string &filePath, const void *buffer, size_t size)
 }
 
 template <typename T>
-void DoPrintData(const T *data, size_t count, size_t elementsPerRow)
+void DoPrintData(const T* data, size_t count, size_t elementsPerRow)
 {
     assert(elementsPerRow != 0);
     for (size_t i = 0; i < count; ++i) {
@@ -140,7 +139,7 @@ void DoPrintData(const T *data, size_t count, size_t elementsPerRow)
     }
 }
 
-void DoPrintHalfData(const aclFloat16 *data, size_t count, size_t elementsPerRow)
+void DoPrintHalfData(const aclFloat16* data, size_t count, size_t elementsPerRow)
 {
     assert(elementsPerRow != 0);
     for (size_t i = 0; i < count; ++i) {
@@ -156,7 +155,7 @@ void DoPrintHalfData(const aclFloat16 *data, size_t count, size_t elementsPerRow
     }
 }
 
-void PrintData(const void *data, size_t count, printDataType dataType, size_t elementsPerRow = 16)
+void PrintData(const void* data, size_t count, printDataType dataType, size_t elementsPerRow = 16)
 {
     if (data == nullptr) {
         ERROR_LOG("Print data failed. data is nullptr");
@@ -165,42 +164,42 @@ void PrintData(const void *data, size_t count, printDataType dataType, size_t el
 
     switch (dataType) {
         case BOOL:
-            DoPrintData(reinterpret_cast<const bool *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const bool*>(data), count, elementsPerRow);
             break;
         case INT8_T:
-            DoPrintData(reinterpret_cast<const int8_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const int8_t*>(data), count, elementsPerRow);
             break;
         case UINT8_T:
-            DoPrintData(reinterpret_cast<const uint8_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const uint8_t*>(data), count, elementsPerRow);
             break;
         case INT16_T:
-            DoPrintData(reinterpret_cast<const int16_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const int16_t*>(data), count, elementsPerRow);
             break;
         case UINT16_T:
-            DoPrintData(reinterpret_cast<const uint16_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const uint16_t*>(data), count, elementsPerRow);
             break;
         case INT32_T:
-            DoPrintData(reinterpret_cast<const int32_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const int32_t*>(data), count, elementsPerRow);
             break;
         case UINT32_T:
-            DoPrintData(reinterpret_cast<const uint32_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const uint32_t*>(data), count, elementsPerRow);
             break;
         case INT64_T:
-            DoPrintData(reinterpret_cast<const int64_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const int64_t*>(data), count, elementsPerRow);
             break;
         case UINT64_T:
-            DoPrintData(reinterpret_cast<const uint64_t *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const uint64_t*>(data), count, elementsPerRow);
             break;
 
         case HALF:
-            DoPrintHalfData(reinterpret_cast<const aclFloat16 *>(data), count, elementsPerRow);
+            DoPrintHalfData(reinterpret_cast<const aclFloat16*>(data), count, elementsPerRow);
             break;
 
         case FLOAT:
-            DoPrintData(reinterpret_cast<const float *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const float*>(data), count, elementsPerRow);
             break;
         case DOUBLE:
-            DoPrintData(reinterpret_cast<const double *>(data), count, elementsPerRow);
+            DoPrintData(reinterpret_cast<const double*>(data), count, elementsPerRow);
             break;
         default:
             ERROR_LOG("Unsupported type: %d", dataType);
@@ -212,8 +211,9 @@ void PrintData(const void *data, size_t count, printDataType dataType, size_t el
 #define BOLD_RED "\033[1;31m"
 
 template <typename T>
-bool ResultCmp(const std::vector<T> &outDataValExp, const T *outDataValAct, float eps, size_t threshold = 0,
-               size_t zeroCountThreshold = 1000, bool printAll = false, bool printErr = false, size_t testNum = 0)
+bool ResultCmp(
+    const std::vector<T>& outDataValExp, const T* outDataValAct, float eps, size_t threshold = 0,
+    size_t zeroCountThreshold = 1000, bool printAll = false, bool printErr = false, size_t testNum = 0)
 {
     threshold = threshold == 0 ? static_cast<int>(outDataValExp.size() * eps) : threshold;
 
@@ -238,8 +238,9 @@ bool ResultCmp(const std::vector<T> &outDataValExp, const T *outDataValAct, floa
         zeroCount += std::abs(actVal - 0.0f) <= 1e-6 and std::abs(expVal - 0.0f) > 1e-6 ? 1 : 0;
         testNum = testNum - (testNum > 0 ? 1 : 0);
 
-        auto eErr = ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold) ||
-                     (std::isnan(expVal) != std::isnan(actVal)));
+        auto eErr =
+            ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold) ||
+             (std::isnan(expVal) != std::isnan(actVal)));
         errCount += eErr ? 1 : 0;
 
         if ((printAll) || (eErr && printErr) || (testNum > 0)) {
@@ -271,8 +272,9 @@ bool ResultCmp(const std::vector<T> &outDataValExp, const T *outDataValAct, floa
         auto relRatio = std::abs(diff / expVal);
         zeroCount += std::abs(actVal - 0.0f) <= 1e-6 and std::abs(expVal - 0.0f) > 1e-6 ? 1 : 0;
 
-        auto eErr = ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold) ||
-                     (std::isnan(expVal) != std::isnan(actVal)));
+        auto eErr =
+            ((diff > eps && relRatio > eps) || (zeroCount > zeroCountThreshold) ||
+             (std::isnan(expVal) != std::isnan(actVal)));
         errCount += eErr ? 1 : 0;
 
         if (eErr) {
@@ -288,27 +290,20 @@ bool ResultCmp(const std::vector<T> &outDataValExp, const T *outDataValAct, floa
     return false;
 }
 template <typename T>
-bool ResultCmp(const std::vector<T> &outDataValExp, const std::vector<T> &outDataValAct, float eps,
-               size_t threshold = 0, size_t zeroCountThreshold = 1000, bool printAll = false, bool printErr = false,
-               size_t testNum = 0)
+bool ResultCmp(
+    const std::vector<T>& outDataValExp, const std::vector<T>& outDataValAct, float eps, size_t threshold = 0,
+    size_t zeroCountThreshold = 1000, bool printAll = false, bool printErr = false, size_t testNum = 0)
 {
     if (outDataValExp.size() != outDataValAct.size()) {
         std::cout << "out size is not eq, golden: " << outDataValExp.size() << ", act: " << outDataValAct.size()
                   << std::endl;
         return false;
     }
-    return ResultCmp(outDataValExp, outDataValAct.data(), eps, threshold, zeroCountThreshold, printAll, printErr,
-                     testNum);
+    return ResultCmp(
+        outDataValExp, outDataValAct.data(), eps, threshold, zeroCountThreshold, printAll, printErr, testNum);
 }
 
 #if (defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)) && defined(PTO_RUN_MODE_NPU)
-ACL_FUNC_VISIBILITY aclError aclrtMemset(void *devPtr, size_t maxCount, int32_t value, size_t count)
-{
-    (void)devPtr;
-    (void)maxCount;
-    (void)value;
-    (void)count;
-    return ACL_SUCCESS;
-}
+ACL_FUNC_VISIBILITY aclError aclrtMemset(void* devPtr, size_t maxCount, int32_t value, size_t count) { return; }
 #endif
 } // namespace PtoTestCommon

@@ -27,7 +27,7 @@ using moe_combine::PeerWindowLayout;
 using moe_combine::WorkspaceLayout;
 
 #ifndef GM_ADDR
-#define GM_ADDR __gm__ uint8_t *
+#define GM_ADDR __gm__ uint8_t*
 #endif
 
 namespace {
@@ -47,12 +47,9 @@ using GlobalNd = pto::GlobalTensor<T, ShapeDyn, StrideDyn, pto::Layout::ND>;
 template <typename T, int kCols = kDefaultTileCols>
 using VecTile = pto::Tile<pto::TileType::Vec, T, 1, kCols, pto::BLayout::RowMajor, -1, -1>;
 
-AICORE inline uint64_t Align64Device(uint64_t value)
-{
-    return ((value + 63) / 64) * 64;
-}
+AICORE inline uint64_t Align64Device(uint64_t value) { return ((value + 63) / 64) * 64; }
 
-AICORE inline uint64_t AppendFieldDevice(uint64_t &offset, uint64_t bytes)
+AICORE inline uint64_t AppendFieldDevice(uint64_t& offset, uint64_t bytes)
 {
     offset = Align64Device(offset);
     uint64_t fieldOffset = offset;
@@ -62,23 +59,23 @@ AICORE inline uint64_t AppendFieldDevice(uint64_t &offset, uint64_t bytes)
 
 struct LocalWorkspaceView {
     GM_ADDR base;
-    __gm__ int32_t *localSync;
+    __gm__ int32_t* localSync;
 };
 
 struct LocalRouteMetaView {
     GM_ADDR base;
-    __gm__ int32_t *peerTokenPerExpert;
-    __gm__ int32_t *expandedRowIdx;
-    __gm__ int32_t *cumsumPerExpert;
-    __gm__ int32_t *dispatchOffset;
-    __gm__ int32_t *prevSumBeforeRank;
+    __gm__ int32_t* peerTokenPerExpert;
+    __gm__ int32_t* expandedRowIdx;
+    __gm__ int32_t* cumsumPerExpert;
+    __gm__ int32_t* dispatchOffset;
+    __gm__ int32_t* prevSumBeforeRank;
 };
 
 struct LocalPeerWindowView {
     GM_ADDR base;
-    __gm__ half *ptrD;
-    __gm__ int32_t *countReadySignal;
-    __gm__ int32_t *combineDoneSignal;
+    __gm__ half* ptrD;
+    __gm__ int32_t* countReadySignal;
+    __gm__ int32_t* combineDoneSignal;
 };
 
 AICORE inline WorkspaceLayout MakeWorkspaceLayout(MoeCombineShape shape)
@@ -132,53 +129,53 @@ AICORE inline PeerWindowLayout MakePeerWindowLayout(MoeCombineShape shape)
     return layout;
 }
 
-AICORE inline LocalWorkspaceView MakeLocalWorkspaceView(GM_ADDR workspaceBase, const WorkspaceLayout &layout)
+AICORE inline LocalWorkspaceView MakeLocalWorkspaceView(GM_ADDR workspaceBase, const WorkspaceLayout& layout)
 {
     LocalWorkspaceView view{};
     view.base = workspaceBase;
-    view.localSync = reinterpret_cast<__gm__ int32_t *>(workspaceBase + layout.localSync);
+    view.localSync = reinterpret_cast<__gm__ int32_t*>(workspaceBase + layout.localSync);
     return view;
 }
 
-AICORE inline LocalRouteMetaView MakeLocalRouteMetaView(GM_ADDR routeMetaBase, const CombineRouteMetaLayout &layout)
+AICORE inline LocalRouteMetaView MakeLocalRouteMetaView(GM_ADDR routeMetaBase, const CombineRouteMetaLayout& layout)
 {
     LocalRouteMetaView view{};
     view.base = routeMetaBase;
-    view.peerTokenPerExpert = reinterpret_cast<__gm__ int32_t *>(routeMetaBase + layout.peerTokenPerExpert);
-    view.expandedRowIdx = reinterpret_cast<__gm__ int32_t *>(routeMetaBase + layout.expandedRowIdx);
-    view.cumsumPerExpert = reinterpret_cast<__gm__ int32_t *>(routeMetaBase + layout.cumsumPerExpert);
-    view.dispatchOffset = reinterpret_cast<__gm__ int32_t *>(routeMetaBase + layout.dispatchOffset);
-    view.prevSumBeforeRank = reinterpret_cast<__gm__ int32_t *>(routeMetaBase + layout.prevSumBeforeRank);
+    view.peerTokenPerExpert = reinterpret_cast<__gm__ int32_t*>(routeMetaBase + layout.peerTokenPerExpert);
+    view.expandedRowIdx = reinterpret_cast<__gm__ int32_t*>(routeMetaBase + layout.expandedRowIdx);
+    view.cumsumPerExpert = reinterpret_cast<__gm__ int32_t*>(routeMetaBase + layout.cumsumPerExpert);
+    view.dispatchOffset = reinterpret_cast<__gm__ int32_t*>(routeMetaBase + layout.dispatchOffset);
+    view.prevSumBeforeRank = reinterpret_cast<__gm__ int32_t*>(routeMetaBase + layout.prevSumBeforeRank);
     return view;
 }
 
-AICORE inline LocalPeerWindowView MakeLocalPeerWindowView(GM_ADDR peerWindowBase, const PeerWindowLayout &layout)
+AICORE inline LocalPeerWindowView MakeLocalPeerWindowView(GM_ADDR peerWindowBase, const PeerWindowLayout& layout)
 {
     LocalPeerWindowView view{};
     view.base = peerWindowBase;
-    view.ptrD = reinterpret_cast<__gm__ half *>(peerWindowBase + layout.ptrD);
-    view.countReadySignal = reinterpret_cast<__gm__ int32_t *>(peerWindowBase + layout.countReadySignal);
-    view.combineDoneSignal = reinterpret_cast<__gm__ int32_t *>(peerWindowBase + layout.combineDoneSignal);
+    view.ptrD = reinterpret_cast<__gm__ half*>(peerWindowBase + layout.ptrD);
+    view.countReadySignal = reinterpret_cast<__gm__ int32_t*>(peerWindowBase + layout.countReadySignal);
+    view.combineDoneSignal = reinterpret_cast<__gm__ int32_t*>(peerWindowBase + layout.combineDoneSignal);
     return view;
 }
 
 template <typename T>
-AICORE inline __gm__ T *RemotePtr(__gm__ HcclDeviceContext *ctx, __gm__ T *localPtr, uint32_t peerRank)
+AICORE inline __gm__ T* RemotePtr(__gm__ HcclDeviceContext* ctx, __gm__ T* localPtr, uint32_t peerRank)
 {
     uint64_t localBase = ctx->windowsIn[ctx->rankId];
     uint64_t offset = reinterpret_cast<uint64_t>(localPtr) - localBase;
-    return reinterpret_cast<__gm__ T *>(ctx->windowsIn[peerRank] + offset);
+    return reinterpret_cast<__gm__ T*>(ctx->windowsIn[peerRank] + offset);
 }
 
-AICORE inline LocalPeerWindowView MakeRemotePeerWindowView(__gm__ HcclDeviceContext *ctx, GM_ADDR localPeerWindowBase,
-                                                           uint32_t peerRank, const PeerWindowLayout &layout)
+AICORE inline LocalPeerWindowView MakeRemotePeerWindowView(
+    __gm__ HcclDeviceContext* ctx, GM_ADDR localPeerWindowBase, uint32_t peerRank, const PeerWindowLayout& layout)
 {
     GM_ADDR remoteBase = RemotePtr<uint8_t>(ctx, localPeerWindowBase, peerRank);
     return MakeLocalPeerWindowView(remoteBase, layout);
 }
 
 template <typename T>
-AICORE inline GlobalNd<T> MakeGlobal1D(__gm__ T *ptr, int32_t elems)
+AICORE inline GlobalNd<T> MakeGlobal1D(__gm__ T* ptr, int32_t elems)
 {
     ShapeDyn shape(1, 1, 1, 1, elems);
     StrideDyn stride(elems, elems, elems, elems, 1);
@@ -186,17 +183,14 @@ AICORE inline GlobalNd<T> MakeGlobal1D(__gm__ T *ptr, int32_t elems)
 }
 
 template <typename T>
-AICORE inline GlobalNd<T> MakeGlobal2D(__gm__ T *ptr, int32_t rows, int32_t cols, int32_t rowStride)
+AICORE inline GlobalNd<T> MakeGlobal2D(__gm__ T* ptr, int32_t rows, int32_t cols, int32_t rowStride)
 {
     ShapeDyn shape(1, 1, 1, rows, cols);
     StrideDyn stride(rowStride * rows, rowStride * rows, rowStride * rows, rowStride, 1);
     return GlobalNd<T>(ptr, shape, stride);
 }
 
-AICORE inline pto::comm::Signal MakeSignal(__gm__ int32_t *ptr)
-{
-    return pto::comm::Signal(ptr);
-}
+AICORE inline pto::comm::Signal MakeSignal(__gm__ int32_t* ptr) { return pto::comm::Signal(ptr); }
 
 AICORE inline void WaitStoreTileReusable()
 {
@@ -206,7 +200,7 @@ AICORE inline void WaitStoreTileReusable()
     wait_flag(PIPE_MTE3, PIPE_V, EVENT_ID1);
 }
 
-AICORE inline void DcciGmRangeNoFence(__gm__ void *ptr, uint64_t bytes)
+AICORE inline void DcciGmRangeNoFence(__gm__ void* ptr, uint64_t bytes)
 {
     if (bytes == 0) {
         return;
@@ -215,11 +209,11 @@ AICORE inline void DcciGmRangeNoFence(__gm__ void *ptr, uint64_t bytes)
     uint64_t start = reinterpret_cast<uint64_t>(ptr) & ~(cacheLineBytes - 1);
     uint64_t end = (reinterpret_cast<uint64_t>(ptr) + bytes + cacheLineBytes - 1) & ~(cacheLineBytes - 1);
     for (uint64_t addr = start; addr < end; addr += cacheLineBytes) {
-        dcci(reinterpret_cast<__gm__ void *>(addr), SINGLE_CACHE_LINE);
+        dcci(reinterpret_cast<__gm__ void*>(addr), SINGLE_CACHE_LINE);
     }
 }
 
-AICORE inline void DcciGmRange(__gm__ void *ptr, uint64_t bytes)
+AICORE inline void DcciGmRange(__gm__ void* ptr, uint64_t bytes)
 {
     if (bytes == 0) {
         return;
@@ -228,7 +222,7 @@ AICORE inline void DcciGmRange(__gm__ void *ptr, uint64_t bytes)
     dsb(DSB_DDR);
 }
 
-AICORE inline void AcquireGmRangeBeforeRead(__gm__ void *ptr, uint64_t bytes)
+AICORE inline void AcquireGmRangeBeforeRead(__gm__ void* ptr, uint64_t bytes)
 {
     pipe_barrier(PIPE_ALL);
     DcciGmRange(ptr, bytes);
@@ -255,12 +249,12 @@ AICORE inline uint32_t TokenShardEnd(uint32_t totalTokens, uint32_t blockId, uin
     return TokenShardBegin(totalTokens, blockId + 1, blockNum);
 }
 
-AICORE inline void SoftSyncAiv(__gm__ int32_t *gmWorkspace, uint32_t blockNum)
+AICORE inline void SoftSyncAiv(__gm__ int32_t* gmWorkspace, uint32_t blockNum)
 {
     pto::Tile<pto::TileType::Vec, int32_t, 1, pto::SYNCALL_SOFT_SLOT_INT32, pto::BLayout::RowMajor, -1, -1> syncTile(
         1, pto::SYNCALL_SOFT_SLOT_INT32);
 #ifndef __PTO_AUTO__
-    syncTile.data() = reinterpret_cast<__ubuf__ int32_t *>(kSoftSyncUbAddr);
+    syncTile.data() = reinterpret_cast<__ubuf__ int32_t*>(kSoftSyncUbAddr);
 #endif
     GlobalNd<int32_t> syncGlobal =
         MakeGlobal1D(gmWorkspace, static_cast<int32_t>(blockNum * pto::SYNCALL_SOFT_SLOT_INT32));
@@ -273,8 +267,8 @@ AICORE inline uint32_t EffectiveRowChunk(MoeCombineShape shape)
     return moe_combine::kMoeCombineRowChunk;
 }
 
-AICORE inline void WaitCombinePhase(MoeCombineShape shape, LocalPeerWindowView localPeer, uint32_t blockId,
-                                    uint32_t blockNum, int32_t value)
+AICORE inline void WaitCombinePhase(
+    MoeCombineShape shape, LocalPeerWindowView localPeer, uint32_t blockId, uint32_t blockNum, int32_t value)
 {
     if (blockNum == 0) {
         return;
@@ -299,13 +293,13 @@ struct ReturnContext {
     MoeCombineShape shape;
     LocalRouteMetaView routeMeta;
     LocalPeerWindowView localPeer;
-    __gm__ HcclDeviceContext *ctx;
+    __gm__ HcclDeviceContext* ctx;
     GM_ADDR peerWindow;
-    __gm__ half *localExpertOutput;
+    __gm__ half* localExpertOutput;
     uint32_t myRank;
     uint32_t expertNumPadded;
     uint32_t rowChunk;
-    const PeerWindowLayout *peerWindowLayout;
+    const PeerWindowLayout* peerWindowLayout;
 };
 
 struct ReturnChunk {
@@ -331,27 +325,27 @@ struct RestoreTileContext {
     MoeCombineShape shape;
     LocalRouteMetaView routeMeta;
     LocalPeerWindowView localPeer;
-    __gm__ float *probValues;
-    __gm__ half *output;
+    __gm__ float* probValues;
+    __gm__ half* output;
     uint32_t token;
     int32_t col;
     int32_t cols;
-    const RestoreRouteCache *cache;
+    const RestoreRouteCache* cache;
 };
 
-AICORE inline void AcquireReturnMetadata(const MoeCombineShape &shape, LocalRouteMetaView routeMeta,
-                                         uint32_t expertNumPadded)
+AICORE inline void AcquireReturnMetadata(
+    const MoeCombineShape& shape, LocalRouteMetaView routeMeta, uint32_t expertNumPadded)
 {
-    AcquireGmRangeBeforeRead(routeMeta.peerTokenPerExpert,
-                             static_cast<uint32_t>(shape.ep * expertNumPadded * sizeof(int32_t)));
-    AcquireGmRangeBeforeRead(routeMeta.cumsumPerExpert,
-                             static_cast<uint32_t>(shape.ep * expertNumPadded * sizeof(int32_t)));
+    AcquireGmRangeBeforeRead(
+        routeMeta.peerTokenPerExpert, static_cast<uint32_t>(shape.ep * expertNumPadded * sizeof(int32_t)));
+    AcquireGmRangeBeforeRead(
+        routeMeta.cumsumPerExpert, static_cast<uint32_t>(shape.ep * expertNumPadded * sizeof(int32_t)));
     AcquireGmRangeBeforeRead(routeMeta.dispatchOffset, static_cast<uint32_t>(shape.expertPerRank * sizeof(int32_t)));
-    AcquireGmRangeBeforeRead(routeMeta.prevSumBeforeRank,
-                             static_cast<uint32_t>(shape.ep * shape.expertPerRank * sizeof(int32_t)));
+    AcquireGmRangeBeforeRead(
+        routeMeta.prevSumBeforeRank, static_cast<uint32_t>(shape.ep * shape.expertPerRank * sizeof(int32_t)));
 }
 
-AICORE inline bool LoadReturnSegment(const ReturnContext &ctx, uint32_t segment, ReturnSegment *out)
+AICORE inline bool LoadReturnSegment(const ReturnContext& ctx, uint32_t segment, ReturnSegment* out)
 {
     out->src = segment / ctx.shape.expertPerRank;
     out->localExpert = segment % ctx.shape.expertPerRank;
@@ -372,7 +366,7 @@ AICORE inline bool LoadReturnSegment(const ReturnContext &ctx, uint32_t segment,
     return true;
 }
 
-AICORE inline ReturnChunk MakeReturnChunk(const ReturnContext &ctx, const ReturnSegment &segment, uint32_t chunk)
+AICORE inline ReturnChunk MakeReturnChunk(const ReturnContext& ctx, const ReturnSegment& segment, uint32_t chunk)
 {
     ReturnChunk out{};
     out.rowBegin = chunk * ctx.rowChunk;
@@ -381,13 +375,13 @@ AICORE inline ReturnChunk MakeReturnChunk(const ReturnContext &ctx, const Return
     return out;
 }
 
-AICORE inline void CopyLocalTileToPeerWindow(const ReturnContext &ctx, const TileCopyRange &range)
+AICORE inline void CopyLocalTileToPeerWindow(const ReturnContext& ctx, const TileCopyRange& range)
 {
     VecTile<half, kDefaultTileCols> ping(1, range.cols);
     VecTile<half, kDefaultTileCols> pong(1, range.cols);
     TASSIGN(ping, kPingUbAddr);
     TASSIGN(pong, kPongUbAddr);
-    VecTile<half, kDefaultTileCols> &tile = ((range.col / kDefaultTileCols) & 1) == 0 ? ping : pong;
+    VecTile<half, kDefaultTileCols>& tile = ((range.col / kDefaultTileCols) & 1) == 0 ? ping : pong;
     event_t event = ((range.col / kDefaultTileCols) & 1) == 0 ? EVENT_ID0 : EVENT_ID1;
     GlobalNd<half> srcGlobal = MakeGlobal2D(
         ctx.localExpertOutput + static_cast<int64_t>(range.srcRow) * static_cast<int32_t>(ctx.shape.k) + range.col, 1,
@@ -402,8 +396,8 @@ AICORE inline void CopyLocalTileToPeerWindow(const ReturnContext &ctx, const Til
     WaitStoreTileReusable();
 }
 
-AICORE inline void CopyLocalRowsToPeerWindow(const ReturnContext &ctx, const ReturnSegment &segment,
-                                             const ReturnChunk &chunk)
+AICORE inline void CopyLocalRowsToPeerWindow(
+    const ReturnContext& ctx, const ReturnSegment& segment, const ReturnChunk& chunk)
 {
     for (uint32_t row = 0; row < chunk.rowsThisChunk; ++row) {
         int32_t dstRow = segment.dstStart + static_cast<int32_t>(chunk.rowBegin + row);
@@ -417,16 +411,16 @@ AICORE inline void CopyLocalRowsToPeerWindow(const ReturnContext &ctx, const Ret
     }
 }
 
-AICORE inline void PutRemoteRowsToOwner(const ReturnContext &ctx, const ReturnSegment &segment,
-                                        const ReturnChunk &chunk)
+AICORE inline void PutRemoteRowsToOwner(
+    const ReturnContext& ctx, const ReturnSegment& segment, const ReturnChunk& chunk)
 {
     LocalPeerWindowView remotePeer =
         MakeRemotePeerWindowView(ctx.ctx, ctx.peerWindow, segment.src, *ctx.peerWindowLayout);
-    GlobalNd<half> remoteDst =
-        MakeGlobal2D(remotePeer.ptrD + static_cast<int64_t>(segment.dstStart + static_cast<int32_t>(chunk.rowBegin)) *
-                                           static_cast<int32_t>(ctx.shape.k),
-                     static_cast<int32_t>(chunk.rowsThisChunk), static_cast<int32_t>(ctx.shape.k),
-                     static_cast<int32_t>(ctx.shape.k));
+    GlobalNd<half> remoteDst = MakeGlobal2D(
+        remotePeer.ptrD + static_cast<int64_t>(segment.dstStart + static_cast<int32_t>(chunk.rowBegin)) *
+                              static_cast<int32_t>(ctx.shape.k),
+        static_cast<int32_t>(chunk.rowsThisChunk), static_cast<int32_t>(ctx.shape.k),
+        static_cast<int32_t>(ctx.shape.k));
     GlobalNd<half> localSrc = MakeGlobal2D(
         ctx.localExpertOutput + static_cast<int64_t>(segment.srcStart + static_cast<int32_t>(chunk.rowBegin)) *
                                     static_cast<int32_t>(ctx.shape.k),
@@ -439,7 +433,7 @@ AICORE inline void PutRemoteRowsToOwner(const ReturnContext &ctx, const ReturnSe
     pto::comm::TPUT(remoteDst, localSrc, ping, pong);
 }
 
-AICORE inline void ReturnRowsChunk(const ReturnContext &ctx, const ReturnSegment &segment, const ReturnChunk &chunk)
+AICORE inline void ReturnRowsChunk(const ReturnContext& ctx, const ReturnSegment& segment, const ReturnChunk& chunk)
 {
     if (segment.src == ctx.myRank) {
         CopyLocalRowsToPeerWindow(ctx, segment, chunk);
@@ -448,7 +442,7 @@ AICORE inline void ReturnRowsChunk(const ReturnContext &ctx, const ReturnSegment
     PutRemoteRowsToOwner(ctx, segment, chunk);
 }
 
-AICORE inline void NotifyCombineOwners(const ReturnContext &ctx, uint32_t blockId, uint32_t blockNum)
+AICORE inline void NotifyCombineOwners(const ReturnContext& ctx, uint32_t blockId, uint32_t blockNum)
 {
     for (uint32_t src = blockId; src < ctx.shape.ep; src += blockNum) {
         LocalPeerWindowView remotePeer = MakeRemotePeerWindowView(ctx.ctx, ctx.peerWindow, src, *ctx.peerWindowLayout);
@@ -458,25 +452,25 @@ AICORE inline void NotifyCombineOwners(const ReturnContext &ctx, uint32_t blockI
     }
 }
 
-AICORE inline void ReturnExpertRowsToOwners(MoeCombineShape shape, LocalWorkspaceView workspaceView,
-                                            LocalRouteMetaView routeMeta, LocalPeerWindowView localPeer,
-                                            __gm__ HcclDeviceContext *ctx, GM_ADDR peerWindow, GM_ADDR expertOutput,
-                                            uint32_t myRank, uint32_t blockId, uint32_t blockNum,
-                                            const PeerWindowLayout &peerWindowLayout)
+AICORE inline void ReturnExpertRowsToOwners(
+    MoeCombineShape shape, LocalWorkspaceView workspaceView, LocalRouteMetaView routeMeta,
+    LocalPeerWindowView localPeer, __gm__ HcclDeviceContext* ctx, GM_ADDR peerWindow, GM_ADDR expertOutput,
+    uint32_t myRank, uint32_t blockId, uint32_t blockNum, const PeerWindowLayout& peerWindowLayout)
 {
     if (blockNum == 0) {
         return;
     }
-    ReturnContext returnCtx{shape,
-                            routeMeta,
-                            localPeer,
-                            ctx,
-                            peerWindow,
-                            reinterpret_cast<__gm__ half *>(expertOutput),
-                            myRank,
-                            ExpertNumPaddedDevice(shape),
-                            EffectiveRowChunk(shape),
-                            &peerWindowLayout};
+    ReturnContext returnCtx{
+        shape,
+        routeMeta,
+        localPeer,
+        ctx,
+        peerWindow,
+        reinterpret_cast<__gm__ half*>(expertOutput),
+        myRank,
+        ExpertNumPaddedDevice(shape),
+        EffectiveRowChunk(shape),
+        &peerWindowLayout};
     uint32_t segmentCount = shape.ep * shape.expertPerRank;
     AcquireReturnMetadata(shape, routeMeta, returnCtx.expertNumPadded);
 
@@ -498,15 +492,15 @@ AICORE inline void ReturnExpertRowsToOwners(MoeCombineShape shape, LocalWorkspac
     NotifyCombineOwners(returnCtx, blockId, blockNum);
 }
 
-AICORE inline void InitRestoreRouteCache(bool enabled, RestoreRouteCache *cache)
+AICORE inline void InitRestoreRouteCache(bool enabled, RestoreRouteCache* cache)
 {
     cache->count = 0;
     cache->enabled = enabled;
 }
 
-AICORE inline void PrepareRestoreRouteReads(MoeCombineShape shape, LocalRouteMetaView routeMeta,
-                                            LocalPeerWindowView localPeer, __gm__ float *probValues, uint32_t token,
-                                            RestoreRouteCache *cache)
+AICORE inline void PrepareRestoreRouteReads(
+    MoeCombineShape shape, LocalRouteMetaView routeMeta, LocalPeerWindowView localPeer, __gm__ float* probValues,
+    uint32_t token, RestoreRouteCache* cache)
 {
     for (uint32_t slot = 0; slot < shape.topK; ++slot) {
         uint32_t routeIndex = token * shape.topK + slot;
@@ -514,7 +508,7 @@ AICORE inline void PrepareRestoreRouteReads(MoeCombineShape shape, LocalRouteMet
         if (ptrDRow < 0) {
             continue;
         }
-        __gm__ half *ptrRow = localPeer.ptrD + static_cast<int64_t>(ptrDRow) * static_cast<int32_t>(shape.k);
+        __gm__ half* ptrRow = localPeer.ptrD + static_cast<int64_t>(ptrDRow) * static_cast<int32_t>(shape.k);
         if (!cache->enabled) {
             AcquireGmRangeBeforeRead(ptrRow, static_cast<uint64_t>(shape.k) * sizeof(half));
             continue;
@@ -532,7 +526,7 @@ AICORE inline void PrepareRestoreRouteReads(MoeCombineShape shape, LocalRouteMet
     }
 }
 
-AICORE inline bool LoadRestoreRoute(const RestoreTileContext &ctx, uint32_t route, int32_t *ptrDRow, float *prob)
+AICORE inline bool LoadRestoreRoute(const RestoreTileContext& ctx, uint32_t route, int32_t* ptrDRow, float* prob)
 {
     uint32_t routeIndex = ctx.token * ctx.shape.topK + route;
     *ptrDRow = ctx.cache->enabled ? ctx.cache->rows[route] : *(ctx.routeMeta.expandedRowIdx + routeIndex);
@@ -543,8 +537,8 @@ AICORE inline bool LoadRestoreRoute(const RestoreTileContext &ctx, uint32_t rout
     return true;
 }
 
-AICORE inline void AccumulateRestoreTile(const RestoreTileContext &ctx, VecTile<half, kDefaultTileCols> *outTile,
-                                         VecTile<half, kDefaultTileCols> *ptrTile)
+AICORE inline void AccumulateRestoreTile(
+    const RestoreTileContext& ctx, VecTile<half, kDefaultTileCols>* outTile, VecTile<half, kDefaultTileCols>* ptrTile)
 {
     uint32_t combineCount = ctx.cache->enabled ? ctx.cache->count : ctx.shape.topK;
     pto::Event<pto::Op::TAXPY, pto::Op::TLOAD> axpyToNextLoad;
@@ -555,7 +549,7 @@ AICORE inline void AccumulateRestoreTile(const RestoreTileContext &ctx, VecTile<
         if (!LoadRestoreRoute(ctx, route, &ptrDRow, &prob)) {
             continue;
         }
-        __gm__ half *ptrRow = ctx.localPeer.ptrD + static_cast<int64_t>(ptrDRow) * static_cast<int32_t>(ctx.shape.k);
+        __gm__ half* ptrRow = ctx.localPeer.ptrD + static_cast<int64_t>(ptrDRow) * static_cast<int32_t>(ctx.shape.k);
         GlobalNd<half> ptrGlobal = MakeGlobal2D(ptrRow + ctx.col, 1, ctx.cols, static_cast<int32_t>(ctx.shape.k));
         pto::Event<pto::Op::TLOAD, pto::Op::TAXPY> loadToAxpy;
         if (waitForPreviousAxpy) {
@@ -570,15 +564,15 @@ AICORE inline void AccumulateRestoreTile(const RestoreTileContext &ctx, VecTile<
     }
 }
 
-AICORE inline void RestoreColumnTile(const RestoreTileContext &ctx)
+AICORE inline void RestoreColumnTile(const RestoreTileContext& ctx)
 {
     VecTile<half, kDefaultTileCols> outTile(1, ctx.cols);
     VecTile<half, kDefaultTileCols> ptrTile(1, ctx.cols);
     TASSIGN(outTile, kPingUbAddr);
     TASSIGN(ptrTile, kPongUbAddr);
-    GlobalNd<half> outGlobal =
-        MakeGlobal2D(ctx.output + static_cast<int64_t>(ctx.token) * static_cast<int32_t>(ctx.shape.k) + ctx.col, 1,
-                     ctx.cols, static_cast<int32_t>(ctx.shape.k));
+    GlobalNd<half> outGlobal = MakeGlobal2D(
+        ctx.output + static_cast<int64_t>(ctx.token) * static_cast<int32_t>(ctx.shape.k) + ctx.col, 1, ctx.cols,
+        static_cast<int32_t>(ctx.shape.k));
     TEXPANDS(outTile, static_cast<half>(0.0));
     pipe_barrier(PIPE_ALL);
     AccumulateRestoreTile(ctx, &outTile, &ptrTile);
@@ -588,14 +582,15 @@ AICORE inline void RestoreColumnTile(const RestoreTileContext &ctx)
     WaitStoreTileReusable();
 }
 
-AICORE inline void RestoreOutputRows(MoeCombineShape shape, LocalRouteMetaView routeMeta, LocalPeerWindowView localPeer,
-                                     GM_ADDR probs, GM_ADDR outputC, uint32_t blockId, uint32_t blockNum)
+AICORE inline void RestoreOutputRows(
+    MoeCombineShape shape, LocalRouteMetaView routeMeta, LocalPeerWindowView localPeer, GM_ADDR probs, GM_ADDR outputC,
+    uint32_t blockId, uint32_t blockNum)
 {
     if (blockNum == 0) {
         return;
     }
-    __gm__ float *probValues = reinterpret_cast<__gm__ float *>(probs);
-    __gm__ half *output = reinterpret_cast<__gm__ half *>(outputC);
+    __gm__ float* probValues = reinterpret_cast<__gm__ float*>(probs);
+    __gm__ half* output = reinterpret_cast<__gm__ half*>(outputC);
     uint32_t tokenBegin = TokenShardBegin(shape.m, blockId, blockNum);
     uint32_t tokenEnd = TokenShardEnd(shape.m, blockId, blockNum);
     for (uint32_t token = tokenBegin; token < tokenEnd; ++token) {
@@ -614,9 +609,9 @@ AICORE inline void RestoreOutputRows(MoeCombineShape shape, LocalRouteMetaView r
 
 } // namespace
 
-__global__ AICORE void MoeCombineKernel(MoeCombineShape shape, uint32_t myRank, GM_ADDR expertOutput, GM_ADDR probs,
-                                        GM_ADDR outputC, GM_ADDR routeMeta, GM_ADDR peerWindow, GM_ADDR hcclCtx,
-                                        GM_ADDR workspace)
+__global__ AICORE void MoeCombineKernel(
+    MoeCombineShape shape, uint32_t myRank, GM_ADDR expertOutput, GM_ADDR probs, GM_ADDR outputC, GM_ADDR routeMeta,
+    GM_ADDR peerWindow, GM_ADDR hcclCtx, GM_ADDR workspace)
 {
     WorkspaceLayout workspaceLayout = MakeWorkspaceLayout(shape);
     CombineRouteMetaLayout routeMetaLayout = MakeCombineRouteMetaLayout(shape);
@@ -624,7 +619,7 @@ __global__ AICORE void MoeCombineKernel(MoeCombineShape shape, uint32_t myRank, 
     LocalWorkspaceView workspaceView = MakeLocalWorkspaceView(workspace, workspaceLayout);
     LocalRouteMetaView localRouteMeta = MakeLocalRouteMetaView(routeMeta, routeMetaLayout);
     LocalPeerWindowView localPeer = MakeLocalPeerWindowView(peerWindow, peerWindowLayout);
-    __gm__ HcclDeviceContext *ctx = reinterpret_cast<__gm__ HcclDeviceContext *>(hcclCtx);
+    __gm__ HcclDeviceContext* ctx = reinterpret_cast<__gm__ HcclDeviceContext*>(hcclCtx);
     uint32_t blockId = static_cast<uint32_t>(get_block_idx());
     uint32_t blockNum = shape.aivBlocks == 0 ? 1 : shape.aivBlocks;
     if (shape.ep == 0 || shape.m == 0 || shape.k == 0 || shape.topK == 0 || shape.expertPerRank == 0 ||
@@ -632,8 +627,9 @@ __global__ AICORE void MoeCombineKernel(MoeCombineShape shape, uint32_t myRank, 
         return;
     }
 
-    ReturnExpertRowsToOwners(shape, workspaceView, localRouteMeta, localPeer, ctx, peerWindow, expertOutput, myRank,
-                             blockId, blockNum, peerWindowLayout);
+    ReturnExpertRowsToOwners(
+        shape, workspaceView, localRouteMeta, localPeer, ctx, peerWindow, expertOutput, myRank, blockId, blockNum,
+        peerWindowLayout);
     WaitCombinePhase(shape, localPeer, blockId, blockNum, static_cast<int32_t>(moe_combine::kMoeCombineSignalValue));
     SoftSyncAiv(workspaceView.localSync, blockNum);
     RestoreOutputRows(shape, localRouteMeta, localPeer, probs, outputC, blockId, blockNum);
@@ -642,12 +638,12 @@ __global__ AICORE void MoeCombineKernel(MoeCombineShape shape, uint32_t myRank, 
 
 namespace moe_combine {
 
-void LaunchMoeCombineKernel(MoeCombineShape shape, uint32_t myRank, uint8_t *expertOutput, uint8_t *probs,
-                            uint8_t *outputC, uint8_t *routeMeta, uint8_t *peerWindow, uint8_t *hcclCtx,
-                            uint8_t *workspace, void *stream, uint32_t launchBlockCount)
+void LaunchMoeCombineKernel(
+    MoeCombineShape shape, uint32_t myRank, uint8_t* expertOutput, uint8_t* probs, uint8_t* outputC, uint8_t* routeMeta,
+    uint8_t* peerWindow, uint8_t* hcclCtx, uint8_t* workspace, void* stream, uint32_t launchBlockCount)
 {
-    MoeCombineKernel<<<launchBlockCount, nullptr, stream>>>(shape, myRank, expertOutput, probs, outputC, routeMeta,
-                                                            peerWindow, hcclCtx, workspace);
+    MoeCombineKernel<<<launchBlockCount, nullptr, stream>>>(
+        shape, myRank, expertOutput, probs, outputC, routeMeta, peerWindow, hcclCtx, workspace);
 }
 
 } // namespace moe_combine

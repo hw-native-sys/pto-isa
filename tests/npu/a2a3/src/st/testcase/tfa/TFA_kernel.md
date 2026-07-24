@@ -1,4 +1,4 @@
-# Flash Attention Kernel — Overview, Implemenation and Optimization Details
+# Flash Attention Kernel — Overview, Implementation and Optimization Details
 
   - **Purpose:** Explain the end-to-end computation performed by the `TFA` kernel (Flash‑Attention 2.0 style tiled/streamed attention), map the maths to the kernel stages (`compute_qk`, `compute_p`, `compute_pv`, `compute_gu`), show tensor shapes between stages for the `tfa` testcases, and provide implementation & tuning notes for each stage.
 
@@ -15,7 +15,7 @@
     $$O = P\,V \in \mathbb{R}^{S0\times H}$$
 
     For Flash Attention the computation of QK and P is split into tile of (S0,S1) and keep updating a running partial sum O as follows:
-        
+
 
     **Step 1: Local Row Max**
     For each row \(i\), compute the maximum value within the current tile:
@@ -23,7 +23,7 @@
     $$
     m_i = \max_j X_{ij}
     $$
-    
+
     **Description:** `local_max` — the maximum of the current tile row.
 
     **Step 2: Updated Global Max**
@@ -78,8 +78,8 @@
 
     **Notes**
     - scale $s = \frac{1}{\sqrt{\mathbb{HEAD\_SIZE}}}$
-    - The recurrence ensures numerical stability by rescaling prior sums whenever the global max increases.  
-    - The kernel stores $e_{ij}$ (`x_exp`) for the PV matmul, while $\text{exp\_max}_i$ and ${S_i}$ are kept for GU accumulation. 
+    - The recurrence ensures numerical stability by rescaling prior sums whenever the global max increases.
+    - The kernel stores $e_{ij}$ (`x_exp`) for the PV matmul, while $\text{exp\_max}_i$ and ${S_i}$ are kept for GU accumulation.
 
     <!-- Embedded SVG diagram -->
     <div>
@@ -89,8 +89,8 @@
   - **Tensor shape progression:**
 
     - Inputs:
-      - Q: `S0 × HEAD_SIZE` (fp16) 
-      - K: `S1 x HEAD_SIZE` (fp16) 
+      - Q: `S0 × HEAD_SIZE` (fp16)
+      - K: `S1 x HEAD_SIZE` (fp16)
       - V: `S1 × HEAD_SIZE` (fp16)
 
     - Per-tile intermediate (tile t):
@@ -108,8 +108,8 @@
     - Implementation notes:
       - Q tile load is optimized for leftTile stationary: when `tile_idx==0` Q is loaded once per cube invocation; subsequent tiles only load K tiles, reduce reloading from global memory.
       - Writes partial qk results either into a per-tile into a compact ping-pong global buffer.
-      - make use of general matmul_macro_pto function to carry out computation from matTile to accTile, which determine the CubeK tiling for defining left and right tile, and keep a running state for left and right tile doing ping/pong. 
-     - Optimizations: 
+      - make use of general matmul_macro_pto function to carry out computation from matTile to accTile, which determine the CubeK tiling for defining left and right tile, and keep a running state for left and right tile doing ping/pong.
+     - Optimizations:
       - Use assign_running_acc_tile to allow output accTile doing double buffer between different compute_qk and compute_pv calls
       - Choose `QK_GTN_BUFFERS` to permit double-buffering between qk production and p consumption stages.
 
@@ -123,7 +123,7 @@
 
     - Optimizations & tradeoffs:
       - Use TROWMAX/TROWSUM call with a static tile size to allow most effiecnt implementon for 128/256/512/1024 reduce axis, pls consider to do a TFILLPAD (PAD_MIN/-INF) to convert dynamic valid rows/cols to static for handling dynamic input (e.g. S0 seqlen)
-      - Use TROWEXPANDSUB inplace computation (dst==src) to mininize buffer allocation
+      - Use TROWEXPANDSUB inplace computation (dst==src) to minimize buffer allocation
       - Carefully interleaving 1d reduced tile compute and 2d compute to reuse pipe barrier bubble within vector unit
 
     - Vector tile UB allocation and reuse (allocate_vec_tile_buffers)
@@ -154,9 +154,9 @@
       - `compute_gu` is vector-core driven and performs per-tile accumulation using `TGU_ND` / `TGU_LAST_ND` macro kernel. The last tile triggers final division by `l2_global_sum`.
     - Optimizations & tradeoffs:
       - Keep `runningOTile` accumulator assigned.
-      - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to mininize buffer allocation
+      - Use TROWEXPANDMUL and TROWEXPANDDIV inplace computation (dst==src) to minimize buffer allocation
 
-  ## 3. Pipeline orchestration & cube/vector parallelism 
+  ## 3. Pipeline orchestration & cube/vector parallelism
 
   - **FA pipeline stages inter-CV FIFOs and intra-stage ping/pong**
 
@@ -174,7 +174,7 @@
       4. GU (compute_gu) running on vector cores consumes pv_part and accumulates into `runningOTile`.
 
   - **Intra Cube Core and Vector Core pipelines:**
-    - The matmul_macro_pto and assign_running_acc_tile provided the leftTile/rightTile/AccTile double buffering pipeline mechanism for cube core level pipeline accross different perload sequence of compute_qk and compute_pv calls
+    - The matmul_macro_pto and assign_running_acc_tile provided the leftTile/rightTile/AccTile double buffering pipeline mechanism for cube core level pipeline across different perload sequence of compute_qk and compute_pv calls
     - Inputs k_tile, p_tile (intermediate between CV), v_tile matTiles are double buffered to provide smooth pipeline
     - Compute_p qk_tile input and p_tile output are double buffered, and expT has multi-preload-buffer to allow preload result late forwarding
 
@@ -184,15 +184,15 @@
     - The design is allow out-of-order execution for Reordering the pipeline stage schedule below.
 
   - **Reorder the pipeline stage execution schedule to resolve datadpenency**
-    - Lets look at an example for Head=128 S0=128 and S1=512 case, for CUBE_S1=128 tiling, there are totally 4 loops each with compute_qk->compute_p->compute_pv->compute_gu, and there is data depenency between stage in the loop. compute_qk & compute_pv stages are executed in cube core, and compute_pv & compute_gu stages are executed in vector core.
+    - Lets look at an example for Head=128 S0=128 and S1=512 case, for CUBE_S1=128 tiling, there are totally 4 loops each with compute_qk->compute_p->compute_pv->compute_gu, and there is data dependency between stage in the loop. compute_qk & compute_pv stages are executed in cube core, and compute_pv & compute_gu stages are executed in vector core.
     Without software pipelining (pre-executing qk, p, and later pv) the execution would be fully in sequence below:
     <div>
     <img src="fa_pipeline_preload0_generated.svg" alt="Inter CV FIFOs and intra stage ping/pong" />
     </div>
-    With pre-execution of qk, p (and later pv) would resolve the data depenency and keep the vector compute resoruce fully busy, in theory below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline 
+    With pre-execution of qk, p (and later pv) would resolve the data dependency and keep the vector compute resource fully busy, in theory below showing the intra-core (tload,tcompute,tstore) and inter-CV-stage pipeline
     <div>
     <img src="fa_pipeline_preload2_generated.svg" alt="Inter CV FIFOs and intra stage ping/pong" />
-    </div>    
+    </div>
 
 
   - **Overlap mechanisms & tuning knobs:**
@@ -206,11 +206,11 @@
     - For BNSD (Batch, no-of-Head, Seqlen, HEAD_SIZE) QKV input, with intermediate QK(S0,S1) during computation, since S1 is the reduce axis, multi-core tiling should be split base on (B,N,S/Cube-S0), while in Flash-decoding case, since (B,N,S/Cube-S0) is small multi-core tiling could split in S1 axis and each core keeping partial O and have another kernel to do final GU.
 
   - **Load balancing guidance:**
-    - Consider the compution sparity when casual attention mask (TODO) applied, mulit-core tiling also need to take core unbalanced loading along the S0 axis.  
+    - Consider the computation sparsity when causal attention mask (TODO) applied, multi-core tiling also need to take core unbalanced loading along the S0 axis.
 
   ## 5. Precision Debugging with INTERMEDIATE_CHECK
 
   - Purpose: enable fine-grained per-element dumps of intermediate tensors (QK, P, PV, o_part snapshots) so you can compare per-tile and per-element values against a reference (golden) implementation to track precision/regression issues.
 
   - How to enable:
-    - At compile/instantiation time set the template boolean `INTERMEDIATE_CHECK=true` for the kernel entry used by your test. For example, either call the kernel wrapper / instantiation with the true flag:    
+    - At compile/instantiation time set the template boolean `INTERMEDIATE_CHECK=true` for the kernel entry used by your test. For example, either call the kernel wrapper / instantiation with the true flag:

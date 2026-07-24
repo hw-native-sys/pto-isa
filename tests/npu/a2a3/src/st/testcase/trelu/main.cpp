@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TRELUTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTRelu(T *out, T *input, void *stream);
+void LaunchTRelu(T* out, T* input, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_trelu()
@@ -48,10 +46,10 @@ void test_trelu()
     T *srcHost, *dstHost;
     T *srcDevice, *dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", fileSize, srcHost, fileSize);
     aclrtMemcpy(srcDevice, fileSize, srcHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -80,17 +78,8 @@ void test_trelu()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TRELUTest, case_int32_64x64_64x64_64x64)
-{
-    test_trelu<int32_t, 64, 64, 64, 64>();
-}
+TEST_F(TRELUTest, case_int32_64x64_64x64_64x64) { test_trelu<int32_t, 64, 64, 64, 64>(); }
 
-TEST_F(TRELUTest, case_half_60x60_64x64_60x60)
-{
-    test_trelu<aclFloat16, 60, 60, 64, 64>();
-}
+TEST_F(TRELUTest, case_half_60x60_64x64_60x60) { test_trelu<aclFloat16, 60, 60, 64, 64>(); }
 
-TEST_F(TRELUTest, case_float32_60x60_64x64_60x60)
-{
-    test_trelu<float, 60, 60, 64, 64>();
-}
+TEST_F(TRELUTest, case_float32_60x60_64x64_60x60) { test_trelu<float, 60, 60, 64, 64>(); }

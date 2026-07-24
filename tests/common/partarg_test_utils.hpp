@@ -17,20 +17,20 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename T>
-void AllocateAndLoadData(T *&host, T *&device, size_t size, const std::string &filename)
+void AllocateAndLoadData(T*& host, T*& device, size_t size, const std::string& filename)
 {
-    aclrtMallocHost((void **)(&host), size);
-    aclrtMalloc((void **)&device, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&host), size);
+    aclrtMalloc((void**)&device, size, ACL_MEM_MALLOC_HUGE_FIRST);
     size_t readSize = 0;
     CHECK_RESULT_GTEST(PtoTestCommon::ReadFile(filename, readSize, host, size));
     aclrtMemcpy(device, size, host, size, ACL_MEMCPY_HOST_TO_DEVICE);
 }
 
 template <typename LaunchFunc>
-void RunPartArgKernelAndGetResults(LaunchFunc launchFunc, aclrtStream stream, float *dstValDevice, float *src0ValDevice,
-                                   float *src1ValDevice, uint32_t *dstIdxDevice, uint32_t *src0IdxDevice,
-                                   uint32_t *src1IdxDevice, float *dstValHost, uint32_t *dstIdxHost, size_t valSize,
-                                   size_t idxSize)
+void RunPartArgKernelAndGetResults(
+    LaunchFunc launchFunc, aclrtStream stream, float* dstValDevice, float* src0ValDevice, float* src1ValDevice,
+    uint32_t* dstIdxDevice, uint32_t* src0IdxDevice, uint32_t* src1IdxDevice, float* dstValHost, uint32_t* dstIdxHost,
+    size_t valSize, size_t idxSize)
 {
     launchFunc(dstValDevice, src0ValDevice, src1ValDevice, dstIdxDevice, src0IdxDevice, src1IdxDevice, stream);
     aclrtSynchronizeStream(stream);
@@ -38,8 +38,8 @@ void RunPartArgKernelAndGetResults(LaunchFunc launchFunc, aclrtStream stream, fl
     aclrtMemcpy(dstIdxHost, idxSize, dstIdxDevice, idxSize, ACL_MEMCPY_DEVICE_TO_HOST);
 }
 
-static inline bool VerifyPartArgResults(const std::string &goldenDir, size_t valSize, size_t idxSize, int rows,
-                                        int cols, float epsilon)
+static inline bool VerifyPartArgResults(
+    const std::string& goldenDir, size_t valSize, size_t idxSize, int rows, int cols, float epsilon)
 {
     std::vector<float> golden_val(rows * cols);
     std::vector<float> out_val(rows * cols);

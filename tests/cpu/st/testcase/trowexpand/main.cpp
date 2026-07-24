@@ -15,18 +15,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace PtoTestCommon;
 
 template <int kRows, int kCols>
-void LaunchTROWEXPAND(float *out, float *src, void *stream);
+void LaunchTROWEXPAND(float* out, float* src, void* stream);
 
-class TROWEXPAND_Test : public testing::Test {
-};
+class TROWEXPAND_Test : public testing::Test {};
 
 static std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     return "../" + std::string(testInfo->test_suite_name()) + "." + testInfo->name();
 }
 
-static void setup_stream(aclrtStream &stream)
+static void setup_stream(aclrtStream& stream)
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -51,10 +50,10 @@ TEST_F(TROWEXPAND_Test, case_expand_float_64x64)
 
     float *dstHost, *srcHost;
     float *dstDevice, *srcDevice;
-    aclrtMallocHost((void **)(&dstHost), size);
-    aclrtMallocHost((void **)(&srcHost), size);
-    aclrtMalloc((void **)&dstDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), size);
+    aclrtMallocHost((void**)(&srcHost), size);
+    aclrtMalloc((void**)&dstDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, size, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t readSize = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", readSize, srcHost, size));

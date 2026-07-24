@@ -18,21 +18,22 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename TileDataDst, typename TileDataSrc, typename TileDataOffset, unsigned elementsPerRepeat,
-          unsigned blockSizeElem, unsigned dstRowStride, unsigned offsetRowStride>
-__tf__ PTO_INTERNAL void TGatherBRowWise(typename TileDataDst::TileDType __out__ dst,
-                                         typename TileDataSrc::TileDType __in__ src,
-                                         typename TileDataOffset::TileDType __in__ offset, unsigned validRow,
-                                         unsigned validCol, uint16_t repeatTimes, uint32_t remainEleNum)
+template <
+    typename TileDataDst, typename TileDataSrc, typename TileDataOffset, unsigned elementsPerRepeat,
+    unsigned blockSizeElem, unsigned dstRowStride, unsigned offsetRowStride>
+__tf__ PTO_INTERNAL void TGatherBRowWise(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataOffset::TileDType __in__ offset, unsigned validRow, unsigned validCol, uint16_t repeatTimes,
+    uint32_t remainEleNum)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ typename TileDataSrc::DType *srcAddr = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src);
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ typename TileDataSrc::DType* srcAddr = (__ubuf__ typename TileDataSrc::DType*)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     uint16_t lastRepeat = repeatTimes - 1;
     uint32_t count = elementsPerRepeat;
     constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-    __ubuf__ uint32_t *offsetPtr = (__ubuf__ uint32_t *)__cce_get_tile_ptr(offset);
+    __ubuf__ uint32_t* offsetPtr = (__ubuf__ uint32_t*)__cce_get_tile_ptr(offset);
     __VEC_SCOPE__
     {
         MaskReg preg0 = CreatePredicate<T>(count);
@@ -54,17 +55,18 @@ __tf__ PTO_INTERNAL void TGatherBRowWise(typename TileDataDst::TileDType __out__
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc, typename TileDataOffset, unsigned elementsPerRepeat,
-          unsigned blockSizeElem, unsigned dstRowStride, unsigned offsetRowStride>
-__tf__ PTO_INTERNAL void TGatherBColWise(typename TileDataDst::TileDType __out__ dst,
-                                         typename TileDataSrc::TileDType __in__ src,
-                                         typename TileDataOffset::TileDType __in__ offset, unsigned validRow,
-                                         unsigned validCol, uint16_t repeatTimes, uint32_t remainEleNum)
+template <
+    typename TileDataDst, typename TileDataSrc, typename TileDataOffset, unsigned elementsPerRepeat,
+    unsigned blockSizeElem, unsigned dstRowStride, unsigned offsetRowStride>
+__tf__ PTO_INTERNAL void TGatherBColWise(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataOffset::TileDType __in__ offset, unsigned validRow, unsigned validCol, uint16_t repeatTimes,
+    uint32_t remainEleNum)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ uint32_t *offsetPtr = (__ubuf__ uint32_t *)__cce_get_tile_ptr(offset);
-    __ubuf__ typename TileDataSrc::DType *srcAddr = (__ubuf__ typename TileDataSrc::DType *)__cce_get_tile_ptr(src);
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ uint32_t* offsetPtr = (__ubuf__ uint32_t*)__cce_get_tile_ptr(offset);
+    __ubuf__ typename TileDataSrc::DType* srcAddr = (__ubuf__ typename TileDataSrc::DType*)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     uint32_t count = elementsPerRepeat;
     uint16_t lastRepeat = repeatTimes - 1;
     constexpr auto distValue =
@@ -93,13 +95,14 @@ __tf__ PTO_INTERNAL void TGatherBColWise(typename TileDataDst::TileDType __out__
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataOffset>
-PTO_INTERNAL void TGATHERB_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataOffset &offset)
+PTO_INTERNAL void TGATHERB_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataOffset& offset)
 {
-    static_assert(sizeof(typename TileDataDst::DType) == 4 || sizeof(typename TileDataDst::DType) == 2 ||
-                      sizeof(typename TileDataDst::DType) == 1,
-                  "Fix: TGATHERB has invalid data type.");
+    static_assert(
+        sizeof(typename TileDataDst::DType) == 4 || sizeof(typename TileDataDst::DType) == 2 ||
+            sizeof(typename TileDataDst::DType) == 1,
+        "Fix: TGATHERB has invalid data type.");
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataDst::DType);
     constexpr unsigned staticRepeatTimes = (TileDataDst::Cols + elementsPerRepeat - 1) / elementsPerRepeat;
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned offsetRowStride = TileDataOffset::RowStride;
@@ -110,26 +113,26 @@ PTO_INTERNAL void TGATHERB_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataOffs
         constexpr uint32_t remainEleNum =
             (validCol % elementsPerRepeat) == 0 ? elementsPerRepeat : (validCol % elementsPerRepeat);
         if constexpr (staticRepeatTimes > TileDataDst::Rows) {
-            TGatherBRowWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
-                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
-                                             remainEleNum);
+            TGatherBRowWise<
+                TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes, remainEleNum);
         } else {
-            TGatherBColWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
-                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
-                                             remainEleNum);
+            TGatherBColWise<
+                TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes, remainEleNum);
         }
     } else {
         unsigned validCol = dst.GetValidCol();
         uint16_t repeatTimes = CeilDivision(validCol, elementsPerRepeat);
         uint32_t remainEleNum = validCol % elementsPerRepeat ?: elementsPerRepeat;
         if constexpr (staticRepeatTimes > TileDataDst::Rows) {
-            TGatherBRowWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
-                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
-                                             remainEleNum);
+            TGatherBRowWise<
+                TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes, remainEleNum);
         } else {
-            TGatherBColWise<TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
-                            offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes,
-                                             remainEleNum);
+            TGatherBColWise<
+                TileDataDst, TileDataSrc, TileDataOffset, elementsPerRepeat, blockSizeElem, dstRowStride,
+                offsetRowStride>(dst.data(), src.data(), offset.data(), validRow, validCol, repeatTimes, remainEleNum);
         }
     }
 }

@@ -14,19 +14,23 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename cType, typename aType, typename bType, typename biasType, int M, int K, int N, int ValidM,
-          int ValidK, int ValidN>
-__global__ AICORE void runTMovL12Bias(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1, __gm__ biasType *src2)
+template <
+    typename cType, typename aType, typename bType, typename biasType, int M, int K, int N, int ValidM, int ValidK,
+    int ValidN>
+__global__ AICORE void runTMovL12Bias(__gm__ cType* out, __gm__ aType* src0, __gm__ bType* src1, __gm__ biasType* src2)
 {
     // static shape
-    using GlobalDataSrc0 = GlobalTensor<aType, pto::Shape<1, 1, 1, ValidM, ValidK>,
-                                        pto::Stride<ValidM * ValidK, ValidM * ValidK, ValidM * ValidK, ValidK, 1>>;
-    using GlobalDataSrc1 = GlobalTensor<bType, pto::Shape<1, 1, 1, ValidK, ValidN>,
-                                        pto::Stride<ValidK * ValidN, ValidK * ValidN, ValidK * ValidN, ValidN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        aType, pto::Shape<1, 1, 1, ValidM, ValidK>,
+        pto::Stride<ValidM * ValidK, ValidM * ValidK, ValidM * ValidK, ValidK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        bType, pto::Shape<1, 1, 1, ValidK, ValidN>,
+        pto::Stride<ValidK * ValidN, ValidK * ValidN, ValidK * ValidN, ValidN, 1>>;
     using GlobalDataSrc2 =
         GlobalTensor<biasType, pto::Shape<1, 1, 1, 1, ValidN>, pto::Stride<ValidN, ValidN, ValidN, ValidN, 1>>;
-    using GlobalDataOut = GlobalTensor<cType, pto::Shape<1, 1, 1, ValidM, ValidN>,
-                                       pto::Stride<ValidM * ValidN, ValidM * ValidN, ValidM * ValidN, ValidN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        cType, pto::Shape<1, 1, 1, ValidM, ValidN>,
+        pto::Stride<ValidM * ValidN, ValidM * ValidN, ValidM * ValidN, ValidN, 1>>;
 
     constexpr int alignN = ((N * sizeof(biasType) + 63) / 64) * 64 / sizeof(biasType); // bias aligned to 64 bits
 
@@ -83,19 +87,23 @@ __global__ AICORE void runTMovL12Bias(__gm__ cType *out, __gm__ aType *src0, __g
     out = dstGlobal.data();
 }
 
-template <typename cType, typename aType, typename bType, typename biasType, int M, int K, int N, int ValidM,
-          int ValidK, int ValidN>
-__global__ AICORE void runTMovL12BiasDynamic(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1,
-                                             __gm__ biasType *src2)
+template <
+    typename cType, typename aType, typename bType, typename biasType, int M, int K, int N, int ValidM, int ValidK,
+    int ValidN>
+__global__ AICORE void runTMovL12BiasDynamic(
+    __gm__ cType* out, __gm__ aType* src0, __gm__ bType* src1, __gm__ biasType* src2)
 {
-    using GlobalDataSrc0 = GlobalTensor<aType, pto::Shape<1, 1, 1, ValidM, ValidK>,
-                                        pto::Stride<ValidM * ValidK, ValidM * ValidK, ValidM * ValidK, ValidK, 1>>;
-    using GlobalDataSrc1 = GlobalTensor<bType, pto::Shape<1, 1, 1, ValidK, ValidN>,
-                                        pto::Stride<ValidK * ValidN, ValidK * ValidN, ValidK * ValidN, ValidN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        aType, pto::Shape<1, 1, 1, ValidM, ValidK>,
+        pto::Stride<ValidM * ValidK, ValidM * ValidK, ValidM * ValidK, ValidK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        bType, pto::Shape<1, 1, 1, ValidK, ValidN>,
+        pto::Stride<ValidK * ValidN, ValidK * ValidN, ValidK * ValidN, ValidN, 1>>;
     using GlobalDataSrc2 =
         GlobalTensor<biasType, pto::Shape<1, 1, 1, 1, ValidN>, pto::Stride<ValidN, ValidN, ValidN, ValidN, 1>>;
-    using GlobalDataOut = GlobalTensor<cType, pto::Shape<1, 1, 1, ValidM, ValidN>,
-                                       pto::Stride<ValidM * ValidN, ValidM * ValidN, ValidM * ValidN, ValidN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        cType, pto::Shape<1, 1, 1, ValidM, ValidN>,
+        pto::Stride<ValidM * ValidN, ValidM * ValidN, ValidM * ValidN, ValidN, 1>>;
 
     constexpr int alignN = ((N * sizeof(biasType) + 63) / 64) * 64 / sizeof(biasType); // bias aligned to 64 bits
 
@@ -152,18 +160,22 @@ __global__ AICORE void runTMovL12BiasDynamic(__gm__ cType *out, __gm__ aType *sr
     out = dstGlobal.data();
 }
 
-template <typename cType, typename aType, typename bType, typename fbType, typename l0cType, int M, int K, int N,
-          int ValidM, int ValidK, int ValidN>
-__global__ AICORE void runTMovL12Fb(__gm__ cType *out, __gm__ aType *src0, __gm__ bType *src1, __gm__ fbType *src2)
+template <
+    typename cType, typename aType, typename bType, typename fbType, typename l0cType, int M, int K, int N, int ValidM,
+    int ValidK, int ValidN>
+__global__ AICORE void runTMovL12Fb(__gm__ cType* out, __gm__ aType* src0, __gm__ bType* src1, __gm__ fbType* src2)
 {
-    using GlobalDataSrc0 = GlobalTensor<aType, pto::Shape<1, 1, 1, ValidM, ValidK>,
-                                        pto::Stride<ValidM * ValidK, ValidM * ValidK, ValidM * ValidK, ValidK, 1>>;
-    using GlobalDataSrc1 = GlobalTensor<bType, pto::Shape<1, 1, 1, ValidK, ValidN>,
-                                        pto::Stride<ValidK * ValidN, ValidK * ValidN, ValidK * ValidN, ValidN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        aType, pto::Shape<1, 1, 1, ValidM, ValidK>,
+        pto::Stride<ValidM * ValidK, ValidM * ValidK, ValidM * ValidK, ValidK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        bType, pto::Shape<1, 1, 1, ValidK, ValidN>,
+        pto::Stride<ValidK * ValidN, ValidK * ValidN, ValidK * ValidN, ValidN, 1>>;
     using GlobalDataSrc2 =
         GlobalTensor<fbType, pto::Shape<1, 1, 1, 1, ValidN>, pto::Stride<ValidN, ValidN, ValidN, ValidN, 1>>;
-    using GlobalDataOut = GlobalTensor<cType, pto::Shape<1, 1, 1, ValidM, ValidN>,
-                                       pto::Stride<ValidM * ValidN, ValidM * ValidN, ValidM * ValidN, ValidN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        cType, pto::Shape<1, 1, 1, ValidM, ValidN>,
+        pto::Stride<ValidM * ValidN, ValidM * ValidN, ValidM * ValidN, ValidN, 1>>;
 
     GlobalDataSrc0 src0Global(src0);
     GlobalDataSrc1 src1Global(src1);
@@ -216,80 +228,80 @@ __global__ AICORE void runTMovL12Fb(__gm__ cType *out, __gm__ aType *src0, __gm_
 }
 
 template <int32_t tilingKey>
-void launchTMovL12Bias(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *bias, void *stream)
+void launchTMovL12Bias(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* bias, void* stream)
 {
     if constexpr (tilingKey == 1) {
-        runTMovL12Bias<float, half, half, float, 64, 96, 32, 64, 96, 32>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), reinterpret_cast<float *>(bias));
+        runTMovL12Bias<float, half, half, float, 64, 96, 32, 64, 96, 32><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1),
+            reinterpret_cast<float*>(bias));
     } else if constexpr (tilingKey == 2) {
-        runTMovL12Bias<float, float, float, half, 128, 128, 64, 128, 128, 64>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0),
-                                     reinterpret_cast<float *>(src1), reinterpret_cast<half *>(bias));
+        runTMovL12Bias<float, float, float, half, 128, 128, 64, 128, 128, 64><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
+            reinterpret_cast<half*>(bias));
     } else if constexpr (tilingKey == 3) {
-        runTMovL12Bias<float, float, float, bfloat16_t, 64, 80, 32, 64, 80, 32>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0),
-                                     reinterpret_cast<float *>(src1), reinterpret_cast<bfloat16_t *>(bias));
+        runTMovL12Bias<float, float, float, bfloat16_t, 64, 80, 32, 64, 80, 32><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
+            reinterpret_cast<bfloat16_t*>(bias));
     } else if constexpr (tilingKey == 4) {
-        runTMovL12Bias<int32_t, int8_t, int8_t, int32_t, 128, 96, 64, 128, 96, 64>
-            <<<1, nullptr, stream>>>(reinterpret_cast<int32_t *>(out), reinterpret_cast<int8_t *>(src0),
-                                     reinterpret_cast<int8_t *>(src1), reinterpret_cast<int32_t *>(bias));
+        runTMovL12Bias<int32_t, int8_t, int8_t, int32_t, 128, 96, 64, 128, 96, 64><<<1, nullptr, stream>>>(
+            reinterpret_cast<int32_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
+            reinterpret_cast<int32_t*>(bias));
     } else if constexpr (tilingKey == 5) {
-        runTMovL12Bias<int32_t, int8_t, int8_t, int32_t, 32, 32, 64, 31, 32, 63>
-            <<<1, nullptr, stream>>>(reinterpret_cast<int32_t *>(out), reinterpret_cast<int8_t *>(src0),
-                                     reinterpret_cast<int8_t *>(src1), reinterpret_cast<int32_t *>(bias));
+        runTMovL12Bias<int32_t, int8_t, int8_t, int32_t, 32, 32, 64, 31, 32, 63><<<1, nullptr, stream>>>(
+            reinterpret_cast<int32_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
+            reinterpret_cast<int32_t*>(bias));
     } else if constexpr (tilingKey == 6) {
-        runTMovL12BiasDynamic<float, half, half, half, 64, 80, 32, 64, 80, 32>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<half *>(src0),
-                                     reinterpret_cast<half *>(src1), reinterpret_cast<half *>(bias));
+        runTMovL12BiasDynamic<float, half, half, half, 64, 80, 32, 64, 80, 32><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1),
+            reinterpret_cast<half*>(bias));
     } else if constexpr (tilingKey == 7) {
-        runTMovL12BiasDynamic<float, float, float, bfloat16_t, 112, 96, 48, 112, 96, 48>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0),
-                                     reinterpret_cast<float *>(src1), reinterpret_cast<bfloat16_t *>(bias));
+        runTMovL12BiasDynamic<float, float, float, bfloat16_t, 112, 96, 48, 112, 96, 48><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
+            reinterpret_cast<bfloat16_t*>(bias));
     } else if constexpr (tilingKey == 8) {
-        runTMovL12BiasDynamic<float, float, float, bfloat16_t, 16, 96, 64, 15, 96, 63>
-            <<<1, nullptr, stream>>>(reinterpret_cast<float *>(out), reinterpret_cast<float *>(src0),
-                                     reinterpret_cast<float *>(src1), reinterpret_cast<bfloat16_t *>(bias));
+        runTMovL12BiasDynamic<float, float, float, bfloat16_t, 16, 96, 64, 15, 96, 63><<<1, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
+            reinterpret_cast<bfloat16_t*>(bias));
     }
 }
 
 template <int32_t tilingKey>
-void launchTMovL12Fb(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *scaling, void *stream)
+void launchTMovL12Fb(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* scaling, void* stream)
 {
     if constexpr (tilingKey == 1) {
-        runTMovL12Fb<int8_t, int8_t, int8_t, uint64_t, int32_t, 32, 32, 128, 32, 32, 128>
-            <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<int8_t *>(src0),
-                                     reinterpret_cast<int8_t *>(src1), reinterpret_cast<uint64_t *>(scaling));
+        runTMovL12Fb<int8_t, int8_t, int8_t, uint64_t, int32_t, 32, 32, 128, 32, 32, 128><<<1, nullptr, stream>>>(
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
+            reinterpret_cast<uint64_t*>(scaling));
     } else if constexpr (tilingKey == 2) {
-        runTMovL12Fb<half, int8_t, int8_t, uint64_t, int32_t, 96, 32, 64, 96, 32, 64>
-            <<<1, nullptr, stream>>>(reinterpret_cast<half *>(out), reinterpret_cast<int8_t *>(src0),
-                                     reinterpret_cast<int8_t *>(src1), reinterpret_cast<uint64_t *>(scaling));
+        runTMovL12Fb<half, int8_t, int8_t, uint64_t, int32_t, 96, 32, 64, 96, 32, 64><<<1, nullptr, stream>>>(
+            reinterpret_cast<half*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
+            reinterpret_cast<uint64_t*>(scaling));
     } else if constexpr (tilingKey == 3) {
-        runTMovL12Fb<bfloat16_t, int8_t, int8_t, uint64_t, int32_t, 128, 96, 64, 128, 96, 64>
-            <<<1, nullptr, stream>>>(reinterpret_cast<bfloat16_t *>(out), reinterpret_cast<int8_t *>(src0),
-                                     reinterpret_cast<int8_t *>(src1), reinterpret_cast<uint64_t *>(scaling));
+        runTMovL12Fb<bfloat16_t, int8_t, int8_t, uint64_t, int32_t, 128, 96, 64, 128, 96, 64><<<1, nullptr, stream>>>(
+            reinterpret_cast<bfloat16_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1),
+            reinterpret_cast<uint64_t*>(scaling));
     } else if constexpr (tilingKey == 4) {
-        runTMovL12Fb<int8_t, float, float, uint64_t, float, 112, 96, 48, 112, 96, 48>
-            <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<float *>(src0),
-                                     reinterpret_cast<float *>(src1), reinterpret_cast<uint64_t *>(scaling));
+        runTMovL12Fb<int8_t, float, float, uint64_t, float, 112, 96, 48, 112, 96, 48><<<1, nullptr, stream>>>(
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
+            reinterpret_cast<uint64_t*>(scaling));
     } else if constexpr (tilingKey == 5) {
-        runTMovL12Fb<int8_t, float, float, uint64_t, float, 32, 96, 32, 31, 96, 31>
-            <<<1, nullptr, stream>>>(reinterpret_cast<int8_t *>(out), reinterpret_cast<float *>(src0),
-                                     reinterpret_cast<float *>(src1), reinterpret_cast<uint64_t *>(scaling));
+        runTMovL12Fb<int8_t, float, float, uint64_t, float, 32, 96, 32, 31, 96, 31><<<1, nullptr, stream>>>(
+            reinterpret_cast<int8_t*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
+            reinterpret_cast<uint64_t*>(scaling));
     }
 }
 
-template void launchTMovL12Bias<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Bias<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Bias<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Bias<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Bias<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Bias<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Bias<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Bias<8>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+template void launchTMovL12Bias<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Bias<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Bias<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Bias<4>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Bias<5>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Bias<6>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Bias<7>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Bias<8>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
 
-template void launchTMovL12Fb<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Fb<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Fb<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Fb<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
-template void launchTMovL12Fb<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+template void launchTMovL12Fb<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Fb<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Fb<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Fb<4>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
+template void launchTMovL12Fb<5>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);

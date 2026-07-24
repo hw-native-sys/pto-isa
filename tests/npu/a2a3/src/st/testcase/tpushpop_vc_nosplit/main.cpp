@@ -17,20 +17,19 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushPopVCNSMatmul(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *quantB, uint8_t *scale,
-                              uint8_t *offset, uint8_t *fifoMem, void *stream);
+void LaunchTPushPopVCNSMatmul(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* quantB, uint8_t* scale, uint8_t* offset, uint8_t* fifoMem,
+    void* stream);
 
 class TPushPopVCNoSplitTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -55,18 +54,18 @@ void TPushPopVCNSMatmulTestFunc(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *srcAHost, *quantBHost, *scaleHost, *offsetHost;
     uint8_t *dstDevice, *srcADevice, *quantBDevice, *scaleDevice, *offsetDevice, *fifoMemDevice;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&quantBHost), quantBFileSize);
-    aclrtMallocHost((void **)(&scaleHost), scaleFileSize);
-    aclrtMallocHost((void **)(&offsetHost), offsetFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&quantBHost), quantBFileSize);
+    aclrtMallocHost((void**)(&scaleHost), scaleFileSize);
+    aclrtMallocHost((void**)(&offsetHost), offsetFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&quantBDevice, quantBFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scaleDevice, scaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&offsetDevice, offsetFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fifoMemDevice, fifoFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&quantBDevice, quantBFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scaleDevice, scaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&offsetDevice, offsetFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fifoMemDevice, fifoFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/quant_b_gm.bin", quantBFileSize, quantBHost, quantBFileSize);
@@ -82,8 +81,8 @@ void TPushPopVCNSMatmulTestFunc(uint32_t M, uint32_t K, uint32_t N)
     uint32_t fftsLen{0};
     rtGetC2cCtrlAddr(&ffts, &fftsLen);
 
-    LaunchTPushPopVCNSMatmul<key>((uint8_t *)ffts, dstDevice, srcADevice, quantBDevice, scaleDevice, offsetDevice,
-                                  fifoMemDevice, stream);
+    LaunchTPushPopVCNSMatmul<key>(
+        (uint8_t*)ffts, dstDevice, srcADevice, quantBDevice, scaleDevice, offsetDevice, fifoMemDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

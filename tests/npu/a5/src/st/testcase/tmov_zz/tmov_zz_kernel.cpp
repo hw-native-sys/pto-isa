@@ -19,7 +19,7 @@ using namespace pto;
 namespace TMovZZTest {
 
 template <int validRows, int validCols>
-AICORE void runTMovZZ(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_t *outE8Zz)
+AICORE void runTMovZZ(__gm__ uint8_t* outFp8Nz, __gm__ float* src, __gm__ uint8_t* outE8Zz)
 {
     constexpr int paddedCols = PTO_CEIL(validCols, BLOCK_SIZE / sizeof(uint32_t));
     constexpr int paddedRows16 = PTO_CEIL(validRows, 16);
@@ -28,36 +28,44 @@ AICORE void runTMovZZ(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_
     constexpr int groupedColsFlattenedPadded = paddedRows16 * groupedColsValid;
 
     using SrcGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
-    using DstE8Global = GlobalTensor<uint8_t, Shape<1, 1, 1, 1, groupedColsFlattenedPadded>,
-                                     pto::Stride<1, 1, 1, groupedColsFlattenedPadded, 1>>;
-    using DstFp8GlobalNZ = GlobalTensor<int8_t, TileShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>,
-                                        BaseShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>, Layout::NZ>;
+    using DstE8Global = GlobalTensor<
+        uint8_t, Shape<1, 1, 1, 1, groupedColsFlattenedPadded>, pto::Stride<1, 1, 1, groupedColsFlattenedPadded, 1>>;
+    using DstFp8GlobalNZ = GlobalTensor<
+        int8_t, TileShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>,
+        BaseShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>, Layout::NZ>;
 
-    using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
-    using DstFP8Tile = Tile<TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols,
-                            SLayout::NoneBox, 512, PadValue::Zero>;
-    using MaxTile = Tile<TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)),
-                         BLayout::RowMajor, -1, -1>;
-    using ScalingTile = Tile<TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)),
-                             BLayout::RowMajor, -1, -1>;
-    using E8NdTile = Tile<TileType::Vec, uint8_t, 1, groupedColsFlattenedPadded, BLayout::RowMajor, -1, -1,
-                          SLayout::NoneBox, 512, PadValue::Zero>;
+    using SrcTile = Tile<
+        TileType::Vec, float, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstFP8Tile = Tile<
+        TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using MaxTile = Tile<
+        TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)), BLayout::RowMajor, -1,
+        -1>;
+    using ScalingTile = Tile<
+        TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)), BLayout::RowMajor, -1,
+        -1>;
+    using E8NdTile = Tile<
+        TileType::Vec, uint8_t, 1, groupedColsFlattenedPadded, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     // E8M0 ZZ destination: 2D with fractalMxSize=32 for [16,2] inner box, using padded rows
-    using E8ZzTile = Tile<TileType::Vec, uint8_t, paddedRows16, groupedColsValid, BLayout::RowMajor, -1, -1,
-                          SLayout::RowMajor, 32, PadValue::Zero>;
+    using E8ZzTile = Tile<
+        TileType::Vec, uint8_t, paddedRows16, groupedColsValid, BLayout::RowMajor, -1, -1, SLayout::RowMajor, 32,
+        PadValue::Zero>;
     // 1D flat tile for TSTORE (TSTORE has no dispatch path for isRowMajor + SLayout::RowMajor)
-    using E8StoreTile = Tile<TileType::Vec, uint8_t, 1, groupedColsFlattenedPadded, BLayout::RowMajor, -1, -1,
-                             SLayout::NoneBox, 512, PadValue::Zero>;
+    using E8StoreTile = Tile<
+        TileType::Vec, uint8_t, 1, groupedColsFlattenedPadded, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     // Scratch tile for TMOV ZZ gather-index generation (uses padded row count)
     constexpr int tmpBufSize = (16 + (paddedRows16 / 16) * (groupedColsValid / 2) + 16) * sizeof(uint16_t);
     constexpr int tmpBufSizeAligned = PTO_CEIL(tmpBufSize, 32);
-    using TmpTile = Tile<TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
+    using TmpTile = Tile<
+        TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
 
     constexpr int virtualRow = PTO_CEIL(validRows, FRACTAL_NZ_ROW) + 1;
-    using Fp8NZTile = Tile<TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols,
-                           SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
+    using Fp8NZTile = Tile<
+        TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols, SLayout::RowMajor, 512,
+        PadValue::Null, CompactMode::RowPlusOne>;
 
     constexpr int maxScalingCols = PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float));
 
@@ -73,7 +81,7 @@ AICORE void runTMovZZ(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_
 
     SrcGlobal srcGlobal(src);
     DstE8Global e8Global(outE8Zz);
-    DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t *)outFp8Nz);
+    DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t*)outFp8Nz);
 
     constexpr int UB_SIZE = 0x40000;
     constexpr int srcTileBytes = validRows * paddedCols * sizeof(float);
@@ -113,7 +121,7 @@ AICORE void runTMovZZ(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_
     constexpr int scalingTileAddr = PTO_CEIL(maxTileAddr + maxTileBytes, 0x20);
     constexpr int e8TileAddr = PTO_CEIL(scalingTileAddr + scalingTileBytes, 0x20);
     constexpr int fp8TileAddr = 0x0;
-    // vlds reads a full VL (REPEAT_BYTE = 256 bytes) even when paddedCols < 256.
+    // vlds reads a full VL (CCE_VL = 256 bytes) even when paddedCols < 256.
     // The tail bytes spill past fp8TileBytes into adjacent memory.  Add a gap so
     // that fp8TileNZ starts beyond the maximum vlds read address, preventing
     // VLD/VST overlap on real NPU hardware (store queue is not in-order).
@@ -145,7 +153,7 @@ AICORE void runTMovZZ(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_
 
     // Phase 1: Quantize FP32 -> MXFP8 (FP8 e4m3 in ND + E8M0 exponents in ND)
     TQUANT<pto::QuantType::MXFP8>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
-    // For non-16-aligned rows, TQuant passes numGroups (not total_elements_count) to
+    // For non-16-aligned rows, TQUANT passes numGroups (not total_elements_count) to
     // ExtractB8ExponentAndScaling, so PK4_B32 zeros inactive E8M0 positions beyond the
     // valid groups.  No explicit zero-padding step is needed here.
 
@@ -161,53 +169,53 @@ AICORE void runTMovZZ(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_
 }
 
 template <int validRows, int validCols>
-__global__ AICORE void launchTMovZZKernel(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_t *outE8Zz)
+__global__ AICORE void launchTMovZZKernel(__gm__ uint8_t* outFp8Nz, __gm__ float* src, __gm__ uint8_t* outE8Zz)
 {
     runTMovZZ<validRows, validCols>(outFp8Nz, src, outE8Zz);
 }
 
 template <int validRows, int validCols>
-void LaunchTMovZZ(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream)
+void LaunchTMovZZ(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream)
 {
     launchTMovZZKernel<validRows, validCols><<<1, nullptr, stream>>>(dstFp8Nz, src, dstE8Zz);
 }
 
-template void LaunchTMovZZ<32, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 128>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 192>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 256>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 320>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 384>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 448>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 512>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 576>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 640>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 704>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 768>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 832>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<64, 896>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<128, 128>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<128, 256>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<128, 384>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<256, 192>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<8, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<6, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<13, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<3, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<29, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<31, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<47, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<31, 128>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<47, 128>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<31, 256>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
-template void LaunchTMovZZ<47, 256>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
+template void LaunchTMovZZ<32, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 128>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 192>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 256>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 320>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 384>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 448>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 512>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 576>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 640>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 704>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 768>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 832>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<64, 896>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<128, 128>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<128, 256>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<128, 384>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<256, 192>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<8, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<6, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<13, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<3, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<29, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<31, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<47, 64>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<31, 128>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<47, 128>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<31, 256>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
+template void LaunchTMovZZ<47, 256>(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream);
 
 // ---------------------------------------------------------------------------
 // TMOV ZZ with float8_e8m0_t typed tiles (validates CommonCheckZZ accepts e8m0)
 // ---------------------------------------------------------------------------
 template <int validRows, int validCols>
-AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_t *outE8Zz)
+AICORE void runTMovZZ_e8m0(__gm__ uint8_t* outFp8Nz, __gm__ float* src, __gm__ uint8_t* outE8Zz)
 {
     constexpr int paddedCols = PTO_CEIL(validCols, BLOCK_SIZE / sizeof(uint32_t));
     constexpr int paddedRows16 = PTO_CEIL(validRows, 16);
@@ -216,36 +224,45 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ u
     constexpr int groupedColsFlattenedPadded = paddedRows16 * groupedColsValid;
 
     using SrcGlobal = GlobalTensor<float, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
-    using DstE8Global = GlobalTensor<uint8_t, Shape<1, 1, 1, 1, groupedColsFlattenedPadded>,
-                                     pto::Stride<1, 1, 1, groupedColsFlattenedPadded, 1>>;
-    using DstFp8GlobalNZ = GlobalTensor<int8_t, TileShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>,
-                                        BaseShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>, Layout::NZ>;
+    using DstE8Global = GlobalTensor<
+        uint8_t, Shape<1, 1, 1, 1, groupedColsFlattenedPadded>, pto::Stride<1, 1, 1, groupedColsFlattenedPadded, 1>>;
+    using DstFp8GlobalNZ = GlobalTensor<
+        int8_t, TileShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>,
+        BaseShape2D<int8_t, paddedRows16, paddedCols, Layout::NZ>, Layout::NZ>;
 
-    using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
-    using DstFP8Tile = Tile<TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols,
-                            SLayout::NoneBox, 512, PadValue::Zero>;
-    using MaxTile = Tile<TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)),
-                         BLayout::RowMajor, -1, -1>;
-    using ScalingTile = Tile<TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)),
-                             BLayout::RowMajor, -1, -1>;
+    using SrcTile = Tile<
+        TileType::Vec, float, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstFP8Tile = Tile<
+        TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using MaxTile = Tile<
+        TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)), BLayout::RowMajor, -1,
+        -1>;
+    using ScalingTile = Tile<
+        TileType::Vec, float, 1, PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float)), BLayout::RowMajor, -1,
+        -1>;
     // 2D float8_e8m0_t tile for both TQUANT output and TMOV ZZ source
     // Pad cols to 32-byte alignment (required by RowMajor + NoneBox tile)
     constexpr int groupedColsPadded = PTO_CEIL(groupedColsValid, 32);
-    using E8NdTile = Tile<TileType::Vec, float8_e8m0_t, paddedRows16, groupedColsPadded, BLayout::RowMajor, -1, -1,
-                          SLayout::NoneBox, 512, PadValue::Zero>;
-    using E8ZzTile = Tile<TileType::Vec, float8_e8m0_t, paddedRows16, groupedColsValid, BLayout::RowMajor, -1, -1,
-                          SLayout::RowMajor, 32, PadValue::Zero>;
-    using E8StoreTile = Tile<TileType::Vec, uint8_t, 1, groupedColsFlattenedPadded, BLayout::RowMajor, -1, -1,
-                             SLayout::NoneBox, 512, PadValue::Zero>;
+    using E8NdTile = Tile<
+        TileType::Vec, float8_e8m0_t, paddedRows16, groupedColsPadded, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using E8ZzTile = Tile<
+        TileType::Vec, float8_e8m0_t, paddedRows16, groupedColsValid, BLayout::RowMajor, -1, -1, SLayout::RowMajor, 32,
+        PadValue::Zero>;
+    using E8StoreTile = Tile<
+        TileType::Vec, uint8_t, 1, groupedColsFlattenedPadded, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     constexpr int tmpBufSize = (16 + (paddedRows16 / 16) * (groupedColsValid / 2) + 16) * sizeof(uint16_t);
     constexpr int tmpBufSizeAligned = PTO_CEIL(tmpBufSize, 32);
-    using TmpTile = Tile<TileType::Vec, float8_e8m0_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1,
-                         SLayout::NoneBox, 512, PadValue::Zero>;
+    using TmpTile = Tile<
+        TileType::Vec, float8_e8m0_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
 
     constexpr int virtualRow = PTO_CEIL(validRows, FRACTAL_NZ_ROW) + 1;
-    using Fp8NZTile = Tile<TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols,
-                           SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
+    using Fp8NZTile = Tile<
+        TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols, SLayout::RowMajor, 512,
+        PadValue::Null, CompactMode::RowPlusOne>;
 
     constexpr int maxScalingCols = PTO_CEIL(groupedColsFlattened, BLOCK_SIZE / (int)sizeof(float));
 
@@ -261,7 +278,7 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ u
 
     SrcGlobal srcGlobal(src);
     DstE8Global e8Global(outE8Zz);
-    DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t *)outFp8Nz);
+    DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t*)outFp8Nz);
 
     constexpr int UB_SIZE = 0x40000;
     constexpr int srcTileBytes = validRows * paddedCols * sizeof(float);
@@ -276,8 +293,7 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ u
         scalingTileBytesRaw > tmpBufSizeAligned ?
             (scalingTileBytesRaw > minScalingBytes ? scalingTileBytesRaw : minScalingBytes) :
             (tmpBufSizeAligned > minScalingBytes ? tmpBufSizeAligned : minScalingBytes);
-    // Pad to 32-byte alignment (required for UB address alignment of adjacent tiles).
-    constexpr int e8TileBytes = PTO_CEIL(groupedColsFlattenedPadded * (int)sizeof(float8_e8m0_t), 0x20);
+    constexpr int e8TileBytes = groupedColsFlattenedPadded * (int)sizeof(float8_e8m0_t);
     constexpr int fp8TileBytes = validRows * paddedCols * sizeof(int8_t);
     constexpr int C0_SIZE_B = 32;
     constexpr int nColGroupsNZ = paddedCols / C0_SIZE_B;
@@ -290,7 +306,7 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ u
     constexpr int scalingTileAddr = PTO_CEIL(maxTileAddr + maxTileBytes, 0x20);
     constexpr int e8TileAddr = PTO_CEIL(scalingTileAddr + scalingTileBytes, 0x20);
     constexpr int fp8TileAddr = 0x0;
-    // vlds reads a full VL (REPEAT_BYTE = 256 bytes) even when paddedCols < 256.
+    // vlds reads a full VL (CCE_VL = 256 bytes) even when paddedCols < 256.
     // Add gap to prevent VLD/VST address overlap on real NPU hardware.
     constexpr int vldOverreadGap = PTO_CEIL(paddedCols * (int)sizeof(int8_t), 256) - paddedCols * (int)sizeof(int8_t);
     constexpr int fp8TileNZAddr = PTO_CEIL(fp8TileAddr + fp8TileBytes + vldOverreadGap, 0x20);
@@ -328,15 +344,18 @@ AICORE void runTMovZZ_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ u
 }
 
 template <int validRows, int validCols>
-__global__ AICORE void launchTMovZZKernel_e8m0(__gm__ uint8_t *outFp8Nz, __gm__ float *src, __gm__ uint8_t *outE8Zz)
+__global__ AICORE void launchTMovZZKernel_e8m0(__gm__ uint8_t* outFp8Nz, __gm__ float* src, __gm__ uint8_t* outE8Zz)
 {
     runTMovZZ_e8m0<validRows, validCols>(outFp8Nz, src, outE8Zz);
 }
 
 template <int validRows, int validCols>
-void LaunchTMovZZ_e8m0(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream)
+void LaunchTMovZZ_e8m0(uint8_t* dstFp8Nz, float* src, uint8_t* dstE8Zz, void* stream)
 {
     launchTMovZZKernel_e8m0<validRows, validCols><<<1, nullptr, stream>>>(dstFp8Nz, src, dstE8Zz);
 }
+
+template void LaunchTMovZZ_e8m0<64, 128>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
+template void LaunchTMovZZ_e8m0<32, 64>(uint8_t *dstFp8Nz, float *src, uint8_t *dstE8Zz, void *stream);
 
 } // namespace TMovZZTest

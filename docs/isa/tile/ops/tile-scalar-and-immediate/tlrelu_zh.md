@@ -16,8 +16,6 @@ $$ \mathrm{dst}_{i,j} = (\mathrm{src}_{i,j} > 0) ? \mathrm{src}_{i,j} : (\mathrm
 
 ## 汇编语法
 
-PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
-
 同步形式：
 
 ```text
@@ -39,6 +37,7 @@ pto.tlrelu ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>

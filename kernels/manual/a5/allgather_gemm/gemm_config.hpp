@@ -36,8 +36,9 @@ constexpr uint32_t G_N = CONFIG_G_N;
 
 // Must match G_STEP_KA in allgather_gemm_compute_kernel.cpp (one comm K-block = G_BASE_K * G_STEP_KA).
 constexpr uint32_t G_STEP_KA_PACK = 4;
-static_assert(CONFIG_G_BASE_N % G_STEP_KA_PACK == 0,
-              "CONFIG_G_BASE_N must be divisible by G_STEP_KA_PACK (see allgather_gemm_compute_kernel G_STEP_KA)");
+static_assert(
+    CONFIG_G_BASE_N % G_STEP_KA_PACK == 0,
+    "CONFIG_G_BASE_N must be divisible by G_STEP_KA_PACK (see allgather_gemm_compute_kernel G_STEP_KA)");
 
 constexpr uint32_t G_BASE_M = CONFIG_G_BASE_M;
 constexpr uint32_t G_BASE_N = CONFIG_G_BASE_N;

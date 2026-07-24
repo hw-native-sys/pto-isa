@@ -21,15 +21,15 @@ constexpr int kValidCols1 = 32;
 
 } // namespace
 
-template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-AICORE void runTPARTMIN(__gm__ float __out__ *out, __gm__ float __in__ *src0, __gm__ float __in__ *src1)
+template <typename T, int kRows, int kCols, int kValidRows1, int kValidCols1>
+AICORE void runTPARTMIN(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kRows, kCols>;
     using DynStridDim5 = Stride<1, 1, 1, kCols, 1>;
-    using GlobalData = GlobalTensor<float, DynShapeDim5, DynStridDim5>;
-    using GlobalData1 = GlobalTensor<float, Shape<1, 1, 1, kValidRows1, kValidCols1>, DynStridDim5>;
+    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using GlobalData1 = GlobalTensor<T, Shape<1, 1, 1, kValidRows1, kValidCols1>, DynStridDim5>;
 
-    using TileT = Tile<TileType::Vec, float, kRows, kCols, BLayout::RowMajor, -1, -1>;
+    using TileT = Tile<TileType::Vec, T, kRows, kCols, BLayout::RowMajor, -1, -1>;
     TileT src0Tile(kRows, kCols);
     TileT src1Tile(kValidRows1, kValidCols1);
     TileT dstTile(kRows, kCols);
@@ -49,12 +49,16 @@ AICORE void runTPARTMIN(__gm__ float __out__ *out, __gm__ float __in__ *src0, __
     out = dstGlobal.data();
 }
 
-template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-void LaunchTPARTMIN(float *out, float *src0, float *src1, void *stream)
+template <typename T, int kRows, int kCols, int kValidRows1, int kValidCols1>
+void LaunchTPARTMIN(T* out, T* src0, T* src1, void* stream)
 {
     (void)stream;
-    runTPARTMIN<kRows, kCols, kValidRows1, kValidCols1>(out, src0, src1);
+    runTPARTMIN<T, kRows, kCols, kValidRows1, kValidCols1>(out, src0, src1);
 }
 
-template void LaunchTPARTMIN<kRows, kCols, kValidRows1, kValidCols1>(float *out, float *src0, float *src1,
-                                                                     void *stream);
+template void LaunchTPARTMIN<float, kRows, kCols, kValidRows1, kValidCols1>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTPARTMIN<int8_t, kRows, kCols, kValidRows1, kValidCols1>(
+    int8_t* out, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTPARTMIN<uint8_t, kRows, kCols, kValidRows1, kValidCols1>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);

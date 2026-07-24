@@ -45,9 +45,10 @@ inline auto getOptDynShape(int gShape0, int gShape1, int gShape2, int gShape3, i
     }
 }
 
-template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int tRows, int tCols, BLayout major,
-          int dyn, Layout Layout_ = Layout::ND>
-inline auto getGlobalTensor(T *addr, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4)
+template <
+    typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int tRows, int tCols, BLayout major,
+    int dyn, Layout Layout_ = Layout::ND>
+inline auto getGlobalTensor(T* addr, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4)
 {
     if constexpr (dyn) {
         int stride0 = gShape1 * gShape2 * shape3 * shape4;
@@ -86,8 +87,9 @@ inline auto getGlobalTensor(T *addr, int gShape0, int gShape1, int gShape2, int 
     }
 }
 
-template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int kTRows, int kTCols, int dyn,
-          PadValue PadVal, int gShape0, int gShape1, int gShape2, int gCols, float profiling, float accuracy>
+template <
+    typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int kTRows, int kTCols, int dyn,
+    PadValue PadVal, int gShape0, int gShape1, int gShape2, int gCols, float profiling, float accuracy>
 void runTLoadND()
 {
     using TileData = Tile<TileType::Vec, T, kTRows, kTCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadVal>;
@@ -97,15 +99,16 @@ void runTLoadND()
     constexpr int kGTRows = kTRows / shape0 / shape1 / shape2;
     auto srcGlobal =
         getGlobalTensor<T, shape0, shape1, shape2, kGTRows, shape4, kGTRows, shape4, BLayout::RowMajor, dyn>(
-            reinterpret_cast<T *>(0x10000), gShape0, gShape1, gShape2, kGTRows, shape4);
+            reinterpret_cast<T*>(0x10000), gShape0, gShape1, gShape2, kGTRows, shape4);
 
     TLOAD(vecTile, srcGlobal);
 
     EXPECT_CYCLE_NEAR(profiling, accuracy);
 }
 
-template <typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int kTRows, int kTCols, int dyn,
-          PadValue PadVal, int gShape0, int gShape1, int gShape2, int gRows, int gCols, float profiling, float accuracy>
+template <
+    typename T, int shape0, int shape1, int shape2, int shape3, int shape4, int kTRows, int kTCols, int dyn,
+    PadValue PadVal, int gShape0, int gShape1, int gShape2, int gRows, int gCols, float profiling, float accuracy>
 void runTLoadDN()
 {
     using TileData = Tile<TileType::Vec, T, kTRows, kTCols, BLayout::ColMajor, -1, -1, SLayout::NoneBox, 512, PadVal>;
@@ -113,9 +116,9 @@ void runTLoadDN()
     TASSIGN(vecTile, 0x0);
 
     constexpr int kGTCols = kTCols / shape0 / shape1 / shape2;
-    auto srcGlobal =
-        getGlobalTensor<T, shape0, shape1, shape2, shape3, kGTCols, shape3, kGTCols, BLayout::ColMajor, dyn,
-                        Layout::DN>(reinterpret_cast<T *>(0x10000), gShape0, gShape1, gShape2, shape3, kGTCols);
+    auto srcGlobal = getGlobalTensor<
+        T, shape0, shape1, shape2, shape3, kGTCols, shape3, kGTCols, BLayout::ColMajor, dyn, Layout::DN>(
+        reinterpret_cast<T*>(0x10000), gShape0, gShape1, gShape2, shape3, kGTCols);
 
     TLOAD(vecTile, srcGlobal);
 

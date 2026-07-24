@@ -24,7 +24,7 @@ import json
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -136,7 +136,9 @@ def render_en(entries: List[Dict[str, object]], header_instrs: List[str]) -> str
     lines.append("")
     lines.append("## D.1 Scope")
     lines.append("")
-    lines.append("This appendix is generated from `docs/isa/manifest.yaml` and provides a source-synchronized matrix of PTO virtual instruction families.")
+    lines.append(
+        "This appendix is generated from `docs/isa/manifest.yaml` and provides a source-synchronized matrix of PTO virtual instruction families."
+    )
     lines.append("")
     lines.append("## D.2 Coverage summary")
     lines.append("")
@@ -144,10 +146,14 @@ def render_en(entries: List[Dict[str, object]], header_instrs: List[str]) -> str
     lines.append("")
     lines.append("## D.3 Header synchronization status")
     lines.append("")
-    lines.append(f"- Header inventory source: `include/pto/common/pto_instr.hpp` ({len(header_instrs)} unique instruction APIs)")
+    lines.append(
+        f"- Header inventory source: `include/pto/common/pto_instr.hpp` ({len(header_instrs)} unique instruction APIs)"
+    )
     lines.append(f"- Manifest inventory source: `docs/isa/manifest.yaml` ({len(entries)} entries)")
     lines.append(f"- Missing in manifest: {', '.join(missing_in_manifest) if missing_in_manifest else 'none'}")
-    lines.append(f"- Present in manifest but missing in header: {', '.join(extra_in_manifest) if extra_in_manifest else 'none'}")
+    lines.append(
+        f"- Present in manifest but missing in header: {', '.join(extra_in_manifest) if extra_in_manifest else 'none'}"
+    )
     lines.append("")
     lines.append("## D.4 Family matrix")
     lines.append("")

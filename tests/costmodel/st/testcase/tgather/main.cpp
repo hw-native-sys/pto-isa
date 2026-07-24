@@ -68,8 +68,8 @@ void runTGatherPattern()
     EXPECT_CYCLE_NEAR(profiling, accuracy);
 }
 
-template <typename Src0T, typename IdxT, int srcRows, int srcCols, int dstRows, int dstCols, float profiling,
-          float accuracy>
+template <
+    typename Src0T, typename IdxT, int srcRows, int srcCols, int dstRows, int dstCols, float profiling, float accuracy>
 void runTGatherIndex()
 {
     using Src0Tile = Tile<TileType::Vec, Src0T, srcRows, srcCols, BLayout::RowMajor, -1, -1>;
@@ -215,54 +215,18 @@ TEST(TGather, case1_I32_P1111)
     runTGatherPattern<int32_t, MaskPattern::P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL, 0.0f, 0.0f>();
 }
 
-TEST(TGather, case_1D_float_32x1024_16x64)
-{
-    runTGatherIndex<float, int32_t, 32, 1024, 16, 64, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_int32_32x512_16x256)
-{
-    runTGatherIndex<int32_t, int32_t, 32, 512, 16, 256, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_half_16x1024_16x128)
-{
-    runTGatherIndex<int16_t, int32_t, 16, 1024, 16, 128, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_int16_32x256_32x64)
-{
-    runTGatherIndex<int16_t, int32_t, 32, 256, 32, 64, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_half_1x16_1x16)
-{
-    runTGatherIndex<int16_t, int32_t, 1, 16, 1, 16, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_half_1x32_1x32)
-{
-    runTGatherIndex<int16_t, int32_t, 1, 32, 1, 32, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_half_1x64_1x64)
-{
-    runTGatherIndex<int16_t, int32_t, 1, 64, 1, 64, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_half_1x128_1x128)
-{
-    runTGatherIndex<int16_t, int32_t, 1, 128, 1, 128, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_half_1x128_1x64)
-{
-    runTGatherIndex<int16_t, int32_t, 1, 128, 1, 64, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_float_1024x16_1024x16)
-{
-    runTGatherIndex<float, int32_t, 1024, 16, 1024, 16, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_float_16x16_32x32)
-{
-    runTGatherIndex<float, int32_t, 16, 16, 32, 32, 0.0f, 0.0f>();
-}
-TEST(TGather, case_1D_half_16x16_32x32)
-{
-    runTGatherIndex<int16_t, int32_t, 16, 16, 32, 32, 0.0f, 0.0f>();
-}
+TEST(TGather, case_1D_float_32x1024_16x64) { runTGatherIndex<float, int32_t, 32, 1024, 16, 64, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_int32_32x512_16x256) { runTGatherIndex<int32_t, int32_t, 32, 512, 16, 256, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_half_16x1024_16x128) { runTGatherIndex<int16_t, int32_t, 16, 1024, 16, 128, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_int16_32x256_32x64) { runTGatherIndex<int16_t, int32_t, 32, 256, 32, 64, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_half_1x16_1x16) { runTGatherIndex<int16_t, int32_t, 1, 16, 1, 16, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_half_1x32_1x32) { runTGatherIndex<int16_t, int32_t, 1, 32, 1, 32, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_half_1x64_1x64) { runTGatherIndex<int16_t, int32_t, 1, 64, 1, 64, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_half_1x128_1x128) { runTGatherIndex<int16_t, int32_t, 1, 128, 1, 128, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_half_1x128_1x64) { runTGatherIndex<int16_t, int32_t, 1, 128, 1, 64, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_float_1024x16_1024x16) { runTGatherIndex<float, int32_t, 1024, 16, 1024, 16, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_float_16x16_32x32) { runTGatherIndex<float, int32_t, 16, 16, 32, 32, 0.0f, 0.0f>(); }
+TEST(TGather, case_1D_half_16x16_32x32) { runTGatherIndex<int16_t, int32_t, 16, 16, 32, 32, 0.0f, 0.0f>(); }
 
 TEST(TGather, case1_float_topk)
 {

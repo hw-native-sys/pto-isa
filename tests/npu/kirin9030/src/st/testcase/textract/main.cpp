@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTEXTRACT(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+void launchTEXTRACT(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TEXTRACTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -52,13 +50,13 @@ void textract_test(uint32_t M, uint32_t K, uint32_t N, uint16_t indexM, uint16_t
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -95,42 +93,18 @@ void textract_test(uint32_t M, uint32_t K, uint32_t N, uint16_t indexM, uint16_t
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TEXTRACTTest, case1)
-{
-    textract_test<1, uint16_t, uint16_t, uint16_t>(32, 96, 64, 0, 0, 0);
-}
+TEST_F(TEXTRACTTest, case1) { textract_test<1, uint16_t, uint16_t, uint16_t>(32, 96, 64, 0, 0, 0); }
 
-TEST_F(TEXTRACTTest, case2)
-{
-    textract_test<2, int32_t, int8_t, int8_t>(128, 128, 64, 0, 0, 0);
-}
+TEST_F(TEXTRACTTest, case2) { textract_test<2, int32_t, int8_t, int8_t>(128, 128, 64, 0, 0, 0); }
 
-TEST_F(TEXTRACTTest, case3)
-{
-    textract_test<3, uint16_t, uint16_t, uint16_t>(64, 96, 64, 32, 16, 16);
-}
+TEST_F(TEXTRACTTest, case3) { textract_test<3, uint16_t, uint16_t, uint16_t>(64, 96, 64, 32, 16, 16); }
 
-TEST_F(TEXTRACTTest, case4)
-{
-    textract_test<4, int32_t, int8_t, int8_t>(128, 128, 64, 32, 64, 32);
-}
+TEST_F(TEXTRACTTest, case4) { textract_test<4, int32_t, int8_t, int8_t>(128, 128, 64, 32, 64, 32); }
 
-TEST_F(TEXTRACTTest, case5)
-{
-    textract_test<5, uint16_t, uint16_t, uint16_t>(64, 128, 64, 0, 64, 0);
-}
+TEST_F(TEXTRACTTest, case5) { textract_test<5, uint16_t, uint16_t, uint16_t>(64, 128, 64, 0, 64, 0); }
 
-TEST_F(TEXTRACTTest, case6)
-{
-    textract_test<6, int32_t, int8_t, int8_t>(128, 64, 128, 32, 0, 0);
-}
+TEST_F(TEXTRACTTest, case6) { textract_test<6, int32_t, int8_t, int8_t>(128, 64, 128, 32, 0, 0); }
 
-TEST_F(TEXTRACTTest, case7)
-{
-    textract_test<7, int32_t, int8_t, int8_t>(64, 96, 32, 32, 0, 0);
-}
+TEST_F(TEXTRACTTest, case7) { textract_test<7, int32_t, int8_t, int8_t>(64, 96, 32, 32, 0, 0); }
 
-TEST_F(TEXTRACTTest, case8)
-{
-    textract_test<8, uint16_t, uint16_t, uint16_t>(64, 48, 96, 16, 16, 0);
-}
+TEST_F(TEXTRACTTest, case8) { textract_test<8, uint16_t, uint16_t, uint16_t>(64, 48, 96, 16, 16, 0); }

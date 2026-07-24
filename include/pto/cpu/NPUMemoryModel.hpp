@@ -38,16 +38,12 @@
 
 namespace pto {
 
-enum class NPUArch
-{
-    A2A3,
-    A5
-};
+enum class NPUArch { A2A3, A5 };
 
 class NPUMemoryModel {
 private:
-    enum MemoryRegion
-    {
+    enum MemoryRegion {
+        REG, // Registers - simulates NPU registers
         UB,  // Unified Buffer - for Vec tiles
         L1,  // L1 Buffer - for Mat tiles
         L0A, // L0A Buffer - for Left tiles
@@ -67,6 +63,7 @@ private:
     // A2/A3:
     // https://www.hiascend.com/doc_center/source/zh/canncommercial/80RC3/devguide/appdevg/sdpdevg/atlasprogramming_12_0003.html
     static inline constexpr ArchMemorySizes kA2A3MemorySizes = {
+        16 * 8,     // REGISTERS 16 with 8 byte
         192 * 1024, // UB:  192 KB
         512 * 1024, // L1:  512 KB
         64 * 1024,  // L0A: 64 KB
@@ -75,6 +72,7 @@ private:
     };
 
     static inline constexpr ArchMemorySizes kA5MemorySizes = {
+        16 * 8,     // REGISTERS 16 with 8 byte
         256 * 1024, // UB:  256 KB
         512 * 1024, // L1:  512 KB
         64 * 1024,  // L0A: 64 KB (placeholder - verify actual A5 spec)
@@ -109,7 +107,7 @@ private:
 public:
     // Each thread gets its own NPUMemoryModel instance, accurately modeling
     // the hardware where each AICore has physically separate memory.
-    static NPUMemoryModel &Instance()
+    static NPUMemoryModel& Instance()
     {
         thread_local NPUMemoryModel instance;
         return instance;
@@ -117,10 +115,7 @@ public:
 
     // Set the default architecture for all threads.
     // Call once before any thread uses Instance().
-    static void SetDefaultArch(NPUArch arch)
-    {
-        defaultArch_ = arch;
-    }
+    static void SetDefaultArch(NPUArch arch) { defaultArch_ = arch; }
 
     // Initialize with specific architecture (call once per thread at startup)
     void Initialize(NPUArch arch)
@@ -182,26 +177,27 @@ public:
 
     // Get pointer to memory at offset within a region
     template <typename TileDef>
-    TileDef::DType *GetPointer(std::size_t byteOffset)
+    TileDef::DType* GetPointer(std::size_t byteOffset)
     {
         static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
-        std::size_t accessElems = 0;
+        int numElem;
         if constexpr (is_tile_data_v<TileDef>) {
-            accessElems = TileAccessElems<TileDef>();
+            numElem = TileDef::Numel;
         } else {
-            accessElems = TileDef::bufferSize / sizeof(typename TileDef::DType);
+            numElem = TileDef::bufferSize / sizeof(typename TileDef::DType);
         }
         if constexpr (TileDef::Loc == TileType::Mat) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L1>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L1>(byteOffset, numElem);
         } else if constexpr (TileDef::Loc == TileType::Left) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L0A>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L0A>(byteOffset, numElem);
         } else if constexpr (TileDef::Loc == TileType::Right) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L0B>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L0B>(byteOffset, numElem);
         } else if constexpr (TileDef::Loc == TileType::Acc) {
-            return GetPointer<typename TileDef::DType, MemoryRegion::L0C>(byteOffset, accessElems);
+            return GetPointer<typename TileDef::DType, MemoryRegion::L0C>(byteOffset, numElem);
         } else {
-            return GetPointer<typename TileDef::DType, MemoryRegion::UB>(byteOffset,
-                                                                         accessElems); // For Vec and unknown types
+            return GetPointer<typename TileDef::DType, MemoryRegion::UB>(
+                byteOffset,
+                numElem); // For Vec and unknown types
         }
     }
 
@@ -210,75 +206,52 @@ public:
     // - an already-materialized host pointer to a tile in that region
     //   (used when creating another tile view over the same backing storage).
     template <typename TileDef>
-    typename TileDef::DType *ResolveAssignedAddress(std::uintptr_t addr)
+    typename TileDef::DType* ResolveAssignedAddress(std::uintptr_t addr)
     {
         static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
         EnsureInitialized();
 
-        if (auto *direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
+        if (auto* direct = TryResolveExistingPointer<typename TileDef::DType>(addr)) {
             return direct;
         }
         return GetPointer<TileDef>(static_cast<std::size_t>(addr));
     }
 
-    template <typename TileDef>
-    std::uintptr_t NormalizeAssignedAddress(std::uintptr_t addr)
-    {
-        static_assert(is_tile_data_v<TileDef> || is_conv_tile_v<TileDef>);
-        EnsureInitialized();
-
-        const int region = GetRegionForTile<TileDef>();
-        if (region < 0 || region >= MemoryRegion::_MAX_REGIONS || buffers_[region].empty()) {
-            return addr;
-        }
-
-        const auto begin = reinterpret_cast<std::uintptr_t>(buffers_[region].data());
-        const auto end = begin + buffers_[region].size();
-        if (addr >= begin && addr < end) {
-            return addr - begin;
-        }
-        return addr;
-    }
-
     // Get raw buffer bases (for debugging/direct access)
-    char *GetUBBase()
+    char* GetREGBase()
+    {
+        EnsureInitialized();
+        return buffers_[MemoryRegion::REG].data();
+    }
+    char* GetUBBase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::UB].data();
     }
-    char *GetL1Base()
+    char* GetL1Base()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L1].data();
     }
-    char *GetL0ABase()
+    char* GetL0ABase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L0A].data();
     }
-    char *GetL0BBase()
+    char* GetL0BBase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L0B].data();
     }
-    char *GetL0CBase()
+    char* GetL0CBase()
     {
         EnsureInitialized();
         return buffers_[MemoryRegion::L0C].data();
     }
 
-    const NPUMemoryModel::ArchMemorySizes &GetSizes() const
-    {
-        return sizes_;
-    }
-    NPUArch GetArch() const
-    {
-        return arch_;
-    }
-    bool IsInitialized() const
-    {
-        return initialized_;
-    }
+    const NPUMemoryModel::ArchMemorySizes& GetSizes() const { return sizes_; }
+    NPUArch GetArch() const { return arch_; }
+    bool IsInitialized() const { return initialized_; }
 
     // Returns true when rawAddr already points into one of this thread's
     // simulated on-chip memory buffers. This is needed for patterns like:
@@ -306,7 +279,7 @@ public:
     void Clear()
     {
         if (initialized_) {
-            for (auto &buf : buffers_) {
+            for (auto& buf : buffers_) {
                 std::fill(buf.begin(), buf.end(), 0);
             }
         }
@@ -315,60 +288,39 @@ public:
     // Reset to uninitialized state
     void Reset()
     {
-        for (auto &buf : buffers_) {
+        for (auto& buf : buffers_) {
             buf.clear();
         }
         initialized_ = false;
     }
 
 private:
-    template <typename TileDef>
-    static constexpr int GetRegionForTile()
-    {
-        if constexpr (TileDef::Loc == TileType::Mat) {
-            return MemoryRegion::L1;
-        } else if constexpr (TileDef::Loc == TileType::Left) {
-            return MemoryRegion::L0A;
-        } else if constexpr (TileDef::Loc == TileType::Right) {
-            return MemoryRegion::L0B;
-        } else if constexpr (TileDef::Loc == TileType::Acc) {
-            return MemoryRegion::L0C;
-        } else {
-            return MemoryRegion::UB;
-        }
-    }
-
     template <typename T>
-    T *TryResolveExistingPointer(std::uintptr_t addr)
+    T* TryResolveExistingPointer(std::uintptr_t addr)
     {
         for (int region = 0; region < MemoryRegion::_MAX_REGIONS; ++region) {
-            auto *base = buffers_[region].data();
+            auto* base = buffers_[region].data();
             const auto start = reinterpret_cast<std::uintptr_t>(base);
             const auto end = start + buffers_[region].size();
             if (addr >= start && addr < end) {
-                return reinterpret_cast<T *>(addr);
+                return reinterpret_cast<T*>(addr);
             }
         }
         return nullptr;
     }
 
     template <typename T, MemoryRegion region>
-    inline T *GetPointer(std::size_t byteOffset, size_t numel)
+    inline T* GetPointer(std::size_t byteOffset, size_t numel)
     {
         EnsureInitialized();
 
-        if (byteOffset > sizes_[region] || numel > (sizes_[region] - byteOffset) / sizeof(T)) {
-            std::fprintf(stderr,
-                         "PTO CPU sim TASSIGN out of range: region=%d offset=%zu numel=%zu elem_size=%zu size=%zu\n",
-                         static_cast<int>(region), byteOffset, numel, sizeof(T), sizes_[region]);
-            std::abort();
-        }
-        return reinterpret_cast<T *>(buffers_[region].data() + byteOffset);
+        assert(byteOffset + numel * sizeof(T) <= sizes_[region]);
+        return reinterpret_cast<T*>(buffers_[region].data() + byteOffset);
     }
 
     NPUMemoryModel() = default;
-    NPUMemoryModel(const NPUMemoryModel &) = delete;
-    NPUMemoryModel(const NPUMemoryModel &&) = delete;
+    NPUMemoryModel(const NPUMemoryModel&) = delete;
+    NPUMemoryModel(const NPUMemoryModel&&) = delete;
 
     // Shared default architecture — set once, read by all threads during auto-init
     static inline NPUArch defaultArch_ = NPUArch::A2A3;

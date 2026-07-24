@@ -12,7 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/cpu_stub.hpp>
 
-using aclrtContext = void *;
+using aclrtContext = void*;
 using event_t = int;
 using CceEventIdType = event_t;
 using pad_t = int;
@@ -28,6 +28,10 @@ using addr_cal_mode_t = ::addr_cal_mode_t;
 #define __biasbuf__
 #endif
 
+inline constexpr int ACL_MEM_MALLOC_HUGE_FIRST = 0;
+inline constexpr int ACL_MEMCPY_HOST_TO_DEVICE = 0;
+inline constexpr int ACL_MEMCPY_DEVICE_TO_HOST = 1;
+inline constexpr int ACL_MEMCPY_DEVICE_TO_DEVICE = 2;
 inline constexpr int ACL_STREAM_FAST_LAUNCH = 0;
 inline constexpr int ACL_STREAM_FAST_SYNC = 0;
 inline constexpr int ACL_STREAM_ATTR_FAILURE_MODE = 0;
@@ -42,21 +46,6 @@ using aclrtStreamAttrValue = int;
 #endif
 #define aclFloat16ToFloat(x) ((float)(x))
 #ifdef __COSTMODEL
-#ifdef dsb
-#undef dsb
-#endif
-#ifdef SINGLE_CACHE_LINE
-#undef SINGLE_CACHE_LINE
-#endif
-#ifdef DSB_DDR
-#undef DSB_DDR
-#endif
-#ifdef DSB_ALL
-#undef DSB_ALL
-#endif
-#ifdef DSB_UB
-#undef DSB_UB
-#endif
 #ifdef set_flag
 #undef set_flag
 #endif

@@ -114,13 +114,11 @@ inline void set_fpc(auto deqTensorAddr)
 }
 inline void set_mask_count()
 {
-    ::pto::mocker::SetVectorCountMode(true);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("set_mask_count", cycles);
 }
 inline void set_mask_norm()
 {
-    ::pto::mocker::SetVectorCountMode(false);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("set_mask_norm", cycles);
 }
@@ -151,12 +149,6 @@ inline void set_va_reg_sb(auto vaReg, auto addrArray)
 }
 inline void set_vector_mask(auto mask0, auto mask1)
 {
-    // A full-mask restore (SetFullVecMaskByDType -> -1,-1) signals norm mode; any
-    // partial/count mask (SetVectorCount -> 0,n; SetContinuousMask for cols<epr ->
-    // 0,(1<<n)-1) signals count-mode dispatch. Signed -1 normalizes to all-ones
-    // under uint64 conversion, so this matches regardless of the literal's type.
-    const bool full_mask = (static_cast<uint64_t>(mask0) == ~0ULL) && (static_cast<uint64_t>(mask1) == ~0ULL);
-    ::pto::mocker::SetVectorCountMode(!full_mask);
     const uint64_t cycles = EstimateConstCycles();
     ::pto::mocker::RecordCceCall("set_vector_mask", cycles, mask0, mask1);
 }

@@ -16,14 +16,14 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTCOLCMAXTestCase(void *out, void *src, aclrtStream stream);
+void launchTCOLCMAXTestCase(void* out, void* src, aclrtStream stream);
 
 template <uint32_t caseId>
-void launchTCOLIDXVALMAXCase(void *outVal, void *outIdx, void *src, aclrtStream stream);
+void launchTCOLIDXVALMAXCase(void* outVal, void* outIdx, void* src, aclrtStream stream);
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,15 +33,15 @@ std::string GetGoldenDir()
 class TCOLCMAXTest : public testing::Test {
 public:
     aclrtStream stream;
-    void *dstHost;
-    void *srcHost;
-    void *dstDevice;
-    void *srcDevice;
+    void* dstHost;
+    void* srcHost;
+    void* dstDevice;
+    void* srcDevice;
 
-    void *dstHostVal;
-    void *dstHostIdx;
-    void *dstDeviceVal;
-    void *dstDeviceIdx;
+    void* dstHostVal;
+    void* dstHostIdx;
+    void* dstDeviceVal;
+    void* dstDeviceIdx;
 
 protected:
     void SetUp() override
@@ -121,8 +121,8 @@ protected:
         return CompareGolden(dstByteSize);
     }
 
-    template <uint32_t caseId, typename TVal, typename TIdx, int srcRow, int srcValidRow, int dstRow, int col,
-              int validCol>
+    template <
+        uint32_t caseId, typename TVal, typename TIdx, int srcRow, int srcValidRow, int dstRow, int col, int validCol>
     bool TCOLCMAXTestFramework()
     {
         // int dstCol = (validCol + 7) / 8 * 8;

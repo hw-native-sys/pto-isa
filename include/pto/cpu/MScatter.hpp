@@ -18,17 +18,19 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <Coalesce Mode, ScatterAtomicOp Atomic, ScatterOOB Oob, ScatterConflict Conflict, typename GlobalData,
-          typename TileSrc, typename TileInd>
-PTO_INTERNAL void MSCATTER_IMPL(GlobalData &dst, TileSrc &src, TileInd &indexes)
+template <
+    Coalesce Mode, ScatterAtomicOp Atomic, ScatterOOB Oob, ScatterConflict Conflict, typename GlobalData,
+    typename TileSrc, typename TileInd>
+PTO_INTERNAL void MSCATTER_IMPL(GlobalData& dst, TileSrc& src, TileInd& indexes)
 {
     using IndexT = typename TileInd::DType;
     static_assert(std::is_integral_v<IndexT>, "MSCATTER: indexes must be an integral type");
-    static_assert(sizeof(typename TileSrc::DType) == sizeof(typename GlobalData::DType),
-                  "MSCATTER: element sizes must match");
+    static_assert(
+        sizeof(typename TileSrc::DType) == sizeof(typename GlobalData::DType), "MSCATTER: element sizes must match");
 
-    static_assert(Atomic == ScatterAtomicOp::None || Conflict != ScatterConflict::Last,
-                  "Conflict::Last cannot be used together with Atomic operations");
+    static_assert(
+        Atomic == ScatterAtomicOp::None || Conflict != ScatterConflict::Last,
+        "Conflict::Last cannot be used together with Atomic operations");
 
     const unsigned validRow = src.GetValidRow();
     const unsigned validCol = src.GetValidCol();
@@ -45,7 +47,7 @@ PTO_INTERNAL void MSCATTER_IMPL(GlobalData &dst, TileSrc &src, TileInd &indexes)
         capacity = dst.GetShape(GlobalTensorDim::DIM_3);
     }
 
-    auto *base = dst.data();
+    auto* base = dst.data();
     for (unsigned i = 0; i < validRow; ++i) {
         if constexpr (Mode == Coalesce::Elem) {
             for (unsigned j = 0; j < validCol; ++j) {
@@ -115,29 +117,29 @@ PTO_INTERNAL void MSCATTER_IMPL(GlobalData &dst, TileSrc &src, TileInd &indexes)
 }
 
 template <Coalesce Mode, typename GlobalData, typename TileSrc, typename TileInd>
-PTO_INTERNAL void MSCATTER_IMPL(GlobalData &dst, TileSrc &src, TileInd &indexes)
+PTO_INTERNAL void MSCATTER_IMPL(GlobalData& dst, TileSrc& src, TileInd& indexes)
 {
     MSCATTER_IMPL<Mode, ScatterAtomicOp::None, ScatterOOB::Undefined, ScatterConflict::Default>(dst, src, indexes);
 }
 
 template <Coalesce Mode, ScatterAtomicOp Atomic, typename GlobalData, typename TileSrc, typename TileInd>
-PTO_INTERNAL void MSCATTER_IMPL(GlobalData &dst, TileSrc &src, TileInd &indexes)
+PTO_INTERNAL void MSCATTER_IMPL(GlobalData& dst, TileSrc& src, TileInd& indexes)
 {
     MSCATTER_IMPL<Mode, Atomic, ScatterOOB::Undefined, ScatterConflict::Default>(dst, src, indexes);
 }
 
-template <Coalesce Mode, ScatterAtomicOp Atomic, ScatterOOB Oob, typename GlobalData, typename TileSrc,
-          typename TileInd>
-PTO_INTERNAL void MSCATTER_IMPL(GlobalData &dst, TileSrc &src, TileInd &indexes)
+template <
+    Coalesce Mode, ScatterAtomicOp Atomic, ScatterOOB Oob, typename GlobalData, typename TileSrc, typename TileInd>
+PTO_INTERNAL void MSCATTER_IMPL(GlobalData& dst, TileSrc& src, TileInd& indexes)
 {
     MSCATTER_IMPL<Mode, Atomic, Oob, ScatterConflict::Default>(dst, src, indexes);
 }
 
 template <typename GlobalData, typename TileSrc, typename TileInd>
-PTO_INTERNAL void MSCATTER_IMPL(GlobalData &dst, TileSrc &src, TileInd &indexes)
+PTO_INTERNAL void MSCATTER_IMPL(GlobalData& dst, TileSrc& src, TileInd& indexes)
 {
-    MSCATTER_IMPL<Coalesce::Elem, ScatterAtomicOp::None, ScatterOOB::Undefined, ScatterConflict::Default>(dst, src,
-                                                                                                          indexes);
+    MSCATTER_IMPL<Coalesce::Elem, ScatterAtomicOp::None, ScatterOOB::Undefined, ScatterConflict::Default>(
+        dst, src, indexes);
 }
 
 } // namespace pto

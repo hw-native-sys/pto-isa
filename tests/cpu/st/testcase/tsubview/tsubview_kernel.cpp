@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kSubRows_, int kSubCols_>
-AICORE void runTSubView(__gm__ T __out__ *out, __gm__ T __in__ *src, uint16_t rowIdx, uint16_t colIdx)
+AICORE void runTSubView(__gm__ T __out__* out, __gm__ T __in__* src, uint16_t rowIdx, uint16_t colIdx)
 {
     using SrcDynShape = Shape<1, 1, 1, kGRows_, kGCols_>;
     using SrcDynStride = Stride<1, 1, 1, kGCols_, 1>;
@@ -44,18 +44,18 @@ AICORE void runTSubView(__gm__ T __out__ *out, __gm__ T __in__ *src, uint16_t ro
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kSubRows_, int kSubCols_>
-void LaunchTSubView(T *out, T *src, void *stream)
+void LaunchTSubView(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTSubView<T, kGRows_, kGCols_, kTRows_, kTCols_, kSubRows_, kSubCols_>((half *)(out), (half *)(src), 0, 0);
+        runTSubView<T, kGRows_, kGCols_, kTRows_, kTCols_, kSubRows_, kSubCols_>((half*)(out), (half*)(src), 0, 0);
     else
         runTSubView<T, kGRows_, kGCols_, kTRows_, kTCols_, kSubRows_, kSubCols_>(out, src, 0, 0);
 }
 
-template void LaunchTSubView<float, 64, 64, 64, 64, 32, 32>(float *out, float *src, void *stream);
-template void LaunchTSubView<int32_t, 64, 64, 64, 64, 32, 32>(int32_t *out, int32_t *src, void *stream);
-template void LaunchTSubView<aclFloat16, 16, 256, 16, 256, 8, 128>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTSubView<int16_t, 64, 64, 64, 64, 32, 32>(int16_t *out, int16_t *src, void *stream);
+template void LaunchTSubView<float, 64, 64, 64, 64, 32, 32>(float* out, float* src, void* stream);
+template void LaunchTSubView<int32_t, 64, 64, 64, 64, 32, 32>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTSubView<aclFloat16, 16, 256, 16, 256, 8, 128>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTSubView<int16_t, 64, 64, 64, 64, 32, 32>(int16_t* out, int16_t* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTSubView<bfloat16_t, 16, 256, 16, 256, 8, 128>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTSubView<bfloat16_t, 16, 256, 16, 256, 8, 128>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif

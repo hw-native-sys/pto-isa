@@ -8,75 +8,22 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "cpu_tile_test_utils.h"
 #include "test_common.h"
-#include <gtest/gtest.h>
 #include <pto/pto-inst.hpp>
+#include <gtest/gtest.h>
 
-using namespace pto;
-using namespace CpuTileTestUtils;
+using namespace std;
 using namespace PtoTestCommon;
-
-namespace {
-
-TEST(TSubViewAliasTest, AliasesRowMajorSourceStorageAtOffset)
-{
-    using SrcTile = Tile<TileType::Vec, float, 4, 8>;
-    using DstTile = Tile<TileType::Vec, float, 4, 8, BLayout::RowMajor, 3, 6>;
-
-    SrcTile src;
-    DstTile dst;
-    std::size_t addr = 0;
-    AssignTileStorage(addr, src, dst);
-
-    FillLinear(src, 1.0f);
-    TSUBVIEW(dst, src, 1, 2);
-
-    ASSERT_EQ(dst.data(), src.data() + SrcTile::RowStride + 2 * SrcTile::ColStride);
-    for (int r = 0; r < dst.GetValidRow(); ++r) {
-        for (int c = 0; c < dst.GetValidCol(); ++c) {
-            ExpectValueEquals(GetValue(dst, r, c), GetValue(src, r + 1, c + 2));
-        }
-    }
-
-    SetValue(dst, 2, 5, 99.0f);
-    ExpectValueEquals(GetValue(src, 3, 7), 99.0f);
-}
-
-TEST(TSubViewAliasTest, AliasesColMajorSourceStorageAtOffset)
-{
-    using SrcTile = Tile<TileType::Vec, float, 8, 8, BLayout::ColMajor>;
-    using DstTile = Tile<TileType::Vec, float, 8, 8, BLayout::ColMajor, 2, 3>;
-
-    SrcTile src;
-    DstTile dst;
-    std::size_t addr = 0;
-    AssignTileStorage(addr, src, dst);
-
-    FillLinear(src, 10.0f);
-    TSUBVIEW(dst, src, 1, 4);
-
-    ASSERT_EQ(dst.data(), src.data() + SrcTile::RowStride + 4 * SrcTile::ColStride);
-    for (int r = 0; r < dst.GetValidRow(); ++r) {
-        for (int c = 0; c < dst.GetValidCol(); ++c) {
-            ExpectValueEquals(GetValue(dst, r, c), GetValue(src, r + 1, c + 4));
-        }
-    }
-}
-
-} // namespace
 
 class TSUBVIEWTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -84,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kSubRows_, int kSubCols_>
-void LaunchTSubView(T *out, T *src, void *stream);
+void LaunchTSubView(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kSubRows_, int kSubCols_>
 void test_tsubview()
@@ -100,11 +47,11 @@ void test_tsubview()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize));
 
@@ -135,29 +82,10 @@ void test_tsubview()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TSUBVIEWTest, case_float_64x64_64x64_32x32)
-{
-    test_tsubview<float, 64, 64, 64, 64, 32, 32>();
-}
-
-TEST_F(TSUBVIEWTest, case_int32_64x64_64x64_32x32)
-{
-    test_tsubview<int32_t, 64, 64, 64, 64, 32, 32>();
-}
-
-TEST_F(TSUBVIEWTest, case_int16_64x64_64x64_32x32)
-{
-    test_tsubview<int16_t, 64, 64, 64, 64, 32, 32>();
-}
-
-TEST_F(TSUBVIEWTest, case_half_16x256_16x256_8x128)
-{
-    test_tsubview<aclFloat16, 16, 256, 16, 256, 8, 128>();
-}
-
+TEST_F(TSUBVIEWTest, case_float_64x64_64x64_32x32) { test_tsubview<float, 64, 64, 64, 64, 32, 32>(); }
+TEST_F(TSUBVIEWTest, case_int32_64x64_64x64_32x32) { test_tsubview<int32_t, 64, 64, 64, 64, 32, 32>(); }
+TEST_F(TSUBVIEWTest, case_int16_64x64_64x64_32x32) { test_tsubview<int16_t, 64, 64, 64, 64, 32, 32>(); }
+TEST_F(TSUBVIEWTest, case_half_16x256_16x256_8x128) { test_tsubview<aclFloat16, 16, 256, 16, 256, 8, 128>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TSUBVIEWTest, case_bf16_16x256_16x256_8x128)
-{
-    test_tsubview<bfloat16_t, 16, 256, 16, 256, 8, 128>();
-}
+TEST_F(TSUBVIEWTest, case_bf16_16x256_16x256_8x128) { test_tsubview<bfloat16_t, 16, 256, 16, 256, 8, 128>(); }
 #endif

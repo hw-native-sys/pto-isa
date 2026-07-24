@@ -26,9 +26,10 @@ PTO_INTERNAL void TSYNC_IMPL()
 {
 #ifndef __PTO_AUTO__
     constexpr pipe_t pipe = GetPipeByOpForKirin9030<OpCode>();
-    PTO_STATIC_ASSERT((pipe == PIPE_M) || (pipe == PIPE_MTE1) || (pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) ||
-                          (pipe == PIPE_ALL) || (pipe == PIPE_FIX),
-                      "Single Op TSYNC only supports M / MTE1 / MTE2 / MTE3 / ALL / FIX pipeline.");
+    PTO_STATIC_ASSERT(
+        (pipe == PIPE_M) || (pipe == PIPE_MTE1) || (pipe == PIPE_MTE2) || (pipe == PIPE_MTE3) || (pipe == PIPE_ALL) ||
+            (pipe == PIPE_FIX),
+        "Single Op TSYNC only supports M / MTE1 / MTE2 / MTE3 / ALL / FIX pipeline.");
     pipe_barrier((pipe_t)pipe);
 #endif
 }
@@ -52,13 +53,10 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     PTO_STATIC_ASSERT(Base::dstPipe != PIPE_ALL, "DstOp are invalid.");
 #endif
 
-    PTO_INTERNAL Event &InitAddrImpl(uint64_t fftsAddr)
-    {
-        return *this;
-    }
+    PTO_INTERNAL Event& InitAddrImpl(uint64_t fftsAddr) { return *this; }
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &WaitImpl()
+    PTO_INTERNAL Event& WaitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (Base::isSamePipe) {
@@ -73,11 +71,10 @@ struct Event : EventBase<Event<SrcOp, DstOp, AutoToken, EventID>, SrcOp, DstOp, 
     }
 
     PTO_INTERNAL Event() = default;
-    PTO_INTERNAL Event(RecordEvent re) : Base(re)
-    {}
+    PTO_INTERNAL Event(RecordEvent re) : Base(re) {}
 
     template <uint8_t CrossCoreId = 0xff>
-    PTO_INTERNAL Event &InitImpl()
+    PTO_INTERNAL Event& InitImpl()
     {
 #ifndef __PTO_AUTO__
         if constexpr (!Base::isSamePipe) {

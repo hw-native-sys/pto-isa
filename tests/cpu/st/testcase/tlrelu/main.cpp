@@ -10,25 +10,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTLrelu_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTLrelu_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TLRELUTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTLrelu(T *out, T *src, T *scalar, void *stream);
+void LaunchTLrelu(T* out, T* src, T* scalar, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tlrelu()
@@ -51,13 +51,13 @@ void test_tlrelu()
 
     T *dstHost, *srcHost, *scalarHost;
     T *dstDevice, *srcDevice, *scalarDevice;
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
-    aclrtMallocHost((void **)(&scalarHost), scalarSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&scalarHost), scalarSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/scalar.bin", scalarSize, scalarHost, scalarSize));
@@ -91,28 +91,10 @@ void test_tlrelu()
     EXPECT_TRUE(ret);
 }
 
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-TEST_F(TLRELUTest, case_float_64x64_64x64_64x64)
-{
-    test_tlrelu<float, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TLRELUTest, case_int32_64x64_64x64_64x64)
-{
-    test_tlrelu<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TLRELUTest, case_int16_64x64_64x64_64x64)
-{
-    test_tlrelu<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TLRELUTest, case_half_16x256_16x256_16x256)
-{
-    test_tlrelu<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
+TEST_F(TLRELUTest, case_float_64x64_64x64_64x64) { test_tlrelu<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TLRELUTest, case_int32_64x64_64x64_64x64) { test_tlrelu<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TLRELUTest, case_int16_64x64_64x64_64x64) { test_tlrelu<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TLRELUTest, case_half_16x256_16x256_16x256) { test_tlrelu<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TLRELUTest, case_bf16_16x256_16x256_16x256)
-{
-    test_tlrelu<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
+TEST_F(TLRELUTest, case_bf16_16x256_16x256_16x256) { test_tlrelu<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #endif

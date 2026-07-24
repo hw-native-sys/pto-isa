@@ -35,7 +35,7 @@ def gen_golden_data(param):
     if flag:
         for i in range(valid_row):
             offset_arr[i, :] = 0
-
+    
     for i in range(valid_row):
         for j in range(valid_col):
             output_arr[i, j] = (temp_arr[i, j] - offset_arr[i, 0]) * scale_arr[i, 0]

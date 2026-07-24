@@ -15,19 +15,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int kRows, int kCols>
-void launchTMOV_nd2nz(uint8_t *out, uint8_t *src, void *stream);
+void launchTMOV_nd2nz(uint8_t* out, uint8_t* src, void* stream);
 
 class TMovNd2NzTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -48,10 +46,10 @@ void test_tmov_nd2nz()
     uint8_t *dstHost, *dstDevice;
     uint8_t *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), outputSize);
-    aclrtMallocHost((void **)(&srcHost), inputSize);
-    aclrtMalloc((void **)(&dstDevice), outputSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)(&srcDevice), inputSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), outputSize);
+    aclrtMallocHost((void**)(&srcHost), inputSize);
+    aclrtMalloc((void**)(&dstDevice), outputSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)(&srcDevice), inputSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_arr.bin", inputSize, srcHost, inputSize);
 
@@ -80,17 +78,8 @@ void test_tmov_nd2nz()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TMovNd2NzTest, case_hif8_32x32)
-{
-    test_tmov_nd2nz<32, 32>();
-}
+TEST_F(TMovNd2NzTest, case_hif8_32x32) { test_tmov_nd2nz<32, 32>(); }
 
-TEST_F(TMovNd2NzTest, case_hif8_32x64)
-{
-    test_tmov_nd2nz<32, 64>();
-}
+TEST_F(TMovNd2NzTest, case_hif8_32x64) { test_tmov_nd2nz<32, 64>(); }
 
-TEST_F(TMovNd2NzTest, case_hif8_64x64)
-{
-    test_tmov_nd2nz<64, 64>();
-}
+TEST_F(TMovNd2NzTest, case_hif8_64x64) { test_tmov_nd2nz<64, 64>(); }

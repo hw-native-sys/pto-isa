@@ -25,19 +25,22 @@ constexpr std::size_t kFaProfileBytesPerBlock = 1024 * 3; // cube + two vec subb
 constexpr std::size_t kFaCvCommSlotBytes = 512U;
 constexpr int VEC_CORES = 2; // Default to 2 vector cores per cube
 
-template <int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1 = kFaCubeS1, int TILE_S1 = kFaTileS1,
-          int QK_PRELOAD = kFaQkPreload, int CV_FIFO_SIZE = kFaCvFifoSize, bool INTERMEDIATE_CHECK = false,
-          bool CAUSAL_MASK = false, int CV_FIFO_CONS_SYNC_PERIOD = kFaCvFifoConsSyncPeriod>
-void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclFloat16 *p_tile_fifo,
-               float *exp_max_ififo, float *global_sum_out, float *exp_max_out, float *o_out, float *o_parts_out,
-               float *qk_tile_fifo, float *pv_tile_fifo, uint8_t *profile_data, aclrtStream stream,
-               uint8_t *cv_comm_buf = nullptr);
+template <
+    int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1 = kFaCubeS1, int TILE_S1 = kFaTileS1,
+    int QK_PRELOAD = kFaQkPreload, int CV_FIFO_SIZE = kFaCvFifoSize, bool INTERMEDIATE_CHECK = false,
+    bool CAUSAL_MASK = false, int CV_FIFO_CONS_SYNC_PERIOD = kFaCvFifoConsSyncPeriod>
+void LaunchTFA(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_tile_fifo, float* exp_max_ififo,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_tile_fifo,
+    float* pv_tile_fifo, uint8_t* profile_data, aclrtStream stream, uint8_t* cv_comm_buf = nullptr);
 
 // Overload without profiling buffer.
-template <int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1, int TILE_S1, int QK_PRELOAD, int CV_FIFO_SIZE,
-          bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, int CV_FIFO_CONS_SYNC_PERIOD>
-void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclFloat16 *p_tile_fifo,
-               float *exp_max_ififo, float *global_sum_out, float *exp_max_out, float *o_out, float *o_parts_out,
-               float *qk_tile_fifo, float *pv_tile_fifo, aclrtStream stream, uint8_t *cv_comm_buf = nullptr);
+template <
+    int S0, int HEAD_SIZE, int S1, int CUBE_S0, int CUBE_S1, int TILE_S1, int QK_PRELOAD, int CV_FIFO_SIZE,
+    bool INTERMEDIATE_CHECK, bool CAUSAL_MASK, int CV_FIFO_CONS_SYNC_PERIOD>
+void LaunchTFA(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_tile_fifo, float* exp_max_ififo,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_tile_fifo,
+    float* pv_tile_fifo, aclrtStream stream, uint8_t* cv_comm_buf = nullptr);
 
 #endif // FA_PERFORMANCE_KERNEL_H

@@ -18,15 +18,13 @@ using namespace PtoTestCommon;
 
 class TPOWTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -34,7 +32,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int TRow, int TCol, int validRow, int validCol>
-void LaunchTPow(T *out, T *base, T *exp, void *stream);
+void LaunchTPow(T* out, T* base, T* exp, void* stream);
 
 template <typename T, int Row, int Col, int validRow, int validCol>
 void test_tpow()
@@ -49,12 +47,12 @@ void test_tpow()
     T *dstHost, *baseHost, *expHost;
     T *dstDevice, *baseDevice, *expDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&baseHost), fileSize);
-    aclrtMallocHost((void **)(&expHost), fileSize);
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&baseDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&expDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&baseHost), fileSize);
+    aclrtMallocHost((void**)(&expHost), fileSize);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&baseDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&expDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/base.bin", fileSize, baseHost, fileSize);
     ReadFile(GetGoldenDir() + "/exp.bin", fileSize, expHost, fileSize);
@@ -89,63 +87,18 @@ void test_tpow()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPOWTest, case1)
-{
-    test_tpow<float, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case2)
-{
-    test_tpow<uint16_t, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case3)
-{
-    test_tpow<int32_t, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case4)
-{
-    test_tpow<int16_t, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case5)
-{
-    test_tpow<int8_t, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case6)
-{
-    test_tpow<uint32_t, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case7)
-{
-    test_tpow<uint8_t, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case8)
-{
-    test_tpow<float, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case9)
-{
-    test_tpow<uint16_t, 16, 64, 15, 63>();
-}
-TEST_F(TPOWTest, case10)
-{
-    test_tpow<float, 16, 256, 15, 231>();
-}
-TEST_F(TPOWTest, case11)
-{
-    test_tpow<uint16_t, 16, 512, 16, 400>();
-}
-TEST_F(TPOWTest, case12)
-{
-    test_tpow<float, 1, 64, 1, 64>();
-}
-TEST_F(TPOWTest, case13)
-{
-    test_tpow<float, 1, 64, 1, 64>();
-}
-TEST_F(TPOWTest, case14)
-{
-    test_tpow<float, 1, 64, 1, 64>();
-}
-TEST_F(TPOWTest, case15)
-{
-    test_tpow<float, 1, 64, 1, 64>();
-}
+TEST_F(TPOWTest, case1) { test_tpow<float, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case2) { test_tpow<uint16_t, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case3) { test_tpow<int32_t, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case4) { test_tpow<int16_t, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case5) { test_tpow<int8_t, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case6) { test_tpow<uint32_t, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case7) { test_tpow<uint8_t, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case8) { test_tpow<float, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case9) { test_tpow<uint16_t, 16, 64, 15, 63>(); }
+TEST_F(TPOWTest, case10) { test_tpow<float, 16, 256, 15, 231>(); }
+TEST_F(TPOWTest, case11) { test_tpow<uint16_t, 16, 512, 16, 400>(); }
+TEST_F(TPOWTest, case12) { test_tpow<float, 1, 64, 1, 64>(); }
+TEST_F(TPOWTest, case13) { test_tpow<float, 1, 64, 1, 64>(); }
+TEST_F(TPOWTest, case14) { test_tpow<float, 1, 64, 1, 64>(); }
+TEST_F(TPOWTest, case15) { test_tpow<float, 1, 64, 1, 64>(); }

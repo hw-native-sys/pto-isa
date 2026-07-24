@@ -15,33 +15,33 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <int format, typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
-          int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
-void LaunchTLoad(T *out, T *src, void *stream);
+template <
+    int format, typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
+    int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
+void LaunchTLoad(T* out, T* src, void* stream);
 
 class TLoadGM2L1Test : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <int format, typename DataType, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4,
-          int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
+template <
+    int format, typename DataType, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
+    int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
 void TestTload()
 {
     // format = 0: ND2ND
-    // foramt = 1: DN2DN
+    // format = 1: DN2DN
     // format = 2: NZ2NZ
     // format = 3: ND2NZ
     // format = 4: DN2ZN
@@ -82,15 +82,16 @@ void TestTload()
     DataType *dstHost, *srcHost;
     DataType *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstDataSize);
-    aclrtMallocHost((void **)(&srcHost), srcDataSize);
+    aclrtMallocHost((void**)(&dstHost), dstDataSize);
+    aclrtMallocHost((void**)(&srcHost), srcDataSize);
 
-    aclrtMalloc((void **)&dstDevice, dstDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
     ReadFile(GetGoldenDir() + "/input.bin", srcDataSize, srcHost, srcDataSize);
     aclrtMemcpy(srcDevice, srcDataSize, srcHost, srcDataSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTLoad<format, DataType, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
-                gWholeShape3, gWholeShape4>(dstDevice, srcDevice, stream);
+    LaunchTLoad<
+        format, DataType, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
+        gWholeShape3, gWholeShape4>(dstDevice, srcDevice, stream);
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstDataSize, dstDevice, dstDataSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
@@ -116,50 +117,29 @@ void TestTload()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TLoadGM2L1Test, ND_float_1_1_1_3_128_3_3_3_32_128)
-{
-    TestTload<0, float, 1, 1, 1, 3, 128, 3, 3, 3, 32, 128>();
-}
+TEST_F(TLoadGM2L1Test, ND_float_1_1_1_3_128_3_3_3_32_128) { TestTload<0, float, 1, 1, 1, 3, 128, 3, 3, 3, 32, 128>(); }
 
 TEST_F(TLoadGM2L1Test, ND_int16_t_2_2_1_2_32_3_3_3_111_64)
 {
     TestTload<0, int16_t, 2, 2, 1, 2, 32, 3, 3, 3, 111, 64>();
 }
 
-TEST_F(TLoadGM2L1Test, ND_int8_t_1_2_1_11_32_1_3_2_93_32)
-{
-    TestTload<0, int8_t, 1, 2, 1, 11, 32, 1, 3, 2, 93, 32>();
-}
+TEST_F(TLoadGM2L1Test, ND_int8_t_1_2_1_11_32_1_3_2_93_32) { TestTload<0, int8_t, 1, 2, 1, 11, 32, 1, 3, 2, 93, 32>(); }
 
-TEST_F(TLoadGM2L1Test, ND_int8_t_1_1_1_1_201_1_1_1_1_201)
-{
-    TestTload<0, int8_t, 1, 1, 1, 1, 201, 1, 1, 1, 1, 201>();
-}
+TEST_F(TLoadGM2L1Test, ND_int8_t_1_1_1_1_201_1_1_1_1_201) { TestTload<0, int8_t, 1, 1, 1, 1, 201, 1, 1, 1, 1, 201>(); }
 
-TEST_F(TLoadGM2L1Test, DN_float_1_1_1_128_3_3_3_3_128_32)
-{
-    TestTload<1, float, 1, 1, 1, 128, 3, 3, 3, 3, 128, 32>();
-}
+TEST_F(TLoadGM2L1Test, DN_float_1_1_1_128_3_3_3_3_128_32) { TestTload<1, float, 1, 1, 1, 128, 3, 3, 3, 3, 128, 32>(); }
 
 TEST_F(TLoadGM2L1Test, DN_int16_t_2_2_1_32_2_3_3_3_64_111)
 {
     TestTload<1, int16_t, 2, 2, 1, 32, 2, 3, 3, 3, 64, 111>();
 }
 
-TEST_F(TLoadGM2L1Test, DN_int8_t_1_2_1_32_11_1_3_2_32_93)
-{
-    TestTload<1, int8_t, 1, 2, 1, 32, 11, 1, 3, 2, 32, 93>();
-}
+TEST_F(TLoadGM2L1Test, DN_int8_t_1_2_1_32_11_1_3_2_32_93) { TestTload<1, int8_t, 1, 2, 1, 32, 11, 1, 3, 2, 32, 93>(); }
 
-TEST_F(TLoadGM2L1Test, DN_float_1_1_1_156_1_1_1_1_156_1)
-{
-    TestTload<1, float, 1, 1, 1, 156, 1, 1, 1, 1, 156, 1>();
-}
+TEST_F(TLoadGM2L1Test, DN_float_1_1_1_156_1_1_1_1_156_1) { TestTload<1, float, 1, 1, 1, 156, 1, 1, 1, 1, 156, 1>(); }
 
-TEST_F(TLoadGM2L1Test, NZ_float_1_5_21_16_8_1_5_21_16_8)
-{
-    TestTload<2, float, 1, 5, 21, 16, 8, 1, 5, 21, 16, 8>();
-}
+TEST_F(TLoadGM2L1Test, NZ_float_1_5_21_16_8_1_5_21_16_8) { TestTload<2, float, 1, 5, 21, 16, 8, 1, 5, 21, 16, 8>(); }
 
 TEST_F(TLoadGM2L1Test, NZ_int16_t_2_16_11_16_16_3_23_13_16_16)
 {
@@ -206,10 +186,7 @@ TEST_F(TLoadGM2L1Test, NZ_bfloat16_t_2_4_5_16_16_7_7_7_16_16)
     TestTload<2, uint16_t, 2, 4, 5, 16, 16, 7, 7, 7, 16, 16>();
 }
 
-TEST_F(TLoadGM2L1Test, ND2NZ_bfloat16_t_1_1_1_1_1_1_1_1_1_1)
-{
-    TestTload<3, uint16_t, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1>();
-}
+TEST_F(TLoadGM2L1Test, ND2NZ_bfloat16_t_1_1_1_1_1_1_1_1_1_1) { TestTload<3, uint16_t, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1>(); }
 
 TEST_F(TLoadGM2L1Test, ND2NZ_bfloat16_t_1_1_1_1_1_1_1_1_16_16)
 {
@@ -231,20 +208,14 @@ TEST_F(TLoadGM2L1Test, ND_uint64_2_2_1_2_32_3_3_3_111_64)
     TestTload<0, uint64_t, 2, 2, 1, 2, 32, 3, 3, 3, 111, 64>();
 }
 
-TEST_F(TLoadGM2L1Test, ND_int64_1_2_1_11_32_1_3_2_93_32)
-{
-    TestTload<0, int64_t, 1, 2, 1, 11, 32, 1, 3, 2, 93, 32>();
-}
+TEST_F(TLoadGM2L1Test, ND_int64_1_2_1_11_32_1_3_2_93_32) { TestTload<0, int64_t, 1, 2, 1, 11, 32, 1, 3, 2, 93, 32>(); }
 
 TEST_F(TLoadGM2L1Test, DN_uint64_1_1_1_128_3_3_3_3_128_32)
 {
     TestTload<1, uint64_t, 1, 1, 1, 128, 3, 3, 3, 3, 128, 32>();
 }
 
-TEST_F(TLoadGM2L1Test, DN_int64_2_2_1_32_2_3_3_3_64_111)
-{
-    TestTload<1, int64_t, 2, 2, 1, 32, 2, 3, 3, 3, 64, 111>();
-}
+TEST_F(TLoadGM2L1Test, DN_int64_2_2_1_32_2_3_3_3_64_111) { TestTload<1, int64_t, 2, 2, 1, 32, 2, 3, 3, 3, 64, 111>(); }
 
 TEST_F(TLoadGM2L1Test, DN_uint64_1_2_1_32_11_1_3_2_32_93)
 {

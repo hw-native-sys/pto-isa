@@ -17,7 +17,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int cols, int src_row, int src_validRow>
-__global__ AICORE void runTCOLPROD(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTCOLPROD(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -52,28 +52,28 @@ __global__ AICORE void runTCOLPROD(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int cols, int src_row, int src_validRow>
-void launchTCOLPROD(T *out, T *src, void *stream)
+void launchTCOLPROD(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTCOLPROD<half, cols, src_row, src_validRow><<<1, nullptr, stream>>>((half *)out, (half *)src);
+        runTCOLPROD<half, cols, src_row, src_validRow><<<1, nullptr, stream>>>((half*)out, (half*)src);
     } else {
         runTCOLPROD<T, cols, src_row, src_validRow><<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void launchTCOLPROD<int16_t, 16, 16, 8>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLPROD<int32_t, 16, 16, 8>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLPROD<float, 16, 16, 8>(float *out, float *src, void *stream);
-template void launchTCOLPROD<int16_t, 128, 16, 8>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLPROD<int32_t, 64, 16, 8>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLPROD<float, 64, 16, 8>(float *out, float *src, void *stream);
-template void launchTCOLPROD<int16_t, 512, 16, 8>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLPROD<int32_t, 256, 16, 8>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLPROD<float, 256, 16, 8>(float *out, float *src, void *stream);
-template void launchTCOLPROD<int16_t, 512, 16, 7>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLPROD<int32_t, 256, 32, 31>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLPROD<float, 256, 32, 31>(float *out, float *src, void *stream);
-template void launchTCOLPROD<float, 256, 16, 1>(float *out, float *src, void *stream);
-template void launchTCOLPROD<aclFloat16, 256, 1, 1>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTCOLPROD<aclFloat16, 64, 5, 3>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTCOLPROD<aclFloat16, 16, 8, 4>(aclFloat16 *out, aclFloat16 *src, void *stream);
+template void launchTCOLPROD<int16_t, 16, 16, 8>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLPROD<int32_t, 16, 16, 8>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLPROD<float, 16, 16, 8>(float* out, float* src, void* stream);
+template void launchTCOLPROD<int16_t, 128, 16, 8>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLPROD<int32_t, 64, 16, 8>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLPROD<float, 64, 16, 8>(float* out, float* src, void* stream);
+template void launchTCOLPROD<int16_t, 512, 16, 8>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLPROD<int32_t, 256, 16, 8>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLPROD<float, 256, 16, 8>(float* out, float* src, void* stream);
+template void launchTCOLPROD<int16_t, 512, 16, 7>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLPROD<int32_t, 256, 32, 31>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLPROD<float, 256, 32, 31>(float* out, float* src, void* stream);
+template void launchTCOLPROD<float, 256, 16, 1>(float* out, float* src, void* stream);
+template void launchTCOLPROD<aclFloat16, 256, 1, 1>(aclFloat16* out, aclFloat16* src, void* stream);
+template void launchTCOLPROD<aclFloat16, 64, 5, 3>(aclFloat16* out, aclFloat16* src, void* stream);
+template void launchTCOLPROD<aclFloat16, 16, 8, 4>(aclFloat16* out, aclFloat16* src, void* stream);

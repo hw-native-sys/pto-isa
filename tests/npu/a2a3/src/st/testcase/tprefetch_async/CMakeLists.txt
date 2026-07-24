@@ -17,12 +17,6 @@ target_include_directories(tprefetch_async_kernel PRIVATE
     ${ASCEND_HOME_PATH}/pkg_inc/profiling/
     ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
 )
-target_link_directories(tprefetch_async_kernel PRIVATE
-    ${ASCEND_HOME_PATH}/lib64
-)
-target_link_libraries(tprefetch_async_kernel PRIVATE
-    runtime nnopbase
-)
 target_link_options(tprefetch_async_kernel PRIVATE --cce-fatobj-link)
 
 add_executable(tprefetch_async main.cpp)

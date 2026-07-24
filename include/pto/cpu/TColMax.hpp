@@ -36,18 +36,21 @@ PTO_INTERNAL void CheckCMValid()
 {
     using SrcType = typename TileSrc::DType;
     using DstType = typename TileDst::DType;
-    static_assert((std::is_same_v<SrcType, bfloat16_t> && std::is_same_v<DstType, bfloat16_t>) || // bf162bf16
-                      (std::is_same_v<SrcType, half> && std::is_same_v<DstType, half>) ||         // f162f16
-                      (std::is_same_v<SrcType, half> && std::is_same_v<DstType, float>) ||        // f162f32
-                      (std::is_same_v<SrcType, bfloat16_t> && std::is_same_v<DstType, float>) ||  // bf162f32
-                      (std::is_same_v<SrcType, float> && std::is_same_v<DstType, float>)          // f322f32
-                  ,
-                  "TCOLMAX: Not supported data type");
+    static_assert(
+        (std::is_same_v<SrcType, bfloat16_t> && std::is_same_v<DstType, bfloat16_t>) || // bf162bf16
+            (std::is_same_v<SrcType, half> && std::is_same_v<DstType, half>) ||         // f162f16
+            (std::is_same_v<SrcType, half> && std::is_same_v<DstType, float>) ||        // f162f32
+            (std::is_same_v<SrcType, bfloat16_t> && std::is_same_v<DstType, float>) ||  // bf162f32
+            (std::is_same_v<SrcType, float> && std::is_same_v<DstType, float>) ||       // f322f32
+            (std::is_same_v<SrcType, int8_t> && std::is_same_v<DstType, int8_t>) ||     // f322f32
+            (std::is_same_v<SrcType, uint8_t> && std::is_same_v<DstType, uint8_t>)      // f322f32
+        ,
+        "TCOLMAX: Not supported data type");
     static_assert((TileSrc::Cols == TileDst::Cols), "Inconsistent number of cols");
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TCOLMAX_IMPL(TileDst &dstTile, TileSrc &srcTile)
+PTO_INTERNAL void TCOLMAX_IMPL(TileDst& dstTile, TileSrc& srcTile)
 {
     CheckCMValid<TileDst, TileSrc>();
 

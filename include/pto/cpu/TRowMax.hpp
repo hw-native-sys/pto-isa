@@ -18,8 +18,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename tile_shape_out, typename tile_shape_in>
-void TRowmax_Impl(typename tile_shape_out::TileDType dst, typename tile_shape_in::TileDType src, unsigned validRow,
-                  unsigned validCol)
+void TRowmax_Impl(
+    typename tile_shape_out::TileDType dst, typename tile_shape_in::TileDType src, unsigned validRow, unsigned validCol)
 {
     cpu::parallel_for_1d(0, validRow, static_cast<std::size_t>(validRow) * validCol, [&](std::size_t i) {
         typename tile_shape_out::DType max_val;
@@ -50,7 +50,7 @@ void TRowmax_Impl(typename tile_shape_out::TileDType dst, typename tile_shape_in
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
-PTO_INTERNAL void TROWMAX_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp)
+PTO_INTERNAL void TROWMAX_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp)
 {
     (void)tmp;
     unsigned row = src.GetValidRow();

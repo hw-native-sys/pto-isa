@@ -36,19 +36,7 @@ void runTRowMin()
 
 } // namespace
 
-TEST(TRowMin, float_64x64)
-{
-    runTRowMin<float, 64, 64, 5.0f, 0.0f>();
-}
-TEST(TRowMin, float_16x256)
-{
-    runTRowMin<float, 16, 256, 32.0f, 0.0f>();
-}
-TEST(TRowMin, half_64x128)
-{
-    runTRowMin<half, 64, 128, 5.0f, 0.0f>();
-}
-TEST(TRowMin, half_16x256)
-{
-    runTRowMin<half, 16, 256, 14.0f, 0.0f>();
-}
+TEST(TRowMin, float_64x64) { runTRowMin<float, 64, 64, 5.0f, 0.0f>(); }
+TEST(TRowMin, float_16x256) { runTRowMin<float, 16, 256, 32.0f, 0.0f>(); }
+TEST(TRowMin, half_64x128) { runTRowMin<half, 64, 128, 5.0f, 0.0f>(); }
+TEST(TRowMin, half_16x256) { runTRowMin<half, 16, 256, 14.0f, 0.0f>(); }

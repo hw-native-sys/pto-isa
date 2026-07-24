@@ -18,26 +18,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // ============================================================================
 // 1D Vector Tile Tests
 // ============================================================================
-TEST(TPutAsync, Vec_FloatSmall_4Ranks)
-{
-    ASSERT_TRUE((RunPutAsyncRootPut<float, 256>(4, 4, 0, 0)));
-}
-TEST(TPutAsync, Vec_Int32Large)
-{
-    ASSERT_TRUE((RunPutAsyncRootPut<int32_t, 4096>(2, 2, 0, 0)));
-}
-TEST(TPutAsync, Vec_Uint8Small_8Ranks)
-{
-    ASSERT_TRUE((RunPutAsyncRootPut<uint8_t, 512>(8, 8, 0, 0)));
-}
+TEST(TPutAsync, Vec_FloatSmall_4Ranks) { ASSERT_TRUE((RunPutAsyncRootPut<float, 256>(4, 4, 0, 0))); }
+TEST(TPutAsync, Vec_Int32Large) { ASSERT_TRUE((RunPutAsyncRootPut<int32_t, 4096>(2, 2, 0, 0))); }
+TEST(TPutAsync, Vec_Uint8Small_8Ranks) { ASSERT_TRUE((RunPutAsyncRootPut<uint8_t, 512>(8, 8, 0, 0))); }
 
 // ============================================================================
 // Configurable SdmaBaseConfig Tests
 // ============================================================================
-TEST(TPutAsync, Vec_Int32_QueueNum2)
-{
-    ASSERT_TRUE((RunPutAsyncWithConfig<int32_t, 4096>(2, 2, 0, 0, 4096, 0, 2)));
-}
+TEST(TPutAsync, Vec_Int32_QueueNum2) { ASSERT_TRUE((RunPutAsyncWithConfig<int32_t, 4096>(2, 2, 0, 0, 4096, 0, 2))); }
 TEST(TPutAsync, Vec_Float_SmallBlockBytes)
 {
     ASSERT_TRUE((RunPutAsyncWithConfig<float, 4096>(2, 2, 0, 0, 4096, 0, 1)));
@@ -54,14 +42,8 @@ TEST(TPutAsync, Vec_Float_CommOffset)
 // ============================================================================
 // Multi-Core Tests (blockDim > 1)
 // ============================================================================
-TEST(TPutAsync, Vec_Float_MultiCoreSplit)
-{
-    ASSERT_TRUE((RunPutAsyncMultiCore<float, 2048>(2, 2, 0, 0, 2, 0)));
-}
-TEST(TPutAsync, Vec_Float_MultiCoreIndep)
-{
-    ASSERT_TRUE((RunPutAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1)));
-}
+TEST(TPutAsync, Vec_Float_MultiCoreSplit) { ASSERT_TRUE((RunPutAsyncMultiCore<float, 2048>(2, 2, 0, 0, 2, 0))); }
+TEST(TPutAsync, Vec_Float_MultiCoreIndep) { ASSERT_TRUE((RunPutAsyncMultiCore<float, 256>(2, 2, 0, 0, 2, 1))); }
 
 // ============================================================================
 // Concurrent Per-Rank Scatter Tests (every rank: nranks cores, distinct channels)
@@ -87,7 +69,7 @@ TEST(TPutAsync, ConcurrentRank_FloatIter16Fresh_8Ranks)
     ASSERT_TRUE((RunPutAsyncConcurrentRank<float, 8192>(8, 8, 0, 0, 16, 1)));
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);
     ::testing::InitGoogleTest(&argc, argv);

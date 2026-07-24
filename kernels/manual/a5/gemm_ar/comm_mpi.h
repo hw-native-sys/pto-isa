@@ -27,28 +27,28 @@ using MPI_Datatype = int;
 #define COMM_MPI_CHAR ((MPI_Datatype)0x4c000101)
 #define COMM_MPI_INT ((MPI_Datatype)0x4c000405)
 
-using MpiInitFunc = int (*)(int *, char ***);
-using MpiCommSizeFunc = int (*)(MPI_Comm, int *);
-using MpiCommRankFunc = int (*)(MPI_Comm, int *);
-using MpiBcastFunc = int (*)(void *, int, MPI_Datatype, int, MPI_Comm);
+using MpiInitFunc = int (*)(int*, char***);
+using MpiCommSizeFunc = int (*)(MPI_Comm, int*);
+using MpiCommRankFunc = int (*)(MPI_Comm, int*);
+using MpiBcastFunc = int (*)(void*, int, MPI_Datatype, int, MPI_Comm);
 using MpiBarrierFunc = int (*)(MPI_Comm);
 using MpiFinalizeFunc = int (*)();
 
 namespace comm_mpi {
 
-inline void *&MpiHandle()
+inline void*& MpiHandle()
 {
-    static void *handle = nullptr;
+    static void* handle = nullptr;
     return handle;
 }
 
-inline void *LoadMpiLibrary()
+inline void* LoadMpiLibrary()
 {
-    void *&h = MpiHandle();
+    void*& h = MpiHandle();
     if (h)
         return h;
 
-    const char *envPath = std::getenv("MPI_LIB_PATH");
+    const char* envPath = std::getenv("MPI_LIB_PATH");
     if (envPath) {
         h = dlopen(envPath, RTLD_NOW);
         if (h) {
@@ -57,14 +57,15 @@ inline void *LoadMpiLibrary()
         }
     }
 
-    static const char *candidates[] = {"libmpi.so",
-                                       "libmpich.so",
-                                       "/usr/local/mpich/lib/libmpi.so",
-                                       "/lib/aarch64-linux-gnu/libmpich.so",
-                                       "/lib/x86_64-linux-gnu/libmpich.so",
-                                       "/usr/lib/libmpi.so",
-                                       "/usr/lib/libmpich.so",
-                                       nullptr};
+    static const char* candidates[] = {
+        "libmpi.so",
+        "libmpich.so",
+        "/usr/local/mpich/lib/libmpi.so",
+        "/lib/aarch64-linux-gnu/libmpich.so",
+        "/lib/x86_64-linux-gnu/libmpich.so",
+        "/usr/lib/libmpi.so",
+        "/usr/lib/libmpich.so",
+        nullptr};
     for (int i = 0; candidates[i]; ++i) {
         h = dlopen(candidates[i], RTLD_NOW);
         if (h) {
@@ -77,9 +78,9 @@ inline void *LoadMpiLibrary()
 }
 
 template <typename T>
-inline T GetFunc(const char *name)
+inline T GetFunc(const char* name)
 {
-    void *h = LoadMpiLibrary();
+    void* h = LoadMpiLibrary();
     if (!h)
         return nullptr;
     return reinterpret_cast<T>(dlsym(h, name));
@@ -87,7 +88,7 @@ inline T GetFunc(const char *name)
 
 } // namespace comm_mpi
 
-inline bool CommMpiInit(int *argc, char ***argv)
+inline bool CommMpiInit(int* argc, char*** argv)
 {
     auto fn = comm_mpi::GetFunc<MpiInitFunc>("MPI_Init");
     if (!fn)
@@ -125,7 +126,7 @@ inline int CommMpiSize()
     return size;
 }
 
-inline void CommMpiBcast(void *buf, int count, MPI_Datatype dt, int root)
+inline void CommMpiBcast(void* buf, int count, MPI_Datatype dt, int root)
 {
     auto fn = comm_mpi::GetFunc<MpiBcastFunc>("MPI_Bcast");
     if (fn)

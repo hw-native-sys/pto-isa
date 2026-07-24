@@ -27,16 +27,13 @@ using HookedV2CPipe = TPipe<9, Direction::DIR_V2C, sizeof(float) * 16 * 16, 2>;
 
 std::atomic<uint32_t> g_injected_subblock_id{0};
 std::atomic<uint32_t> g_pipe_hook_call_count{0};
-void *g_pipe_hook_storage = nullptr;
+void* g_pipe_hook_storage = nullptr;
 size_t g_pipe_hook_size = 0;
 uint64_t g_pipe_hook_last_key = 0;
 
-uint32_t MockSubblockIdHook()
-{
-    return g_injected_subblock_id.load(std::memory_order_relaxed);
-}
+uint32_t MockSubblockIdHook() { return g_injected_subblock_id.load(std::memory_order_relaxed); }
 
-void *MockPipeSharedStateHook(uint64_t pipeKey, size_t size)
+void* MockPipeSharedStateHook(uint64_t pipeKey, size_t size)
 {
     g_pipe_hook_last_key = pipeKey;
     g_pipe_hook_size = size;
@@ -45,7 +42,7 @@ void *MockPipeSharedStateHook(uint64_t pipeKey, size_t size)
 }
 
 struct ScopedCpuStubHooks {
-    ScopedCpuStubHooks(void *subblockHook, void *pipeSharedStateHook)
+    ScopedCpuStubHooks(void* subblockHook, void* pipeSharedStateHook)
     {
         pto::cpu_sim::register_hooks(subblockHook, pipeSharedStateHook);
     }
@@ -54,17 +51,20 @@ struct ScopedCpuStubHooks {
     {
         pto::cpu_sim::register_hooks(nullptr, nullptr);
         cpu_sim::reset_execution_context();
+        g_pipe_hook_storage = nullptr;
+        g_pipe_hook_size = 0;
+        g_pipe_hook_last_key = 0;
     }
 };
 
 template <TileSplitAxis SplitAxis>
-using DirBothVecTile =
-    Tile<TileType::Vec, float, (SplitAxis == TileSplitAxis::TILE_UP_DOWN) ? 8 : 16,
-         (SplitAxis == TileSplitAxis::TILE_LEFT_RIGHT) ? 8 : 16, BLayout::RowMajor,
-         (SplitAxis == TileSplitAxis::TILE_UP_DOWN) ? 8 : 16, (SplitAxis == TileSplitAxis::TILE_LEFT_RIGHT) ? 8 : 16>;
+using DirBothVecTile = Tile<
+    TileType::Vec, float, (SplitAxis == TileSplitAxis::TILE_UP_DOWN) ? 8 : 16,
+    (SplitAxis == TileSplitAxis::TILE_LEFT_RIGHT) ? 8 : 16, BLayout::RowMajor,
+    (SplitAxis == TileSplitAxis::TILE_UP_DOWN) ? 8 : 16, (SplitAxis == TileSplitAxis::TILE_LEFT_RIGHT) ? 8 : 16>;
 
 template <typename TileData>
-void fillTileSequence(TileData &tile, float start)
+void fillTileSequence(TileData& tile, float start)
 {
     for (int i = 0; i < tile.Numel; ++i) {
         tile.data()[i] = start + static_cast<float>(i);
@@ -72,7 +72,7 @@ void fillTileSequence(TileData &tile, float start)
 }
 
 template <TileSplitAxis SplitAxis>
-void expectVecMatchesAccSplit(const auto &vec, const auto &acc, uint32_t laneId)
+void expectVecMatchesAccSplit(const auto& vec, const auto& acc, uint32_t laneId)
 {
     for (int r = 0; r < vec.GetValidRow(); ++r) {
         for (int c = 0; c < vec.GetValidCol(); ++c) {
@@ -83,9 +83,10 @@ void expectVecMatchesAccSplit(const auto &vec, const auto &acc, uint32_t laneId)
             } else {
                 srcCol += laneId * vec.GetValidCol();
             }
-            EXPECT_FLOAT_EQ(vec.data()[GetTileElementOffset<std::remove_cvref_t<decltype(vec)>>(r, c)],
-                            acc.data()[GetTileElementOffset<std::remove_cvref_t<decltype(acc)>>(
-                                static_cast<int>(srcRow), static_cast<int>(srcCol))]);
+            EXPECT_FLOAT_EQ(
+                vec.data()[GetTileElementOffset<std::remove_cvref_t<decltype(vec)>>(r, c)],
+                acc.data()[GetTileElementOffset<std::remove_cvref_t<decltype(acc)>>(
+                    static_cast<int>(srcRow), static_cast<int>(srcCol))]);
         }
     }
 }
@@ -99,11 +100,11 @@ void testDirBothConsumerWaitsForMatchingDirection()
     using Pipe = TPipe<FlagId, Direction::DIR_BOTH, sizeof(float) * MatTile::Numel, 2>;
 
     Pipe::reset_for_cpu_sim();
-    Pipe vecProducer0((__gm__ void *)nullptr, 0x0, 0x10000);
-    Pipe vecProducer1((__gm__ void *)nullptr, 0x0, 0x10000);
-    Pipe cubePipe((__gm__ void *)nullptr, 0x0, 0x10000);
-    Pipe vecConsumer0((__gm__ void *)nullptr, 0x0, 0x10000);
-    Pipe vecConsumer1((__gm__ void *)nullptr, 0x0, 0x10000);
+    Pipe vecProducer0((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecProducer1((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe cubePipe((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecConsumer0((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecConsumer1((__gm__ void*)nullptr, 0x0, 0x10000);
 
     VecTile src0;
     VecTile src1;
@@ -117,8 +118,9 @@ void testDirBothConsumerWaitsForMatchingDirection()
     TASSIGN(poppedMat, 2 * VecTile::Numel * sizeof(float));
     TASSIGN(accSrc, 2 * VecTile::Numel * sizeof(float) + MatTile::Numel * sizeof(float));
     TASSIGN(dst0, 2 * VecTile::Numel * sizeof(float) + MatTile::Numel * sizeof(float) + AccTile::Numel * sizeof(float));
-    TASSIGN(dst1, 2 * VecTile::Numel * sizeof(float) + MatTile::Numel * sizeof(float) + AccTile::Numel * sizeof(float) +
-                      VecTile::Numel * sizeof(float));
+    TASSIGN(
+        dst1, 2 * VecTile::Numel * sizeof(float) + MatTile::Numel * sizeof(float) + AccTile::Numel * sizeof(float) +
+                  VecTile::Numel * sizeof(float));
 
     fillTileSequence(src0, 1.0f);
     fillTileSequence(src1, 1001.0f);
@@ -182,7 +184,7 @@ void testDirBothConsumerWaitsForMatchingDirection()
 } // namespace
 
 template <typename T, int rows, int cols, TileType srcLoc>
-void fillTile(auto &tile, int iter)
+void fillTile(auto& tile, int iter)
 {
     for (int i = 0; i < tile.Numel; ++i) {
         tile.data()[i] = static_cast<T>(iter * 1000 + i + 1);
@@ -278,17 +280,12 @@ void testPushPopMultiCore()
 
 class TPushPopTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
-#define TPUSHPOP_TEST(T, rows, cols, srcLoc)                        \
-    TEST_F(TPushPopTest, T##_##rows##_##cols##_##srcLoc)            \
-    {                                                               \
-        testPushPopSingleThread<T, rows, cols, TileType::srcLoc>(); \
-    }
+#define TPUSHPOP_TEST(T, rows, cols, srcLoc) \
+    TEST_F(TPushPopTest, T##_##rows##_##cols##_##srcLoc) { testPushPopSingleThread<T, rows, cols, TileType::srcLoc>(); }
 
 TPUSHPOP_TEST(float, 64, 128, Vec)
 TPUSHPOP_TEST(float, 128, 128, Vec)
@@ -299,10 +296,7 @@ TPUSHPOP_TEST(uint32_t, 128, 128, Vec)
 TPUSHPOP_TEST(uint32_t, 64, 128, Mat)
 TPUSHPOP_TEST(uint32_t, 128, 128, Mat)
 
-TEST_F(TPushPopTest, multicore_float_64_128_Vec)
-{
-    testPushPopMultiCore<float, 64, 128, TileType::Vec>();
-}
+TEST_F(TPushPopTest, multicore_float_64_128_Vec) { testPushPopMultiCore<float, 64, 128, TileType::Vec>(); }
 
 TEST_F(TPushPopTest, a5_style_c2v_local_split_push_pop)
 {
@@ -311,7 +305,7 @@ TEST_F(TPushPopTest, a5_style_c2v_local_split_push_pop)
     using Pipe = TPipe<2, Direction::DIR_C2V, sizeof(float) * VecTile::Numel, 2>;
 
     Pipe::reset_for_cpu_sim();
-    Pipe pipe((__gm__ void *)nullptr, 0x0, 0x0);
+    Pipe pipe((__gm__ void*)nullptr, 0x0, 0x0);
 
     AccTile src;
     VecTile dst;
@@ -342,18 +336,17 @@ TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop)
     using Pipe = TPipe<4, Direction::DIR_C2V, sizeof(float) * VecTile::Numel, 1>;
 
     Pipe::reset_for_cpu_sim();
-    Pipe producer((__gm__ void *)nullptr, 0x0, 0x0);
-    Pipe consumer0((__gm__ void *)nullptr, 0x0, 0x0);
-    Pipe consumer1((__gm__ void *)nullptr, 0x0, 0x0);
+    Pipe producer((__gm__ void*)nullptr, 0x0, 0x0);
+    Pipe consumer0((__gm__ void*)nullptr, 0x0, 0x0);
+    Pipe consumer1((__gm__ void*)nullptr, 0x0, 0x0);
 
     auto run_iteration = [&](int iter) {
         AccTile src;
         VecTile topHalf;
         VecTile bottomHalf;
         TASSIGN(src, 0);
-        TASSIGN(topHalf, AccTile::Numel * sizeof(typename AccTile::DType));
-        TASSIGN(bottomHalf,
-                AccTile::Numel * sizeof(typename AccTile::DType) + VecTile::Numel * sizeof(typename VecTile::DType));
+        TASSIGN(topHalf, AccTile::GetSizeInBytes());
+        TASSIGN(bottomHalf, AccTile::GetSizeInBytes() + VecTile::GetSizeInBytes());
         fillTile<float, 16, 16, TileType::Acc>(src, iter);
         std::fill(topHalf.data(), topHalf.data() + topHalf.Numel, 0.0f);
         std::fill(bottomHalf.data(), bottomHalf.data() + bottomHalf.Numel, 0.0f);
@@ -373,10 +366,12 @@ TEST_F(TPushPopTest, a5_style_c2v_dual_subblock_split_push_pop)
 
         for (int r = 0; r < topHalf.GetValidRow(); ++r) {
             for (int c = 0; c < topHalf.GetValidCol(); ++c) {
-                EXPECT_EQ(topHalf.data()[GetTileElementOffset<VecTile>(r, c)],
-                          src.data()[GetTileElementOffset<AccTile>(r, c)]);
-                EXPECT_EQ(bottomHalf.data()[GetTileElementOffset<VecTile>(r, c)],
-                          src.data()[GetTileElementOffset<AccTile>(r + topHalf.GetValidRow(), c)]);
+                EXPECT_EQ(
+                    topHalf.data()[GetTileElementOffset<VecTile>(r, c)],
+                    src.data()[GetTileElementOffset<AccTile>(r, c)]);
+                EXPECT_EQ(
+                    bottomHalf.data()[GetTileElementOffset<VecTile>(r, c)],
+                    src.data()[GetTileElementOffset<AccTile>(r + topHalf.GetValidRow(), c)]);
             }
         }
 
@@ -403,15 +398,15 @@ TEST_F(TPushPopTest, cpu_stub_prefers_injected_hooks_for_subblock_and_pipe_state
     g_pipe_hook_size = 0;
     g_pipe_hook_last_key = 0;
 
-    ScopedCpuStubHooks hooks(reinterpret_cast<void *>(MockSubblockIdHook),
-                             reinterpret_cast<void *>(MockPipeSharedStateHook));
+    ScopedCpuStubHooks hooks(
+        reinterpret_cast<void*>(MockSubblockIdHook), reinterpret_cast<void*>(MockPipeSharedStateHook));
     cpu_sim::set_execution_context(0, 1, 2);
 
     EXPECT_EQ(get_subblockid(), 7u);
 
-    auto &state = HookTestPipe::GetSharedState();
+    auto& state = HookTestPipe::GetSharedState();
     state.next_producer_slot = 3;
-    auto &stateAgain = HookTestPipe::GetSharedState();
+    auto& stateAgain = HookTestPipe::GetSharedState();
 
     EXPECT_EQ(&state, &stateAgain);
     EXPECT_EQ(stateAgain.next_producer_slot, 3);
@@ -431,12 +426,12 @@ TEST_F(TPushPopTest, v2c_split_with_injected_pipe_hook_waits_for_both_lanes_befo
     g_pipe_hook_size = 0;
     g_pipe_hook_last_key = 0;
 
-    ScopedCpuStubHooks hooks(nullptr, reinterpret_cast<void *>(MockPipeSharedStateHook));
+    ScopedCpuStubHooks hooks(nullptr, reinterpret_cast<void*>(MockPipeSharedStateHook));
     HookedV2CPipe::reset_for_cpu_sim();
 
-    HookedV2CPipe producer0((__gm__ void *)nullptr, 0x0, 0x10000);
-    HookedV2CPipe producer1((__gm__ void *)nullptr, 0x0, 0x10000);
-    HookedV2CPipe consumer((__gm__ void *)nullptr, 0x0, 0x10000);
+    HookedV2CPipe producer0((__gm__ void*)nullptr, 0x0, 0x10000);
+    HookedV2CPipe producer1((__gm__ void*)nullptr, 0x0, 0x10000);
+    HookedV2CPipe consumer((__gm__ void*)nullptr, 0x0, 0x10000);
     VecTile topHalf;
     VecTile bottomHalf;
     MatTile dst;
@@ -452,7 +447,7 @@ TEST_F(TPushPopTest, v2c_split_with_injected_pipe_hook_waits_for_both_lanes_befo
         TPUSH<HookedV2CPipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(producer0, topHalf);
     }
 
-    auto &state = HookedV2CPipe::GetSharedState();
+    auto& state = HookedV2CPipe::GetSharedState();
     EXPECT_EQ(state.occupied, 0);
     EXPECT_EQ(state.next_producer_slot, 0);
     EXPECT_EQ(state.producers_done[0], 0x1u);
@@ -476,10 +471,11 @@ TEST_F(TPushPopTest, v2c_split_with_injected_pipe_hook_waits_for_both_lanes_befo
 
     for (int r = 0; r < topHalf.GetValidRow(); ++r) {
         for (int c = 0; c < topHalf.GetValidCol(); ++c) {
-            EXPECT_EQ(dst.data()[GetTileElementOffset<MatTile>(r, c)],
-                      topHalf.data()[GetTileElementOffset<VecTile>(r, c)]);
-            EXPECT_EQ(dst.data()[GetTileElementOffset<MatTile>(r + topHalf.GetValidRow(), c)],
-                      bottomHalf.data()[GetTileElementOffset<VecTile>(r, c)]);
+            EXPECT_EQ(
+                dst.data()[GetTileElementOffset<MatTile>(r, c)], topHalf.data()[GetTileElementOffset<VecTile>(r, c)]);
+            EXPECT_EQ(
+                dst.data()[GetTileElementOffset<MatTile>(r + topHalf.GetValidRow(), c)],
+                bottomHalf.data()[GetTileElementOffset<VecTile>(r, c)]);
         }
     }
 

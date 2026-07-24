@@ -18,7 +18,7 @@ namespace pto {
 
 // pop tile from fifo for tile data
 template <typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileCons>, int> = 0>
-PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
+PTO_INTERNAL void TPOP_IMPL(Pipe& pipe, TileCons& tile)
 {
     // 1. Cross-Core: Wait for Data
     bool isWait = pipe.cons.getWaitStatus();
@@ -27,7 +27,27 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, TileCons &tile)
     }
 
     // 2. Address Calculation & Load
-    pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile);
+    pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, get_subblockid());
+
+    // 3. Cross-Core: Free Space
+    bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(pipe.cons.tileIndex);
+    if (isFree) {
+        pipe.cons.free();
+    }
+    pipe.cons.tileIndex++;
+}
+
+template <typename Pipe, typename TileCons, TileSplitAxis Split>
+PTO_INTERNAL void TPOP_IMPL(Pipe& pipe, TileCons& tile, int32_t subBlockId)
+{
+    // 1. Cross-Core: Wait for Data
+    bool isWait = pipe.cons.getWaitStatus();
+    if (isWait) {
+        pipe.cons.wait();
+    }
+
+    // 2. Address Calculation & Load
+    pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, subBlockId);
 
     // 3. Cross-Core: Free Space
     bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(pipe.cons.tileIndex);
@@ -55,13 +75,14 @@ PTO_INTERNAL uint64_t getPopSubAIVOffset()
 }
 
 // pop tensor slot entry from global memory
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, GlobalData &gmTensor)
+template <
+    typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TPOP_IMPL(Pipe& pipe, GlobalData& gmTensor)
 {
     static_assert(is_global_data_v<GlobalData>, "Fix: GlobalTensor must satisfy is_global_data_v<GlobalData>.");
-    static_assert(Pipe::is_c2v || Pipe::is_v2c || Pipe::is_both,
-                  "Fix: TPOP with GlobalTensor is only supported by C2V or V2C or Both communication on A2A3.");
+    static_assert(
+        Pipe::is_c2v || Pipe::is_v2c || Pipe::is_both,
+        "Fix: TPOP with GlobalTensor is only supported by C2V or V2C or Both communication on A2A3.");
     // 1. Cross-Core: Wait for Data
     pipe.cons.wait();
 
@@ -83,12 +104,12 @@ PTO_INTERNAL void TPOP_IMPL(Pipe &pipe, GlobalData &gmTensor)
 
     // 3. Increment tile index
     pipe.cons.tileIndex++;
-    TASSIGN_IMPL(gmTensor, reinterpret_cast<typename GlobalData::DType *>(entryBase));
+    TASSIGN_IMPL(gmTensor, reinterpret_cast<typename GlobalData::DType*>(entryBase));
 }
 
 //--------------------------------------------
 template <typename TileData, typename Pipe>
-PTO_INTERNAL void TPOP_IMPL(TileData &tile, Pipe &pipe)
+PTO_INTERNAL void TPOP_IMPL(TileData& tile, Pipe& pipe)
 {
     // 1. Cross-Core: Wait for Data
     bool isWait = pipe.cons.getWaitStatus();

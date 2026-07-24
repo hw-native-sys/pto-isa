@@ -14,11 +14,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 template <typename InputElement>
 class FrontReorderFullLoad : public FrontReorderPathBase {
 public:
-    AICORE inline explicit FrontReorderFullLoad(FrontReorderCommonState &op) : FrontReorderPathBase(op)
-    {}
+    AICORE inline explicit FrontReorderFullLoad(FrontReorderCommonState& op) : FrontReorderPathBase(op) {}
 
-    AICORE inline void Init(GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
-                            const __gm__ MegaMoeTilingData *tilingData)
+    AICORE inline void Init(
+        GM_ADDR xGM, GM_ADDR expertIdGM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+        const __gm__ MegaMoeTilingData* tilingData)
     {
         op_.InitCommonInputs(xGM, expertIdGM, expertTokenNumsGM, workspaceGM, tilingData);
         op_.InitMinimalSortTiling(op_.tilingData_->frontReorderTiling);
@@ -123,35 +123,17 @@ public:
         return AlignBytes<int8_t>(static_cast<uint64_t>(op_.problemK_) * sizeof(int8_t));
     }
 
-    AICORE inline uint64_t QuantScaleBytes() const
-    {
-        return AlignBytes<float>(8U * sizeof(float));
-    }
+    AICORE inline uint64_t QuantScaleBytes() const { return AlignBytes<float>(8U * sizeof(float)); }
 
-    AICORE inline uint64_t FullLoadPayloadUb() const
-    {
-        return FullLoadRouteBytes();
-    }
+    AICORE inline uint64_t FullLoadPayloadUb() const { return FullLoadRouteBytes(); }
 
-    AICORE inline uint64_t FullLoadPackedSortUb() const
-    {
-        return FullLoadPayloadUb() + FullLoadRouteBytes();
-    }
+    AICORE inline uint64_t FullLoadPackedSortUb() const { return FullLoadPayloadUb() + FullLoadRouteBytes(); }
 
-    AICORE inline uint64_t FullLoadMergeTmpUb() const
-    {
-        return FullLoadPackedSortUb() + FullLoadPackedSortBytes();
-    }
+    AICORE inline uint64_t FullLoadMergeTmpUb() const { return FullLoadPackedSortUb() + FullLoadPackedSortBytes(); }
 
-    AICORE inline uint64_t FullLoadSortKeyUb() const
-    {
-        return FullLoadMergeTmpUb() + FullLoadPackedSortBytes();
-    }
+    AICORE inline uint64_t FullLoadSortKeyUb() const { return FullLoadMergeTmpUb() + FullLoadPackedSortBytes(); }
 
-    AICORE inline uint64_t FullLoadExpandedExpertUb() const
-    {
-        return FullLoadSortKeyUb() + FullLoadSortKeyBytes();
-    }
+    AICORE inline uint64_t FullLoadExpandedExpertUb() const { return FullLoadSortKeyUb() + FullLoadSortKeyBytes(); }
 
     AICORE inline uint64_t FullLoadExpandDstToSrcUb() const
     {
@@ -163,50 +145,23 @@ public:
         return FullLoadExpandDstToSrcUb() + FullLoadRouteBytes();
     }
 
-    AICORE inline uint64_t FullLoadSortScratchUb() const
-    {
-        return FullLoadExpandedRowIdxUb() + FullLoadRouteBytes();
-    }
+    AICORE inline uint64_t FullLoadSortScratchUb() const { return FullLoadExpandedRowIdxUb() + FullLoadRouteBytes(); }
 
-    AICORE inline uint64_t FullLoadCountUb() const
-    {
-        return FullLoadSortScratchUb() + FullLoadSortKeyBytes();
-    }
+    AICORE inline uint64_t FullLoadCountUb() const { return FullLoadSortScratchUb() + FullLoadSortKeyBytes(); }
 
-    AICORE inline uint64_t QuantRawUb() const
-    {
-        return FullLoadSortScratchUb();
-    }
+    AICORE inline uint64_t QuantRawUb() const { return FullLoadSortScratchUb(); }
 
-    AICORE inline uint64_t QuantFp32Ub() const
-    {
-        return QuantRawUb() + QuantRawBytes();
-    }
+    AICORE inline uint64_t QuantFp32Ub() const { return QuantRawUb() + QuantRawBytes(); }
 
-    AICORE inline uint64_t QuantTmpUb() const
-    {
-        return QuantFp32Ub() + QuantFp32Bytes();
-    }
+    AICORE inline uint64_t QuantTmpUb() const { return QuantFp32Ub() + QuantFp32Bytes(); }
 
-    AICORE inline uint64_t QuantOutUb() const
-    {
-        return QuantTmpUb() + QuantFp32Bytes();
-    }
+    AICORE inline uint64_t QuantOutUb() const { return QuantTmpUb() + QuantFp32Bytes(); }
 
-    AICORE inline uint64_t QuantScaleUb() const
-    {
-        return QuantOutUb() + QuantOutBytes();
-    }
+    AICORE inline uint64_t QuantScaleUb() const { return QuantOutUb() + QuantOutBytes(); }
 
-    AICORE inline uint64_t QuantActualUbBytes() const
-    {
-        return QuantScaleUb() + QuantScaleBytes();
-    }
+    AICORE inline uint64_t QuantActualUbBytes() const { return QuantScaleUb() + QuantScaleBytes(); }
 
-    AICORE inline uint64_t FullLoadSortActualUbBytes() const
-    {
-        return FullLoadCountUb() + FullLoadCountBytes();
-    }
+    AICORE inline uint64_t FullLoadSortActualUbBytes() const { return FullLoadCountUb() + FullLoadCountBytes(); }
 
     AICORE inline bool FullLoadSortEnabled() const
     {
@@ -219,8 +174,8 @@ public:
        输出 FullLoadExpandedRowIdxUb()[srcRoute] = dstRow。 */
     AICORE inline void BuildInverseExpandedRowIdx(uint32_t totalLength, uint32_t sortNum) const
     {
-        PtoCastUb<float, int32_t>(FullLoadSortKeyUb(), FullLoadExpandDstToSrcUb(), totalLength,
-                                  pto::RoundMode::CAST_ROUND);
+        PtoCastUb<float, int32_t>(
+            FullLoadSortKeyUb(), FullLoadExpandDstToSrcUb(), totalLength, pto::RoundMode::CAST_ROUND);
         pipe_barrier(PIPE_V);
         PtoMulScalarUb<float>(FullLoadSortKeyUb(), FullLoadSortKeyUb(), totalLength, -1.0F);
         pipe_barrier(PIPE_V);
@@ -252,8 +207,8 @@ public:
         FrontSortPayloadTile expandedRowIdxTile(1, totalLength);
         pto::TASSIGN(packedPayloadTile, FullLoadPackedSortUb());
         pto::TASSIGN(expandedRowIdxTile, FullLoadExpandedRowIdxUb());
-        pto::TGATHER<FrontSortPayloadTile, FrontPackedPayloadTile, pto::MaskPattern::P1010>(expandedRowIdxTile,
-                                                                                            packedPayloadTile);
+        pto::TGATHER<FrontSortPayloadTile, FrontPackedPayloadTile, pto::MaskPattern::P1010>(
+            expandedRowIdxTile, packedPayloadTile);
         pipe_barrier(PIPE_V);
     }
 
@@ -271,18 +226,21 @@ public:
         PtoLoadVector<int32_t>(0U, op_.expertIdPtr_, totalLength); // 加载expertId[M, topK]=exprtidvalue 到UB
 
         pto::PtoSetWaitFlag<PIPE_MTE2, PIPE_S>();
-        PtoFillArithProgressionInt32(FullLoadPayloadUb(), 0, 1,
-                                     totalLength); // payload[srcRoute] = srcRoute, 辅助编号加快排序速度
+        PtoFillArithProgressionInt32(
+            FullLoadPayloadUb(), 0, 1,
+            totalLength); // payload[srcRoute] = srcRoute, 辅助编号加快排序速度
         pto::PtoSetWaitFlag<PIPE_S, PIPE_V>();
 
         // First sort output is packed as (sortedExpert, srcRoute) records ordered by expert.
-        FrontSortInt32ToPackedUb(0U, FullLoadPayloadUb(), FullLoadPackedSortUb(), FullLoadMergeTmpUb(),
-                                 FullLoadSortKeyUb(), totalLength, sortNum);
+        FrontSortInt32ToPackedUb(
+            0U, FullLoadPayloadUb(), FullLoadPackedSortUb(), FullLoadMergeTmpUb(), FullLoadSortKeyUb(), totalLength,
+            sortNum);
 
         pipe_barrier(PIPE_V);
         // expandedExpert[dstRow] = sortedExpert, expandDstToSrc[dstRow] = srcRoute.
-        FrontExtractPackedSortResult(FullLoadExpandedExpertUb(), FullLoadExpandDstToSrcUb(), FullLoadSortScratchUb(),
-                                     FullLoadPackedSortUb(), totalLength);
+        FrontExtractPackedSortResult(
+            FullLoadExpandedExpertUb(), FullLoadExpandDstToSrcUb(), FullLoadSortScratchUb(), FullLoadPackedSortUb(),
+            totalLength);
         pipe_barrier(PIPE_V);
 
         // Second sort: use srcRoute as key and dstRow as payload.
@@ -339,7 +297,7 @@ public:
         pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
     }
 
-    AICORE inline bool FullLoadQuantUbReady(const FullLoadRouteTiling &tiling) const
+    AICORE inline bool FullLoadQuantUbReady(const FullLoadRouteTiling& tiling) const
     {
         return tiling.coreRows != 0U && QuantActualUbBytes() <= AtlasA2::UB_SIZE;
     }
@@ -364,7 +322,7 @@ public:
 
         for (uint32_t row = startXRow; row <= endXRow && row < op_.problemM_; ++row) {
             (void)FrontDynamicQuantRowToUb<InputElement>(
-                reinterpret_cast<__gm__ InputElement *>(op_.xPtr_) + static_cast<uint64_t>(row) * op_.problemK_,
+                reinterpret_cast<__gm__ InputElement*>(op_.xPtr_) + static_cast<uint64_t>(row) * op_.problemK_,
                 op_.problemK_, QuantRawUb(), QuantFp32Ub(), QuantTmpUb(), QuantOutUb(), QuantScaleUb());
 
             bool rowStored = false;

@@ -46,10 +46,7 @@ struct CcuBroadcastKernelArg : public CcuRootedKernelArgBase {
     using CcuRootedKernelArgBase::CcuRootedKernelArgBase;
 
 protected:
-    const char *SignatureName() const override
-    {
-        return "pto::comm::ccu::CcuBroadcastKernelArg::v1";
-    }
+    const char* SignatureName() const override { return "pto::comm::ccu::CcuBroadcastKernelArg::v1"; }
 };
 
 static constexpr uint32_t kMaxBroadcastRanks = kMaxCcuMeshRanks;
@@ -65,7 +62,7 @@ namespace detail {
 class CcuBroadcastMesh1D : public CcuRootedMeshKernelBase<CcuBroadcastMesh1D, CcuBroadcastKernelArg> {
 public:
     using Base = CcuRootedMeshKernelBase<CcuBroadcastMesh1D, CcuBroadcastKernelArg>;
-    static constexpr const char *kTraceName = "CCU_BROADCAST";
+    static constexpr const char* kTraceName = "CCU_BROADCAST";
     static constexpr bool kUsePreSync = false;
     static constexpr uint32_t kCkeIdx = 0;
     static constexpr uint32_t kPostSyncId = 3;

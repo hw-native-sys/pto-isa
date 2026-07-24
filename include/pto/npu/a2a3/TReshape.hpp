@@ -19,7 +19,7 @@ full text of the License.
 namespace pto {
 
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut& dst, TileDataIn& src)
 {
 #ifndef __PTO_AUTO__
     static_assert(is_tile_data_v<TileDataIn>, "input must be a Tile instance.");
@@ -43,9 +43,10 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut &dst, TileDataIn &src)
     static_assert(sizeof(DType) * Numel == sizeof(NewElement) * NewNumel, "TRESHAPE: Total byte size must match.");
 
     // 3. reshape between non-boxed and boxed tile is not allowed.
-    static_assert((SFractal == SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
-                      (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
-                  "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
+    static_assert(
+        (SFractal == SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
+            (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
+        "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
 
     TASSIGN_IMPL(dst, reinterpret_cast<uintptr_t>(src.data()));
 #else

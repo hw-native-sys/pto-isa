@@ -121,7 +121,7 @@ def gen_case(param: TScatterParams):
     indices = np.random.randint(0, 2, (param.idx_row, param.idx_col)).astype(param.idx_type)
     indices = recalculate_indices(indices, param.col)
     golden = scatter(src_data, indices)
-
+    
     src_data.tofile("input1.bin")
     indices.tofile("input2.bin")
     golden.tofile("golden.bin")

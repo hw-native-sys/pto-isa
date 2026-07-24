@@ -29,7 +29,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "../kernel/allgather_kernel.h"
 #endif
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     if (!CommMpiInit(&argc, &argv)) {
         std::cerr << "[FATAL] MPI init failed. Launch with: mpirun -n <N> ./allgather_demo" << std::endl;

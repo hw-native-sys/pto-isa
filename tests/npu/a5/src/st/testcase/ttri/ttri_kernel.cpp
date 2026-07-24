@@ -14,10 +14,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-#define PTO_DIV_ROUNDUP(x, y) (((x) + (y)-1) / (y))
+#define PTO_DIV_ROUNDUP(x, y) (((x) + (y) - 1) / (y))
 
 template <typename T, int validRows, int validCols, int upperOrLower>
-__global__ AICORE void runTTri(__gm__ T __out__ *out, int diagonal)
+__global__ AICORE void runTTri(__gm__ T __out__* out, int diagonal)
 {
     constexpr uint16_t alignedCol = PTO_DIV_ROUNDUP(validCols, BLOCK_BYTE_SIZE) * BLOCK_BYTE_SIZE;
 
@@ -39,28 +39,28 @@ __global__ AICORE void runTTri(__gm__ T __out__ *out, int diagonal)
 }
 
 template <typename T, int validRows, int validCols, int upperOrLower>
-void LaunchTTri(T *out, int diagonal, void *stream)
+void LaunchTTri(T* out, int diagonal, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTTri<half, validRows, validCols, upperOrLower><<<1, nullptr, stream>>>((half *)(out), diagonal);
+        runTTri<half, validRows, validCols, upperOrLower><<<1, nullptr, stream>>>((half*)(out), diagonal);
     } else {
         runTTri<T, validRows, validCols, upperOrLower><<<1, nullptr, stream>>>(out, diagonal);
     }
 }
 
-template void LaunchTTri<aclFloat16, 20, 32, 0>(aclFloat16 *out, int diagonal, void *stream);
-template void LaunchTTri<uint8_t, 20, 32, 0>(uint8_t *out, int diagonal, void *stream);
-template void LaunchTTri<float, 32, 91, 0>(float *out, int diagonal, void *stream);
-template void LaunchTTri<float, 128, 128, 0>(float *out, int diagonal, void *stream);
-template void LaunchTTri<float, 32, 91, 1>(float *out, int diagonal, void *stream);
-template void LaunchTTri<float, 128, 128, 1>(float *out, int diagonal, void *stream);
-template void LaunchTTri<float, 763, 32, 0>(float *out, int diagonal, void *stream);
-template void LaunchTTri<float, 763, 32, 1>(float *out, int diagonal, void *stream);
+template void LaunchTTri<aclFloat16, 20, 32, 0>(aclFloat16* out, int diagonal, void* stream);
+template void LaunchTTri<uint8_t, 20, 32, 0>(uint8_t* out, int diagonal, void* stream);
+template void LaunchTTri<float, 32, 91, 0>(float* out, int diagonal, void* stream);
+template void LaunchTTri<float, 128, 128, 0>(float* out, int diagonal, void* stream);
+template void LaunchTTri<float, 32, 91, 1>(float* out, int diagonal, void* stream);
+template void LaunchTTri<float, 128, 128, 1>(float* out, int diagonal, void* stream);
+template void LaunchTTri<float, 763, 32, 0>(float* out, int diagonal, void* stream);
+template void LaunchTTri<float, 763, 32, 1>(float* out, int diagonal, void* stream);
 
 // --- Dynamic (static != valid) variants ---
 
 template <typename T, int staticRows, int staticCols, int validRows, int validCols, int upperOrLower>
-__global__ AICORE void runTTriDyn(__gm__ T __out__ *out, int diagonal)
+__global__ AICORE void runTTriDyn(__gm__ T __out__* out, int diagonal)
 {
     constexpr uint16_t alignedCol = PTO_DIV_ROUNDUP(staticCols, BLOCK_BYTE_SIZE) * BLOCK_BYTE_SIZE;
 
@@ -82,23 +82,23 @@ __global__ AICORE void runTTriDyn(__gm__ T __out__ *out, int diagonal)
 }
 
 template <typename T, int staticRows, int staticCols, int validRows, int validCols, int upperOrLower>
-void LaunchTTriDyn(T *out, int diagonal, void *stream)
+void LaunchTTriDyn(T* out, int diagonal, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTTriDyn<half, staticRows, staticCols, validRows, validCols, upperOrLower>
-            <<<1, nullptr, stream>>>((half *)(out), diagonal);
+            <<<1, nullptr, stream>>>((half*)(out), diagonal);
     } else {
         runTTriDyn<T, staticRows, staticCols, validRows, validCols, upperOrLower>
             <<<1, nullptr, stream>>>(out, diagonal);
     }
 }
 
-template void LaunchTTriDyn<aclFloat16, 30, 208, 30, 208, 1>(aclFloat16 *out, int diagonal, void *stream);
-template void LaunchTTriDyn<aclFloat16, 30, 208, 30, 176, 1>(aclFloat16 *out, int diagonal, void *stream);
-template void LaunchTTriDyn<aclFloat16, 293, 16, 269, 16, 0>(aclFloat16 *out, int diagonal, void *stream);
-template void LaunchTTriDyn<aclFloat16, 293, 16, 293, 16, 0>(aclFloat16 *out, int diagonal, void *stream);
-template void LaunchTTriDyn<aclFloat16, 293, 16, 287, 16, 0>(aclFloat16 *out, int diagonal, void *stream);
-template void LaunchTTriDyn<int8_t, 32, 128, 32, 128, 0>(int8_t *out, int diagonal, void *stream);
-template void LaunchTTriDyn<int8_t, 32, 128, 24, 112, 0>(int8_t *out, int diagonal, void *stream);
-template void LaunchTTriDyn<aclFloat16, 293, 16, 1, 16, 0>(aclFloat16 *out, int diagonal, void *stream);
-template void LaunchTTriDyn<aclFloat16, 293, 16, 2, 16, 0>(aclFloat16 *out, int diagonal, void *stream);
+template void LaunchTTriDyn<aclFloat16, 30, 208, 30, 208, 1>(aclFloat16* out, int diagonal, void* stream);
+template void LaunchTTriDyn<aclFloat16, 30, 208, 30, 176, 1>(aclFloat16* out, int diagonal, void* stream);
+template void LaunchTTriDyn<aclFloat16, 293, 16, 269, 16, 0>(aclFloat16* out, int diagonal, void* stream);
+template void LaunchTTriDyn<aclFloat16, 293, 16, 293, 16, 0>(aclFloat16* out, int diagonal, void* stream);
+template void LaunchTTriDyn<aclFloat16, 293, 16, 287, 16, 0>(aclFloat16* out, int diagonal, void* stream);
+template void LaunchTTriDyn<int8_t, 32, 128, 32, 128, 0>(int8_t* out, int diagonal, void* stream);
+template void LaunchTTriDyn<int8_t, 32, 128, 24, 112, 0>(int8_t* out, int diagonal, void* stream);
+template void LaunchTTriDyn<aclFloat16, 293, 16, 1, 16, 0>(aclFloat16* out, int diagonal, void* stream);
+template void LaunchTTriDyn<aclFloat16, 293, 16, 2, 16, 0>(aclFloat16* out, int diagonal, void* stream);

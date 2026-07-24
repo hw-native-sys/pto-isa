@@ -6,7 +6,7 @@
 
 ## 简介
 
-Tile 与标量的逐元素按位异或。
+Tile与标量的逐元素按位异或。
 
 ## 数学语义
 
@@ -15,8 +15,6 @@ Tile 与标量的逐元素按位异或。
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} \oplus \mathrm{scalar} $$
 
 ## 汇编语法
-
-PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
 
 同步形式：
 
@@ -36,9 +34,10 @@ PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/a
 pto.txors ins(%src, %scalar : !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, typename... WaitEvents>
@@ -47,17 +46,26 @@ PTO_INST RecordEvent TXORS(TileDataDst &dst, TileDataSrc &src0, typename TileDat
 
 ## 约束
 
-!!! warning "约束"
-    - **实现检查 (A2A3)**:
-        - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t` 和 `int32_t`。
-        - `dst`、`src` 和 `tmp` 必须使用相同的元素类型。
-        - 在手动模式下，源、目标和临时存储的内存区域不得重叠。
-    - **实现检查 (A5)**:
-        - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t` 和 `int32_t`。
-        - `dst` 和 `src` 的元素类型必须一致。
-        - `src.GetValidRow()/GetValidCol()` 必须与 `dst` 一致。
-    - **有效区域**:
-        - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+    - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`。
+    - `dst`、`src` 和 `tmp` 必须使用相同的元素类型。
+    - 在手动模式下，源、目标和临时存储的内存区域不得重叠。
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
+    - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`。
+    - `dst` 和 `src` 的元素类型必须一致。
+    - `src.GetValidRow()/GetValidCol()` 必须与 `dst` 一致。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+
+## 临时空间
+
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品
+
+`tmp` **被使用**作为标量XOR分解的中间暂存存储。`tmp` 必须与 `dst` 具有相同的元素类型和有效形状。
+
+### Ascend 950PR/Ascend 950DT
+
+`tmp` 被接口接受但Ascend 950PR/Ascend 950DT实现**不使用**。Ascend 950PR/Ascend 950DT后端使用 `vxor` 向量指令配合广播标量寄存器，不需要暂存Tile存储。`tmp` 仅为了与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品的API兼容性而保留在C++内建接口签名中。
 
 ## 示例
 
@@ -96,7 +104,7 @@ void example() {
 %dst = pto.txors %src, %scalar : (!pto.tile<...>, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = txors %src, %scalar : !pto.tile<...>, i32

@@ -15,10 +15,8 @@ using namespace pto;
 
 class TReshapeTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 TEST_F(TReshapeTest, AliasesBackingStorageInCpuSim)
@@ -29,7 +27,7 @@ TEST_F(TReshapeTest, AliasesBackingStorageInCpuSim)
     SrcTile src;
     DstTile dst;
     TASSIGN(src, 0);
-    TASSIGN(dst, SrcTile::Numel * sizeof(typename SrcTile::DType));
+    TASSIGN(dst, SrcTile::GetSizeInBytes());
 
     for (int i = 0; i < SrcTile::Numel; ++i) {
         src.data()[i] = static_cast<float>(i + 1);

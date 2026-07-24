@@ -16,23 +16,21 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTMATMUL_MX(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3, void *stream);
+void LaunchTMATMUL_MX(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
 
 template <int32_t tilingKey>
-void LaunchTMATMUL_MX_BIAS(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3, uint8_t *src4,
-                           void *stream);
+void LaunchTMATMUL_MX_BIAS(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
 
 class TMATMULMXTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -75,17 +73,17 @@ void TmatmulMXTest(uint32_t M, uint32_t K, uint32_t N, uint32_t validM, uint32_t
     uint8_t *dstHost, *src0Host, *src1Host, *src2Host, *src3Host;
     uint8_t *dstDevice, *src0Device, *src1Device, *src2Device, *src3Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&src2Host), aScaleFileSize);
-    aclrtMallocHost((void **)(&src3Host), bScaleFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&src2Host), aScaleFileSize);
+    aclrtMallocHost((void**)(&src3Host), bScaleFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, aScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src3Device, bScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, aScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src3Device, bScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -98,12 +96,12 @@ void TmatmulMXTest(uint32_t M, uint32_t K, uint32_t N, uint32_t validM, uint32_t
     aclrtMemcpy(src3Device, bScaleFileSize, src3Host, bScaleFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     size_t biasFileSize = isBias ? (1 * validN * sizeof(T)) : 0;
-    uint8_t *src4Host = nullptr;
-    uint8_t *src4Device = nullptr;
+    uint8_t* src4Host = nullptr;
+    uint8_t* src4Device = nullptr;
 
     if (isBias) {
-        aclrtMallocHost((void **)(&src4Host), biasFileSize);
-        aclrtMalloc((void **)&src4Device, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMallocHost((void**)(&src4Host), biasFileSize);
+        aclrtMalloc((void**)&src4Device, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
         ReadFile(GetGoldenDir() + "/bias_gm.bin", biasFileSize, src4Host, biasFileSize);
         aclrtMemcpy(src4Device, biasFileSize, src4Host, biasFileSize, ACL_MEMCPY_HOST_TO_DEVICE);

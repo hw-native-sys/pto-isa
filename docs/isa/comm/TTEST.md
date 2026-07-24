@@ -22,11 +22,9 @@ where `cmp` ∈ {`EQ`, `NE`, `GT`, `GE`, `LT`, `LE`}
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
-
 ```text
-%result = pto.ttest %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32) -> i1
-%result = pto.ttest %signal_matrix, %cmp_value {cmp = #pto.cmp<GE>} : (!pto.memref<i32, MxN>, i32) -> i1
+%result = ttest %signal, %cmp_value {cmp = #pto.cmp<EQ>} : (!pto.memref<i32>, i32) -> i1
+%result = ttest %signal_matrix, %cmp_value {cmp = #pto.cmp<GE>} : (!pto.memref<i32, MxN>, i32) -> i1
 ```
 
 ## C++ Intrinsic
@@ -40,26 +38,25 @@ PTO_INST bool TEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp, 
 
 ## Constraints
 
-!!! warning "Constraints"
-    - **Type constraints**:
-        - `GlobalSignalData::DType` must be `int32_t` (32-bit signal).
-    - **Memory constraints**:
-        - `signalData` must point to local address (on current NPU).
-    - **Return value**:
-        - Returns `true` if condition is satisfied, `false` otherwise.
-        - For signal tensor, returns `true` only if ALL signals satisfy the condition.
-    - **Shape semantics**:
-        - For single signal: Shape is `<1,1,1,1,1>`.
-        - For signal tensor: Shape determines the multi-dimensional region (up to 5-D) to test.
-    - **Comparison operators** (WaitCmp):
-      | Value | Condition |
-      |-------|-----------|
-      | `EQ` | `signal == cmpValue` |
-      | `NE` | `signal != cmpValue` |
-      | `GT` | `signal > cmpValue` |
-      | `GE` | `signal >= cmpValue` |
-      | `LT` | `signal < cmpValue` |
-      | `LE` | `signal <= cmpValue` |
+- **Type constraints**:
+    - `GlobalSignalData::DType` must be `int32_t` (32-bit signal).
+- **Memory constraints**:
+    - `signalData` must point to local address (on current NPU).
+- **Return value**:
+    - Returns `true` if condition is satisfied, `false` otherwise.
+    - For signal tensor, returns `true` only if ALL signals satisfy the condition.
+- **Shape semantics**:
+    - For single signal: Shape is `<1,1,1,1,1>`.
+    - For signal tensor: Shape determines the multi-dimensional region (up to 5-D) to test.
+- **Comparison operators** (WaitCmp):
+  | Value | Condition |
+  |-------|-----------|
+  | `EQ` | `signal == cmpValue` |
+  | `NE` | `signal != cmpValue` |
+  | `GT` | `signal > cmpValue` |
+  | `GE` | `signal >= cmpValue` |
+  | `LT` | `signal < cmpValue` |
+  | `LE` | `signal <= cmpValue` |
 
 ## Examples
 

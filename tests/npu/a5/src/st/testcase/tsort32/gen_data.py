@@ -117,6 +117,7 @@ if __name__ == "__main__":
         "TSort32Test.case4",
         "TSort32Test.case5",
         "TSort32Test.case6",
+        "TSort32Test.case7",
     ]
 
     case_params_list = [
@@ -126,6 +127,7 @@ if __name__ == "__main__":
         tsort32Params(np.float32, 2, 13),
         tsort32Params(np.float32, 1, 4164),
         tsort32Params(np.float32, 2, 2084),
+        tsort32Params(np.float32, 2, 100),
     ]
 
     for i, case_name in enumerate(case_name_list):

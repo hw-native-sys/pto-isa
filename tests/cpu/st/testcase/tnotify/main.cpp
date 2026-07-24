@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TNOTIFY : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <int op_type>
-void LaunchTNotify(int32_t *out, int32_t *src, int32_t *signal, void *stream);
+void LaunchTNotify(int32_t* out, int32_t* src, int32_t* signal, void* stream);
 
 template <int op_type>
 void test_tnotify()
@@ -48,13 +46,13 @@ void test_tnotify()
     int32_t *dstHost, *src0Host, *src1Host;
     int32_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/sharedMemory.bin", fileSize, src0Host, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/signal.bin", fileSize, src1Host, fileSize));
@@ -90,11 +88,5 @@ void test_tnotify()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TNOTIFY, case1)
-{
-    test_tnotify<1>();
-}
-TEST_F(TNOTIFY, case2)
-{
-    test_tnotify<2>();
-}
+TEST_F(TNOTIFY, case1) { test_tnotify<1>(); }
+TEST_F(TNOTIFY, case2) { test_tnotify<2>(); }

@@ -18,7 +18,7 @@ using namespace pto;
 
 namespace {
 template <bool UseMsb>
-std::array<uint32_t, 256> ReferenceHistogram(const std::vector<uint16_t> &values, uint8_t idx)
+std::array<uint32_t, 256> ReferenceHistogram(const std::vector<uint16_t>& values, uint8_t idx)
 {
     std::array<uint32_t, 256> counts{};
     for (uint16_t value : values) {
@@ -31,7 +31,7 @@ std::array<uint32_t, 256> ReferenceHistogram(const std::vector<uint16_t> &values
         }
     }
     uint32_t cumulative = 0;
-    for (auto &count : counts) {
+    for (auto& count : counts) {
         cumulative += count;
         count = cumulative;
     }
@@ -49,9 +49,9 @@ TEST(THistogramCpuSimTest, MsbModeMatchesExactCumulativeHistogram)
     IdxTile idx;
     size_t addr = 0;
     TASSIGN(src, addr);
-    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    addr += SrcTile::GetSizeInBytes();
     TASSIGN(dst, addr);
-    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    addr += DstTile::GetSizeInBytes();
     TASSIGN(idx, addr);
 
     const std::vector<uint16_t> row0 = {0x1201u, 0x1202u, 0x13ffu, 0x1203u, 0x3400u, 0x0101u, 0x0202u, 0x0303u,
@@ -89,9 +89,9 @@ TEST(THistogramCpuSimTest, LsbModeMatchesExactFilteredHistogram)
     IdxTile idx;
     size_t addr = 0;
     TASSIGN(src, addr);
-    addr += SrcTile::Numel * sizeof(typename SrcTile::DType);
+    addr += SrcTile::GetSizeInBytes();
     TASSIGN(dst, addr);
-    addr += DstTile::Numel * sizeof(typename DstTile::DType);
+    addr += DstTile::GetSizeInBytes();
     TASSIGN(idx, addr);
 
     const std::vector<uint16_t> row0 = {0x1201u, 0x1202u, 0x34ffu, 0x12ffu, 0x1210u};

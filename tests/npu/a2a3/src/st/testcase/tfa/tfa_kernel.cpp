@@ -21,8 +21,7 @@ using namespace pto;
 #ifndef FFTS_BUFFER_FLAG_ENUM
 #define FFTS_BUFFER_FLAG_ENUM
 // Buffer flag values for FFTS pipeline coordination
-enum FftsBufferFlag : uint32_t
-{
+enum FftsBufferFlag : uint32_t {
     BUF0_QK_READY,    // Buffer 0: QK data ready
     BUF0_SM_CONSUMED, // Buffer 0: Softmax consumed
     BUF1_SM_READY,    // Buffer 1: Softmax output ready
@@ -32,8 +31,7 @@ enum FftsBufferFlag : uint32_t
 };
 #endif
 
-enum CoreEvtID : uint32_t
-{
+enum CoreEvtID : uint32_t {
     QK_EVENT_ID0,
     QK_EVENT_ID1,
     PV_EVENT_ID0,
@@ -94,10 +92,11 @@ PTO_INLINE AICORE uint32_t assign_tile_buffers(TileType (&tiles)[NumBuffers], ui
     return base_offset + static_cast<uint32_t>(total_storage_bytes);
 }
 
-template <typename TileQType, std::size_t NumQ, typename TileKType, std::size_t NumK, typename TilePType,
-          std::size_t NumP, typename TileVType, std::size_t NumV>
-PTO_INLINE AICORE void allocate_cube_tile_buffers(TileQType (&qTiles)[NumQ], TileKType (&kTiles)[NumK],
-                                                  TilePType (&pTiles)[NumP], TileVType (&vTiles)[NumV])
+template <
+    typename TileQType, std::size_t NumQ, typename TileKType, std::size_t NumK, typename TilePType, std::size_t NumP,
+    typename TileVType, std::size_t NumV>
+PTO_INLINE AICORE void allocate_cube_tile_buffers(
+    TileQType (&qTiles)[NumQ], TileKType (&kTiles)[NumK], TilePType (&pTiles)[NumP], TileVType (&vTiles)[NumV])
 {
     constexpr std::size_t total_bytes =
         tile_buffer_total_bytes<TileQType, NumQ>() + tile_buffer_total_bytes<TileKType, NumK>() +
@@ -112,14 +111,14 @@ PTO_INLINE AICORE void allocate_cube_tile_buffers(TileQType (&qTiles)[NumQ], Til
     (void)l1_offset;
 }
 
-template <typename TileDataF_T, typename ReduceTileF_T, typename TileDataH_T, typename TileOutT, std::size_t SrcBuffers,
-          std::size_t XexpBuffers, std::size_t pvVecBuffers, std::size_t ExpMaxBuffers>
-PTO_INLINE AICORE void allocate_vec_tile_buffers(TileDataF_T (&srcTiles)[SrcBuffers], ReduceTileF_T &m1_local_max,
-                                                 TileDataF_T &input_reduce_tmp, ReduceTileF_T &l1_local_sum,
-                                                 ReduceTileF_T &m2_global_max, ReduceTileF_T &l2_global_sum,
-                                                 ReduceTileF_T (&l1_exp_max)[ExpMaxBuffers],
-                                                 TileDataH_T (&x_expT)[XexpBuffers], TileOutT (&pvTile)[pvVecBuffers],
-                                                 TileOutT &runningOTile)
+template <
+    typename TileDataF_T, typename ReduceTileF_T, typename TileDataH_T, typename TileOutT, std::size_t SrcBuffers,
+    std::size_t XexpBuffers, std::size_t pvVecBuffers, std::size_t ExpMaxBuffers>
+PTO_INLINE AICORE void allocate_vec_tile_buffers(
+    TileDataF_T (&srcTiles)[SrcBuffers], ReduceTileF_T& m1_local_max, TileDataF_T& input_reduce_tmp,
+    ReduceTileF_T& l1_local_sum, ReduceTileF_T& m2_global_max, ReduceTileF_T& l2_global_sum,
+    ReduceTileF_T (&l1_exp_max)[ExpMaxBuffers], TileDataH_T (&x_expT)[XexpBuffers], TileOutT (&pvTile)[pvVecBuffers],
+    TileOutT& runningOTile)
 {
     constexpr std::size_t src_bytes = tile_buffer_total_bytes<TileDataF_T, SrcBuffers>();
     constexpr std::size_t float_tile_bytes = tile_storage_bytes<TileDataF_T>();
@@ -165,7 +164,7 @@ PTO_INLINE AICORE void allocate_vec_tile_buffers(TileDataF_T (&srcTiles)[SrcBuff
 // Keeps a per-type static running index that toggles on every call. Caller may pass
 // `initial_id` (0 or 1) to set the starting buffer index on the first call for that tile type.
 template <typename AccTileT>
-PTO_INLINE AICORE int assign_running_acc_tile(AccTileT &accTile, int initial_id = -1)
+PTO_INLINE AICORE int assign_running_acc_tile(AccTileT& accTile, int initial_id = -1)
 {
     static int running_tile_buffer_idx = 0; // per-instantiation running buffer index: 0 -> base0, 1 -> base1
     if (initial_id == 0 || initial_id == 1) {
@@ -178,11 +177,12 @@ PTO_INLINE AICORE int assign_running_acc_tile(AccTileT &accTile, int initial_id 
     return id;
 }
 
-template <int S0, int HEAD_SIZE, int S1, int CUBE_S1, int QKV_CV_FIFO, bool INTERMEDIATE_CHECK, typename TileMatQData,
-          typename TileMatKData, typename TileQKData>
-PTO_INLINE AICORE void compute_qk(int tile_idx, __gm__ half *q, __gm__ half *k, __gm__ float *qk_out,
-                                  TileMatQData &qMatTile, TileMatKData &kMatTile, TileQKData &qkAccTile,
-                                  uint64_t qkMatTileEventId)
+template <
+    int S0, int HEAD_SIZE, int S1, int CUBE_S1, int QKV_CV_FIFO, bool INTERMEDIATE_CHECK, typename TileMatQData,
+    typename TileMatKData, typename TileQKData>
+PTO_INLINE AICORE void compute_qk(
+    int tile_idx, __gm__ half* q, __gm__ half* k, __gm__ float* qk_out, TileMatQData& qMatTile, TileMatKData& kMatTile,
+    TileQKData& qkAccTile, uint64_t qkMatTileEventId)
 {
     if constexpr (DAV_CUBE) {
         constexpr uint32_t Cube_S0 = S0;
@@ -194,8 +194,9 @@ PTO_INLINE AICORE void compute_qk(int tile_idx, __gm__ half *q, __gm__ half *k, 
 
         using GlobalDataQ =
             GlobalTensor<half, pto::Shape<1, 1, 1, Cube_S0, HEAD_SIZE>, pto::Stride<1, 1, 1, HEAD_SIZE, 1>>;
-        using GlobalDataK = GlobalTensor<half, pto::Shape<1, 1, 1, HEAD_SIZE, Cube_S1>,
-                                         pto::Stride<1, 1, 1, 1, HEAD_SIZE>, Layout::DN>; // BNSD - (N, K) layout
+        using GlobalDataK = GlobalTensor<
+            half, pto::Shape<1, 1, 1, HEAD_SIZE, Cube_S1>, pto::Stride<1, 1, 1, 1, HEAD_SIZE>,
+            Layout::DN>; // BNSD - (N, K) layout
 
         GlobalDataQ qGlobal(q);
         GlobalDataK kGlobal(k + s1_index * HEAD_SIZE);
@@ -239,11 +240,12 @@ PTO_INLINE AICORE void compute_qk(int tile_idx, __gm__ half *q, __gm__ half *k, 
     }
 }
 
-template <int S0, int HEAD_SIZE, int S1, int CUBE_S1, int QKV_CV_FIFO, int PV_CV_FIFO, bool INTERMEDIATE_CHECK,
-          typename TileMatPData, typename TileMatVData, typename TilePVData>
-PTO_INLINE AICORE void compute_pv(int tile_idx, __gm__ half *p_out, __gm__ half *v, __gm__ float *pv_out,
-                                  TileMatPData &pMatTile, TileMatVData &vMatTile, TilePVData &pvAccTile,
-                                  uint64_t svMatTileEventId)
+template <
+    int S0, int HEAD_SIZE, int S1, int CUBE_S1, int QKV_CV_FIFO, int PV_CV_FIFO, bool INTERMEDIATE_CHECK,
+    typename TileMatPData, typename TileMatVData, typename TilePVData>
+PTO_INLINE AICORE void compute_pv(
+    int tile_idx, __gm__ half* p_out, __gm__ half* v, __gm__ float* pv_out, TileMatPData& pMatTile,
+    TileMatVData& vMatTile, TilePVData& pvAccTile, uint64_t svMatTileEventId)
 {
     constexpr uint32_t Cube_S0 = S0;
     constexpr uint32_t Cube_S1 = CUBE_S1;
@@ -258,7 +260,7 @@ PTO_INLINE AICORE void compute_pv(int tile_idx, __gm__ half *p_out, __gm__ half 
 
         wait_flag(PIPE_MTE1, PIPE_MTE2, svMatTileEventId);
 
-        GlobalVT vLoad((__gm__ half *)(v + s1_index * HEAD_SIZE));
+        GlobalVT vLoad((__gm__ half*)(v + s1_index * HEAD_SIZE));
         TLOAD(vMatTile, vLoad);
 
         wait_flag_dev(BUF1_SM_READY); // wait for softmax produce data
@@ -296,7 +298,7 @@ PTO_INLINE AICORE void compute_pv(int tile_idx, __gm__ half *p_out, __gm__ half 
                 static_cast<size_t>(tile_idx) * static_cast<size_t>(S0) * static_cast<size_t>(HEAD_SIZE);
             using GlobalDataPV =
                 GlobalTensor<float, pto::Shape<1, 1, 1, Cube_S0, HEAD_SIZE>, pto::Stride<1, 1, 1, HEAD_SIZE, 1>>;
-            GlobalDataPV pvGlobalTile((__gm__ float *)(pv_out + partialOffsetElems));
+            GlobalDataPV pvGlobalTile((__gm__ float*)(pv_out + partialOffsetElems));
             TSTORE(pvGlobalTile, pvAccTile);
         } else {
             using GlobalDataPV =
@@ -306,20 +308,21 @@ PTO_INLINE AICORE void compute_pv(int tile_idx, __gm__ half *p_out, __gm__ half 
             const uint32_t buf_idx = static_cast<uint32_t>(tile_idx % PV_CV_FIFO);
             const size_t base_elems =
                 static_cast<size_t>(buf_idx) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(HEAD_SIZE);
-            GlobalDataPV pvGlobalTile((__gm__ float *)(pv_out + base_elems));
+            GlobalDataPV pvGlobalTile((__gm__ float*)(pv_out + base_elems));
             TSTORE(pvGlobalTile, pvAccTile);
         }
         ffts_cross_core_sync(PIPE_FIX, getFFTSMsg(0x2, UPDATE_READY)); // notify update produce data
     }
 }
 
-template <int S0, int HEAD_SIZE, int S1, int CUBE_S1, int QKV_CV_FIFO, bool INTERMEDIATE_CHECK, typename TileDataF_T,
-          typename TileDataH_T, typename ReduceTileF_T>
-PTO_INLINE AICORE void compute_p(int tile_idx, bool initFlag, __gm__ float *qk_out, __gm__ half *p_out,
-                                 __gm__ float *p_out_fp32, __gm__ float *global_sum_out, __gm__ float *exp_max_out,
-                                 TileDataF_T &qkVecTile, TileDataH_T &x_expT, TileDataF_T &input_reduce_tmp,
-                                 ReduceTileF_T &m1_local_max, ReduceTileF_T &l1_local_sum, ReduceTileF_T &m2_global_max,
-                                 ReduceTileF_T &l2_global_sum, ReduceTileF_T &l1_exp_max, uint64_t pTileEventId)
+template <
+    int S0, int HEAD_SIZE, int S1, int CUBE_S1, int QKV_CV_FIFO, bool INTERMEDIATE_CHECK, typename TileDataF_T,
+    typename TileDataH_T, typename ReduceTileF_T>
+PTO_INLINE AICORE void compute_p(
+    int tile_idx, bool initFlag, __gm__ float* qk_out, __gm__ half* p_out, __gm__ float* p_out_fp32,
+    __gm__ float* global_sum_out, __gm__ float* exp_max_out, TileDataF_T& qkVecTile, TileDataH_T& x_expT,
+    TileDataF_T& input_reduce_tmp, ReduceTileF_T& m1_local_max, ReduceTileF_T& l1_local_sum,
+    ReduceTileF_T& m2_global_max, ReduceTileF_T& l2_global_sum, ReduceTileF_T& l1_exp_max, uint64_t pTileEventId)
 {
     constexpr uint32_t Vec_S0 = S0 / VEC_CORES;
     constexpr uint32_t Cube_S0 = S0;
@@ -332,7 +335,7 @@ PTO_INLINE AICORE void compute_p(int tile_idx, bool initFlag, __gm__ float *qk_o
         wait_flag_dev(BUF0_QK_READY); // wait for QK produce data
 
         if constexpr (INTERMEDIATE_CHECK) {
-            __gm__ float *qk_ptr = qk_out + Vec_S0 * S1 * get_subblockid();
+            __gm__ float* qk_ptr = qk_out + Vec_S0 * S1 * get_subblockid();
             qk_ptr += s1_index;
             using GlobalDataQK_VEC =
                 GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, S1, 1>>;
@@ -342,7 +345,7 @@ PTO_INLINE AICORE void compute_p(int tile_idx, bool initFlag, __gm__ float *qk_o
             const uint32_t buf_idx = static_cast<uint32_t>(tile_idx % QKV_CV_FIFO);
             const size_t base_elems =
                 static_cast<size_t>(buf_idx) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(Cube_S1);
-            __gm__ float *qk_ptr = qk_out + base_elems + Vec_S0 * Cube_S1 * get_subblockid();
+            __gm__ float* qk_ptr = qk_out + base_elems + Vec_S0 * Cube_S1 * get_subblockid();
             using GlobalDataQK_VEC =
                 GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
             GlobalDataQK_VEC qkGlobalTile(qk_ptr);
@@ -357,11 +360,13 @@ PTO_INLINE AICORE void compute_p(int tile_idx, bool initFlag, __gm__ float *qk_o
 
         wait_flag(PIPE_MTE3, PIPE_V, pTileEventId);
         if (initFlag) {
-            pto_macro_fa_softmax<true, HEAD_SIZE>(x_expT, qkVecTile, m1_local_max, l1_local_sum, m2_global_max,
-                                                  l2_global_sum, l1_exp_max, input_reduce_tmp, qkVecTile);
+            pto_macro_fa_softmax<true, HEAD_SIZE>(
+                x_expT, qkVecTile, m1_local_max, l1_local_sum, m2_global_max, l2_global_sum, l1_exp_max,
+                input_reduce_tmp, qkVecTile);
         } else {
-            pto_macro_fa_softmax<false, HEAD_SIZE>(x_expT, qkVecTile, m1_local_max, l1_local_sum, m2_global_max,
-                                                   l2_global_sum, l1_exp_max, input_reduce_tmp, qkVecTile);
+            pto_macro_fa_softmax<false, HEAD_SIZE>(
+                x_expT, qkVecTile, m1_local_max, l1_local_sum, m2_global_max, l2_global_sum, l1_exp_max,
+                input_reduce_tmp, qkVecTile);
         }
 
         set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -370,41 +375,41 @@ PTO_INLINE AICORE void compute_p(int tile_idx, bool initFlag, __gm__ float *qk_o
         wait_flag_dev(BUF1_SV_CONSUMED); // wait for SV consume data
 
         if constexpr (INTERMEDIATE_CHECK) {
-            __gm__ half *p_ptr = p_out + Vec_S0 * S1 * get_subblockid();
+            __gm__ half* p_ptr = p_out + Vec_S0 * S1 * get_subblockid();
             p_ptr += s1_index;
             using GlobalPTileHalf =
                 GlobalTensor<half, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, S1, 1>>;
-            GlobalPTileHalf pTileHalf((__gm__ half *)(p_ptr));
+            GlobalPTileHalf pTileHalf((__gm__ half*)(p_ptr));
             TSTORE(pTileHalf, x_expT);
         } else {
-            __gm__ half *p_ptr = p_out + Vec_S0 * Cube_S1 * get_subblockid();
+            __gm__ half* p_ptr = p_out + Vec_S0 * Cube_S1 * get_subblockid();
             using GlobalPTileHalf =
                 GlobalTensor<half, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, Cube_S1, 1>>;
             const uint32_t buf_idx = static_cast<uint32_t>(tile_idx % QKV_CV_FIFO);
             const size_t base_elems =
                 static_cast<size_t>(buf_idx) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(Cube_S1);
             p_ptr += base_elems;
-            GlobalPTileHalf pTileHalf((__gm__ half *)(p_ptr));
+            GlobalPTileHalf pTileHalf((__gm__ half*)(p_ptr));
             TSTORE(pTileHalf, x_expT);
         }
 
         ffts_cross_core_sync(PIPE_MTE3, getFFTSMsg(0x2, BUF1_SM_READY)); // notify softmax produce data
 
         if constexpr (INTERMEDIATE_CHECK) {
-            __gm__ float *p_fp32_ptr = p_out_fp32 + Vec_S0 * Cube_S1 * get_subblockid() + s1_index;
+            __gm__ float* p_fp32_ptr = p_out_fp32 + Vec_S0 * Cube_S1 * get_subblockid() + s1_index;
             using GlobalPTileFP32 =
                 GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, Cube_S1>, pto::Stride<1, 1, 1, S1, 1>>;
-            GlobalPTileFP32 pTileFp32((__gm__ float *)(p_fp32_ptr));
+            GlobalPTileFP32 pTileFp32((__gm__ float*)(p_fp32_ptr));
             TSTORE(pTileFp32, qkVecTile); // p_tile_fp32 reuse qk_vec_tile
 
             size_t gsumOffsetElems = static_cast<size_t>(tile_idx) * static_cast<size_t>(S0);
             using GlobalSumT = GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, 1>, pto::Stride<1, 1, 1, 1, 1>>;
-            GlobalSumT gsum((__gm__ float *)(global_sum_out + gsumOffsetElems + Vec_S0 * get_subblockid()));
+            GlobalSumT gsum((__gm__ float*)(global_sum_out + gsumOffsetElems + Vec_S0 * get_subblockid()));
             TSTORE(gsum, l2_global_sum);
 
             size_t expOffsetElems = static_cast<size_t>(tile_idx) * static_cast<size_t>(S0);
             using GlobalExpT = GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, 1>, pto::Stride<1, 1, 1, 1, 1>>;
-            GlobalExpT gexp((__gm__ float *)(exp_max_out + expOffsetElems + Vec_S0 * get_subblockid()));
+            GlobalExpT gexp((__gm__ float*)(exp_max_out + expOffsetElems + Vec_S0 * get_subblockid()));
             TSTORE(gexp, l1_exp_max);
         }
 
@@ -413,11 +418,12 @@ PTO_INLINE AICORE void compute_p(int tile_idx, bool initFlag, __gm__ float *qk_o
     }
 }
 
-template <int S0, int HEAD_SIZE, int S1, int PV_CV_FIFO, bool INTERMEDIATE_CHECK, typename TileOutT,
-          typename ReduceTileF_T>
-PTO_INLINE AICORE void compute_gu(int tile_idx, int num_tiles_s1, __gm__ float *pv_out, __gm__ float *o_out,
-                                  __gm__ float *o_parts_out, TileOutT &runningOTile, TileOutT &pvVecTile,
-                                  ReduceTileF_T &l1_exp_max, ReduceTileF_T &l2_global_sum, uint64_t guEventId)
+template <
+    int S0, int HEAD_SIZE, int S1, int PV_CV_FIFO, bool INTERMEDIATE_CHECK, typename TileOutT, typename ReduceTileF_T>
+PTO_INLINE AICORE void compute_gu(
+    int tile_idx, int num_tiles_s1, __gm__ float* pv_out, __gm__ float* o_out, __gm__ float* o_parts_out,
+    TileOutT& runningOTile, TileOutT& pvVecTile, ReduceTileF_T& l1_exp_max, ReduceTileF_T& l2_global_sum,
+    uint64_t guEventId)
 {
     constexpr uint32_t Vec_S0 = S0 / VEC_CORES;
     constexpr uint32_t Cube_S0 = S0;
@@ -430,7 +436,7 @@ PTO_INLINE AICORE void compute_gu(int tile_idx, int num_tiles_s1, __gm__ float *
         const size_t base_elems =
             static_cast<size_t>(buf_idx) * static_cast<size_t>(Cube_S0) * static_cast<size_t>(HEAD_SIZE);
 
-        __gm__ float *pv_out_ptr = pv_out + base_elems + Vec_S0 * HEAD_SIZE * get_subblockid();
+        __gm__ float* pv_out_ptr = pv_out + base_elems + Vec_S0 * HEAD_SIZE * get_subblockid();
         if constexpr (INTERMEDIATE_CHECK) {
             size_t partialOffsetElemsVec =
                 static_cast<size_t>(tile_idx) * static_cast<size_t>(S0) * static_cast<size_t>(HEAD_SIZE);
@@ -469,7 +475,7 @@ PTO_INLINE AICORE void compute_gu(int tile_idx, int num_tiles_s1, __gm__ float *
             wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
             using GlobalOutT =
                 GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, HEAD_SIZE>, pto::Stride<1, 1, 1, HEAD_SIZE, 1>>;
-            GlobalOutT outGlobal((__gm__ float *)(o_out + Vec_S0 * HEAD_SIZE * get_subblockid()));
+            GlobalOutT outGlobal((__gm__ float*)(o_out + Vec_S0 * HEAD_SIZE * get_subblockid()));
             TSTORE(outGlobal, runningOTile);
         }
 
@@ -481,17 +487,17 @@ PTO_INLINE AICORE void compute_gu(int tile_idx, int num_tiles_s1, __gm__ float *
             using GlobalOutPartT =
                 GlobalTensor<float, pto::Shape<1, 1, 1, Vec_S0, HEAD_SIZE>, pto::Stride<1, 1, 1, HEAD_SIZE, 1>>;
             GlobalOutPartT outPartGM(
-                (__gm__ float *)(o_parts_out + oPartOffsetElems + Vec_S0 * HEAD_SIZE * get_subblockid()));
+                (__gm__ float*)(o_parts_out + oPartOffsetElems + Vec_S0 * HEAD_SIZE * get_subblockid()));
             TSTORE(outPartGM, runningOTile);
         }
     }
 }
 
 template <int S0, int HEAD_SIZE, int S1, int CUBE_S1, bool INTERMEDIATE_CHECK = false>
-__global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__ half *k, __gm__ half *v,
-                              __gm__ half *p_out, __gm__ float *p_out_fp32, __gm__ float *global_sum_out,
-                              __gm__ float *exp_max_out, __gm__ float *o_out, __gm__ float *o_parts_out,
-                              __gm__ float *qk_out, __gm__ float *pv_out)
+__global__ AICORE void runTFA(
+    __gm__ uint64_t* ffts_addr, __gm__ half* q, __gm__ half* k, __gm__ half* v, __gm__ half* p_out,
+    __gm__ float* p_out_fp32, __gm__ float* global_sum_out, __gm__ float* exp_max_out, __gm__ float* o_out,
+    __gm__ float* o_parts_out, __gm__ float* qk_out, __gm__ float* pv_out)
 {
     uint64_t tStart = get_sys_cnt();
 
@@ -567,9 +573,10 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
     using TileOutT = Tile<TileType::Vec, float, Vec_S0, HEAD_SIZE, BLayout::RowMajor, Vec_S0, HEAD_SIZE>;
     TileOutT pvVecTile[outOTileNBuffers];
     TileOutT runningOTile;
-    allocate_vec_tile_buffers<TileDataF_T, ReduceTileF_T, TileDataH_T, TileOutT, srcVecTNBuffers, xexpVecTNBuffers,
-                              outOTileNBuffers>(qkVecTile, m1_local_max, input_reduce_tmp, l1_local_sum, m2_global_max,
-                                                l2_global_sum, l1_exp_max, x_expT, pvVecTile, runningOTile);
+    allocate_vec_tile_buffers<
+        TileDataF_T, ReduceTileF_T, TileDataH_T, TileOutT, srcVecTNBuffers, xexpVecTNBuffers, outOTileNBuffers>(
+        qkVecTile, m1_local_max, input_reduce_tmp, l1_local_sum, m2_global_max, l2_global_sum, l1_exp_max, x_expT,
+        pvVecTile, runningOTile);
 
     int num_tiles_s1 = S1 / Cube_S1;
     if constexpr (DAV_CUBE) {
@@ -607,11 +614,11 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
             if (preload_qk_idx >= preload_pv_offset && preload_pv_tile_idx < pvPreloadNum) {
                 int accId = assign_running_acc_tile(pvAccTile);
                 wait_flag(PIPE_FIX, PIPE_M, accId);
-                compute_pv<S0, HEAD_SIZE, S1, CUBE_S1, pvGlobalTensorNBuffers, guGlobalTensorNBuffers,
-                           INTERMEDIATE_CHECK>(preload_pv_tile_idx, p_out, v, pv_out,
-                                               pMatTile[preload_pv_tile_idx % pMatTNBuffers],
-                                               vMatTile[preload_pv_tile_idx % vMatTNBuffers], pvAccTile,
-                                               preload_pv_tile_idx % vMatTNBuffers + PV_EVENT_ID0);
+                compute_pv<
+                    S0, HEAD_SIZE, S1, CUBE_S1, pvGlobalTensorNBuffers, guGlobalTensorNBuffers, INTERMEDIATE_CHECK>(
+                    preload_pv_tile_idx, p_out, v, pv_out, pMatTile[preload_pv_tile_idx % pMatTNBuffers],
+                    vMatTile[preload_pv_tile_idx % vMatTNBuffers], pvAccTile,
+                    preload_pv_tile_idx % vMatTNBuffers + PV_EVENT_ID0);
                 set_flag(PIPE_FIX, PIPE_M, accId);
                 preload_pv_tile_idx++;
             }
@@ -658,8 +665,8 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
             if (S1_pv_tile_idx != -1) {
                 int accId = assign_running_acc_tile(pvAccTile);
                 wait_flag(PIPE_FIX, PIPE_M, accId);
-                compute_pv<S0, HEAD_SIZE, S1, CUBE_S1, pvGlobalTensorNBuffers, guGlobalTensorNBuffers,
-                           INTERMEDIATE_CHECK>(
+                compute_pv<
+                    S0, HEAD_SIZE, S1, CUBE_S1, pvGlobalTensorNBuffers, guGlobalTensorNBuffers, INTERMEDIATE_CHECK>(
                     S1_pv_tile_idx, p_out, v, pv_out, pMatTile[S1_pv_tile_idx % pMatTNBuffers],
                     vMatTile[S1_pv_tile_idx % vMatTNBuffers], pvAccTile, S1_pv_tile_idx % vMatTNBuffers + PV_EVENT_ID0);
                 set_flag(PIPE_FIX, PIPE_M, accId);
@@ -704,86 +711,87 @@ __global__ AICORE void runTFA(__gm__ uint64_t *ffts_addr, __gm__ half *q, __gm__
 
 // Host wrapper
 template <int S0, int HEAD_SIZE, int S1, int CUBE_S1, bool INTERMEDIATE_CHECK = false>
-void LaunchTFA(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v, aclFloat16 *p_out, float *p_out_fp32,
-               float *global_sum_out, float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-               float *pv_out, void *stream)
+void LaunchTFA(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream)
 {
-    runTFA<S0, HEAD_SIZE, S1, CUBE_S1, INTERMEDIATE_CHECK>
-        <<<1, nullptr, stream>>>((__gm__ uint64_t *)ffts, (half *)q, (half *)k, (half *)v, (half *)p_out, p_out_fp32,
-                                 global_sum_out, exp_max_out, o_out, o_parts_out, qk_out, pv_out);
+    runTFA<S0, HEAD_SIZE, S1, CUBE_S1, INTERMEDIATE_CHECK><<<1, nullptr, stream>>>(
+        (__gm__ uint64_t*)ffts, (half*)q, (half*)k, (half*)v, (half*)p_out, p_out_fp32, global_sum_out, exp_max_out,
+        o_out, o_parts_out, qk_out, pv_out);
 }
 
 // Explicit instantiations for currently used cases
-template void LaunchTFA<64, 128, 256, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                           aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                           float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                           float *pv_out, void *stream);
-template void LaunchTFA<64, 128, 128, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                           aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                           float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                           float *pv_out, void *stream);
-template void LaunchTFA<64, 128, 512, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                           aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                           float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                           float *pv_out, void *stream);
+template void LaunchTFA<64, 128, 256, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<64, 128, 128, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<64, 128, 512, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
 // instantiate debug variant with intermediate checks enabled
-template void LaunchTFA<64, 128, 128, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                 aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                 float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                 float *pv_out, void *stream);
-template void LaunchTFA<64, 128, 256, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                 aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                 float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                 float *pv_out, void *stream);
-template void LaunchTFA<64, 128, 512, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                 aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                 float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                 float *pv_out, void *stream);
+template void LaunchTFA<64, 128, 128, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<64, 128, 256, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<64, 128, 512, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
 
 // Explicit instantiations for S0=128, HEAD=128
-template void LaunchTFA<128, 128, 128, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                            aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                            float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                            float *pv_out, void *stream);
-template void LaunchTFA<128, 128, 256, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                            aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                            float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                            float *pv_out, void *stream);
-template void LaunchTFA<128, 128, 512, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                            aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                            float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                            float *pv_out, void *stream);
+template void LaunchTFA<128, 128, 128, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<128, 128, 256, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<128, 128, 512, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
 
-template void LaunchTFA<128, 128, 2048, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                             aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                             float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                             float *pv_out, void *stream);
+template void LaunchTFA<128, 128, 2048, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
 
-template void LaunchTFA<128, 128, 8192, 128>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                             aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                             float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                             float *pv_out, void *stream);
+template void LaunchTFA<128, 128, 8192, 128>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
 
 // Debug instantiations for S0=128, HEAD=128
-template void LaunchTFA<128, 128, 128, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                  aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                  float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                  float *pv_out, void *stream);
-template void LaunchTFA<128, 128, 256, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                  aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                  float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                  float *pv_out, void *stream);
-template void LaunchTFA<128, 128, 512, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                  aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                  float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                  float *pv_out, void *stream);
+template void LaunchTFA<128, 128, 128, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<128, 128, 256, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
+template void LaunchTFA<128, 128, 512, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
 
-template void LaunchTFA<128, 128, 2048, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                   aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                   float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                   float *pv_out, void *stream);
+template void LaunchTFA<128, 128, 2048, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);
 
-template void LaunchTFA<128, 128, 8192, 128, true>(uint16_t *ffts, aclFloat16 *q, aclFloat16 *k, aclFloat16 *v,
-                                                   aclFloat16 *p_out, float *p_out_fp32, float *global_sum_out,
-                                                   float *exp_max_out, float *o_out, float *o_parts_out, float *qk_out,
-                                                   float *pv_out, void *stream);
+template void LaunchTFA<128, 128, 8192, 128, true>(
+    uint16_t* ffts, aclFloat16* q, aclFloat16* k, aclFloat16* v, aclFloat16* p_out, float* p_out_fp32,
+    float* global_sum_out, float* exp_max_out, float* o_out, float* o_parts_out, float* qk_out, float* pv_out,
+    void* stream);

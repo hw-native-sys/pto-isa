@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <bool UseSdma = true, int AivCores = -1>
-inline void PTO_PREFETCH(__gm__ void *, uint64_t, aclrtStream)
+inline void PTO_PREFETCH(__gm__ void*, uint64_t, aclrtStream)
 {
     (void)UseSdma;
     (void)AivCores;

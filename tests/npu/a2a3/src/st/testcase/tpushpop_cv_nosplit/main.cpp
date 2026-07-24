@@ -17,20 +17,18 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTPushPopMatmulAddNoSplit(uint8_t *ffts, uint8_t *out, uint8_t *srcA, uint8_t *srcB, uint8_t *bias,
-                                    uint8_t *fifoMem, void *stream);
+void LaunchTPushPopMatmulAddNoSplit(
+    uint8_t* ffts, uint8_t* out, uint8_t* srcA, uint8_t* srcB, uint8_t* bias, uint8_t* fifoMem, void* stream);
 
 class TPushPopCVNoSplitTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -56,16 +54,16 @@ void TPushPopMatmulAddNoSplitTestFunc(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *srcAHost, *srcBHost, *biasHost;
     uint8_t *dstDevice, *srcADevice, *srcBDevice, *biasDevice, *fifoMemDevice;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&srcAHost), aFileSize);
-    aclrtMallocHost((void **)(&srcBHost), bFileSize);
-    aclrtMallocHost((void **)(&biasHost), biasFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&srcAHost), aFileSize);
+    aclrtMallocHost((void**)(&srcBHost), bFileSize);
+    aclrtMallocHost((void**)(&biasHost), biasFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&biasDevice, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fifoMemDevice, fifoFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcADevice, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcBDevice, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&biasDevice, biasFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fifoMemDevice, fifoFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, srcAHost, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, srcBHost, bFileSize);
@@ -79,8 +77,8 @@ void TPushPopMatmulAddNoSplitTestFunc(uint32_t M, uint32_t K, uint32_t N)
     uint32_t fftsLen{0};
     rtGetC2cCtrlAddr(&ffts, &fftsLen);
 
-    LaunchTPushPopMatmulAddNoSplit<key>((uint8_t *)ffts, dstDevice, srcADevice, srcBDevice, biasDevice, fifoMemDevice,
-                                        stream);
+    LaunchTPushPopMatmulAddNoSplit<key>(
+        (uint8_t*)ffts, dstDevice, srcADevice, srcBDevice, biasDevice, fifoMemDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TPRELUTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTPrelu(T *out, T *src0, T *src1, void *stream);
+void LaunchTPrelu(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
 void test_tprelu()
@@ -48,13 +46,13 @@ void test_tprelu()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
@@ -89,42 +87,18 @@ void test_tprelu()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPRELUTest, case1)
-{
-    test_tprelu<aclFloat16, 64, 64, 64, 64>();
-}
+TEST_F(TPRELUTest, case1) { test_tprelu<aclFloat16, 64, 64, 64, 64>(); }
 
-TEST_F(TPRELUTest, case2)
-{
-    test_tprelu<aclFloat16, 64, 64, 63, 63>();
-}
+TEST_F(TPRELUTest, case2) { test_tprelu<aclFloat16, 64, 64, 63, 63>(); }
 
-TEST_F(TPRELUTest, case3)
-{
-    test_tprelu<aclFloat16, 1, 16384, 1, 16384>();
-}
+TEST_F(TPRELUTest, case3) { test_tprelu<aclFloat16, 1, 16384, 1, 16384>(); }
 
-TEST_F(TPRELUTest, case4)
-{
-    test_tprelu<aclFloat16, 2048, 16, 2048, 16>();
-}
+TEST_F(TPRELUTest, case4) { test_tprelu<aclFloat16, 2048, 16, 2048, 16>(); }
 
-TEST_F(TPRELUTest, case5)
-{
-    test_tprelu<float, 64, 64, 64, 64>();
-}
+TEST_F(TPRELUTest, case5) { test_tprelu<float, 64, 64, 64, 64>(); }
 
-TEST_F(TPRELUTest, case6)
-{
-    test_tprelu<float, 64, 64, 63, 63>();
-}
+TEST_F(TPRELUTest, case6) { test_tprelu<float, 64, 64, 63, 63>(); }
 
-TEST_F(TPRELUTest, case7)
-{
-    test_tprelu<float, 1, 16384, 1, 16384>();
-}
+TEST_F(TPRELUTest, case7) { test_tprelu<float, 1, 16384, 1, 16384>(); }
 
-TEST_F(TPRELUTest, case8)
-{
-    test_tprelu<float, 2048, 8, 2048, 8>();
-}
+TEST_F(TPRELUTest, case8) { test_tprelu<float, 2048, 8, 2048, 8>(); }

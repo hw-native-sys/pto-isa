@@ -17,22 +17,20 @@ using namespace PtoTestCommon;
 
 class TCOLEXPANDTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     return "../" + suiteName + "." + caseName;
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTCOLEXPAND(T *out, T *src, void *stream);
+void LaunchTCOLEXPAND(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tcolexpand()
@@ -47,11 +45,11 @@ void test_tcolexpand()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize));
 
@@ -81,17 +79,8 @@ void test_tcolexpand()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TCOLEXPANDTest, case_float_64x64_64x64_64x64)
-{
-    test_tcolexpand<float, 64, 64, 64, 64>();
-}
-TEST_F(TCOLEXPANDTest, case_half_16x256_16x256_16x256)
-{
-    test_tcolexpand<aclFloat16, 16, 256, 16, 256>();
-}
+TEST_F(TCOLEXPANDTest, case_float_64x64_64x64_64x64) { test_tcolexpand<float, 64, 64, 64, 64>(); }
+TEST_F(TCOLEXPANDTest, case_half_16x256_16x256_16x256) { test_tcolexpand<aclFloat16, 16, 256, 16, 256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TCOLEXPANDTest, case_bf16_16x256_16x256_16x256)
-{
-    test_tcolexpand<bfloat16_t, 16, 256, 16, 256>();
-}
+TEST_F(TCOLEXPANDTest, case_bf16_16x256_16x256_16x256) { test_tcolexpand<bfloat16_t, 16, 256, 16, 256>(); }
 #endif

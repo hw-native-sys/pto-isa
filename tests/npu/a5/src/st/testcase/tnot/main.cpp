@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TNOTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTNot(T *out, T *input, void *stream);
+void LaunchTNot(T* out, T* input, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tnot()
@@ -48,10 +46,10 @@ void test_tnot()
     T *srcHost, *dstHost;
     T *srcDevice, *dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", fileSize, srcHost, fileSize);
     aclrtMemcpy(srcDevice, fileSize, srcHost, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -80,32 +78,14 @@ void test_tnot()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TNOTTest, case_int8_64x64_64x64_64x64)
-{
-    test_tnot<int8_t, 64, 64, 64, 64>();
-}
+TEST_F(TNOTTest, case_int8_64x64_64x64_64x64) { test_tnot<int8_t, 64, 64, 64, 64>(); }
 
-TEST_F(TNOTTest, case_uint8_60x60_64x64_60x60)
-{
-    test_tnot<u_int8_t, 60, 60, 64, 64>();
-}
+TEST_F(TNOTTest, case_uint8_60x60_64x64_60x60) { test_tnot<u_int8_t, 60, 60, 64, 64>(); }
 
-TEST_F(TNOTTest, case_int16_64x64_64x64_64x64)
-{
-    test_tnot<int16_t, 64, 64, 64, 64>();
-}
+TEST_F(TNOTTest, case_int16_64x64_64x64_64x64) { test_tnot<int16_t, 64, 64, 64, 64>(); }
 
-TEST_F(TNOTTest, case_uint16_60x60_64x64_60x60)
-{
-    test_tnot<u_int16_t, 60, 60, 64, 64>();
-}
+TEST_F(TNOTTest, case_uint16_60x60_64x64_60x60) { test_tnot<u_int16_t, 60, 60, 64, 64>(); }
 
-TEST_F(TNOTTest, case_int32_64x64_64x64_64x64)
-{
-    test_tnot<int32_t, 64, 64, 64, 64>();
-}
+TEST_F(TNOTTest, case_int32_64x64_64x64_64x64) { test_tnot<int32_t, 64, 64, 64, 64>(); }
 
-TEST_F(TNOTTest, case_uint32_60x60_64x64_60x60)
-{
-    test_tnot<u_int32_t, 60, 60, 64, 64>();
-}
+TEST_F(TNOTTest, case_uint32_60x60_64x64_60x60) { test_tnot<u_int32_t, 60, 60, 64, 64>(); }

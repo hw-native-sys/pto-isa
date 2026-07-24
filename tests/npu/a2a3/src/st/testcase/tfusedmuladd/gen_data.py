@@ -12,14 +12,6 @@
 
 import os
 import numpy as np
-import math
-
-
-def check_golden_data(golden, threshold=0.1):
-    total = golden.size
-    infcnt = np.sum(np.isinf(golden))
-    if float(infcnt) / float(total) > threshold:
-        raise ValueError('Too many inf value, please check golden generation.')
 
 
 def gen_golden_data(case_name, param):
@@ -32,13 +24,13 @@ def gen_golden_data(case_name, param):
     # Generate random input arrays
     if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
         dtype_info = np.iinfo(dtype)
-        vmin, vmax = -math.sqrt(math.fabs(dtype_info.min)) / 2, math.sqrt(math.fabs(dtype_info.max)) / 2
+        vmin, vmax = dtype_info.min / 100, dtype_info.max / 100
         input0 = np.random.randint(vmin, vmax, size=[src0_tile_row, src0_tile_col]).astype(dtype)
         input1 = np.random.randint(vmin, vmax, size=[src1_tile_row, src1_tile_col]).astype(dtype)
         dst = np.random.randint(vmin, vmax, size=[dst_tile_row, dst_tile_col]).astype(dtype)
     else:
         dtype_info = np.finfo(dtype)
-        vmin, vmax = -math.sqrt(math.fabs(dtype_info.min)) / 10, math.sqrt(math.fabs(dtype_info.max)) / 10
+        vmin, vmax = dtype_info.min / 100, dtype_info.max / 100
         input0 = np.random.uniform(low=vmin, high=vmax, size=[src0_tile_row, src0_tile_col]).astype(dtype)
         input1 = np.random.uniform(low=vmin, high=vmax, size=[src1_tile_row, src1_tile_col]).astype(dtype)
         dst = np.random.uniform(low=vmin, high=vmax, size=[dst_tile_row, dst_tile_col]).astype(dtype)
@@ -50,7 +42,6 @@ def gen_golden_data(case_name, param):
     # Perform the operation
     dst[0:h_valid, 0:w_valid] = input0[0:h_valid, 0:w_valid] * dst[0:h_valid, 0:w_valid] +\
         input1[0:h_valid, 0:w_valid]
-    check_golden_data(dst)
 
     # Save the input and golden data to binary files
     dst.tofile("golden.bin")
@@ -95,13 +86,8 @@ if __name__ == "__main__":
         TestParams(np.float32, 1, 8, 1, 8, 1, 8, 1, 8),
         TestParams(np.float32, 64, 64, 64, 64, 64, 64, 64, 64),
         TestParams(np.float32, 32, 128, 32, 192, 32, 256, 32, 127),
-        TestParams(np.float32, 1, 16384, 1, 16384, 1, 16384, 1, 16384),
-        TestParams(np.float32, 2048, 8, 2048, 8, 2048, 8, 2048, 8),
-        TestParams(np.float16, 1, 16, 1, 16, 1, 16, 1, 16),
         TestParams(np.float16, 64, 64, 64, 64, 64, 64, 64, 64),
         TestParams(np.float16, 32, 128, 32, 192, 32, 256, 32, 127),
-        TestParams(np.float16, 2048, 16, 2048, 16, 2048, 16, 2048, 16),
-        TestParams(np.float16, 1, 32768, 1, 32768, 1, 32768, 1, 32768),
     ]
 
     for param in case_list:

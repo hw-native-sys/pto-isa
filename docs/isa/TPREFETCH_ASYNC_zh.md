@@ -17,6 +17,7 @@ GM / HBM  --(SDMA CMO prefetch)-->  L2 Cache
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 namespace pto {
@@ -55,7 +56,7 @@ evt.Wait(ctx.session);
 - 源数据必须位于 Global Memory (GM/HBM)。
 - GlobalTensor 必须是平坦连续的一维布局。
 - SDMA workspace 需要在 kernel 启动前由 Host 侧初始化，并传入 kernel。
-- `PrefetchAsyncContext` 内部持有 256-byte UB scratch tile 和 `AsyncSession`，用于构造 SDMA 元数据并等待事件完成。
+- `PrefetchAsyncContext` 内部持有 256-Byte UB scratch tile 和 `AsyncSession`，用于构造 SDMA 元数据并等待事件完成。
 - SDMA CMO 按 cache line 粒度工作，非对齐范围由硬件处理。
 - CPU simulation 后端中该指令为空操作，返回空 `AsyncEvent`。
 
@@ -68,3 +69,30 @@ evt.Wait(ctx.session);
 | UB 占用 | 需要目标 Tile | 数据不占用 UB，仅内部使用 scratch |
 | 同步方式 | 同步 | 异步 (`AsyncEvent`) |
 | 典型用途 | 小数据预取到 UB | 大数据或跨阶段数据预热到 L2 |
+
+## 示例
+
+### 基本用法
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+__global__ AICORE void my_kernel(__gm__ half *src, __gm__ half *dst,
+                                 __gm__ uint8_t *workspace)
+{
+    using GShape = Shape<1, 1, 1, 1, 16384>;
+    using GStride = Stride<1, 1, 1, 1, 1>;
+    GlobalTensor<half, GShape, GStride> srcGlobal(src);
+
+    PrefetchAsyncContext ctx(workspace);
+    auto evt = TPREFETCH_ASYNC(srcGlobal, ctx);
+    evt.Wait(ctx.session);
+
+    using TileData = Tile<TileType::Vec, half, 128, 128, BLayout::RowMajor>;
+    TileData tile;
+    TASSIGN(tile, 0x100);
+    TLOAD(tile, srcGlobal);
+}
+```

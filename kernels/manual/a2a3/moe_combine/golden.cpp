@@ -14,10 +14,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace moe_combine {
 
-CpuGoldenData ComputeCpuGolden(const MoeCombineArgs &args, const HostInputData &inputs, uint32_t myRank)
+CpuGoldenData ComputeCpuGolden(const MoeCombineArgs& args, const HostInputData& inputs, uint32_t myRank)
 {
     (void)inputs;
-    const MoeCombineShape &shape = args.shape;
+    const MoeCombineShape& shape = args.shape;
     uint32_t expertNumPadded = static_cast<uint32_t>(ExpertNumPadded(shape));
 
     std::vector<HostInputData> worldInputs = golden_detail::LoadOrGenerateWorldInputs(args);
@@ -26,8 +26,9 @@ CpuGoldenData ComputeCpuGolden(const MoeCombineArgs &args, const HostInputData &
     std::vector<std::vector<int32_t>> expandedBySrc;
 
     CpuGoldenData golden;
-    golden_detail::BuildRoutes(args, worldInputs, &routesBySrcExpert, &packedBySrc, &expandedBySrc,
-                               &golden.peerTokenPerExpert, &golden.totalRoutes, &golden.invalidRoutes);
+    golden_detail::BuildRoutes(
+        args, worldInputs, &routesBySrcExpert, &packedBySrc, &expandedBySrc, &golden.peerTokenPerExpert,
+        &golden.totalRoutes, &golden.invalidRoutes);
 
     InitGoldenLocalData(shape, myRank, expertNumPadded, packedBySrc, expandedBySrc, &golden);
     BuildCumsumPerExpert(shape, expertNumPadded, &golden);
@@ -40,8 +41,8 @@ CpuGoldenData ComputeCpuGolden(const MoeCombineArgs &args, const HostInputData &
     return golden;
 }
 
-CompareResult CompareOutputs(const MoeCombineArgs &args, const CpuGoldenData &golden,
-                             const std::vector<float> &actualOutputC, uint32_t myRank)
+CompareResult CompareOutputs(
+    const MoeCombineArgs& args, const CpuGoldenData& golden, const std::vector<float>& actualOutputC, uint32_t myRank)
 {
     (void)myRank;
     CompareResult result{};

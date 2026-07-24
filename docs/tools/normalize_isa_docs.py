@@ -62,8 +62,8 @@ _EXPLICIT_FALLBACK_FORMS: Dict[str, Dict[str, str]] = {
         "level2": "pto.tquant ins(%src, %qp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)",
     },
     "SETFMATRIX": {
-        "level1": "pto.setfmatrix %cfg : !pto.fmatrix_config -> ()",
-        "level2": "pto.setfmatrix ins(%cfg : !pto.fmatrix_config) outs()",
+        "level1": "pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()",
+        "level2": "pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()",
     },
     "TTRI": {
         "level1": "%dst = pto.ttri %src0, %src1 : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>",
@@ -182,8 +182,7 @@ def _render_dps_from_level1(level1: str) -> str:
             continue
 
         semi_typed = re.match(
-            r"(?:(?P<res>[%@][^=\n]*?)\s*=\s*)?pto\.(?P<op>[a-z][a-z0-9_.]*)\s*(?P<args>.*?)\s*:\s*(?P<ins>.+)$",
-            line,
+            r"(?:(?P<res>[%@][^=\n]*?)\s*=\s*)?pto\.(?P<op>[a-z][a-z0-9_.]*)\s*(?P<args>.*?)\s*:\s*(?P<ins>.+)$", line
         )
         if semi_typed:
             res = (semi_typed.group("res") or "").strip()
@@ -251,7 +250,9 @@ def _resolve_level_formats(instr: str, assembly_body: str, level_formats: Dict[s
         level1 = "// Level 1 (SSA) does not support explicit synchronization primitives."
         level2 = _sync_level2_from_table(level_formats)
         if not level2:
-            level2 = "pto.record_event[src_op, dst_op, eventID]\npto.wait_event[src_op, dst_op, eventID]\npto.barrier(op)\n\nNote: for the current PTO-DSL front-end flow, prefer sync-free source plus `ptoas --enable-insert-sync`."
+            level2 = (
+                "pto.record_event[src_op, dst_op, eventID]\npto.wait_event[src_op, dst_op, eventID]\npto.barrier(op)"
+            )
         return {"level1": level1, "level2": level2}
 
     item = level_formats.get(instr, {})
@@ -319,7 +320,6 @@ For `TGEMV_MX`, scale tiles participate in implementation-defined mixed-precisio
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.
 
 Schematic form:
 
@@ -374,7 +374,6 @@ $$
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.
 
 Synchronous form:
 
@@ -429,8 +428,8 @@ void example_manual() {
 ```
 """
 
-    if instr == "SETHF32MODE":
-        return """# SETHF32MODE
+    if instr == "TSETHF32MODE":
+        return """# TSETHF32MODE
 
 ## Introduction
 
@@ -444,12 +443,11 @@ No direct tensor arithmetic is produced by this instruction. It updates target m
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.
 
 Schematic form:
 
 ```text
-sethf32mode {enable = true, mode = ...}
+tsethf32mode {enable = true, mode = ...}
 ```
 
 ## C++ Intrinsic
@@ -458,7 +456,7 @@ Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <bool isEnable, RoundMode hf32TransMode = RoundMode::CAST_ROUND, typename... WaitEvents>
-PTO_INST RecordEvent SETHF32MODE(WaitEvents &... events);
+PTO_INST RecordEvent TSETHF32MODE(WaitEvents &... events);
 ```
 
 ## Constraints
@@ -474,13 +472,13 @@ PTO_INST RecordEvent SETHF32MODE(WaitEvents &... events);
 using namespace pto;
 
 void example_enable_hf32() {
-  SETHF32MODE<true, RoundMode::CAST_ROUND>();
+  TSETHF32MODE<true, RoundMode::CAST_ROUND>();
 }
 ```
 """
 
-    if instr == "SETTF32MODE":
-        return """# SETTF32MODE
+    if instr == "TSETTF32MODE":
+        return """# TSETTF32MODE
 
 ## Introduction
 
@@ -494,12 +492,11 @@ No direct tensor arithmetic is produced by this instruction. It updates target m
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.
 
 Schematic form:
 
 ```text
-settf32mode {enable = true, mode = ...}
+tsettf32mode {enable = true, mode = ...}
 ```
 
 ## C++ Intrinsic
@@ -508,7 +505,7 @@ Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <bool isEnable, RoundMode tf32TransMode = RoundMode::CAST_ROUND, typename... WaitEvents>
-PTO_INST RecordEvent SETTF32MODE(WaitEvents &... events);
+PTO_INST RecordEvent TSETTF32MODE(WaitEvents &... events);
 ```
 
 ## Constraints
@@ -524,7 +521,7 @@ PTO_INST RecordEvent SETTF32MODE(WaitEvents &... events);
 using namespace pto;
 
 void example_enable_tf32() {
-  SETTF32MODE<true, RoundMode::CAST_ROUND>();
+  TSETTF32MODE<true, RoundMode::CAST_ROUND>();
 }
 ```
 """
@@ -541,7 +538,6 @@ Semantics are instruction-specific. Unless stated otherwise, behavior is defined
 
 ## Assembly Syntax
 
-PTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.
 
 ## C++ Intrinsic
 
@@ -570,12 +566,7 @@ def ensure_top_block(instr: str, text: str) -> str:
     if len(lines) > 1 and lines[1].strip() == "":
         insert_at = 2
 
-    block = [
-        "## Tile Operation Diagram",
-        "",
-        f"![{instr} tile operation]({svg_token})",
-        "",
-    ]
+    block = ["## Tile Operation Diagram", "", f"![{instr} tile operation]({svg_token})", ""]
 
     out = lines[:insert_at] + block + lines[insert_at:]
     return "\n".join(out).rstrip() + "\n"
@@ -588,22 +579,13 @@ def ensure_required_sections(instr: str, text: str) -> str:
             "Math Interpretation",
             "## Math Interpretation\n\nUnless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.\n",
         ),
-        (
-            "Assembly Syntax",
-            "## Assembly Syntax\n\nPTO-AS form: see `docs/isa/syntax-and-operands/assembly-model.md`.\n",
-        ),
-        (
-            "C++ Intrinsic",
-            "## C++ Intrinsic\n\nDeclared in `include/pto/common/pto_instr.hpp`.\n",
-        ),
+        ("Assembly Syntax", "## Assembly Syntax\n\nProvide the instruction textual form when one is defined.\n"),
+        ("C++ Intrinsic", "## C++ Intrinsic\n\nDeclared in `include/pto/common/pto_instr.hpp`.\n"),
         (
             "Constraints",
             "## Constraints\n\nType/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative for that backend.\n",
         ),
-        (
-            "Examples",
-            "## Examples\n\nSee related examples in `docs/isa/` and `docs/coding/tutorials/`.\n",
-        ),
+        ("Examples", "## Examples\n\nSee related examples in `docs/isa/` and `docs/coding/tutorials/`.\n"),
     ]
 
     out = text.rstrip() + "\n"
@@ -653,7 +635,10 @@ def _translate_zh_line_segment(seg: str) -> str:
         ("Index-based gather (conceptual):", "基于索引的 gather（概念性定义）："),
         ("Mask-pattern gather:", "基于掩码模式的 gather："),
         ("Mask-pattern gather is", "掩码模式 gather 属于"),
-        ("Exact index interpretation and bounds behavior are implementation-defined.", "索引解释方式与越界行为为实现定义。"),
+        (
+            "Exact index interpretation and bounds behavior are implementation-defined.",
+            "索引解释方式与越界行为为实现定义。",
+        ),
         ("Implementation checks", "实现检查"),
         ("Valid region", "有效区域"),
         ("Runtime valid checks", "运行期有效区域检查"),
@@ -664,7 +649,10 @@ def _translate_zh_line_segment(seg: str) -> str:
         ("DType consistency", "数据类型一致性"),
         ("Recommended", "推荐"),
         ("To be removed", "将移除"),
-        ("See related examples in `docs/isa/` and `docs/coding/tutorials/`.", "更多用法示例参见 `docs/isa/` 与 `docs/coding/tutorials/`。"),
+        (
+            "See related examples in `docs/isa/` and `docs/coding/tutorials/`.",
+            "更多用法示例参见 `docs/isa/` 与 `docs/coding/tutorials/`。",
+        ),
         ("For each element", "对每个元素"),
         ("For each source element", "对每个源元素"),
         ("For each", "对每个"),
@@ -726,7 +714,9 @@ def build_zh_page(instr: str, summary_zh: str, en_text: str) -> str:
     lines.append(summary_zh.strip() or f"{instr} 指令。")
     if intro_en:
         intro_lines = [ln for ln in intro_en.splitlines() if ln.strip()]
-        is_substantive = len(intro_lines) > 2 or any(ln.lstrip().startswith(("-", "*")) for ln in intro_lines) or "```" in intro_en
+        is_substantive = (
+            len(intro_lines) > 2 or any(ln.lstrip().startswith(("-", "*")) for ln in intro_lines) or "```" in intro_en
+        )
         if is_substantive:
             lines.append("")
             lines.append(_translate_md_to_zh(intro_en))
@@ -743,7 +733,7 @@ def build_zh_page(instr: str, summary_zh: str, en_text: str) -> str:
     if asm_en:
         lines.append(_translate_md_to_zh(asm_en))
     else:
-        lines.append("PTO-AS 形式：参见 `docs/isa/syntax-and-operands/assembly-model.md`。")
+        lines.append("按需给出该指令的文本形式。")
     lines.append("")
     lines.append("## C++ 内建接口")
     lines.append("")

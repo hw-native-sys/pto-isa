@@ -38,8 +38,9 @@ def gen_golden_data(case_name, param):
     input1[0:v_valid_row, 0:v_valid_col0] = input1_valid
     input2[0:v_valid_row, 0:v_valid_col1] = input2_valid
     if (idx_tiles != 'none'):
-        input1_idx_valid = np.random.uniform(0, v_valid_col0, size=(v_valid_row, 1)).astype(idxtype)
-        input2_idx_valid = np.random.uniform(0, v_valid_col1, size=(v_valid_row, 1)).astype(idxtype)
+        elem_size = np.dtype(idxtype).itemsize
+        input1_idx_valid = np.random.uniform(0, v_valid_col0 * elem_size, size=(v_valid_row, 1)).astype(idxtype)
+        input2_idx_valid = np.random.uniform(0, v_valid_col1 * elem_size, size=(v_valid_row, 1)).astype(idxtype)
         input1_idx = np.zeros([src0_idx_row, src0_idx_col]).astype(idxtype)
         input2_idx = np.zeros([src1_idx_row, src1_idx_col]).astype(idxtype)
         input1_idx[0:v_valid_row, 0:1] = input1_idx_valid
@@ -59,8 +60,8 @@ def gen_golden_data(case_name, param):
         if (idx_tiles == 'dst'):
             golden_idx[:v_valid_row, :1] = (input1_idx + input2_idx)[:v_valid_row, :1]
         for i in range(v_valid_row):
-            col1_len = input1_idx[i, 0]
-            col2_len = input2_idx[i, 0]
+            col1_len = int(input1_idx[i, 0] // elem_size)
+            col2_len = int(input2_idx[i, 0] // elem_size)
 
             golden[i, :col1_len] = input1[i, :col1_len]
             golden[i, col1_len:col1_len + col2_len] = input2[i, :col2_len]

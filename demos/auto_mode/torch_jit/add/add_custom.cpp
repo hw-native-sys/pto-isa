@@ -20,7 +20,7 @@ constexpr unsigned UB_SIZE = 0x30000;                 // 192KB UB of A2A3
 constexpr unsigned MAX_TILE_SIZE = (0x10000 - 0x100); // Maximum tile size
 
 template <typename T, unsigned tileRows, unsigned tileCols>
-AICORE void runTAdd(__gm__ T *z, __gm__ T *x, __gm__ T *y, uint32_t totalLength)
+AICORE void runTAdd(__gm__ T* z, __gm__ T* x, __gm__ T* y, uint32_t totalLength)
 {
 #if __CCE_AICORE__ == 220 && defined(__DAV_C220_VEC__)
 
@@ -57,16 +57,16 @@ AICORE void runTAdd(__gm__ T *z, __gm__ T *x, __gm__ T *y, uint32_t totalLength)
 }
 
 // kernel entry
-__global__ AICORE void add_custom(__gm__ void *x, __gm__ void *y, __gm__ void *z, uint32_t totalLength)
+__global__ AICORE void add_custom(__gm__ void* x, __gm__ void* y, __gm__ void* z, uint32_t totalLength)
 {
     // Define the tile size
     constexpr unsigned tileRows = 20;
     constexpr unsigned tileCols = 2048;
     // main kernel, totalLength is dynamic input
-    runTAdd<half, tileRows, tileCols>((__gm__ half *)z, (__gm__ half *)x, (__gm__ half *)y, totalLength);
+    runTAdd<half, tileRows, tileCols>((__gm__ half*)z, (__gm__ half*)x, (__gm__ half*)y, totalLength);
 }
 
-extern "C" void call_kernel(uint32_t blockDim, void *stream, uint8_t *x, uint8_t *y, uint8_t *z, int N)
+extern "C" void call_kernel(uint32_t blockDim, void* stream, uint8_t* x, uint8_t* y, uint8_t* z, int N)
 {
     add_custom<<<blockDim, nullptr, stream>>>(x, y, z, N);
 }

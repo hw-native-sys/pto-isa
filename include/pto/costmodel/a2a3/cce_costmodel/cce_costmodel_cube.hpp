@@ -17,8 +17,9 @@ constexpr uint64_t kDefaultHeadCycles = 6;
 }
 
 template <typename CType, typename AType, typename BType>
-inline void mad(CType c, AType a, BType b, auto m, auto k, auto n, auto phase, auto kDirectionAlign, auto cmatrixSource,
-                auto cmatrixInitVal)
+inline void mad(
+    CType c, AType a, BType b, auto m, auto k, auto n, auto phase, auto kDirectionAlign, auto cmatrixSource,
+    auto cmatrixInitVal)
 {
     constexpr uint64_t kCyclePerRepeatForFloat = 2;
     using dtype_a = std::remove_pointer_t<AType>;
@@ -29,8 +30,9 @@ inline void mad(CType c, AType a, BType b, auto m, auto k, auto n, auto phase, a
     const uint64_t mTiles = CeilDiv(m, 16);
     const uint64_t kTiles = CeilDiv(k, 32 / sizeof(dtype_a));
     const uint64_t nTiles = CeilDiv(n, 16);
-    const uint64_t cycles = EstimateLinearCycles(::pto::mocker::evaluator::PipeKey::CUBE, mTiles * kTiles * nTiles,
-                                                 kDefaultHeadCycles, cycle_per_repeat);
-    ::pto::mocker::RecordCceCall(::pto::mocker::evaluator::PipeKey::CUBE, "mad", cycles, c, a, b, m, k, n, phase,
-                                 kDirectionAlign, cmatrixSource, cmatrixInitVal);
+    const uint64_t cycles = EstimateLinearCycles(
+        ::pto::mocker::evaluator::PipeKey::CUBE, mTiles * kTiles * nTiles, kDefaultHeadCycles, cycle_per_repeat);
+    ::pto::mocker::RecordCceCall(
+        ::pto::mocker::evaluator::PipeKey::CUBE, "mad", cycles, c, a, b, m, k, n, phase, kDirectionAlign, cmatrixSource,
+        cmatrixInitVal);
 }

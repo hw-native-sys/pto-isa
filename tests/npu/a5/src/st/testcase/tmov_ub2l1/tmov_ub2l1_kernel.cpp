@@ -17,19 +17,21 @@ using namespace std;
 using namespace pto;
 
 template <typename T, typename DstTileData, typename SrcTileData>
-__tf__ PTO_INTERNAL void tf_copy_cbuf_to_ubuf(typename DstTileData::TileDType __out__ dst,
-                                              typename SrcTileData::TileDType __in__ src, uint16_t vector,
-                                              uint16_t blockLen)
+__tf__ PTO_INTERNAL void tf_copy_cbuf_to_ubuf(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t vector,
+    uint16_t blockLen)
 {
-    __cbuf__ T *srcMatAddr = __cce_get_tile_ptr(src);
-    __ubuf__ T *dstUbAddr = __cce_get_tile_ptr(dst);
-    copy_cbuf_to_ubuf((__ubuf__ void *)dstUbAddr, (__cbuf__ void *)srcMatAddr, vector, 1, blockLen, 0,
-                      0); // move to vector0 or vector1
+    __cbuf__ T* srcMatAddr = __cce_get_tile_ptr(src);
+    __ubuf__ T* dstUbAddr = __cce_get_tile_ptr(dst);
+    copy_cbuf_to_ubuf(
+        (__ubuf__ void*)dstUbAddr, (__cbuf__ void*)srcMatAddr, vector, 1, blockLen, 0,
+        0); // move to vector0 or vector1
 }
 
-template <typename T, uint32_t Rows, uint32_t Cols, uint32_t ExtraRows, uint32_t ValidRows = Rows,
-          uint32_t ValidCols = Cols, uint32_t IndexRows = 0, uint32_t IndexCols = 0>
-AICORE void runTmovUb2l1(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, uint32_t Rows, uint32_t Cols, uint32_t ExtraRows, uint32_t ValidRows = Rows, uint32_t ValidCols = Cols,
+    uint32_t IndexRows = 0, uint32_t IndexCols = 0>
+AICORE void runTmovUb2l1(__gm__ T* out, __gm__ T* src)
 {
     using SrcShapeDim5 = pto::Shape<1, 1, 1, Rows, Cols>;
     using SrcStridDim5 = pto::Stride<1, 1, 1, Cols, 1>;
@@ -42,11 +44,12 @@ AICORE void runTmovUb2l1(__gm__ T *out, __gm__ T *src)
     using OutGlobalData = GlobalTensor<T, OutShapeDim5, OutStridDim5, Layout::NZ>;
 
     using SrcTileData = Tile<TileType::Vec, T, Rows, Cols, BLayout::RowMajor, -1, -1>;
-    using TmpTileData =
-        std::conditional_t<(ExtraRows > Rows),
-                           Tile<TileType::Vec, T, ExtraRows, Cols, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512,
-                                PadValue::Null, CompactMode::RowPlusOne>,
-                           Tile<TileType::Vec, T, ExtraRows, Cols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>>;
+    using TmpTileData = std::conditional_t<
+        (ExtraRows > Rows),
+        Tile<
+            TileType::Vec, T, ExtraRows, Cols, BLayout::ColMajor, -1, -1, SLayout::RowMajor, 512, PadValue::Null,
+            CompactMode::RowPlusOne>,
+        Tile<TileType::Vec, T, ExtraRows, Cols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>>;
 
     using DstTileData = Tile<TileType::Vec, T, ValidRows, ValidCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
     using MatTileData = Tile<TileType::Mat, T, ValidRows, ValidCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
@@ -111,16 +114,17 @@ AICORE void runTmovUb2l1(__gm__ T *out, __gm__ T *src)
     out = dstGlobal.data();
 }
 
-template <typename T, uint32_t Rows, uint32_t Cols, uint32_t ExtraRows, uint32_t ValidRows = Rows,
-          uint32_t ValidCols = Cols, uint32_t IndexRows = 0, uint32_t IndexCols = 0>
-__global__ AICORE void launchTmovUb2l1(__gm__ uint64_t *out, __gm__ uint64_t *src)
+template <
+    typename T, uint32_t Rows, uint32_t Cols, uint32_t ExtraRows, uint32_t ValidRows = Rows, uint32_t ValidCols = Cols,
+    uint32_t IndexRows = 0, uint32_t IndexCols = 0>
+__global__ AICORE void launchTmovUb2l1(__gm__ uint64_t* out, __gm__ uint64_t* src)
 {
     runTmovUb2l1<T, Rows, Cols, ExtraRows, ValidRows, ValidCols, IndexRows, IndexCols>(
-        reinterpret_cast<__gm__ T *>(out), reinterpret_cast<__gm__ T *>(src));
+        reinterpret_cast<__gm__ T*>(out), reinterpret_cast<__gm__ T*>(src));
 }
 
 template <int32_t testKey>
-void launchTmovUb2l1(uint64_t *out, uint64_t *src, void *stream)
+void launchTmovUb2l1(uint64_t* out, uint64_t* src, void* stream)
 {
     cout << "launchTmovUb2l1 start!" << endl;
     if constexpr (testKey == 1) {
@@ -145,12 +149,12 @@ void launchTmovUb2l1(uint64_t *out, uint64_t *src, void *stream)
     cout << "launchTmovUb2l1 end!" << endl;
 }
 
-template void launchTmovUb2l1<1>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<2>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<3>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<4>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<5>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<6>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<7>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<8>(uint64_t *out, uint64_t *src, void *stream);
-template void launchTmovUb2l1<9>(uint64_t *out, uint64_t *src, void *stream);
+template void launchTmovUb2l1<1>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<2>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<3>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<4>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<5>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<6>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<7>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<8>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<9>(uint64_t* out, uint64_t* src, void* stream);

@@ -15,12 +15,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-PTO_INTERNAL void pto_copy_ubuf_to_ubuf(__ubuf__ void *dst, __ubuf__ void *src, uint16_t nBurst, uint16_t lenBurst,
-                                        uint16_t srcGap, uint16_t dstGap)
+PTO_INTERNAL void pto_copy_ubuf_to_ubuf(
+    __ubuf__ void* dst, __ubuf__ void* src, uint16_t nBurst, uint16_t lenBurst, uint16_t srcGap, uint16_t dstGap)
 {
 #if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
     copy_ubuf_to_ubuf(dst, src, 0, nBurst, lenBurst, srcGap, dstGap);
-#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_A5)
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000) || defined(PTO_NPU_ARCH_A5) || \
+    defined(PTO_NPU_ARCH_A6)
     copy_ubuf_to_ubuf(dst, src, nBurst, lenBurst, srcGap, dstGap);
 #endif
 }
@@ -28,8 +29,8 @@ PTO_INTERNAL void pto_copy_ubuf_to_ubuf(__ubuf__ void *dst, __ubuf__ void *src, 
 #if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
 using __cce_scalar::addr_cal_mode_t;
 template <typename T>
-PTO_INTERNAL void pto_load_cbuf_to_cb(__cb__ T *dst, __cbuf__ T *src, uint16_t baseIdx, uint8_t repeat,
-                                      uint16_t srcStride, uint16_t dstStride)
+PTO_INTERNAL void pto_load_cbuf_to_cb(
+    __cb__ T* dst, __cbuf__ T* src, uint16_t baseIdx, uint8_t repeat, uint16_t srcStride, uint16_t dstStride)
 {
 #if defined(PTO_NPU_ARCH_A2A3)
     load_cbuf_to_cb(dst, src, baseIdx, repeat, srcStride, dstStride, 0, false, addr_cal_mode_t(0));
@@ -37,10 +38,12 @@ PTO_INTERNAL void pto_load_cbuf_to_cb(__cb__ T *dst, __cbuf__ T *src, uint16_t b
     load_cbuf_to_cb(dst, src, baseIdx, repeat, srcStride, dstStride, false, addr_cal_mode_t(0));
 #endif
 }
-#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000)
 template <bool Transpose, typename T>
-PTO_INTERNAL void pto_load_cbuf_to_cb(__cb__ T *dst, __cbuf__ T *src, uint16_t mStartPosition, uint16_t kStartPosition,
-                                      uint8_t mStep, uint8_t kStep, uint16_t srcStride, uint16_t dstStride)
+PTO_INTERNAL void pto_load_cbuf_to_cb(
+    __cb__ T* dst, __cbuf__ T* src, uint16_t mStartPosition, uint16_t kStartPosition, uint8_t mStep, uint8_t kStep,
+    uint16_t srcStride, uint16_t dstStride)
 {
     load_cbuf_to_cb(dst, src, mStartPosition, kStartPosition, mStep, kStep, srcStride, dstStride, Transpose);
 }
@@ -49,8 +52,8 @@ PTO_INTERNAL void pto_load_cbuf_to_cb(__cb__ T *dst, __cbuf__ T *src, uint16_t m
 #if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
 using __cce_scalar::addr_cal_mode_t;
 template <typename T>
-PTO_INTERNAL void pto_load_cbuf_to_ca(__ca__ T *dst, __cbuf__ T *src, uint16_t baseIdx, uint8_t repeat,
-                                      uint16_t srcStride, uint16_t dstStride)
+PTO_INTERNAL void pto_load_cbuf_to_ca(
+    __ca__ T* dst, __cbuf__ T* src, uint16_t baseIdx, uint8_t repeat, uint16_t srcStride, uint16_t dstStride)
 {
 #if defined(PTO_NPU_ARCH_A2A3)
     load_cbuf_to_ca(dst, src, baseIdx, repeat, srcStride, dstStride, 0, false, addr_cal_mode_t(0));
@@ -62,16 +65,18 @@ PTO_INTERNAL void pto_load_cbuf_to_ca(__ca__ T *dst, __cbuf__ T *src, uint16_t b
 
 #if defined(PTO_NPU_ARCH_A2A3)
 template <typename T>
-PTO_INTERNAL void pto_vgatherb(__ubuf__ T *dst, __ubuf__ uint32_t *src, uint32_t offsetAddr, uint16_t dstRepeatStride,
-                               uint8_t dstBlockStride, uint8_t repeat)
+PTO_INTERNAL void pto_vgatherb(
+    __ubuf__ T* dst, __ubuf__ uint32_t* src, uint32_t offsetAddr, uint16_t dstRepeatStride, uint8_t dstBlockStride,
+    uint8_t repeat)
 {
     vgatherb(dst, src, offsetAddr, dstRepeatStride, dstBlockStride, repeat);
 }
-#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename T, typename U, typename S>
-PTO_INTERNAL void pto_vgatherb(T &dstReg, __ubuf__ U *base, S &idxReg, vector_bool &mask)
+PTO_INTERNAL void pto_vgatherb(T& dstReg, __ubuf__ U* base, S& idxReg, vector_bool& mask)
 {
-#if defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+#if defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000) || defined(PTO_NPU_ARCH_KIRINX90)
     vgatherb(dstReg, base, idxReg);
 #else
     vgatherb(dstReg, base, idxReg, mask);
@@ -80,9 +85,9 @@ PTO_INTERNAL void pto_vgatherb(T &dstReg, __ubuf__ U *base, S &idxReg, vector_bo
 #endif
 
 template <typename T, typename U>
-PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T *dst, int64_t repeatConfig, U value)
+PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T* dst, int64_t repeatConfig, U value)
 {
-#if defined(PTO_NPU_ARCH_KIRIN9030)
+#if defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
     if constexpr (std::is_integral_v<U>) {
         set_l0_set_value_ui(value);
     } else if (std::is_same_v<U, half>) {
@@ -98,32 +103,41 @@ PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T *dst, int64_t repeatConfig, 
 #endif
 }
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename T, typename U, typename S>
-PTO_INTERNAL void pto_vexpdif(T &dst, U &src0, U &src1, vector_bool mask, S part)
+PTO_INTERNAL void pto_vexpdif(T& dst, U& src0, U& src1, vector_bool mask, S part)
 {
 #if defined(PTO_NPU_ARCH_A5)
     vexpdif(dst, src0, src1, mask, part);
-#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000) || defined(PTO_NPU_ARCH_KIRINX90)
     vsub(dst, src0, src1, mask, MODE_ZEROING);
     vexp(dst, dst, mask, MODE_ZEROING);
 #endif
 }
 #endif
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename T>
-PTO_INTERNAL void pto_copy_gm_to_ubuf_align_v2(__ubuf__ T *dst, __gm__ T *src, uint8_t sid, uint32_t nBurst,
-                                               uint32_t lenBurst, uint8_t leftPaddingCount, uint8_t rightPaddingCount,
-                                               bool constantPaddingCtl, uint8_t l2CacheCtl, uint64_t burstSrcStride,
-                                               uint32_t burstDstStride)
+PTO_INTERNAL void pto_copy_gm_to_ubuf_align_v2(
+    __ubuf__ T* dst, __gm__ T* src, uint8_t sid, uint32_t nBurst, uint32_t lenBurst, uint8_t leftPaddingCount,
+    uint8_t rightPaddingCount, bool constantPaddingCtl, uint8_t l2CacheCtl, uint64_t burstSrcStride,
+    uint32_t burstDstStride)
 {
 #if defined(PTO_NPU_ARCH_A5)
-    copy_gm_to_ubuf_align_v2(dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
-                             l2CacheCtl, burstSrcStride, burstDstStride);
-#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90)
-    copy_gm_to_ubuf_align_v2(dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
-                             burstSrcStride, burstDstStride);
+    copy_gm_to_ubuf_align_v2(
+        dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl, l2CacheCtl,
+        burstSrcStride, burstDstStride);
+#elif defined(PTO_NPU_ARCH_A6)
+    copy_gm_to_ubuf_align_v2(
+        dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
+        false /* pre_allocation*/, l2CacheCtl, burstSrcStride, burstDstStride, false /* non_eod_ctrl*/);
+
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000) || defined(PTO_NPU_ARCH_KIRINX90)
+    copy_gm_to_ubuf_align_v2(
+        dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl, burstSrcStride,
+        burstDstStride);
 #endif
 }
 #endif
@@ -134,55 +148,66 @@ PTO_INTERNAL void pto_set_tload_pad_val(uint64_t config)
     if constexpr (type == TileType::Vec) {
 #if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRINX90)
         set_mov_pad_val(config);
-#elif defined(PTO_NPU_ARCH_KIRIN9030)
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
         set_pad_val_outtoub(config);
 #endif
     } else if constexpr (type == TileType::Mat) {
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000)
         set_pad_val_outtol1(config);
 #endif
     }
 }
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000)
 template <typename T>
-PTO_INTERNAL void pto_copy_gm_to_cbuf_multi_nd2nz(__cbuf__ T *dst, __gm__ T *src, uint8_t sid, uint64_t loop1SrcStride,
-                                                  uint8_t l2CacheCtl, uint16_t nValue, uint32_t dValue,
-                                                  uint64_t loop4SrcStride, bool smallc0En = false)
+PTO_INTERNAL void pto_copy_gm_to_cbuf_multi_nd2nz(
+    __cbuf__ T* dst, __gm__ T* src, uint8_t sid, uint64_t loop1SrcStride, uint8_t l2CacheCtl, uint16_t nValue,
+    uint32_t dValue, uint64_t loop4SrcStride, bool smallc0En = false)
 {
-    using U = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
-                                 std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+    using U = std::conditional_t<
+        sizeof(T) == sizeof(uint8_t), uint8_t, std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
 #if defined(PTO_NPU_ARCH_A5)
-    copy_gm_to_cbuf_multi_nd2nz(reinterpret_cast<__cbuf__ U *>(dst), reinterpret_cast<__gm__ U *>(src), sid,
-                                loop1SrcStride, l2CacheCtl, nValue, dValue, loop4SrcStride, smallc0En);
-#elif defined(PTO_NPU_ARCH_KIRIN9030)
-    copy_gm_to_cbuf_multi_nd2nz(reinterpret_cast<__cbuf__ U *>(dst), reinterpret_cast<__gm__ U *>(src), sid,
-                                loop1SrcStride, nValue, dValue, loop4SrcStride, smallc0En, false /* antiq_en */);
+    copy_gm_to_cbuf_multi_nd2nz(
+        reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, loop1SrcStride, l2CacheCtl, nValue,
+        dValue, loop4SrcStride, smallc0En);
+#elif defined(PTO_NPU_ARCH_A6)
+    copy_gm_to_cbuf_multi_nd2nz(
+        reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, loop1SrcStride, l2CacheCtl, nValue,
+        dValue, loop4SrcStride, smallc0En, false /* enablePreReadIgnoreSync */);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
+    copy_gm_to_cbuf_multi_nd2nz(
+        reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, loop1SrcStride, nValue, dValue,
+        loop4SrcStride, smallc0En, false /* antiq_en */);
 #endif
 }
 #elif defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename T>
-PTO_INTERNAL void pto_copy_gm_to_cbuf_multi_nd2nz(__cbuf__ T *dst, __gm__ T *src, uint8_t sid, uint16_t ndNum,
-                                                  uint16_t nValue, uint16_t dValue, uint16_t srcNdMatrixStride,
-                                                  uint16_t srcDValue, uint16_t dstNzC0Stride, uint16_t dstNzNStride,
-                                                  uint16_t dstNzMatrixStride)
+PTO_INTERNAL void pto_copy_gm_to_cbuf_multi_nd2nz(
+    __cbuf__ T* dst, __gm__ T* src, uint8_t sid, uint16_t ndNum, uint16_t nValue, uint16_t dValue,
+    uint16_t srcNdMatrixStride, uint16_t srcDValue, uint16_t dstNzC0Stride, uint16_t dstNzNStride,
+    uint16_t dstNzMatrixStride)
 {
     if constexpr (sizeof(T) == sizeof(uint8_t)) {
-        copy_gm_to_cbuf_multi_nd2nz_b8(dst, src, sid, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue,
-                                       dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
+        copy_gm_to_cbuf_multi_nd2nz_b8(
+            dst, src, sid, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride, dstNzNStride,
+            dstNzMatrixStride);
     } else if constexpr (sizeof(T) == sizeof(uint16_t)) {
-        copy_gm_to_cbuf_multi_nd2nz_b16(dst, src, sid, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue,
-                                        dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
+        copy_gm_to_cbuf_multi_nd2nz_b16(
+            dst, src, sid, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride, dstNzNStride,
+            dstNzMatrixStride);
     }
 #if defined(PTO_NPU_ARCH_A2A3)
     if constexpr (sizeof(T) == sizeof(uint32_t)) {
-        copy_gm_to_cbuf_multi_nd2nz_b32s(dst, src, sid, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue,
-                                         dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
+        copy_gm_to_cbuf_multi_nd2nz_b32s(
+            dst, src, sid, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, dstNzC0Stride, dstNzNStride,
+            dstNzMatrixStride);
     } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
         uint16_t dValueb64 = dValue * sizeof(T) / sizeof(uint32_t);
         uint16_t srcDValueb64 = srcDValue * sizeof(T) / sizeof(uint32_t);
         copy_gm_to_cbuf_multi_nd2nz_b32s(
-            reinterpret_cast<__cbuf__ uint32_t *>(dst), reinterpret_cast<__gm__ uint32_t *>(src), sid, ndNum, nValue,
+            reinterpret_cast<__cbuf__ uint32_t*>(dst), reinterpret_cast<__gm__ uint32_t*>(src), sid, ndNum, nValue,
             dValueb64, srcNdMatrixStride, srcDValueb64, dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
     }
 #elif defined(PTO_NPU_ARCH_KIRINX90)
@@ -190,50 +215,145 @@ PTO_INTERNAL void pto_copy_gm_to_cbuf_multi_nd2nz(__cbuf__ T *dst, __gm__ T *src
         uint16_t dValueb32 = dValue * sizeof(T) / sizeof(uint16_t);
         uint16_t srcDValueb32 = srcDValue * sizeof(T) / sizeof(uint16_t);
         copy_gm_to_cbuf_multi_nd2nz_b16(
-            reinterpret_cast<__cbuf__ uint16_t *>(dst), reinterpret_cast<__gm__ uint16_t *>(src), sid, ndNum, nValue,
+            reinterpret_cast<__cbuf__ uint16_t*>(dst), reinterpret_cast<__gm__ uint16_t*>(src), sid, ndNum, nValue,
             dValueb32, srcNdMatrixStride, srcDValueb32, dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
     } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
-        uint16_t dValueb64 = dValue * sizeof(T) / sizeof(uint16_t);
-        uint16_t srcDValueb64 = srcDValue * sizeof(T) / sizeof(uint16_t);
+        uint16_t dValueb64 = dValue * sizeof(T) / sizeof(uint64_t);
+        uint16_t srcDValueb64 = srcDValue * sizeof(T) / sizeof(uint64_t);
         copy_gm_to_cbuf_multi_nd2nz_b16(
-            reinterpret_cast<__cbuf__ uint16_t *>(dst), reinterpret_cast<__gm__ uint16_t *>(src), sid, ndNum, nValue,
+            reinterpret_cast<__cbuf__ uint16_t*>(dst), reinterpret_cast<__gm__ uint16_t*>(src), sid, ndNum, nValue,
             dValueb64, srcNdMatrixStride, srcDValueb64, dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
     }
 #endif
 }
 #endif
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000)
 template <typename T>
-PTO_INTERNAL void pto_copy_gm_to_cbuf_align_v2(__cbuf__ T *dst, __gm__ T *src, uint8_t sid, uint32_t nBurst,
-                                               uint32_t lenBurst, uint8_t leftPaddingCount, uint8_t rightPaddingCount,
-                                               bool dataSelectBit, uint8_t l2CacheCtl, uint64_t burstSrcStride,
-                                               uint32_t burstDstStride)
+PTO_INTERNAL void pto_copy_gm_to_cbuf_align_v2(
+    __cbuf__ T* dst, __gm__ T* src, uint8_t sid, uint32_t nBurst, uint32_t lenBurst, uint8_t leftPaddingCount,
+    uint8_t rightPaddingCount, bool dataSelectBit, uint8_t l2CacheCtl, uint64_t burstSrcStride, uint32_t burstDstStride)
 {
-    using U = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
-                                 std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
-#if defined(PTO_NPU_ARCH_A5)
-    copy_gm_to_cbuf_align_v2(reinterpret_cast<__cbuf__ U *>(dst), reinterpret_cast<__gm__ U *>(src), sid, nBurst,
-                             lenBurst, leftPaddingCount, rightPaddingCount, dataSelectBit, l2CacheCtl, burstSrcStride,
-                             burstDstStride);
-#elif defined(PTO_NPU_ARCH_KIRIN9030)
-    copy_gm_to_cbuf_align_v2(reinterpret_cast<__cbuf__ U *>(dst), reinterpret_cast<__gm__ U *>(src), sid, nBurst,
-                             lenBurst, leftPaddingCount, rightPaddingCount, dataSelectBit, burstSrcStride,
-                             burstDstStride);
+    using U = std::conditional_t<
+        sizeof(T) == sizeof(uint8_t), uint8_t, std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    copy_gm_to_cbuf_align_v2(
+        reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, nBurst, lenBurst, leftPaddingCount,
+        rightPaddingCount, dataSelectBit, l2CacheCtl, burstSrcStride, burstDstStride);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
+    copy_gm_to_cbuf_align_v2(
+        reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, nBurst, lenBurst, leftPaddingCount,
+        rightPaddingCount, dataSelectBit, burstSrcStride, burstDstStride);
 #endif
 }
 #endif
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030)
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename T>
-PTO_INTERNAL void pto_copy_ubuf_to_gm_align_v2(__gm__ T *dst, __ubuf__ T *src, uint8_t sid, uint32_t nBurst,
-                                               uint32_t lenBurst, uint8_t l2CacheCtl, uint64_t burstDstStride,
-                                               uint32_t burstSrcStride)
+PTO_INTERNAL void pto_copy_gm_to_cbuf(
+    __cbuf__ T* dst, __gm__ T* src, uint8_t sid, uint16_t nBurst, uint16_t lenBurst, uint16_t srcStride,
+    uint16_t dstStride)
+{
+    copy_gm_to_cbuf(dst, src, sid, nBurst, lenBurst, srcStride, dstStride, (pad_t)0);
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T>
+PTO_INTERNAL void pto_copy_gm_to_cbuf_align(
+    __cbuf__ T* dst, __gm__ T* src, uint8_t sid, uint16_t nBurst, uint16_t lenBurst, uint16_t srcStride,
+    uint16_t dstStride)
+{
+    using U = std::conditional_t<
+        sizeof(T) == sizeof(uint8_t), uint8_t, std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+    copy_gm_to_cbuf_align(
+        reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, nBurst, lenBurst, (uint8_t)0,
+        (uint8_t)(dstStride / sizeof(T)), srcStride, dstStride >> SHIFT_BLOCK_BYTE);
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRINDEV0000)
+template <typename T>
+PTO_INTERNAL void pto_copy_ubuf_to_gm_align_v2(
+    __gm__ T* dst, __ubuf__ T* src, uint8_t sid, uint32_t nBurst, uint32_t lenBurst, uint8_t l2CacheCtl,
+    uint64_t burstDstStride, uint32_t burstSrcStride)
 {
 #if defined(PTO_NPU_ARCH_A5)
     copy_ubuf_to_gm_align_v2(dst, src, sid, nBurst, lenBurst, l2CacheCtl, burstDstStride, burstSrcStride);
-#elif defined(PTO_NPU_ARCH_KIRIN9030)
+#elif defined(PTO_NPU_ARCH_A6)
+    copy_ubuf_to_gm_align_v2(
+        dst, src, sid, nBurst, lenBurst, false /* rsw_ctrl */, false /*rsw_packet_ctrl*/, 0 /* rsw_buffer_size */,
+        l2CacheCtl, burstDstStride, burstSrcStride, false /* non_eod_ctrl */);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
     copy_ubuf_to_gm_align_v2(dst, src, sid, nBurst, lenBurst, burstDstStride, burstSrcStride);
+#endif
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
+template <typename T, typename U>
+PTO_INTERNAL void pto_copy_matrix_cc_to_cbuf(
+    __cbuf__ T* dst, __cc__ U* src, uint8_t sid, uint16_t nSize, uint16_t mSize, uint32_t dstStride, uint16_t srcStride,
+    uint8_t l2CacheCtl, uint8_t clipReluPre, uint8_t unitFlagCtl, uint64_t quantPre, uint8_t reluPre, bool splitEn,
+    bool nz2ndEn, uint64_t quantPost, uint8_t reluPost, bool clipReluPost, bool loopEnhanceEn, uint8_t eltwiseOp,
+    bool eltwiseAntqEn, bool loopEnhanceMergeEn, bool c0PadEn, bool winoPostEn, bool broadcastEn, bool nz2dnEn)
+{
+#if defined(PTO_NPU_ARCH_A5)
+    copy_matrix_cc_to_cbuf(
+        dst, src, sid, nSize, mSize, dstStride, srcStride, l2CacheCtl, clipReluPre, unitFlagCtl, quantPre, reluPre,
+        splitEn, nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn,
+        loopEnhanceMergeEn, c0PadEn, winoPostEn, broadcastEn, nz2dnEn);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
+    copy_matrix_cc_to_cbuf(
+        dst, src, sid, nSize, mSize, dstStride, srcStride, clipReluPre, unitFlagCtl, quantPre, reluPre, splitEn,
+        nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn, loopEnhanceMergeEn,
+        c0PadEn, winoPostEn, broadcastEn, nz2dnEn);
+#endif
+}
+#elif defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename U>
+PTO_INTERNAL void pto_copy_matrix_cc_to_cbuf(
+    __cbuf__ T* dst, __cc__ U* src, uint8_t sid, uint16_t nSize, uint16_t mSize, uint32_t dstStride, uint16_t srcStride,
+    uint8_t unitFlagMode, uint64_t quantPre, uint8_t reluPre, bool channelSplit, bool nz2ndEn)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    copy_matrix_cc_to_cbuf(
+        dst, src, sid, nSize, mSize, dstStride, srcStride, unitFlagMode, quantPre, reluPre, channelSplit, nz2ndEn);
+#elif defined(PTO_NPU_ARCH_KIRINX90)
+    copy_matrix_cc_to_cbuf(
+        dst, src, sid, nSize, mSize, dstStride, srcStride, 0 /* clipReluPre */, unitFlagMode, quantPre, reluPre,
+        channelSplit, nz2ndEn, false /* c0PadEn */);
+#endif
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000) || \
+    defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename U>
+PTO_INTERNAL void pto_copy_matrix_cc_to_ub(
+    __ubuf__ T* dst, __cc__ U* src, uint8_t sid, uint16_t nSize, uint16_t mSize, uint32_t dstStride, uint16_t srcStride,
+    uint8_t dualDstCtl, bool subBlockid, uint8_t clipReluPre, uint8_t unitFlagCtl, uint64_t quantPre, uint8_t reluPre,
+    bool splitEn, bool nz2ndEn, uint64_t quantPost, uint8_t reluPost, bool clipReluPost, bool loopEnhanceEn,
+    uint8_t eltwiseOp, bool eltwiseAntqEn, bool loopEnhanceMergeEn, bool c0PadEn, bool winoPostEn, bool broadcastEn,
+    bool nz2dnEn)
+{
+#if defined(PTO_NPU_ARCH_A5)
+    copy_matrix_cc_to_ub(
+        dst, src, sid, nSize, mSize, dstStride, srcStride, dualDstCtl, subBlockid, clipReluPre, unitFlagCtl, quantPre,
+        reluPre, splitEn, nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn,
+        loopEnhanceMergeEn, c0PadEn, winoPostEn, broadcastEn, nz2dnEn);
+#elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
+    copy_matrix_cc_to_ub(
+        dst, src, sid, nSize, mSize, dstStride, srcStride, clipReluPre, unitFlagCtl, quantPre, reluPre, splitEn,
+        nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn, loopEnhanceMergeEn,
+        c0PadEn, winoPostEn, broadcastEn, nz2dnEn);
+#elif defined(PTO_NPU_ARCH_KIRINX90)
+    copy_matrix_cc_to_ub(
+        dst, src, sid, nSize, mSize, dstStride, srcStride, clipReluPre, unitFlagCtl, quantPre, reluPre, splitEn,
+        nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn, loopEnhanceMergeEn,
+        c0PadEn, winoPostEn);
 #endif
 }
 #endif

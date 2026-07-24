@@ -34,30 +34,31 @@ constexpr float LOG2_LO = -1.90465421e-9f;
 constexpr float EXP_OVFL_UNFL_F = -104.0f;
 constexpr float EXP_MIN_F = 88.7228390f;
 constexpr int32_t INF = 0x7F800000;
+constexpr int32_t NEG_INF = 0xff800000;
 constexpr int32_t F32_NAN = 0x7fc00000;
 constexpr int32_t R10_COEFF = 0x7F800000;
 constexpr int32_t R12_COEFF = 0x7FFFFFFF;
 constexpr int16_t COMPARE_ZERO_OFFSET = 31;
 constexpr float F32_FRACTIONS = -23.0f;
 
-PTO_INTERNAL void IsInfNum(MaskReg &infMask, RegTensor<float> &srcReg, RegTensor<int32_t> &tmpR12Reg, MaskReg &mask)
+PTO_INTERNAL void IsInfNum(MaskReg& infMask, RegTensor<float>& srcReg, RegTensor<int32_t>& tmpR12Reg, MaskReg& mask)
 {
     RegTensor<float> tmpFloatReg;
-    vand((RegTensor<int32_t> &)tmpFloatReg, (RegTensor<int32_t> &)srcReg, tmpR12Reg, mask);
-    vcmps_eq(infMask, (RegTensor<int32_t> &)tmpFloatReg, INF, mask);
+    vand((RegTensor<int32_t>&)tmpFloatReg, (RegTensor<int32_t>&)srcReg, tmpR12Reg, mask);
+    vcmps_eq(infMask, (RegTensor<int32_t>&)tmpFloatReg, INF, mask);
 }
 
-PTO_INTERNAL void IsNanNum(MaskReg &nanMask, RegTensor<float> &srcReg, MaskReg &mask)
+PTO_INTERNAL void IsNanNum(MaskReg& nanMask, RegTensor<float>& srcReg, MaskReg& mask)
 {
     vcmp_ne(nanMask, srcReg, srcReg, mask);
 }
 
-PTO_INTERNAL void RFloor(RegTensor<float> &dstReg, RegTensor<float> &srcReg, MaskReg &mask)
+PTO_INTERNAL void RFloor(RegTensor<float>& dstReg, RegTensor<float>& srcReg, MaskReg& mask)
 {
     vtrc(dstReg, srcReg, ROUND_F, mask, MODE_ZEROING);
 }
 
-PTO_INTERNAL void ComputeExpoOddInt(MaskReg &oddMask, RegTensor<float> &expReg, RegTensor<float> &twoReg, MaskReg &mask)
+PTO_INTERNAL void ComputeExpoOddInt(MaskReg& oddMask, RegTensor<float>& expReg, RegTensor<float>& twoReg, MaskReg& mask)
 {
     // calculate exp is odd or not: expo_odd_int = fmaf (-2.0f, floorf (0.5f * b), b) == 1.0f;
     RegTensor<float> tmpFloatReg;
@@ -67,9 +68,9 @@ PTO_INTERNAL void ComputeExpoOddInt(MaskReg &oddMask, RegTensor<float> &expReg, 
     vcmps_eq(oddMask, tmpFloatReg, 1.0f, mask);
 }
 
-PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<float> &baseReg, RegTensor<float> &expReg,
-                                          RegTensor<int32_t> &tmpR10Reg, RegTensor<int32_t> &tmpR12Reg,
-                                          RegTensor<float> &twoReg, MaskReg &mask)
+PTO_INTERNAL void ProcessFloatSpecialCase(
+    RegTensor<float>& dstReg, RegTensor<float>& baseReg, RegTensor<float>& expReg, RegTensor<int32_t>& tmpR10Reg,
+    RegTensor<int32_t>& tmpR12Reg, RegTensor<float>& twoReg, MaskReg& mask)
 {
     RegTensor<float> tmpFloatReg, tmpFloatReg2;
     MaskReg cmpMask1, cmpMask2, curMask;
@@ -85,7 +86,7 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     IsNanNum(cmpMask1, baseReg, mask);
     IsNanNum(cmpMask2, expReg, mask);
     por(cmpMask2, cmpMask1, cmpMask2, curMask);
-    vdup((RegTensor<int32_t> &)dstReg, F32_NAN, cmpMask2, MODE_MERGING);
+    vdup((RegTensor<int32_t>&)dstReg, F32_NAN, cmpMask2, MODE_MERGING);
 
     // 3. 无穷大和零处理
     // if base=±inf or base=0:
@@ -97,9 +98,9 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     vcmps_eq(cmpMask2, baseReg, 0.0f, curMask);
     por(cmpMask1, cmpMask1, cmpMask2, mask);
     vcmps_lt(cmpMask2, expReg, 0.0f, cmpMask1);
-    vxor((RegTensor<int32_t> &)tmpFloatReg, (RegTensor<int32_t> &)baseReg, tmpR10Reg, curMask);
+    vxor((RegTensor<int32_t>&)tmpFloatReg, (RegTensor<int32_t>&)baseReg, tmpR10Reg, curMask);
     vsel(tmpFloatReg, tmpFloatReg, baseReg, cmpMask2);
-    vand((RegTensor<int32_t> &)tmpFloatReg2, (RegTensor<int32_t> &)tmpFloatReg, tmpR12Reg, curMask);
+    vand((RegTensor<int32_t>&)tmpFloatReg2, (RegTensor<int32_t>&)tmpFloatReg, tmpR12Reg, curMask);
     ComputeExpoOddInt(cmpMask2, expReg, twoReg, mask);
     vsel(tmpFloatReg, tmpFloatReg, tmpFloatReg2, cmpMask2);
     vsel(dstReg, tmpFloatReg, dstReg, cmpMask1);
@@ -108,12 +109,11 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
     // 若base < 0 且 exp不为整数 则返回NaN
     // 若base < 0 且 exp为奇数 则符号取反
     pxor(curMask, cmpMask1, curMask, mask);
-    pand(cmpMask2, cmpMask2, curMask, mask);
     vneg(tmpFloatReg, dstReg, curMask);
     vsel(tmpFloatReg, tmpFloatReg, dstReg, cmpMask2);
     RFloor(tmpFloatReg2, expReg, curMask);
     vcmp_ne(cmpMask1, expReg, tmpFloatReg2, curMask);
-    vdup((RegTensor<int32_t> &)tmpFloatReg, F32_NAN, cmpMask1, MODE_MERGING);
+    vdup((RegTensor<int32_t>&)tmpFloatReg, F32_NAN, cmpMask1, MODE_MERGING);
     vcmps_lt(cmpMask2, baseReg, 0.0f, curMask);
     vsel(dstReg, tmpFloatReg, dstReg, cmpMask2);
 
@@ -124,7 +124,7 @@ PTO_INTERNAL void ProcessFloatSpecialCase(RegTensor<float> &dstReg, RegTensor<fl
 }
 
 template <typename T>
-PTO_INTERNAL void LoadSrcData(RegTensor<float> &srcReg, __ubuf__ T *src, uint16_t offset, MaskReg &mask)
+PTO_INTERNAL void LoadSrcData(RegTensor<float>& srcReg, __ubuf__ T* src, uint16_t offset, MaskReg& mask)
 {
     if constexpr (isSupportType<T, half, bfloat16_t>) {
         RegTensor<T> tmpReg;
@@ -136,7 +136,7 @@ PTO_INTERNAL void LoadSrcData(RegTensor<float> &srcReg, __ubuf__ T *src, uint16_
 }
 
 template <typename T>
-PTO_INTERNAL void StoreDstData(RegTensor<float> &dstReg, __ubuf__ T *dst, uint16_t offset, MaskReg &mask)
+PTO_INTERNAL void StoreDstData(RegTensor<float>& dstReg, __ubuf__ T* dst, uint16_t offset, MaskReg& mask)
 {
     constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
@@ -144,7 +144,7 @@ PTO_INTERNAL void StoreDstData(RegTensor<float> &dstReg, __ubuf__ T *dst, uint16
         RegTensor<T> tmpReg;
         MaskReg tmpMask;
         vcvt(tmpReg, dstReg, mask, ROUND_R, RS_DISABLE, PART_EVEN);
-        vpack((RegTensor<uint16_t> &)tmpReg, (RegTensor<uint32_t> &)tmpReg, LOWER);
+        vpack((RegTensor<uint16_t>&)tmpReg, (RegTensor<uint32_t>&)tmpReg, LOWER);
         ppack(tmpMask, mask, LOWER);
         vsts(tmpReg, dst, offset, distValue, tmpMask);
     } else {
@@ -152,8 +152,8 @@ PTO_INTERNAL void StoreDstData(RegTensor<float> &dstReg, __ubuf__ T *dst, uint16
     }
 }
 
-PTO_INTERNAL void GetTPowFloatCore(RegTensor<float> &dstReg, RegTensor<float> &baseReg, RegTensor<float> &expReg,
-                                   MaskReg &mask)
+PTO_INTERNAL void GetTPowFloatCore(
+    RegTensor<float>& dstReg, RegTensor<float>& baseReg, RegTensor<float>& expReg, MaskReg& mask)
 {
     RegTensor<float> tmpReg;
     vabs(tmpReg, baseReg, mask);
@@ -163,7 +163,7 @@ PTO_INTERNAL void GetTPowFloatCore(RegTensor<float> &dstReg, RegTensor<float> &b
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride>
-PTO_INTERNAL void TPowFloat(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowFloat(__ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp, unsigned validRow, unsigned validCol)
 {
     constexpr uint16_t nElemPerRpt = CCE_VL / sizeof(float);
     uint16_t repeatTime = CeilDivision(validCol, nElemPerRpt);
@@ -195,7 +195,7 @@ PTO_INTERNAL void TPowFloat(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, 
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride>
-PTO_INTERNAL void TPowFloat(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowFloat(__ubuf__ T* dst, __ubuf__ T* base, T exp, unsigned validRow, unsigned validCol)
 {
     constexpr uint16_t nElemPerRpt = CCE_VL / sizeof(float);
     uint16_t repeatTime = CeilDivision(validCol, nElemPerRpt);
@@ -238,7 +238,7 @@ struct PowerLogParams {
     RegTensor<int32_t> tmpR12Reg;
 };
 
-PTO_INTERNAL void PowerLogParamsInit(PowerLogParams &params, MaskReg &mask)
+PTO_INTERNAL void PowerLogParamsInit(PowerLogParams& params, MaskReg& mask)
 {
     vdup(params.zeroReg, 0.0f, mask, MODE_ZEROING);
     vdup(params.oneReg, 1.0f, mask, MODE_ZEROING);
@@ -253,9 +253,9 @@ PTO_INTERNAL void PowerLogParamsInit(PowerLogParams &params, MaskReg &mask)
     vdup(params.twoReg, -2.0f, mask, MODE_ZEROING);
 }
 
-PTO_INTERNAL void GetLogFExtStepOne(RegTensor<float> &logHighReg, RegTensor<float> &logLowReg,
-                                    RegTensor<float> &tmpResultReg, RegTensor<float> &baseReg, PowerLogParams &params,
-                                    MaskReg &mask)
+PTO_INTERNAL void GetLogFExtStepOne(
+    RegTensor<float>& logHighReg, RegTensor<float>& logLowReg, RegTensor<float>& tmpResultReg,
+    RegTensor<float>& baseReg, PowerLogParams& params, MaskReg& mask)
 {
     RegTensor<float> tmpAReg, tmpFloatReg, absReg;
     RegTensor<int32_t> tmpEReg;
@@ -267,9 +267,9 @@ PTO_INTERNAL void GetLogFExtStepOne(RegTensor<float> &logHighReg, RegTensor<floa
     vsel(logHighReg, params.fractionReg, params.zeroReg, cmpMask);
 
     tmpFloatReg = params.subReg;
-    vsub(tmpEReg, (RegTensor<int32_t> &)absReg, (RegTensor<int32_t> &)tmpFloatReg, mask);
+    vsub(tmpEReg, (RegTensor<int32_t>&)absReg, (RegTensor<int32_t>&)tmpFloatReg, mask);
     vand(tmpEReg, tmpEReg, params.intReg, mask);
-    vsub((RegTensor<int32_t> &)logLowReg, (RegTensor<int32_t> &)absReg, tmpEReg, mask);
+    vsub((RegTensor<int32_t>&)logLowReg, (RegTensor<int32_t>&)absReg, tmpEReg, mask);
     vcvt(tmpFloatReg, tmpEReg, mask, ROUND_A);
     vaxpy(logHighReg, tmpFloatReg, LOG2_REDUCE_FMAF_COEFF1, mask);
     RegTensor<float> tmpPReg;
@@ -279,8 +279,9 @@ PTO_INTERNAL void GetLogFExtStepOne(RegTensor<float> &logHighReg, RegTensor<floa
     vdiv(tmpResultReg, params.oneReg, tmpPReg, mask);
 }
 
-PTO_INTERNAL void GetLogFExtStepTwo(RegTensor<float> &logHigh, RegTensor<float> &logLow, RegTensor<float> &tmpRReg,
-                                    PowerLogParams &params, MaskReg &mask)
+PTO_INTERNAL void GetLogFExtStepTwo(
+    RegTensor<float>& logHigh, RegTensor<float>& logLow, RegTensor<float>& tmpRReg, PowerLogParams& params,
+    MaskReg& mask)
 {
     RegTensor<float> tmpQHIReg, tmpQLOReg;
     RegTensor<float> tmpFloatReg, tmpFloatReg2;
@@ -315,8 +316,9 @@ PTO_INTERNAL void GetLogFExtStepTwo(RegTensor<float> &logHigh, RegTensor<float> 
     vadd(logLow, tmpFloatReg, tmpQLOReg, mask);
 }
 
-PTO_INTERNAL void GetExpCore(RegTensor<float> &dstReg, RegTensor<float> &logHighReg, RegTensor<float> &logLowReg,
-                             RegTensor<float> &expReg, MaskReg &mask)
+PTO_INTERNAL void GetExpCore(
+    RegTensor<float>& dstReg, RegTensor<float>& logHighReg, RegTensor<float>& logLowReg, RegTensor<float>& expReg,
+    MaskReg& mask)
 {
     RegTensor<float> tmPHIReg, tmPLOReg, tmpRReg;
     vmul(tmPHIReg, logHighReg, expReg, mask, MODE_ZEROING);
@@ -328,7 +330,7 @@ PTO_INTERNAL void GetExpCore(RegTensor<float> &dstReg, RegTensor<float> &logHigh
     vmula(tmpRReg, tmPLOReg, tmpRReg, mask);
     MaskReg cmpMask1, cmpMask2;
     vcmps_ge(cmpMask1, tmPHIReg, 0.0f, mask);
-    vdup((RegTensor<int32_t> &)tmpFloatReg, INF, cmpMask1, MODE_ZEROING);
+    vdup((RegTensor<int32_t>&)tmpFloatReg, INF, cmpMask1, MODE_ZEROING);
     vcmps_ge(cmpMask2, tmPHIReg, EXP_MIN_F, mask);
     vcmps_lt(cmpMask1, tmPHIReg, EXP_OVFL_UNFL_F, mask);
     por(cmpMask2, cmpMask1, cmpMask2, mask);
@@ -336,8 +338,8 @@ PTO_INTERNAL void GetExpCore(RegTensor<float> &dstReg, RegTensor<float> &logHigh
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride>
-PTO_INTERNAL void TPowFloatHighPrecisionImpl(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, unsigned validRow,
-                                             unsigned validCol)
+PTO_INTERNAL void TPowFloatHighPrecisionImpl(
+    __ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp, unsigned validRow, unsigned validCol)
 {
     constexpr uint16_t nElemPerRpt = CCE_VL / sizeof(float);
     uint16_t repeatTime = CeilDivision(validCol, nElemPerRpt);
@@ -362,8 +364,8 @@ PTO_INTERNAL void TPowFloatHighPrecisionImpl(__ubuf__ T *dst, __ubuf__ T *base, 
                 GetLogFExtStepOne(logHighReg, logLowReg, tmpResultReg, baseReg, params, mask);
                 GetLogFExtStepTwo(logHighReg, logLowReg, tmpResultReg, params, mask);
                 GetExpCore(dstReg, logHighReg, logLowReg, expReg, mask);
-                ProcessFloatSpecialCase(dstReg, baseReg, expReg, params.tmpR10Reg, params.tmpR12Reg, params.twoReg,
-                                        mask);
+                ProcessFloatSpecialCase(
+                    dstReg, baseReg, expReg, params.tmpR10Reg, params.tmpR12Reg, params.twoReg, mask);
 
                 StoreDstData(dstReg, dst, i * DstStride + j * nElemPerRpt, mask);
             }
@@ -372,8 +374,8 @@ PTO_INTERNAL void TPowFloatHighPrecisionImpl(__ubuf__ T *dst, __ubuf__ T *base, 
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride>
-PTO_INTERNAL void TPowFloatHighPrecisionImpl(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsigned validRow,
-                                             unsigned validCol)
+PTO_INTERNAL void TPowFloatHighPrecisionImpl(
+    __ubuf__ T* dst, __ubuf__ T* base, T exp, unsigned validRow, unsigned validCol)
 {
     constexpr uint16_t nElemPerRpt = CCE_VL / sizeof(float);
     uint16_t repeatTime = CeilDivision(validCol, nElemPerRpt);
@@ -412,7 +414,7 @@ constexpr int16_t SHIFT_ONE_BIT = 1;
 constexpr int16_t BITS_PER_BYTE = 8;
 
 template <typename T, typename ConvType>
-PTO_INTERNAL void LoadSrcData(RegTensor<ConvType> &srcReg, __ubuf__ T *src, uint32_t offset, MaskReg &mask)
+PTO_INTERNAL void LoadSrcData(RegTensor<ConvType>& srcReg, __ubuf__ T* src, uint32_t offset, MaskReg& mask)
 {
     if constexpr (sizeof(T) == 1) {
         RegTensor<T> tmpReg;
@@ -424,14 +426,14 @@ PTO_INTERNAL void LoadSrcData(RegTensor<ConvType> &srcReg, __ubuf__ T *src, uint
 }
 
 template <typename T, typename ConvType>
-PTO_INTERNAL void StoreDstData(RegTensor<ConvType> &dstReg, __ubuf__ T *dst, uint32_t offset, MaskReg &mask)
+PTO_INTERNAL void StoreDstData(RegTensor<ConvType>& dstReg, __ubuf__ T* dst, uint32_t offset, MaskReg& mask)
 {
     constexpr auto distValue =
         std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
     if constexpr (sizeof(T) == 1) {
         RegTensor<T> tmpReg;
         MaskReg tmpMask;
-        vpack((RegTensor<uint8_t> &)tmpReg, (RegTensor<uint16_t> &)dstReg, LOWER);
+        vpack((RegTensor<uint8_t>&)tmpReg, (RegTensor<uint16_t>&)dstReg, LOWER);
         ppack(tmpMask, mask, LOWER);
         vsts(tmpReg, dst, offset, distValue, tmpMask);
     } else {
@@ -440,7 +442,7 @@ PTO_INTERNAL void StoreDstData(RegTensor<ConvType> &dstReg, __ubuf__ T *dst, uin
 }
 
 template <typename T>
-PTO_INTERNAL void PowIntegerCore(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
+PTO_INTERNAL void PowIntegerCore(T& dstReg, T& baseReg, T& expReg, MaskReg& mask)
 {
     T selReg;
     MaskReg selMask;
@@ -457,7 +459,7 @@ PTO_INTERNAL void PowIntegerCore(T &dstReg, T &baseReg, T &expReg, MaskReg &mask
 }
 
 template <typename ConvType, typename T>
-PTO_INTERNAL void ProcessSpecialCaseForPowI(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
+PTO_INTERNAL void ProcessSpecialCaseForPowI(T& dstReg, T& baseReg, T& expReg, MaskReg& mask)
 {
     T tmpReg;
     vdup(tmpReg, 1, mask, MODE_ZEROING);
@@ -467,6 +469,7 @@ PTO_INTERNAL void ProcessSpecialCaseForPowI(T &dstReg, T &baseReg, T &expReg, Ma
     vcmps_eq(cmpMask1, expReg, 0, mask);
     vcmps_eq(cmpMask2, baseReg, 1, mask);
     por(condMask, cmpMask1, cmpMask2, mask);
+
     vsel(dstReg, tmpReg, dstReg, condMask);
     pxor(mask, mask, condMask, mask);
 
@@ -481,7 +484,7 @@ PTO_INTERNAL void ProcessSpecialCaseForPowI(T &dstReg, T &baseReg, T &expReg, Ma
 }
 
 template <typename ConvType, typename T>
-PTO_INTERNAL void TPowIntegerCompute(T &dstReg, T &baseReg, T &expReg, MaskReg &mask)
+PTO_INTERNAL void TPowIntegerCompute(T& dstReg, T& baseReg, T& expReg, MaskReg& mask)
 {
     constexpr uint16_t maxLoop = sizeof(ConvType) * BITS_PER_BYTE;
     T tmpBaseReg = baseReg;
@@ -494,10 +497,10 @@ PTO_INTERNAL void TPowIntegerCompute(T &dstReg, T &baseReg, T &expReg, MaskReg &
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride, uint32_t ExpStride>
-PTO_INTERNAL void TPowInteger(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowInteger(__ubuf__ T* dst, __ubuf__ T* base, __ubuf__ T* exp, unsigned validRow, unsigned validCol)
 {
-    using ConvType = std::conditional_t<std::is_same_v<T, int8_t>, int16_t,
-                                        std::conditional_t<std::is_same_v<T, uint8_t>, uint16_t, T>>;
+    using ConvType = std::conditional_t<
+        std::is_same_v<T, int8_t>, int16_t, std::conditional_t<std::is_same_v<T, uint8_t>, uint16_t, T>>;
     constexpr uint16_t nElemPerRpt = CCE_VL / sizeof(ConvType);
     uint16_t repeatTime = CeilDivision(validCol, nElemPerRpt);
 
@@ -525,10 +528,10 @@ PTO_INTERNAL void TPowInteger(__ubuf__ T *dst, __ubuf__ T *base, __ubuf__ T *exp
 }
 
 template <typename T, uint32_t DstStride, uint32_t BaseStride>
-PTO_INTERNAL void TPowInteger(__ubuf__ T *dst, __ubuf__ T *base, T exp, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TPowInteger(__ubuf__ T* dst, __ubuf__ T* base, T exp, unsigned validRow, unsigned validCol)
 {
-    using ConvType = std::conditional_t<std::is_same_v<T, int8_t>, int16_t,
-                                        std::conditional_t<std::is_same_v<T, uint8_t>, uint16_t, T>>;
+    using ConvType = std::conditional_t<
+        std::is_same_v<T, int8_t>, int16_t, std::conditional_t<std::is_same_v<T, uint8_t>, uint16_t, T>>;
     constexpr uint16_t nElemPerRpt = CCE_VL / sizeof(ConvType);
     uint16_t repeatTime = CeilDivision(validCol, nElemPerRpt);
 
@@ -563,71 +566,79 @@ template <typename T>
 inline constexpr bool IsIntegerNum = isSupportType<T, uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t>;
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename ExpTile>
-__tf__ PTO_INTERNAL void TPowImpl(typename DstTile::TileDType __out__ dstData,
-                                  typename BaseTile::TileDType __in__ baseData,
-                                  typename ExpTile::TileDType __in__ expData, unsigned validRow, unsigned validCol,
-                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL void TPowImpl(
+    typename DstTile::TileDType __out__ dstData, typename BaseTile::TileDType __in__ baseData,
+    typename ExpTile::TileDType __in__ expData, unsigned validRow, unsigned validCol,
+    unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename DstTile::DType;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
-    __ubuf__ T *exp = (__ubuf__ T *)__cce_get_tile_ptr(expData);
-
-    if (((validCol == DstTile::Cols) && (validCol == BaseTile::Cols) && (validCol == ExpTile::Cols)) ||
-        ((DstTile::Rows == 1) && (BaseTile::Rows == 1) && (ExpTile::Rows == 1))) {
-        validCol = validRow * validCol;
-        validRow = 1;
-    }
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* base = (__ubuf__ T*)__cce_get_tile_ptr(baseData);
+    __ubuf__ T* exp = (__ubuf__ T*)__cce_get_tile_ptr(expData);
 
     if constexpr (IsFloatNum<T>) {
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         if constexpr (algo == PowAlgorithm::DEFAULT) {
-            PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
-                                                                                            validCol);
+            PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(
+                dst, base, exp, validRow, validCol);
         } else if (algo == PowAlgorithm::HIGH_PRECISION) {
             PowF::TPowFloatHighPrecisionImpl<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(
                 dst, base, exp, validRow, validCol);
         }
+#else
+        PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(
+            dst, base, exp, validRow, validCol);
+#endif
     } else if constexpr (IsIntegerNum<T>) {
-        PowI::TPowInteger<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(dst, base, exp, validRow,
-                                                                                          validCol);
+        PowI::TPowInteger<T, DstTile::RowStride, BaseTile::RowStride, ExpTile::RowStride>(
+            dst, base, exp, validRow, validCol);
     }
 }
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename ExpTile>
 PTO_INTERNAL void PowCheckType()
 {
-    static_assert(DstTile::isRowMajor && BaseTile::isRowMajor && ExpTile::isRowMajor,
-                  "TPOW: Not supported Layout type");
-    static_assert(DstTile::Loc == TileType::Vec && BaseTile::Loc == TileType::Vec && ExpTile::Loc == TileType::Vec,
-                  "TPOW: TileType of dst, base and exp tiles must be TileType::Vec.");
-    static_assert(DstTile::ValidCol <= DstTile::Cols,
-                  "TPOW: Number of dst's valid columns must not be greater than number of tile columns.");
-    static_assert(DstTile::ValidRow <= DstTile::Rows,
-                  "TPOW: Number of dst's valid rows must not be greater than number of tile rows.");
-    static_assert(BaseTile::ValidCol <= BaseTile::Cols,
-                  "TPOW: Number of base's valid columns must not be greater than number of tile columns.");
-    static_assert(BaseTile::ValidRow <= BaseTile::Rows,
-                  "TPOW: Number of base's valid rows must not be greater than number of tile rows.");
-    static_assert(ExpTile::ValidCol <= ExpTile::Cols,
-                  "TPOW: Number of exp's valid columns must not be greater than number of tile columns.");
-    static_assert(ExpTile::ValidRow <= ExpTile::Rows,
-                  "TPOW: Number of exp's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        DstTile::isRowMajor && BaseTile::isRowMajor && ExpTile::isRowMajor, "TPOW: Not supported Layout type");
+    static_assert(
+        DstTile::Loc == TileType::Vec && BaseTile::Loc == TileType::Vec && ExpTile::Loc == TileType::Vec,
+        "TPOW: TileType of dst, base and exp tiles must be TileType::Vec.");
+    static_assert(
+        DstTile::ValidCol <= DstTile::Cols,
+        "TPOW: Number of dst's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        DstTile::ValidRow <= DstTile::Rows,
+        "TPOW: Number of dst's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        BaseTile::ValidCol <= BaseTile::Cols,
+        "TPOW: Number of base's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        BaseTile::ValidRow <= BaseTile::Rows,
+        "TPOW: Number of base's valid rows must not be greater than number of tile rows.");
+    static_assert(
+        ExpTile::ValidCol <= ExpTile::Cols,
+        "TPOW: Number of exp's valid columns must not be greater than number of tile columns.");
+    static_assert(
+        ExpTile::ValidRow <= ExpTile::Rows,
+        "TPOW: Number of exp's valid rows must not be greater than number of tile rows.");
 
     using T = typename DstTile::DType;
 
     if constexpr (algo == PowAlgorithm::HIGH_PRECISION) {
-        static_assert(isSupportType<T, float, half, bfloat16_t>,
-                      "Type must be half/float/bfloat16 in high precision algorithm.");
+        static_assert(
+            isSupportType<T, float, half, bfloat16_t>, "Type must be half/float/bfloat16 in high precision algorithm.");
     } else {
-        static_assert(isSupportType<T, float, half, int32_t, uint32_t, int16_t, uint16_t, int8_t, uint8_t>,
-                      "Type must be uint8/int8/uint16/int16/uint32/int32/half/float in default algorithm.");
+        static_assert(
+            isSupportType<T, float, half, int32_t, uint32_t, int16_t, uint16_t, int8_t, uint8_t>,
+            "Type must be uint8/int8/uint16/int16/uint32/int32/half/float in default algorithm.");
     }
-    static_assert(std::is_same_v<T, typename BaseTile::DType> && std::is_same_v<T, typename ExpTile::DType>,
-                  "TPOW: The data type of dst, base and exp must be consistent");
+    static_assert(
+        std::is_same_v<T, typename BaseTile::DType> && std::is_same_v<T, typename ExpTile::DType>,
+        "TPOW: The data type of dst, base and exp must be consistent");
 }
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename ExpTile, typename TmpTile>
-PTO_INTERNAL void TPOW_IMPL(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile &tmp)
+PTO_INTERNAL void TPOW_IMPL(DstTile& dst, BaseTile& base, ExpTile& exp, TmpTile& tmp)
 {
     PowCheckType<algo, DstTile, BaseTile, ExpTile>();
     unsigned validRow = dst.GetValidRow();
@@ -641,34 +652,32 @@ PTO_INTERNAL void TPOW_IMPL(DstTile &dst, BaseTile &base, ExpTile &exp, TmpTile 
 }
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile>
-__tf__ PTO_INTERNAL void TPowSImpl(typename DstTile::TileDType __out__ dstData,
-                                   typename BaseTile::TileDType __in__ baseData, typename DstTile::DType exp,
-                                   unsigned validRow, unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL void TPowSImpl(
+    typename DstTile::TileDType __out__ dstData, typename BaseTile::TileDType __in__ baseData,
+    typename DstTile::DType exp, unsigned validRow, unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename DstTile::DType;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *base = (__ubuf__ T *)__cce_get_tile_ptr(baseData);
-
-    if (((validCol == DstTile::Cols) && (validCol == BaseTile::Cols)) ||
-        ((DstTile::Rows == 1) && (BaseTile::Rows == 1))) {
-        validCol = validRow * validCol;
-        validRow = 1;
-    }
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* base = (__ubuf__ T*)__cce_get_tile_ptr(baseData);
 
     if constexpr (IsFloatNum<T>) {
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         if constexpr (algo == PowAlgorithm::DEFAULT) {
             PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
         } else if constexpr (algo == PowAlgorithm::HIGH_PRECISION) {
-            PowF::TPowFloatHighPrecisionImpl<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow,
-                                                                                         validCol);
+            PowF::TPowFloatHighPrecisionImpl<T, DstTile::RowStride, BaseTile::RowStride>(
+                dst, base, exp, validRow, validCol);
         }
+#else
+        PowF::TPowFloat<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
+#endif
     } else if constexpr (IsIntegerNum<T>) {
         PowI::TPowInteger<T, DstTile::RowStride, BaseTile::RowStride>(dst, base, exp, validRow, validCol);
     }
 }
 
 template <PowAlgorithm algo, typename DstTile, typename BaseTile, typename TmpTile>
-PTO_INTERNAL void TPOWS_IMPL(DstTile &dst, BaseTile &base, typename DstTile::DType exp, TmpTile &tmp)
+PTO_INTERNAL void TPOWS_IMPL(DstTile& dst, BaseTile& base, typename DstTile::DType exp, TmpTile& tmp)
 {
     PowCheckType<algo, DstTile, BaseTile, DstTile>();
     unsigned validRow = dst.GetValidRow();

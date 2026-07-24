@@ -17,7 +17,7 @@ using namespace pto;
 // TMOV ND→NZ kernel for hifloat8_t.
 // Sizes must be pre-aligned: kRows % 16 == 0 and kCols % 32 == 0.
 template <int kRows, int kCols>
-__global__ AICORE void runTMOV_nd2nz(__gm__ hifloat8_t __out__ *out, __gm__ hifloat8_t __in__ *src)
+__global__ AICORE void runTMOV_nd2nz(__gm__ hifloat8_t __out__* out, __gm__ hifloat8_t __in__* src)
 {
     using T = hifloat8_t;
     constexpr int c0 = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T)); // 32
@@ -66,11 +66,11 @@ __global__ AICORE void runTMOV_nd2nz(__gm__ hifloat8_t __out__ *out, __gm__ hifl
 
 // Host-visible launch wrappers (uint8_t* since hifloat8_t is opaque on host)
 template <int kRows, int kCols>
-void launchTMOV_nd2nz(uint8_t *out, uint8_t *src, void *stream)
+void launchTMOV_nd2nz(uint8_t* out, uint8_t* src, void* stream)
 {
-    runTMOV_nd2nz<kRows, kCols><<<1, nullptr, stream>>>((hifloat8_t *)out, (hifloat8_t *)src);
+    runTMOV_nd2nz<kRows, kCols><<<1, nullptr, stream>>>((hifloat8_t*)out, (hifloat8_t*)src);
 }
 
-template void launchTMOV_nd2nz<32, 32>(uint8_t *, uint8_t *, void *);
-template void launchTMOV_nd2nz<32, 64>(uint8_t *, uint8_t *, void *);
-template void launchTMOV_nd2nz<64, 64>(uint8_t *, uint8_t *, void *);
+template void launchTMOV_nd2nz<32, 32>(uint8_t*, uint8_t*, void*);
+template void launchTMOV_nd2nz<32, 64>(uint8_t*, uint8_t*, void*);
+template void launchTMOV_nd2nz<64, 64>(uint8_t*, uint8_t*, void*);

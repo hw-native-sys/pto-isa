@@ -2,24 +2,24 @@
 
 ## 简介
 
-从 `TPipe` FIFO 中弹出消费者 tile，用于 Cube-Vector 通信。
+从 `TPipe` FIFO中弹出消费者tile，用于Cube-Vector通信。
 
 本指令支持两类数据的弹出，分别为Tile类型的数据和GlobalTensor类型的数据。所以分别设计了基于`Tile` 重载和 `GlobalTensor` 重载。
 
 ## 操作语义
 
-对于 TileData 流程：
+对于TileData流程：
 
-1. `TPUSH(Pipe&, TileData&, Split)` 将生产者 tile 存入当前 FIFO 槽位，并为消费者记录数据就绪同步。生产者 tile 索引在槽位地址计算完成后递增。
-2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前 FIFO 槽位加载到消费者 tile 中。消费者 tile 索引在槽位地址计算完成后递增。
-3. `TFREE(Pipe&, Split)` 释放 FIFO 中的槽位空间。A2A3 平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），A5 平台上会释放 `TPOP` 使用的 FIFO 槽位空间。
+1. `TPUSH(Pipe&, TileData&)` 将生产者tile存入当前FIFO槽位，并为消费者记录数据就绪同步。（注：Split为模板参数）生产者tile索引在槽位地址计算完成后递增。
+2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前FIFO槽位加载到消费者tile中。消费者tile索引在槽位地址计算完成后递增。
+3. `TFREE(Pipe&, Split)` 释放FIFO中的槽位空间。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），Ascend 950PR/Ascend 950DT平台上会释放 `TPOP` 使用的FIFO槽位空间。
 
-对于 GlobalData 流程:
+对于GlobalData流程:
 
-1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者 FIFO 槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
-2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将 FIFO 槽位提交给消费者。它本身不会存储 tile 数据。
-3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会将数据加载到本地 tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
-4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图，通知生产者该槽位空间已空闲。
+1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者FIFO槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
+2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将FIFO槽位提交给消费者。它本身不会存储tile数据。
+3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前FIFO槽位地址，并递增消费者tile索引。它不会将数据加载到本地tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
+4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的FIFO槽位视图，通知生产者该槽位空间已空闲。
 
 ## C++ Intrinsic
 
@@ -35,7 +35,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`Pipe` 通常是 `include/pto/npu/a2a3/TPush.hpp` 中声明的 A2A3 `TPipe`：
+`Pipe` 通常是 `include/pto/npu/a2a3/TPush.hpp` 或 `include/pto/npu/a5/TPush.hpp` 中声明的 `TPipe`：
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -45,24 +45,24 @@ struct TPipe;
 
 ## 约束
 
-- **A2A3 TileData 消费者**：
-    - `TileCons::Loc` 必须是 `TileType::Vec` 或 `TileType::Mat`。
-    - `Direction::DIR_C2V`：vector 消费 cube 生产的数据。
-    - `Direction::DIR_V2C`：cube 消费 vector 生产的数据。
-    - `Direction::DIR_BOTH`：同一个 pipe 类型同时支持 C2V 和 V2C 消费者。
+- **Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品TileData消费者**：
+    - `TileCons::Loc` 必须是 `TileType::Vec`、`TileType::Mat` 或 `TileType::Ctrl`。
+    - `Direction::DIR_C2V`：vector消费cube生产的数据。
+    - `Direction::DIR_V2C`：cube消费vector生产的数据。
+    - `Direction::DIR_BOTH`：同一个pipe类型同时支持C2V和V2C消费者。
 - **本地消费者缓冲区**：
-    - 对于 C2V vector 消费者，`TPipe` 会将 tile 分配到 `C2V_CONSUMER_BUF`，并使用本地 FIFO 轮转。
-    - 对于 V2C matrix 消费者，`TPipe` 会将 tile 分配到 `V2C_CONSUMER_BUF`，并使用本地 FIFO 轮转。
+    - 对于C2V vector消费者，`TPipe` 会将tile分配到 `C2V_CONSUMER_BUF`，并使用本地FIFO轮转。
+    - 对于V2C matrix消费者，`TPipe` 会将tile分配到 `V2C_CONSUMER_BUF`，并使用本地FIFO轮转。
 - **切分行为**：
-    - `TileSplitAxis::TILE_NO_SPLIT`：不进行切分， A2A3上需要AIV0/AIV1陪跑核间同步操作。
+    - `TileSplitAxis::TILE_NO_SPLIT`：不进行切分，Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上需要AIV0/AIV1陪跑核间同步操作。
     - `TileSplitAxis::TILE_UP_DOWN`：消费上下两个行半区。
     - `TileSplitAxis::TILE_LEFT_RIGHT`：消费左右两个列半区。
 - **同步**：
     - 每次 `TPOP` 都会执行数据就绪等待。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。
-- **GlobalData 槽位视图**：
-    - `gmTensor` 会被赋值为由 `pipe.cons.tileIndex` 选择的 FIFO 槽位基地址。
-    - 对于 C2V 分裂模式，会根据 `Split` 应用向量子块偏移。
+- **GlobalData槽位视图**：
+    - `gmTensor` 会被赋值为由 `pipe.cons.tileIndex` 选择的FIFO槽位基地址。
+    - 对于C2V分裂模式，会根据 `Split` 应用向量子块偏移。
     - 从槽位视图完成所有加载后，调用者必须调用 `TFREE(Pipe&, GlobalData&)`。
 
 ## 示例
@@ -86,7 +86,7 @@ AICORE void example_c2v(__gm__ void *fifoMem)
     using Pipe = TPipe<FlagID, Direction::DIR_C2V, M * N * sizeof(T), FifoDepth>;
     using VecTile = Tile<TileType::Vec, T, M / 2, N, BLayout::RowMajor, M / 2, N>;
 
-    Pipe pipe(fifoMem, LocalBase, 0x0);
+    Pipe pipe(fifoMem, LocalBase, 0x0); // C2V 模式：第二参数为 C2V 消费者缓冲基址，第三参数为 V2C 消费者缓冲基址（此处为 0）
     VecTile tile;
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);
@@ -119,7 +119,7 @@ AICORE void example_v2c(__gm__ void *fifoMem)
 }
 ```
 
-### GlobalData 槽位弹出
+### GlobalData槽位弹出
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -149,6 +149,6 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
 }
 ```
 
-## ASM 形式示例
+## ASM形式示例
 
-当前公开的汇编参考尚未为 `TPOP` 定义稳定的 PTO-AS 写法。手写 CV FIFO 程序时请使用 C++ intrinsic 形式。
+当前公开的汇编参考尚未为 `TPOP` 定义稳定的PTO-AS写法。手写CV FIFO程序时请使用C++ intrinsic形式。

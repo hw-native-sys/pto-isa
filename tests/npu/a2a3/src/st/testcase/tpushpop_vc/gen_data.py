@@ -61,6 +61,27 @@ def gen_golden_data(case_name, case_params):
     golden.tofile("./golden.bin")
 
 
+def gen_subblock_golden_data(case_params):
+    """
+    TPUSH with explicit subBlockId (TILE_UP_DOWN).
+
+    Vec cores push (src0 + src1) [M, K] in row-split halves.
+    Cube pops the combined tile, multiplies by src2 [K, N], and stores [M, N].
+    """
+    m, k, n, dtype = case_params
+    src0 = np.random.uniform(-2, 2, [m, k]).astype(dtype)
+    src1 = np.random.uniform(-2, 2, [m, k]).astype(dtype)
+    src2 = np.random.uniform(-2, 2, [k, n]).astype(dtype)
+
+    src0.tofile("./src0_gm.bin")
+    src1.tofile("./src1_gm.bin")
+    src2.tofile("./src2_gm.bin")
+
+    res = (src0 + src1).astype(dtype)
+    golden = np.matmul(res, src2).astype(dtype)
+    golden.tofile("./golden.bin")
+
+
 if __name__ == "__main__":
     case_name_list = [
         # TILE_UP_DOWN: vector cores split quantB along K rows (keys 1-6)
@@ -95,10 +116,25 @@ if __name__ == "__main__":
         (16, 256, 32, np.int16, np.float32, np.float32), # case12: K=256, NUM_K_TILES=4
     ]
 
+    subblock_case_name_list = [
+        "TPushPopVCTest.case13_float_subblock_id_up_down",
+    ]
+    subblock_case_params_list = [
+        (64, 64, 64, np.float32),
+    ]
+
     for i, case_name in enumerate(case_name_list):
         if not os.path.exists(case_name):
             os.makedirs(case_name)
         original_dir = os.getcwd()
         os.chdir(case_name)
         gen_golden_data(case_name, case_params_list[i])
+        os.chdir(original_dir)
+
+    for i, case_name in enumerate(subblock_case_name_list):
+        if not os.path.exists(case_name):
+            os.makedirs(case_name)
+        original_dir = os.getcwd()
+        os.chdir(case_name)
+        gen_subblock_golden_data(subblock_case_params_list[i])
         os.chdir(original_dir)

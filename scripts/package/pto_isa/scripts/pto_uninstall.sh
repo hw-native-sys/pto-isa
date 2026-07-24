@@ -54,13 +54,13 @@ get_opts() {
   IS_DOCKER_INSTALL="$5"
   DOCKER_ROOT="$6"
   PKG_VERSION_DIR="$7"
-  local paramter_num="$#"
+  local parameter_num="$#"
 
-  if [ "${paramter_num}" != 0 ]; then
+  if [ "${parameter_num}" != 0 ]; then
     if [ "${INSTALLED_PATH}" = "" ] ||
       [ "${UNINSTALL_MODE}" = "" ] ||
       [ "${IS_QUIET}" = "" ]; then
-      logandprint "[ERROR]: ERR_NO:${PARAM_INVALID};ERR_DES:Empty paramters is invalid\
+      logandprint "[ERROR]: ERR_NO:${PARAM_INVALID};ERR_DES:Empty parameters is invalid\
 for call uninstall functions."
       exit 1
     fi
@@ -91,7 +91,7 @@ log_with_errorlevel() {
 check_directory_exist() {
   local path="${1}"
   if [ ! -d "${path}" ]; then
-    logandprint "[ERROR]: ERR_NO:${FILE_NOT_EXIST};ERR_DES:Installation directroy [${path}] does not exist, uninstall failed."
+    logandprint "[ERROR]: ERR_NO:${FILE_NOT_EXIST};ERR_DES:Installation directory [${path}] does not exist, uninstall failed."
     exit 1
   fi
 }

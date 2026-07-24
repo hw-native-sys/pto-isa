@@ -17,14 +17,14 @@ using namespace std;
 using namespace pto;
 
 template <typename T, typename TileData, typename TileUBData, typename GlobalData>
-AICORE inline void runTexpandsAndTstore(__gm__ T *&out, TileData &MatTile, TileUBData &srcTile, GlobalData &dstGlobal,
-                                        T value, int elementSize)
+AICORE inline void runTexpandsAndTstore(
+    __gm__ T*& out, TileData& MatTile, TileUBData& srcTile, GlobalData& dstGlobal, T value, int elementSize)
 {
     TASSIGN<0x0>(MatTile);
     TASSIGN<0x0>(srcTile);
 
-    __cbuf__ T *srcMatAddr = MatTile.data();
-    __ubuf__ T *srcUbAddr = srcTile.data();
+    __cbuf__ T* srcMatAddr = MatTile.data();
+    __ubuf__ T* srcUbAddr = srcTile.data();
 
     TEXPANDS<TileData>(MatTile, value); // MTE2
 #ifndef __PTO_AUTO__
@@ -34,7 +34,7 @@ AICORE inline void runTexpandsAndTstore(__gm__ T *&out, TileData &MatTile, TileU
     // L1 -> UB : AIC
     uint16_t blockCount = 1;
     uint16_t blockLen = elementSize * sizeof(T) / 32;
-    copy_cbuf_to_ubuf((__ubuf__ void *)srcUbAddr, (__cbuf__ void *)srcMatAddr, 0, blockCount, blockLen, 0, 0);
+    copy_cbuf_to_ubuf((__ubuf__ void*)srcUbAddr, (__cbuf__ void*)srcMatAddr, 0, blockCount, blockLen, 0, 0);
 
 #ifndef __PTO_AUTO__
     set_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
@@ -45,10 +45,10 @@ AICORE inline void runTexpandsAndTstore(__gm__ T *&out, TileData &MatTile, TileU
 }
 
 template <typename T, int Rows, int Cols>
-AICORE inline void runTexpands_Tile(__gm__ T *out, T value)
+AICORE inline void runTexpands_Tile(__gm__ T* out, T value)
 {
-    using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, Rows, Cols>,
-                                    pto::Stride<1 * Rows * Cols, 1 * Rows * Cols, Rows * Cols, Cols, 1>>;
+    using GlobalData = GlobalTensor<
+        T, pto::Shape<1, 1, 1, Rows, Cols>, pto::Stride<1 * Rows * Cols, 1 * Rows * Cols, Rows * Cols, Cols, 1>>;
     GlobalData dstGlobal(out);
 
     using TileData = Tile<TileType::Mat, T, Rows, Cols, BLayout::RowMajor, Rows, Cols, SLayout::NoneBox>;
@@ -62,7 +62,7 @@ AICORE inline void runTexpands_Tile(__gm__ T *out, T value)
 }
 
 template <typename T, int N, int C1, int H, int W, int C0>
-AICORE inline void runTexpands_ConvTile(__gm__ T *out, T value)
+AICORE inline void runTexpands_ConvTile(__gm__ T* out, T value)
 {
     constexpr int elementSize = N * C1 * H * W * C0;
     constexpr int bufferSizeA = elementSize * sizeof(T);
@@ -84,7 +84,7 @@ AICORE inline void runTexpands_ConvTile(__gm__ T *out, T value)
 }
 
 template <typename T, int N, int D, int C1, int H, int W, int C0>
-AICORE inline void runTexpands_ConvTile_3d(__gm__ T *out, T value)
+AICORE inline void runTexpands_ConvTile_3d(__gm__ T* out, T value)
 {
     constexpr int elementSize = N * D * C1 * H * W * C0;
     constexpr int bufferSizeA = elementSize * sizeof(T);
@@ -106,20 +106,20 @@ AICORE inline void runTexpands_ConvTile_3d(__gm__ T *out, T value)
 }
 
 template <typename T, int format, int shape0, int shape1, int shape2, int shape3, int shape4, int shape5 = 0>
-__global__ AICORE void TEXPANDS_KERNEL(__gm__ uint8_t *out, T value)
+__global__ AICORE void TEXPANDS_KERNEL(__gm__ uint8_t* out, T value)
 {
     if constexpr (format == 0) { // Tile
-        runTexpands_Tile<T, shape0, shape1>(reinterpret_cast<__gm__ T *>(out), value);
+        runTexpands_Tile<T, shape0, shape1>(reinterpret_cast<__gm__ T*>(out), value);
     } else if constexpr (format == 1) { // convTile
-        runTexpands_ConvTile<T, shape0, shape1, shape2, shape3, shape4>(reinterpret_cast<__gm__ T *>(out), value);
+        runTexpands_ConvTile<T, shape0, shape1, shape2, shape3, shape4>(reinterpret_cast<__gm__ T*>(out), value);
     } else if constexpr (format == 2) { // convTile 3D
-        runTexpands_ConvTile_3d<T, shape0, shape1, shape2, shape3, shape4, shape5>(reinterpret_cast<__gm__ T *>(out),
-                                                                                   value);
+        runTexpands_ConvTile_3d<T, shape0, shape1, shape2, shape3, shape4, shape5>(
+            reinterpret_cast<__gm__ T*>(out), value);
     }
 }
 
 template <int32_t testKey>
-void launchTEXPANDS_MAT(uint8_t *out, void *stream)
+void launchTEXPANDS_MAT(uint8_t* out, void* stream)
 {
     if constexpr (testKey == 1) {
         TEXPANDS_KERNEL<half, 0, 128, 128, 0, 0, 0, 0><<<1, nullptr, stream>>>(out, half(2));
@@ -132,7 +132,7 @@ void launchTEXPANDS_MAT(uint8_t *out, void *stream)
     }
 }
 
-template void launchTEXPANDS_MAT<1>(uint8_t *out, void *stream);
-template void launchTEXPANDS_MAT<2>(uint8_t *out, void *stream);
-template void launchTEXPANDS_MAT<6>(uint8_t *out, void *stream);
-template void launchTEXPANDS_MAT<7>(uint8_t *out, void *stream);
+template void launchTEXPANDS_MAT<1>(uint8_t* out, void* stream);
+template void launchTEXPANDS_MAT<2>(uint8_t* out, void* stream);
+template void launchTEXPANDS_MAT<6>(uint8_t* out, void* stream);
+template void launchTEXPANDS_MAT<7>(uint8_t* out, void* stream);

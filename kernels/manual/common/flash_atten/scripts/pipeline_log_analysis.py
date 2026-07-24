@@ -44,8 +44,8 @@ import re
 import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
-import math
 from typing import Dict, List, Optional, Tuple
+
 
 # Simple representation for SVG tasks derived from timeline entries
 @dataclass
@@ -56,6 +56,7 @@ class SvgTask:
     start: int
     end: int
 
+
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:  # pragma: no cover
@@ -64,18 +65,18 @@ except ModuleNotFoundError:  # pragma: no cover
 # Heuristic opcode buckets; extend as needed for your traces.
 LOAD_OPS = (
     "LOAD_",  # LOAD_L1_TO_DST_*, LOAD_2D, etc.
-    "LD_",    # LD_XD_XN_IMM, LDP_XI_XJ_XN, etc.
+    "LD_",  # LD_XD_XN_IMM, LDP_XI_XJ_XN, etc.
     "MOV_OUT_TO_L1",  # MOV_OUT_TO_L1_MULTI_*
 )
 
 STORE_OPS = (
     "STORE_",  # generic store pattern
-    "ST_",     # ST_XD_XN_IMM, STI_XN_IMM, etc.
+    "ST_",  # ST_XD_XN_IMM, STI_XN_IMM, etc.
     "MOV_L1_TO_OUT",
 )
 
 COMPUTE_OPS = (
-    "MMAD",         # cube matmul
+    "MMAD",  # cube matmul
     # Vector compute families we care to surface
     "VMAX",
     "VCMAX",
@@ -98,6 +99,7 @@ OP_REGEX = re.compile(r"\)\s*([A-Z0-9_]+)")
 # Capture the first mnemonic after the binary blob (actual opcode like VMAX, SET_FLAG, etc.)
 OPCODE_AFTER_BINARY_REGEX = re.compile(r"\)\s*[A-Z0-9_]+\s*:\s*\([^)]*\)\s*([A-Z][A-Z0-9_]+)")
 ID_REGEX = re.compile(r"\b(?:id|instr_id)\s*[:=]\s*(\d+)\b", re.IGNORECASE)
+
 
 @dataclass
 class Instr:
@@ -204,17 +206,19 @@ def parse_log(path: Path, core: str) -> List[Dict]:
             addrs = [int(m, 16) for m in ADDR_REGEX.findall(line)]
             id_match = ID_REGEX.search(line)
             instr_id = int(id_match.group(1)) if id_match else None
-            events.append({
-                "ts": ts,
-                "pc": pc,
-                "pipeline": pipeline_token,
-                "opcode": opcode,
-                "addresses": addrs,
-                "line_text": line,
-                "line": idx,
-                "core": core,
-                "id": instr_id,
-            })
+            events.append(
+                {
+                    "ts": ts,
+                    "pc": pc,
+                    "pipeline": pipeline_token,
+                    "opcode": opcode,
+                    "addresses": addrs,
+                    "line_text": line,
+                    "line": idx,
+                    "core": core,
+                    "id": instr_id,
+                }
+            )
     return events
 
 
@@ -265,7 +269,9 @@ def match_start_end(start_events: List[Dict], end_events: List[Dict]) -> List[Tu
     return pairs
 
 
-def map_buffer(opcode: str, addrs: List[int], line_text: str, buf_map: Dict[str, Tuple[int, int]]) -> Tuple[Optional[str], Optional[int]]:
+def map_buffer(
+    opcode: str, addrs: List[int], line_text: str, buf_map: Dict[str, Tuple[int, int]]
+) -> Tuple[Optional[str], Optional[int]]:
     # Prefer XN address for MOV_SRC_TO_DST_ALIGN (captures Src:OUT, Dst:UB transfers)
     if opcode.startswith("MOV_SRC_TO_DST_ALIGN"):
         xn_match = re.search(r"XN(?::[A-Za-z0-9]+)?\s*[:=]\s*0x([0-9a-fA-F]+)", line_text)
@@ -282,7 +288,9 @@ def map_buffer(opcode: str, addrs: List[int], line_text: str, buf_map: Dict[str,
     return None, None
 
 
-def infer_stage(buffer: Optional[str], opcode: str, op_class: str, line_text: str, global_buffer: Optional[str], core: str) -> Optional[str]:
+def infer_stage(
+    buffer: Optional[str], opcode: str, op_class: str, line_text: str, global_buffer: Optional[str], core: str
+) -> Optional[str]:
     # Only infer stage for load/store; compute handled later
     if op_class not in ("load", "store"):
         return None
@@ -347,8 +355,12 @@ def infer_stage_compute(instrs: List[Instr]) -> None:
         return None
 
     # Build vector compute_p windows: each compute_p load pairs with the next compute_p store.
-    vec_p_loads = [ins for ins in instrs if ins.core == "vector" and ins.op_class == "load" and ins.stage == "compute_p"]
-    vec_p_stores = [ins for ins in instrs if ins.core == "vector" and ins.op_class == "store" and ins.stage == "compute_p"]
+    vec_p_loads = [
+        ins for ins in instrs if ins.core == "vector" and ins.op_class == "load" and ins.stage == "compute_p"
+    ]
+    vec_p_stores = [
+        ins for ins in instrs if ins.core == "vector" and ins.op_class == "store" and ins.stage == "compute_p"
+    ]
     vec_p_loads.sort(key=lambda i: i.ts_start)
     vec_p_stores.sort(key=lambda i: i.ts_start)
     vec_p_windows: List[Tuple[int, int]] = []
@@ -626,32 +638,40 @@ def render_svg(tasks: List[SvgTask], slot_width: int, output: Path, divisor: int
 
     svg_parts: List[str] = []
     svg_parts.append('<?xml version="1.0" encoding="UTF-8"?>')
-    svg_parts.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">')
+    svg_parts.append(
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+    )
     svg_parts.append(f'  <rect width="{width}" height="{height}" fill="#fff" />')
     svg_parts.append(
         "  <defs>\n"
-        "    <marker id=\"arrowhead\" markerWidth=\"10\" markerHeight=\"7\" refX=\"10\" refY=\"3.5\" orient=\"auto\">\n"
-        "      <polygon points=\"0 0 10 3.5 0 7\" fill=\"#333\" />\n"
+        '    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">\n'
+        '      <polygon points="0 0 10 3.5 0 7" fill="#333" />\n'
         "    </marker>\n"
-        "    <marker id=\"arrowhead-intra\" markerWidth=\"10\" markerHeight=\"7\" refX=\"10\" refY=\"3.5\" orient=\"auto\">\n"
-        "      <polygon points=\"0 0 10 3.5 0 7\" fill=\"#1b75d1\" />\n"
+        '    <marker id="arrowhead-intra" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">\n'
+        '      <polygon points="0 0 10 3.5 0 7" fill="#1b75d1" />\n'
         "    </marker>\n"
         "  </defs>"
     )
-    svg_parts.append('  <text x="20" y="28" font-family="Arial" font-size="16" font-weight="bold" fill="#222">FA Pipeline Schedule (from log)</text>')
+    svg_parts.append(
+        '  <text x="20" y="28" font-family="Arial" font-size="16" font-weight="bold" fill="#222">FA Pipeline Schedule (from log)</text>'
+    )
 
     svg_parts.append('  <g stroke="#f2f2f2" stroke-width="1">')
     for t in range(0, tmax + 1, 10):
         x = 120 + slot_width * t
         svg_parts.append(f'    <line x1="{x}" y1="40" x2="{x}" y2="280" />')
-    svg_parts.append('  </g>')
+    svg_parts.append("  </g>")
 
     svg_parts.append('  <text x="20" y="80" font-family="Arial" font-size="13" fill="#222">compute_qk (cube)</text>')
     svg_parts.append('  <text x="20" y="140" font-family="Arial" font-size="13" fill="#222">compute_p (vector)</text>')
     svg_parts.append('  <text x="20" y="200" font-family="Arial" font-size="13" fill="#222">compute_pv (cube)</text>')
     svg_parts.append('  <text x="20" y="260" font-family="Arial" font-size="13" fill="#222">compute_gu (vector)</text>')
-    svg_parts.append('  <text x="20" y="340" font-family="Arial" font-size="13" fill="#222">cube timeline (qk+pv)</text>')
-    svg_parts.append('  <text x="20" y="400" font-family="Arial" font-size="13" fill="#222">vector timeline (p+gu)</text>')
+    svg_parts.append(
+        '  <text x="20" y="340" font-family="Arial" font-size="13" fill="#222">cube timeline (qk+pv)</text>'
+    )
+    svg_parts.append(
+        '  <text x="20" y="400" font-family="Arial" font-size="13" fill="#222">vector timeline (p+gu)</text>'
+    )
 
     for task in tasks:
         svg_parts.append(rect(task))
@@ -704,7 +724,7 @@ def render_svg(tasks: List[SvgTask], slot_width: int, output: Path, divisor: int
             y2 = y_for(p_load_dep) + mini_h / 2
             y1, y2 = adjust_overlap(y1, y2)
             svg_parts.append(
-                f'  <path d="M{x1:.1f} {y1:.1f} L{x1:.1f} {y2-4:.1f} L{x2:.1f} {y2-4:.1f}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
+                f'  <path d="M{x1:.1f} {y1:.1f} L{x1:.1f} {y2 - 4:.1f} L{x2:.1f} {y2 - 4:.1f}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
             )
         p_store, pv_load_dep = pick_dep("p_store", "pv_load1", tile)  # compute_p store -> compute_pv load
         if p_store and pv_load_dep:
@@ -714,7 +734,7 @@ def render_svg(tasks: List[SvgTask], slot_width: int, output: Path, divisor: int
             y2 = y_for(pv_load_dep) + mini_h / 2
             y1, y2 = adjust_overlap(y1, y2)
             svg_parts.append(
-                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2-4} L{x2} {y2-4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
+                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2 - 4} L{x2} {y2 - 4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
             )
         pv_store, gu_load = pick_dep("pv_store", "gu_load", tile)  # compute_pv store -> compute_gu load
         if pv_store and gu_load:
@@ -724,7 +744,7 @@ def render_svg(tasks: List[SvgTask], slot_width: int, output: Path, divisor: int
             y2 = y_for(gu_load) + mini_h / 2
             y1, y2 = adjust_overlap(y1, y2)
             svg_parts.append(
-                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2-4} L{x2} {y2-4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
+                f'  <path d="M{x1:.1f} {y1} L{x1:.1f} {y2 - 4} L{x2} {y2 - 4}" stroke="#333" stroke-width="1.5" fill="none" marker-end="url(#arrowhead)" />'
             )
 
         for base_name in ("qk", "p", "pv", "gu"):
@@ -748,10 +768,11 @@ def render_svg(tasks: List[SvgTask], slot_width: int, output: Path, divisor: int
                     f'  <path d="M{x1:.1f} {y1} L{x2} {y2}" stroke="#1b75d1" stroke-width="1.2" fill="none" marker-end="url(#arrowhead-intra)" />'
                 )
 
-    svg_parts.append('</svg>')
+    svg_parts.append("</svg>")
 
     with output.open("w", encoding="utf-8") as f:
         f.write("\n".join(svg_parts))
+
 
 def to_instrs(paired: List[Tuple[Dict, Dict]], buf_map: Dict[str, Tuple[int, int]]) -> List[Instr]:
     instrs: List[Instr] = []
@@ -784,7 +805,24 @@ def to_instrs(paired: List[Tuple[Dict, Dict]], buf_map: Dict[str, Tuple[int, int
 
 
 def write_csv(instrs: List[Instr], path: Path) -> None:
-    fieldnames = ["core", "ts_start", "ts_end", "pipeline", "opcode", "op_class", "stage", "stage_name", "buffer", "global_buffer", "buffer_addr", "addresses", "pc", "line_start", "line_end", "instr_id"]
+    fieldnames = [
+        "core",
+        "ts_start",
+        "ts_end",
+        "pipeline",
+        "opcode",
+        "op_class",
+        "stage",
+        "stage_name",
+        "buffer",
+        "global_buffer",
+        "buffer_addr",
+        "addresses",
+        "pc",
+        "line_start",
+        "line_end",
+        "instr_id",
+    ]
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -810,7 +848,16 @@ def aggregate(instrs: List[Instr]) -> List[Dict]:
         agg["end"] = max(agg["end"], ins.ts_end or ins.ts_start)
     summary = []
     for (core, buf, op_class), val in buckets.items():
-        summary.append({"core": core, "buffer": buf, "op_class": op_class, "start": val["start"], "end": val["end"], "duration": val["end"] - val["start"]})
+        summary.append(
+            {
+                "core": core,
+                "buffer": buf,
+                "op_class": op_class,
+                "start": val["start"],
+                "end": val["end"],
+                "duration": val["end"] - val["start"],
+            }
+        )
     return sorted(summary, key=lambda x: (x["core"], x["buffer"], x["start"]))
 
 
@@ -834,7 +881,12 @@ def main():
     ap.add_argument("--out-json", type=Path, default=Path("timeline.json"))
     ap.add_argument("--out-agg", type=Path, default=Path("timeline_agg.csv"))
     ap.add_argument("--out-svg", type=Path, default=None, help="Optional SVG timeline output rendered from parsed log")
-    ap.add_argument("--svg-divisor", type=int, default=100, help="Divide timestamps by this factor for SVG scaling (e.g., 10 -> 10 cycles per unit)")
+    ap.add_argument(
+        "--svg-divisor",
+        type=int,
+        default=100,
+        help="Divide timestamps by this factor for SVG scaling (e.g., 10 -> 10 cycles per unit)",
+    )
     args = ap.parse_args()
 
     buf_map = load_device_addrs(args.device_addrs)

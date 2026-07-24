@@ -19,12 +19,12 @@ using namespace pto;
 
 namespace TQuantDNTest {
 
-// Full DN vector pipeline: TQuant(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
+// Full DN vector pipeline: TQUANT(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
 // Stores FP8 ND, E8M0 DN, per-group max, FP8 NZ, and E8M0 ZZ to GM for comparison.
 template <typename T, int M, int N, int N_pad>
-__global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out__ *fp8_nd_gm,
-                                   __gm__ uint8_t __out__ *e8_dn_gm, __gm__ int8_t __out__ *fp8_nz_gm,
-                                   __gm__ uint8_t __out__ *e8_zz_gm, __gm__ T __out__ *max_dn_gm)
+__global__ AICORE void runTQuantDN(
+    __gm__ T __in__* src_gm, __gm__ int8_t __out__* fp8_nd_gm, __gm__ uint8_t __out__* e8_dn_gm,
+    __gm__ int8_t __out__* fp8_nz_gm, __gm__ uint8_t __out__* e8_zz_gm, __gm__ T __out__* max_dn_gm)
 {
     constexpr uint32_t grpSize = 32;
     constexpr uint32_t hatM = M / grpSize;
@@ -37,25 +37,28 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
 
     using SrcTile =
         Tile<TileType::Vec, T, M, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
-    using DstFP8Tile = Tile<TileType::Vec, int8_t, M, paddedCols, BLayout::RowMajor, M, paddedCols, SLayout::NoneBox,
-                            512, PadValue::Zero>;
+    using DstFP8Tile = Tile<
+        TileType::Vec, int8_t, M, paddedCols, BLayout::RowMajor, M, paddedCols, SLayout::NoneBox, 512, PadValue::Zero>;
     using MaxTile =
         Tile<TileType::Vec, T, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
     using ScalingTile =
         Tile<TileType::Vec, T, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
-    using E8NdTile = Tile<TileType::Vec, uint8_t, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                          PadValue::Zero>;
+    using E8NdTile = Tile<
+        TileType::Vec, uint8_t, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
 
-    using E8DnTile = Tile<TileType::Vec, uint8_t, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                          PadValue::Zero>;
+    using E8DnTile = Tile<
+        TileType::Vec, uint8_t, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
 
-    using E8ZzTile = Tile<TileType::Vec, uint8_t, paddedRows16, groupedColsValid, BLayout::RowMajor, -1, -1,
-                          SLayout::RowMajor, 32, PadValue::Zero>;
-    using E8StoreTile = Tile<TileType::Vec, uint8_t, 1, numGroupsFlatAligned, BLayout::RowMajor, -1, -1,
-                             SLayout::NoneBox, 512, PadValue::Zero>;
+    using E8ZzTile = Tile<
+        TileType::Vec, uint8_t, paddedRows16, groupedColsValid, BLayout::RowMajor, -1, -1, SLayout::RowMajor, 32,
+        PadValue::Zero>;
+    using E8StoreTile = Tile<
+        TileType::Vec, uint8_t, 1, numGroupsFlatAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
 
-    using Fp8NZTile = Tile<TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, M, paddedCols,
-                           SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
+    using Fp8NZTile = Tile<
+        TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, M, paddedCols, SLayout::RowMajor, 512,
+        PadValue::Null, CompactMode::RowPlusOne>;
 
     constexpr uint32_t colBlkCount = paddedCols / 16;
     constexpr uint32_t hatP = hatM / 2;
@@ -66,8 +69,8 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
         sizeof(uint16_t);
     constexpr uint32_t tmpBufSizeAligned = PTO_CEIL(tmpBufSize, 32);
 
-    using TmpTile = Tile<TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
+    using TmpTile = Tile<
+        TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
 
     SrcTile srcTile(M, paddedCols);
     DstFP8Tile fp8Tile;
@@ -96,9 +99,10 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
         GlobalTensor<uint8_t, Shape<1, 1, 1, 1, numGroupsFlatAligned>, pto::Stride<1, 1, 1, numGroupsFlatAligned, 1>>;
     DstE8Global e8Global(e8_zz_gm);
 
-    using DstFp8GlobalNZ = GlobalTensor<int8_t, TileShape2D<int8_t, M, paddedCols, Layout::NZ>,
-                                        BaseShape2D<int8_t, M, paddedCols, Layout::NZ>, Layout::NZ>;
-    DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t *)fp8_nz_gm);
+    using DstFp8GlobalNZ = GlobalTensor<
+        int8_t, TileShape2D<int8_t, M, paddedCols, Layout::NZ>, BaseShape2D<int8_t, M, paddedCols, Layout::NZ>,
+        Layout::NZ>;
+    DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t*)fp8_nz_gm);
 
     constexpr uint32_t srcTileBytes = M * paddedCols * sizeof(T);
     constexpr uint32_t maxTileBytes = hatM * paddedCols * sizeof(T);
@@ -108,7 +112,7 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
     constexpr uint32_t fp8TileBytes = M * paddedCols;
 
     // Keep source and destination UB tiles orthogonal: place fp8Tile after all
-    // input/work tiles so TQuant reads src and writes dst to non-overlapping
+    // input/work tiles so TQUANT reads src and writes dst to non-overlapping
     // regions (on-board store ordering is not guaranteed).
     constexpr uint32_t srcTileAddr = 0x0;
     constexpr uint32_t maxTileAddr = PTO_CEIL(srcTileAddr + srcTileBytes, 0x20);
@@ -122,7 +126,7 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
         (nColGroupsNZ > 1) ? (nColGroupsNZ - 1) * (paddedRows16 + 1) * C0_SIZE_B + paddedRows16 * C0_SIZE_B :
                              paddedRows16 * C0_SIZE_B;
     constexpr uint32_t fp8NZTileAddr = PTO_CEIL(fp8TileAddr + fp8TileBytes, 0x20);
-    // workTileEnd marks the end of the TQuant input-side tiles; fp8Tile now lives
+    // workTileEnd marks the end of the TQUANT input-side tiles; fp8Tile now lives
     // after it, so use fp8NZEnd to find where the ZZ/tmp scratch area can start.
     constexpr uint32_t workTileEnd = e8DnTileAddr + e8DnTileBytes;
     constexpr uint32_t fp8NZEnd = fp8NZTileAddr + fp8NZTileBytes;
@@ -151,7 +155,7 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
     // Generic DN API: grp_axis=0 (groups on axis 0), single MxQuantAlg tag. The
     // exponent is written into e8Tile; copy it into e8DnTile so the UB tile shape
     // matches the GM shape exactly.
-    TQuant<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
+    TQUANT<0, MxQuantAlg::OcpMxFp8E4M3>(fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
     TMOV(e8DnTile, e8Tile);
 
     // Data ND->NZ (stock 2-arg TMOV) and exponent DN->ZZ (grp_axis=0 TMOV).
@@ -168,29 +172,28 @@ __global__ AICORE void runTQuantDN(__gm__ T __in__ *src_gm, __gm__ int8_t __out_
 }
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN(uint16_t *src, int8_t *fp8_nd, uint8_t *e8_dn, int8_t *fp8_nz, uint8_t *e8_zz, uint16_t *max_dn,
-                    void *stream)
+void LaunchTQuantDN(
+    uint16_t* src, int8_t* fp8_nd, uint8_t* e8_dn, int8_t* fp8_nz, uint8_t* e8_zz, uint16_t* max_dn, void* stream)
 {
     runTQuantDN<bfloat16_t, M, N, N_pad>
-        <<<1, nullptr, stream>>>((bfloat16_t *)src, fp8_nd, e8_dn, fp8_nz, e8_zz, (bfloat16_t *)max_dn);
+        <<<1, nullptr, stream>>>((bfloat16_t*)src, fp8_nd, e8_dn, fp8_nz, e8_zz, (bfloat16_t*)max_dn);
 }
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN_fp32(uint32_t *src, int8_t *fp8_nd, uint8_t *e8_dn, int8_t *fp8_nz, uint8_t *e8_zz,
-                         uint32_t *max_dn, void *stream)
+void LaunchTQuantDN_fp32(
+    uint32_t* src, int8_t* fp8_nd, uint8_t* e8_dn, int8_t* fp8_nz, uint8_t* e8_zz, uint32_t* max_dn, void* stream)
 {
-    runTQuantDN<float, M, N, N_pad>
-        <<<1, nullptr, stream>>>((float *)src, fp8_nd, e8_dn, fp8_nz, e8_zz, (float *)max_dn);
+    runTQuantDN<float, M, N, N_pad><<<1, nullptr, stream>>>((float*)src, fp8_nd, e8_dn, fp8_nz, e8_zz, (float*)max_dn);
 }
 
 // MXFP4 (E2M1) DN kernel: quantizes src[M,N_pad] to packed FP4 plus per-group
-// e8m0/max tiles. TQuant writes FP4 as a flat float4_e2m1x2_t tile; a uint8_t
-// TSTORE tile is TASSIGNed to the same UB region so TSTORE reads it in-place
+// e8m0/max tiles. TQUANT writes FP4 as a flat float4_e2m1x2_t tile; a uint8_t
+// TSTORE tile is assigned via TASSIGN to the same UB region so TSTORE reads it in-place
 // (no copy/intrinsics needed).
 template <typename T, int M, int N, int N_pad>
-__global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t __out__ *fp4_nd_gm,
-                                         __gm__ uint8_t __out__ *e8_dn_gm, __gm__ uint8_t __out__ *fp4_nz_gm,
-                                         __gm__ T __out__ *max_dn_gm)
+__global__ AICORE void runTQuantDN_MXFP4(
+    __gm__ T __in__* src_gm, __gm__ uint8_t __out__* fp4_nd_gm, __gm__ uint8_t __out__* e8_dn_gm,
+    __gm__ uint8_t __out__* fp4_nz_gm, __gm__ T __out__* max_dn_gm)
 {
     constexpr uint32_t grpSize = 32;
     constexpr uint32_t hatM = M / grpSize;
@@ -204,26 +207,28 @@ __global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t
         Tile<TileType::Vec, T, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
     using ScalingTile =
         Tile<TileType::Vec, T, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
-    using E8Tile = Tile<TileType::Vec, uint8_t, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                        PadValue::Zero>;
+    using E8Tile = Tile<
+        TileType::Vec, uint8_t, hatM, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
     // TQUANT output tile: flat float4_e2m1x2_t (element = 0.5 byte -> bytes = M*packedCols).
-    using DstFP4Tile = Tile<TileType::Vec, float4_e2m1x2_t, 1, fp4FlatAligned, BLayout::RowMajor, -1, -1,
-                            SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstFP4Tile = Tile<
+        TileType::Vec, float4_e2m1x2_t, 1, fp4FlatAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     // 2D RowMajor view of the same packed FP4 UB data for ND->NZ.
     // Use uint8_t for the view so the standard byte ND->NZ lowering is used.
-    using Fp4Tile2D = Tile<TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox,
-                           512, PadValue::Zero>;
+    using Fp4Tile2D = Tile<
+        TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox, 512, PadValue::Zero>;
     // NZ tile for packed FP4: use uint8_t as the element type so the standard
     // byte ND->NZ lowering (32B blocks) is used. Each byte holds 2 FP4 values.
     constexpr uint32_t paddedRows16 = PTO_CEIL(M, FRACTAL_NZ_ROW);
     constexpr uint32_t virtualRow = paddedRows16 + 1;
-    using Fp4NZTile = Tile<TileType::Vec, uint8_t, virtualRow, packedCols, BLayout::ColMajor, M, packedCols,
-                           SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
-    // TSTORE tile: uint8_t [M, packedCols] view over the same UB region that TQuant
+    using Fp4NZTile = Tile<
+        TileType::Vec, uint8_t, virtualRow, packedCols, BLayout::ColMajor, M, packedCols, SLayout::RowMajor, 512,
+        PadValue::Null, CompactMode::RowPlusOne>;
+    // TSTORE tile: uint8_t [M, packedCols] view over the same UB region that TQUANT
     // wrote the packed FP4 data into (TASSIGN to fp4Addr). No copy needed — TSTORE
     // reads the bytes in-place. Valid extents are DYNAMIC for runtime sizing.
-    using DstBytesTile = Tile<TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox,
-                              512, PadValue::Zero>;
+    using DstBytesTile = Tile<
+        TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox, 512, PadValue::Zero>;
 
     constexpr uint32_t srcBytes = M * paddedCols * sizeof(T);
     constexpr uint32_t maxBytes = hatM * paddedCols * sizeof(T);
@@ -261,8 +266,9 @@ __global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t
 
     using SrcGlobal = GlobalTensor<T, Shape<1, 1, 1, M, N_pad>, pto::Stride<1, 1, 1, N_pad, 1>>;
     using Fp4Global = GlobalTensor<uint8_t, Shape<1, 1, 1, M, packedCols>, pto::Stride<1, 1, 1, packedCols, 1>>;
-    using Fp4GlobalNZ = GlobalTensor<uint8_t, TileShape2D<uint8_t, M, packedCols, Layout::NZ>,
-                                     BaseShape2D<uint8_t, M, packedCols, Layout::NZ>, Layout::NZ>;
+    using Fp4GlobalNZ = GlobalTensor<
+        uint8_t, TileShape2D<uint8_t, M, packedCols, Layout::NZ>, BaseShape2D<uint8_t, M, packedCols, Layout::NZ>,
+        Layout::NZ>;
     using MaxGlobal = GlobalTensor<T, Shape<1, 1, 1, hatM, paddedCols>, pto::Stride<1, 1, 1, paddedCols, 1>>;
     using E8Global = GlobalTensor<uint8_t, Shape<1, 1, 1, hatM, paddedCols>, pto::Stride<1, 1, 1, paddedCols, 1>>;
 
@@ -276,9 +282,9 @@ __global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 
-    // Generic DN API: grp_axis=0, single MxQuantAlg tag. TQuant writes the exponent
+    // Generic DN API: grp_axis=0, single MxQuantAlg tag. TQUANT writes the exponent
     // into e8Tile; the kernel TSTOREs e8Tile directly (shape already matches GM).
-    TQuant<0, MxQuantAlg::OcpMxFp4E2M1>(fp4Tile, srcTile, &e8Tile, &maxTile, &scalingTile);
+    TQUANT<0, MxQuantAlg::OcpMxFp4E2M1>(fp4Tile, srcTile, &e8Tile, &maxTile, &scalingTile);
 
     // Packed FP4 ND->NZ: source is RowMajor [M, packedCols] of float4_e2m1x2_t.
     TMOV(fp4NZTile, fp4Tile2D);
@@ -292,26 +298,25 @@ __global__ AICORE void runTQuantDN_MXFP4(__gm__ T __in__ *src_gm, __gm__ uint8_t
 }
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN_MXFP4_bf16(uint16_t *src, uint8_t *fp4_nd, uint8_t *e8_dn, uint8_t *fp4_nz, uint16_t *max_dn,
-                               void *stream)
+void LaunchTQuantDN_MXFP4_bf16(
+    uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream)
 {
     runTQuantDN_MXFP4<bfloat16_t, M, N, N_pad>
-        <<<1, nullptr, stream>>>((bfloat16_t *)src, fp4_nd, e8_dn, fp4_nz, (bfloat16_t *)max_dn);
+        <<<1, nullptr, stream>>>((bfloat16_t*)src, fp4_nd, e8_dn, fp4_nz, (bfloat16_t*)max_dn);
 }
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN_MXFP4_fp16(uint16_t *src, uint8_t *fp4_nd, uint8_t *e8_dn, uint8_t *fp4_nz, uint16_t *max_dn,
-                               void *stream)
+void LaunchTQuantDN_MXFP4_fp16(
+    uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream)
 {
-    runTQuantDN_MXFP4<half, M, N, N_pad><<<1, nullptr, stream>>>((half *)src, fp4_nd, e8_dn, fp4_nz, (half *)max_dn);
+    runTQuantDN_MXFP4<half, M, N, N_pad><<<1, nullptr, stream>>>((half*)src, fp4_nd, e8_dn, fp4_nz, (half*)max_dn);
 }
 
 #define INSTANTIATE_TQUANT_DN(M, N, NP) \
-    template void LaunchTQuantDN<M, N, NP>(uint16_t *, int8_t *, uint8_t *, int8_t *, uint8_t *, uint16_t *, void *)
+    template void LaunchTQuantDN<M, N, NP>(uint16_t*, int8_t*, uint8_t*, int8_t*, uint8_t*, uint16_t*, void*)
 
-#define INSTANTIATE_TQUANT_DN_FP32(M, N, NP)                                                                      \
-    template void LaunchTQuantDN_fp32<M, N, NP>(uint32_t *, int8_t *, uint8_t *, int8_t *, uint8_t *, uint32_t *, \
-                                                void *)
+#define INSTANTIATE_TQUANT_DN_FP32(M, N, NP) \
+    template void LaunchTQuantDN_fp32<M, N, NP>(uint32_t*, int8_t*, uint8_t*, int8_t*, uint8_t*, uint32_t*, void*)
 
 INSTANTIATE_TQUANT_DN(128, 128, 128);
 INSTANTIATE_TQUANT_DN(64, 128, 128);
@@ -326,10 +331,10 @@ INSTANTIATE_TQUANT_DN_FP32(128, 128, 128);
 INSTANTIATE_TQUANT_DN_FP32(64, 256, 256);
 
 #define INSTANTIATE_TQUANT_DN_MXFP4_BF16(M, N, NP) \
-    template void LaunchTQuantDN_MXFP4_bf16<M, N, NP>(uint16_t *, uint8_t *, uint8_t *, uint8_t *, uint16_t *, void *)
+    template void LaunchTQuantDN_MXFP4_bf16<M, N, NP>(uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*)
 
 #define INSTANTIATE_TQUANT_DN_MXFP4_FP16(M, N, NP) \
-    template void LaunchTQuantDN_MXFP4_fp16<M, N, NP>(uint16_t *, uint8_t *, uint8_t *, uint8_t *, uint16_t *, void *)
+    template void LaunchTQuantDN_MXFP4_fp16<M, N, NP>(uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*)
 
 INSTANTIATE_TQUANT_DN_MXFP4_BF16(64, 128, 128);
 INSTANTIATE_TQUANT_DN_MXFP4_BF16(128, 128, 128);

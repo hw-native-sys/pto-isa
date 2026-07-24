@@ -88,13 +88,13 @@ struct RankResources {
     aclrtStream computeStream = nullptr;
     aclrtStream commStream = nullptr;
 
-    void *shmem_input = nullptr;
-    void *chunk_flag_shmem = nullptr;
-    ChunkFlagMatrix *chunk_flag_host = nullptr;
-    int32_t *summary_host = nullptr;
+    void* shmem_input = nullptr;
+    void* chunk_flag_shmem = nullptr;
+    ChunkFlagMatrix* chunk_flag_host = nullptr;
+    int32_t* summary_host = nullptr;
 
-    void *src1_dev = nullptr;
-    void *output_dev = nullptr;
+    void* src1_dev = nullptr;
+    void* output_dev = nullptr;
 
     size_t inputShmemBytes = 0;
     size_t chunkFlagWithSummarySize = 0;
@@ -125,21 +125,22 @@ struct BenchmarkSamples {
 // ============================================================================
 // Helper functions
 // ============================================================================
-static void LaunchCommKernel(RankResources &r)
+static void LaunchCommKernel(RankResources& r)
 {
-    launchRingCommStreaming(reinterpret_cast<uint8_t *>(r.shmem_input), reinterpret_cast<uint8_t *>(r.chunk_flag_shmem),
-                            reinterpret_cast<uint8_t *>(r.hcclTestCtx.deviceCtx), r.n_ranks, r.commStream);
+    launchRingCommStreaming(
+        reinterpret_cast<uint8_t*>(r.shmem_input), reinterpret_cast<uint8_t*>(r.chunk_flag_shmem),
+        reinterpret_cast<uint8_t*>(r.hcclTestCtx.deviceCtx), r.n_ranks, r.commStream);
 }
 
-static void LaunchComputeKernel(RankResources &r)
+static void LaunchComputeKernel(RankResources& r)
 {
     launchAllGatherGemmComputeStreaming(
-        reinterpret_cast<uint8_t *>(r.output_dev), reinterpret_cast<uint8_t *>(r.shmem_input),
-        reinterpret_cast<uint8_t *>(r.src1_dev), reinterpret_cast<uint8_t *>(r.chunk_flag_shmem), r.computeStream,
+        reinterpret_cast<uint8_t*>(r.output_dev), reinterpret_cast<uint8_t*>(r.shmem_input),
+        reinterpret_cast<uint8_t*>(r.src1_dev), reinterpret_cast<uint8_t*>(r.chunk_flag_shmem), r.computeStream,
         COMPUTE_BLOCK_NUM);
 }
 
-static int CreateRankStreams(RankResources &r)
+static int CreateRankStreams(RankResources& r)
 {
     int status = 0;
     status |= aclrtCreateStream(&r.computeStream);
@@ -147,7 +148,7 @@ static int CreateRankStreams(RankResources &r)
     return status;
 }
 
-static void InitChunkLayout(RankResources &r, int n_ranks)
+static void InitChunkLayout(RankResources& r, int n_ranks)
 {
     r.inputShmemBytes = static_cast<size_t>(G_M) * G_K * sizeof(uint16_t);
     int m_tiles = static_cast<int>(G_M / G_BASE_M);
@@ -161,7 +162,7 @@ static void InitChunkLayout(RankResources &r, int n_ranks)
     r.chunkFlagWithSummarySize = ChunkFlagMatrixWithSummarySize(n_ranks, r.numTilesPerSrc, r.optimalChunkSize);
 }
 
-static bool AllocateWindowResources(RankResources &r, int rank_id, int n_ranks)
+static bool AllocateWindowResources(RankResources& r, int rank_id, int n_ranks)
 {
     uint64_t localWinBase = r.hcclTestCtx.hostCtx.windowsIn[rank_id];
     size_t winOffset = 0;
@@ -181,18 +182,18 @@ static bool AllocateWindowResources(RankResources &r, int rank_id, int n_ranks)
                   << r.hcclTestCtx.hostCtx.winSize << std::endl;
     }
 
-    aclrtMallocHost(reinterpret_cast<void **>(&r.chunk_flag_host), r.chunkFlagWithSummarySize);
+    aclrtMallocHost(reinterpret_cast<void**>(&r.chunk_flag_host), r.chunkFlagWithSummarySize);
     ChunkFlagMatrixInit(r.chunk_flag_host, n_ranks, r.numTilesPerSrc, r.optimalChunkSize);
     r.chunk_flag_host->my_rank = rank_id;
-    r.summary_host =
-        reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(r.chunk_flag_host) + r.chunkFlagMatrixSize);
+    r.summary_host = reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(r.chunk_flag_host) + r.chunkFlagMatrixSize);
     ChunkFlagMatrixSummaryInit(r.summary_host, n_ranks);
-    aclrtMemcpy(r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(
+        r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
+        ACL_MEMCPY_HOST_TO_DEVICE);
     return true;
 }
 
-static void AllocateDeviceBuffers(RankResources &r, int n_ranks)
+static void AllocateDeviceBuffers(RankResources& r, int n_ranks)
 {
     r.bSize = static_cast<size_t>(G_K) * G_N * sizeof(uint16_t);
     aclrtMalloc(&r.src1_dev, r.bSize, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -204,7 +205,7 @@ static void AllocateDeviceBuffers(RankResources &r, int n_ranks)
     r.fullInputHost.resize(r.inputShmemBytes / sizeof(uint16_t));
 }
 
-static void SyncRankWork(RankResources &r)
+static void SyncRankWork(RankResources& r)
 {
     aclrtSynchronizeStream(r.computeStream);
     aclrtSynchronizeStream(r.commStream);
@@ -218,7 +219,7 @@ struct PerfStats {
     double std_dev = 0.0;
 };
 
-static PerfStats CalcStats(const std::vector<double> &times)
+static PerfStats CalcStats(const std::vector<double>& times)
 {
     if (times.empty()) {
         return {};
@@ -242,10 +243,10 @@ static PerfStats CalcStats(const std::vector<double> &times)
     return {avg, mn, mx, std::sqrt(var / static_cast<double>(times.size()))};
 }
 
-static void PrintTimingDetails(const PerfStats &comp_s, const PerfStats &seq_s, const PerfStats &pipe_s,
-                               const PerfStats &seq_comm_s, const PerfStats &seq_compute_s,
-                               const PerfStats &pipe_comm_s, const PerfStats &pipe_compute_s, double flops_per_rank,
-                               double flops_total, double ag_bytes)
+static void PrintTimingDetails(
+    const PerfStats& comp_s, const PerfStats& seq_s, const PerfStats& pipe_s, const PerfStats& seq_comm_s,
+    const PerfStats& seq_compute_s, const PerfStats& pipe_comm_s, const PerfStats& pipe_compute_s,
+    double flops_per_rank, double flops_total, double ag_bytes)
 {
     auto gflops = [](double flops, double us) { return (us > 0.0) ? (flops / (us * 1e-6) / 1e9) : 0.0; };
     auto bw_gbs = [&](double us) { return (us > 0.0) ? (ag_bytes / (us * 1e-6) / (1024.0 * 1024.0 * 1024.0)) : 0.0; };
@@ -283,10 +284,11 @@ static void PrintTimingDetails(const PerfStats &comp_s, const PerfStats &seq_s, 
     std::cout << "================================================================\n" << std::endl;
 }
 
-static void PrintPerfReport(bool is_ok, int n_ranks, const std::vector<double> &compute_times_us,
-                            const std::vector<double> &sequential_times_us, const std::vector<double> &seq_comm_us,
-                            const std::vector<double> &seq_compute_us, const std::vector<double> &pipelined_times_us,
-                            const std::vector<double> &pipe_comm_us, const std::vector<double> &pipe_compute_us)
+static void PrintPerfReport(
+    bool is_ok, int n_ranks, const std::vector<double>& compute_times_us,
+    const std::vector<double>& sequential_times_us, const std::vector<double>& seq_comm_us,
+    const std::vector<double>& seq_compute_us, const std::vector<double>& pipelined_times_us,
+    const std::vector<double>& pipe_comm_us, const std::vector<double>& pipe_compute_us)
 {
     PerfStats comp_s = CalcStats(compute_times_us);
     PerfStats seq_s = CalcStats(sequential_times_us);
@@ -314,14 +316,15 @@ static void PrintPerfReport(bool is_ok, int n_ranks, const std::vector<double> &
     std::cout << "  local_a=" << (n_ranks > 0 ? (G_M / n_ranks) : 0) << "x" << G_K
               << "  comm_data=" << std::setprecision(3) << data_gb << " GB/rank" << std::endl;
 
-    PrintTimingDetails(comp_s, seq_s, pipe_s, seq_comm_s, seq_compute_s, pipe_comm_s, pipe_compute_s, flops_per_rank,
-                       flops_total, ag_bytes);
+    PrintTimingDetails(
+        comp_s, seq_s, pipe_s, seq_comm_s, seq_compute_s, pipe_comm_s, pipe_compute_s, flops_per_rank, flops_total,
+        ag_bytes);
 }
 
 // ============================================================================
 // Sub-functions for RunAllGatherGemmPerRank
 // ============================================================================
-static bool AllocateResources(RankResources &r, int rank_id, int n_ranks, const HcclRootInfo *rootInfo)
+static bool AllocateResources(RankResources& r, int rank_id, int n_ranks, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0) {
         std::cerr << "[ERROR] n_ranks must be positive, got " << n_ranks << std::endl;
@@ -344,7 +347,7 @@ static bool AllocateResources(RankResources &r, int rank_id, int n_ranks, const 
     return status == 0;
 }
 
-static bool LoadInputData(RankResources &r, const std::string &dataDir)
+static bool LoadInputData(RankResources& r, const std::string& dataDir)
 {
     std::string b_file = dataDir + "/pe_" + std::to_string(r.rank_id) + "_b.bin";
     std::vector<uint16_t> b_host(r.bSize / sizeof(uint16_t));
@@ -359,33 +362,33 @@ static bool LoadInputData(RankResources &r, const std::string &dataDir)
     for (int src_rank = 0; src_rank < r.n_ranks; ++src_rank) {
         std::string a_file = dataDir + "/pe_" + std::to_string(src_rank) + "_a.bin";
         size_t a_file_size = 0;
-        if (!PtoTestCommon::ReadFile(a_file, a_file_size,
-                                     r.fullInputHost.data() + static_cast<size_t>(src_rank) * local_elems,
-                                     r.aLocalSize) ||
+        if (!PtoTestCommon::ReadFile(
+                a_file, a_file_size, r.fullInputHost.data() + static_cast<size_t>(src_rank) * local_elems,
+                r.aLocalSize) ||
             a_file_size != r.aLocalSize) {
             std::cerr << "[ERROR] Rank " << r.rank_id << ": A file mismatch: " << a_file << std::endl;
             return false;
         }
     }
 
-    aclrtMemcpy(reinterpret_cast<uint8_t *>(r.shmem_input) + static_cast<size_t>(r.rank_id) * r.aLocalSize,
-                r.aLocalSize, r.fullInputHost.data() + static_cast<size_t>(r.rank_id) * local_elems, r.aLocalSize,
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(
+        reinterpret_cast<uint8_t*>(r.shmem_input) + static_cast<size_t>(r.rank_id) * r.aLocalSize, r.aLocalSize,
+        r.fullInputHost.data() + static_cast<size_t>(r.rank_id) * local_elems, r.aLocalSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(r.src1_dev, r.bSize, b_host.data(), r.bSize, ACL_MEMCPY_HOST_TO_DEVICE);
     return true;
 }
 
-static void ResetChunkFlagsHost(RankResources &r)
+static void ResetChunkFlagsHost(RankResources& r)
 {
     ChunkFlagMatrixReset(r.chunk_flag_host);
     ChunkFlagMatrixSummaryInit(r.summary_host, r.n_ranks);
     r.chunk_flag_host->my_rank = r.rank_id;
 }
 
-static void MarkAllChunksReadyHost(RankResources &r)
+static void MarkAllChunksReadyHost(RankResources& r)
 {
-    int32_t *flag_base =
-        reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(r.chunk_flag_host) + sizeof(ChunkFlagMatrix));
+    int32_t* flag_base =
+        reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(r.chunk_flag_host) + sizeof(ChunkFlagMatrix));
     for (int src_rank = 0; src_rank < r.n_ranks; ++src_rank) {
         int row_offset = src_rank * r.chunk_flag_host->stride;
         for (int chunk_idx = 0; chunk_idx < r.chunk_flag_host->num_chunks_per_src; ++chunk_idx) {
@@ -395,30 +398,32 @@ static void MarkAllChunksReadyHost(RankResources &r)
     }
 }
 
-static void PrepareStreamingState(RankResources &r)
+static void PrepareStreamingState(RankResources& r)
 {
     ResetChunkFlagsHost(r);
-    aclrtMemcpy(r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(
+        r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
+        ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(r.output_dev, r.outputSize, 0, r.outputSize);
 
     size_t local_elems = r.aLocalSize / sizeof(uint16_t);
-    aclrtMemcpy(reinterpret_cast<uint8_t *>(r.shmem_input) + static_cast<size_t>(r.rank_id) * r.aLocalSize,
-                r.aLocalSize, r.fullInputHost.data() + static_cast<size_t>(r.rank_id) * local_elems, r.aLocalSize,
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(
+        reinterpret_cast<uint8_t*>(r.shmem_input) + static_cast<size_t>(r.rank_id) * r.aLocalSize, r.aLocalSize,
+        r.fullInputHost.data() + static_cast<size_t>(r.rank_id) * local_elems, r.aLocalSize, ACL_MEMCPY_HOST_TO_DEVICE);
 }
 
-static void PrepareComputeOnlyState(RankResources &r)
+static void PrepareComputeOnlyState(RankResources& r)
 {
     ResetChunkFlagsHost(r);
     MarkAllChunksReadyHost(r);
     aclrtMemcpy(r.shmem_input, r.inputShmemBytes, r.fullInputHost.data(), r.inputShmemBytes, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
-                ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(
+        r.chunk_flag_shmem, r.chunkFlagWithSummarySize, r.chunk_flag_host, r.chunkFlagWithSummarySize,
+        ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(r.output_dev, r.outputSize, 0, r.outputSize);
 }
 
-static void RunWarmup(RankResources &r)
+static void RunWarmup(RankResources& r)
 {
     if (r.rank_id == 0) {
         std::cout << "\n[INFO] Running warmup..." << std::endl;
@@ -433,7 +438,7 @@ static void RunWarmup(RankResources &r)
     }
 }
 
-static void RunComputeOnlyBenchmark(RankResources &r, std::vector<double> &compute_times_us)
+static void RunComputeOnlyBenchmark(RankResources& r, std::vector<double>& compute_times_us)
 {
     for (int iter = 0; iter < COMPUTE_ONLY_ITERS; ++iter) {
         PrepareComputeOnlyState(r);
@@ -450,8 +455,9 @@ static void RunComputeOnlyBenchmark(RankResources &r, std::vector<double> &compu
     }
 }
 
-static void RunSequentialBenchmark(RankResources &r, std::vector<double> &sequential_times_us,
-                                   std::vector<double> &seq_comm_us, std::vector<double> &seq_compute_us)
+static void RunSequentialBenchmark(
+    RankResources& r, std::vector<double>& sequential_times_us, std::vector<double>& seq_comm_us,
+    std::vector<double>& seq_compute_us)
 {
     for (int iter = 0; iter < MEASURE_ITERS; ++iter) {
         PrepareStreamingState(r);
@@ -474,8 +480,9 @@ static void RunSequentialBenchmark(RankResources &r, std::vector<double> &sequen
     }
 }
 
-static void RunPipelinedBenchmark(RankResources &r, std::vector<double> &pipelined_times_us,
-                                  std::vector<double> &pipe_comm_us, std::vector<double> &pipe_compute_us)
+static void RunPipelinedBenchmark(
+    RankResources& r, std::vector<double>& pipelined_times_us, std::vector<double>& pipe_comm_us,
+    std::vector<double>& pipe_compute_us)
 {
     aclrtEvent evComputeStart = nullptr;
     aclrtEvent evComputeEnd = nullptr;
@@ -511,7 +518,7 @@ static void RunPipelinedBenchmark(RankResources &r, std::vector<double> &pipelin
     aclrtDestroyEvent(evComputeEnd);
 }
 
-static BenchmarkSamples RunBenchmarks(RankResources &r)
+static BenchmarkSamples RunBenchmarks(RankResources& r)
 {
     BenchmarkSamples samples;
     RunComputeOnlyBenchmark(r, samples.compute_times_us);
@@ -520,10 +527,10 @@ static BenchmarkSamples RunBenchmarks(RankResources &r)
     return samples;
 }
 
-static bool VerifyOutput(RankResources &r, const std::string &dataDir)
+static bool VerifyOutput(RankResources& r, const std::string& dataDir)
 {
-    float *output_host = nullptr;
-    aclrtMallocHost(reinterpret_cast<void **>(&output_host), r.outputSize);
+    float* output_host = nullptr;
+    aclrtMallocHost(reinterpret_cast<void**>(&output_host), r.outputSize);
     aclrtMemcpy(output_host, r.outputSize, r.output_dev, r.outputSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
     std::string output_file = dataDir + "/output_rank" + std::to_string(r.rank_id) + ".bin";
@@ -542,8 +549,9 @@ static bool VerifyOutput(RankResources &r, const std::string &dataDir)
         } else {
             std::vector<float> valid_output(static_cast<size_t>(ORIG_M) * ORIG_N);
             for (uint32_t row = 0; row < ORIG_M; ++row) {
-                errno_t ret = memcpy_s(valid_output.data() + row * ORIG_N, ORIG_N * sizeof(float),
-                                       output_host + row * G_N, ORIG_N * sizeof(float));
+                errno_t ret = memcpy_s(
+                    valid_output.data() + row * ORIG_N, ORIG_N * sizeof(float), output_host + row * G_N,
+                    ORIG_N * sizeof(float));
                 if (ret != EOK) {
                     std::cerr << "[ERROR] memcpy_s failed at row " << row << " with errno " << ret << std::endl;
                     aclrtFreeHost(output_host);
@@ -560,7 +568,7 @@ static bool VerifyOutput(RankResources &r, const std::string &dataDir)
     return is_ok;
 }
 
-static bool RunFunctionalVerification(RankResources &r, const std::string &dataDir)
+static bool RunFunctionalVerification(RankResources& r, const std::string& dataDir)
 {
     if (r.rank_id == 0) {
         std::cout << "\n[INFO] Running functional verification..." << std::endl;
@@ -574,7 +582,7 @@ static bool RunFunctionalVerification(RankResources &r, const std::string &dataD
     return VerifyOutput(r, dataDir);
 }
 
-static void PrintRank0Results(int rank_id, bool is_ok, int n_ranks, const BenchmarkSamples &samples)
+static void PrintRank0Results(int rank_id, bool is_ok, int n_ranks, const BenchmarkSamples& samples)
 {
     if (rank_id != 0) {
         return;
@@ -583,11 +591,12 @@ static void PrintRank0Results(int rank_id, bool is_ok, int n_ranks, const Benchm
     std::cout << (is_ok ? "[INFO] Functional run completed. Verification PASSED." :
                           "[ERROR] Functional run completed. Verification FAILED!")
               << std::endl;
-    PrintPerfReport(is_ok, n_ranks, samples.compute_times_us, samples.sequential_times_us, samples.seq_comm_us,
-                    samples.seq_compute_us, samples.pipelined_times_us, samples.pipe_comm_us, samples.pipe_compute_us);
+    PrintPerfReport(
+        is_ok, n_ranks, samples.compute_times_us, samples.sequential_times_us, samples.seq_comm_us,
+        samples.seq_compute_us, samples.pipelined_times_us, samples.pipe_comm_us, samples.pipe_compute_us);
 }
 
-static void Cleanup(RankResources &r)
+static void Cleanup(RankResources& r)
 {
     aclrtFree(r.src1_dev);
     aclrtFree(r.output_dev);
@@ -598,7 +607,7 @@ static void Cleanup(RankResources &r)
         aclrtDestroyStream(r.commStream);
 }
 
-[[noreturn]] static void CleanupAndTerminate(RankResources &r, int rank_id, bool is_ok)
+[[noreturn]] static void CleanupAndTerminate(RankResources& r, int rank_id, bool is_ok)
 {
     CommMpiBarrier();
     Cleanup(r);
@@ -620,7 +629,7 @@ static void Cleanup(RankResources &r)
 // ============================================================================
 // RunAllGatherGemmPerRank: top-level per-rank orchestration
 // ============================================================================
-static bool RunAllGatherGemmPerRank(int rank_id, int n_ranks, const HcclRootInfo *rootInfo, const std::string &dataDir)
+static bool RunAllGatherGemmPerRank(int rank_id, int n_ranks, const HcclRootInfo* rootInfo, const std::string& dataDir)
 {
     RankResources r;
     if (!AllocateResources(r, rank_id, n_ranks, rootInfo))
@@ -648,10 +657,10 @@ struct AppArgs {
 static AppArgs ParseArgs()
 {
     AppArgs args;
-    if (const char *env = std::getenv("N_RANKS")) {
+    if (const char* env = std::getenv("N_RANKS")) {
         args.n_ranks = std::atoi(env);
     }
-    if (const char *env = std::getenv("ALLGATHER_GEMM_DATA_DIR")) {
+    if (const char* env = std::getenv("ALLGATHER_GEMM_DATA_DIR")) {
         args.dataDir = env;
     }
     return args;
@@ -693,7 +702,7 @@ static void PrintBanner(int n_ranks)
 // ============================================================================
 // main
 // ============================================================================
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     if (!CommMpiInit(&argc, &argv)) {
         fprintf(stderr, "[FATAL] CommMpiInit failed. Launch with: mpirun -n <N> ./allgather_gemm\n");

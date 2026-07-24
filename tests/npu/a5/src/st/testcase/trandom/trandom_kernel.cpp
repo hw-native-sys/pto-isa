@@ -15,7 +15,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int rows, int cols, int validRows, int validCols>
-PTO_INTERNAL void runTRandom(__gm__ T *out, __gm__ uint32_t *key, __gm__ uint32_t *counter)
+PTO_INTERNAL void runTRandom(__gm__ T* out, __gm__ uint32_t* key, __gm__ uint32_t* counter)
 {
     using DynDim2Shape = Shape<1, 1, 1, validRows, validCols>;
     using DynDim2Stride = pto::Stride<rows * cols, rows * cols, rows * cols, cols, 1>;
@@ -36,18 +36,18 @@ PTO_INTERNAL void runTRandom(__gm__ T *out, __gm__ uint32_t *key, __gm__ uint32_
     TSTORE(dstGlobal, dstTile, event1);
 }
 
-extern "C" __global__ AICORE void launchTRANDOMCase01(__gm__ uint32_t *out, __gm__ uint32_t *key,
-                                                      __gm__ uint32_t *counter)
+extern "C" __global__ AICORE void launchTRANDOMCase01(
+    __gm__ uint32_t* out, __gm__ uint32_t* key, __gm__ uint32_t* counter)
 {
     runTRandom<uint32_t, 4, 256, 4, 256>(out, key, counter);
 }
 
 template <uint32_t caseId>
-void launchTRANDOMTestCase(void *out, uint32_t *key, uint32_t *counter, aclrtStream stream)
+void launchTRANDOMTestCase(void* out, uint32_t* key, uint32_t* counter, aclrtStream stream)
 {
     switch (caseId) {
         case 1: {
-            launchTRANDOMCase01<<<1, nullptr, stream>>>((uint32_t *)out, key, counter);
+            launchTRANDOMCase01<<<1, nullptr, stream>>>((uint32_t*)out, key, counter);
             break;
         }
         default: {
@@ -55,4 +55,4 @@ void launchTRANDOMTestCase(void *out, uint32_t *key, uint32_t *counter, aclrtStr
     }
 }
 
-template void launchTRANDOMTestCase<1>(void *out, uint32_t *key, uint32_t *counter, aclrtStream stream);
+template void launchTRANDOMTestCase<1>(void* out, uint32_t* key, uint32_t* counter, aclrtStream stream);

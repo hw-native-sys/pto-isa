@@ -16,7 +16,7 @@ namespace pto {
 template <typename OutType>
 PTO_INTERNAL void SET_QUANT_SCALAR_IMPL(float preQuantScalar)
 {
-    uint64_t quantConfig = static_cast<uint64_t>(*reinterpret_cast<int32_t *>(&preQuantScalar));
+    uint64_t quantConfig = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&preQuantScalar));
     if constexpr (sizeof(OutType) == 1) {
         constexpr bool sign = (std::is_same_v<OutType, int8_t>) ? true : false;
         quantConfig = (quantConfig & ~(static_cast<uint64_t>(1) << 46)) | (static_cast<uint64_t>(sign) << 46);

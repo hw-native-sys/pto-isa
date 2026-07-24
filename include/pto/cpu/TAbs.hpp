@@ -16,8 +16,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename tile_shape>
-void TAbs_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDType src, unsigned validRow,
-               unsigned validCol)
+void TAbs_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::TileDType src, unsigned validRow, unsigned validCol)
 {
     for (size_t c = 0; c < validCol; c++) {
         for (size_t r = 0; r < validRow; r++) {
@@ -28,16 +28,17 @@ void TAbs_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDTyp
 }
 
 template <typename tile_shape>
-PTO_INTERNAL void TABS_IMPL(tile_shape &dst, tile_shape &src)
+PTO_INTERNAL void TABS_IMPL(tile_shape& dst, tile_shape& src)
 {
-    static_assert(std::is_same<typename tile_shape::DType, int32_t>::value ||
-                      std::is_same<typename tile_shape::DType, int>::value ||
-                      std::is_same<typename tile_shape::DType, int16_t>::value ||
-                      std::is_same<typename tile_shape::DType, int8_t>::value ||
-                      std::is_same<typename tile_shape::DType, half>::value ||
-                      std::is_same<typename tile_shape::DType, bfloat16_t>::value ||
-                      std::is_same<typename tile_shape::DType, float>::value,
-                  "TABS: Invalid data type");
+    static_assert(
+        std::is_same<typename tile_shape::DType, int32_t>::value ||
+            std::is_same<typename tile_shape::DType, int>::value ||
+            std::is_same<typename tile_shape::DType, int16_t>::value ||
+            std::is_same<typename tile_shape::DType, int8_t>::value ||
+            std::is_same<typename tile_shape::DType, half>::value ||
+            std::is_same<typename tile_shape::DType, bfloat16_t>::value ||
+            std::is_same<typename tile_shape::DType, float>::value,
+        "TABS: Invalid data type");
     TAbs_Impl<tile_shape>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto

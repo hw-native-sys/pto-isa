@@ -30,14 +30,14 @@ def gen_golden_data(param):
 
     x1_gm = np.random.uniform(-5, 5, [m, k]).astype(src_type)
     x2_gm = np.random.uniform(-5, 5, [k, n]).astype(src_type)
-    bias_gm = np.random.uniform(-10, 10, [n, ]).astype(bias_type)
+    bias_gm = np.random.uniform(-10, 10, [n]).astype(bias_type)
 
     k_mx = k // 32
     x1_scale_gm = np.random.randint(127, 130, [m, k_mx]).astype(np.uint8)
     x2_scale_gm = np.random.randint(127, 130, [k_mx, n]).astype(np.uint8)
 
-    x1_scale = 2**(x1_scale_gm.astype(np.float32) - 127)
-    x2_scale = 2**(x2_scale_gm.astype(np.float32) - 127)
+    x1_scale = 2 ** (x1_scale_gm.astype(np.float32) - 127)
+    x2_scale = 2 ** (x2_scale_gm.astype(np.float32) - 127)
 
     x1 = np.zeros([m, k], dtype=np.float32)
     x2 = np.zeros([k, n], dtype=np.float32)
@@ -74,15 +74,14 @@ class MxMatmulParams:
         self.ctype = ctype
         self.m = m
         self.k = k
-        self.n = n 
+        self.n = n
         self.is_bias = is_bias
-        if (bias_type):
+        if bias_type:
             self.bias_type = bias_type
         else:
             self.bias_type = ctype
 
+
 if __name__ == "__main__":
-    case_params_list = [
-        MxMatmulParams(fp8_e5m2, fp8_e5m2, bfloat16, 6144, 6144, 6144, False),
-    ]
+    case_params_list = [MxMatmulParams(fp8_e5m2, fp8_e5m2, bfloat16, 6144, 6144, 6144, False)]
     gen_golden_data(case_params_list[0])

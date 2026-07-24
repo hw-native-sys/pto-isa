@@ -21,8 +21,9 @@ constexpr uint16_t kFftsFlagShift = 8;
 
 __aicore__ inline uint16_t MakeFftsMsg(uint16_t mode, uint16_t flagId, uint16_t baseCount = 0x1)
 {
-    return static_cast<uint16_t>((baseCount & kFftsBaseCountMask) + ((mode & kFftsModeMask) << kFftsModeShift) +
-                                 ((flagId & kFftsFlagMask) << kFftsFlagShift));
+    return static_cast<uint16_t>(
+        (baseCount & kFftsBaseCountMask) + ((mode & kFftsModeMask) << kFftsModeShift) +
+        ((flagId & kFftsFlagMask) << kFftsFlagShift));
 }
 
 template <pipe_t pipe>

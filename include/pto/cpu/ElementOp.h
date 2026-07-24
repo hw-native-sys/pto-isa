@@ -12,19 +12,24 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define ELEMENT_OP_HPP
 
 #include <cmath>
+#include <type_traits>
 
 #include "pto/common/pto_tile.hpp"
+#include "pto/cpu/common.hpp"
 #include "pto/cpu/tile_offsets.hpp"
 
 namespace pto {
-enum class ElementOp
-{
+enum class ElementOp {
     // binary operation
     OP_ADD = 0,
     OP_POW,
     OP_SUB,
+    OP_SUBRELU,
     OP_MUL,
     OP_DIV,
+    OP_MULADDDST,
+    OP_FUSEDMULADD,
+    OP_FUSEDMULADDRELU,
     OP_REM,
     OP_SHL,
     OP_SHR,
@@ -81,76 +86,110 @@ enum class ElementOp
     OP_SUBCS,
 };
 
+template <typename DType>
+static DType CpuSimRoundElement(DType value)
+{
+    if constexpr (std::is_same_v<DType, half>) {
+        volatile DType rounded = value;
+        return rounded;
+    } else {
+        return value;
+    }
+}
+
 template <typename DType, ElementOp op>
 struct ElementOpCal {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        assert(false && "Unsupport element op.");
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { assert(false && "Unsupported element op."); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_ADD> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 + src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 + src1; }
 
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = src0 + src1;
-    }
+    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = src0 + src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SUB> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 - src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 - src1; }
 
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = src0 - src1;
-    }
+    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = src0 - src1; }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_SUBRELU> {
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = ReLU(src0 - src1); }
+
+    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = ReLU(src0 - src1); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_MUL> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 * src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 * src1; }
 
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = src0 * src1;
-    }
+    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = src0 * src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_DIV> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
     {
         assert(src1 != static_cast<DType>(0) && "Divider cannot be equal to zero");
         dst = src0 / src1;
     }
 
-    static void apply(DType &dst, const DType &src0, const DType &src1)
+    static void apply(DType& dst, const DType& src0, const DType& src1)
     {
         assert(src1 != static_cast<DType>(0) && "Divider cannot be equal to zero");
         dst = src0 / src1;
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_MULADDDST> {
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
+    {
+        const DType product = CpuSimRoundElement<DType>(src0 * src1);
+        dst = CpuSimRoundElement<DType>(product + dst);
+    }
+
+    static void apply(DType& dst, const DType& src0, const DType& src1)
+    {
+        const DType product = CpuSimRoundElement<DType>(src0 * src1);
+        dst = CpuSimRoundElement<DType>(product + dst);
+    }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_FUSEDMULADD> {
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 * dst + src1; }
+
+    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = src0 * dst + src1; }
+};
+
+template <typename DType>
+struct ElementOpCal<DType, ElementOp::OP_FUSEDMULADDRELU> {
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
+    {
+        const DType product = CpuSimRoundElement<DType>(src0 * dst);
+        dst = ReLU(CpuSimRoundElement<DType>(product + src1));
+    }
+
+    static void apply(DType& dst, const DType& src0, const DType& src1)
+    {
+        const DType product = CpuSimRoundElement<DType>(src0 * dst);
+        dst = ReLU(CpuSimRoundElement<DType>(product + src1));
     }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_POW> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
     {
         dst = static_cast<DType>(std::pow(static_cast<double>(src0), static_cast<double>(src1)));
     }
 
-    static void apply(DType &dst, const DType &src0, const DType &src1)
+    static void apply(DType& dst, const DType& src0, const DType& src1)
     {
         dst = static_cast<DType>(std::pow(static_cast<double>(src0), static_cast<double>(src1)));
     }
@@ -158,7 +197,7 @@ struct ElementOpCal<DType, ElementOp::OP_POW> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_REM> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
     {
         assert(src1 != static_cast<DType>(0) && "Divider cannot be equal to zero");
         if constexpr (std::is_integral_v<DType>) {
@@ -174,73 +213,46 @@ struct ElementOpCal<DType, ElementOp::OP_REM> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SHL> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 << src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 << src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SHR> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 >> src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 >> src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_AND> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 & src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 & src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_OR> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 | src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 | src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_XOR> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = src0 ^ src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 ^ src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_MAX> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = std::max(src0, src1);
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = std::max(src0, src1); }
 
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = std::max(src0, src1);
-    }
+    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = std::max(src0, src1); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_MIN> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
-    {
-        dst = std::min(src0, src1);
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = std::min(src0, src1); }
 
-    static void apply(DType &dst, const DType &src0, const DType &src1)
-    {
-        dst = std::min(src0, src1);
-    }
+    static void apply(DType& dst, const DType& src0, const DType& src1) { dst = std::min(src0, src1); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_CMP> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t extra = 0)
+    static void apply(DType& dst, DType& src0, DType& src1, size_t extra = 0)
     {
         switch (static_cast<CmpMode>(extra)) {
             case CmpMode::EQ:
@@ -270,7 +282,7 @@ struct ElementOpCal<DType, ElementOp::OP_CMP> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_PRELU> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
     {
         dst = ((src0 > static_cast<DType>(0)) ? src0 : (src0 * src1));
     }
@@ -278,15 +290,22 @@ struct ElementOpCal<DType, ElementOp::OP_PRELU> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_EXPDIF> {
-    static void apply(DType &dst, const DType &src0, const DType &src1)
+    static void apply(DType& dst, const DType& src0, const DType& src1)
     {
         dst = static_cast<DType>(std::exp(static_cast<double>(src0 - src1)));
     }
 };
 
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 14
+template <>
+struct ElementOpCal<half, ElementOp::OP_EXPDIF> {
+    static void apply(half& dst, const half& src0, const half& src1) { dst = std::exp(src0 - src1); }
+};
+#endif
+
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_FMOD> {
-    static void apply(DType &dst, DType &src0, DType &src1, size_t)
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
     {
         assert(src1 != static_cast<DType>(0) && "Divider cannot be equal to zero");
         if constexpr (std::is_integral_v<DType>) {
@@ -299,7 +318,7 @@ struct ElementOpCal<DType, ElementOp::OP_FMOD> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_EXP> {
-    static void apply(DType &dst, DType &src)
+    static void apply(DType& dst, DType& src)
     {
         if constexpr (std::is_same_v<DType, aclFloat16>) {
             dst = static_cast<aclFloat16>(expf(static_cast<float>(src)));
@@ -311,47 +330,32 @@ struct ElementOpCal<DType, ElementOp::OP_EXP> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_ABS> {
-    static void apply(DType &dst, DType &src)
-    {
-        dst = static_cast<DType>(std::abs(static_cast<double>(src)));
-    }
+    static void apply(DType& dst, DType& src) { dst = static_cast<DType>(std::abs(static_cast<double>(src))); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_LOG> {
-    static void apply(DType &dst, DType &src)
-    {
-        dst = static_cast<DType>(std::log(static_cast<double>(src)));
-    }
+    static void apply(DType& dst, DType& src) { dst = static_cast<DType>(std::log(static_cast<double>(src))); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_NEG> {
-    static void apply(DType &dst, DType &src)
-    {
-        dst = -src;
-    }
+    static void apply(DType& dst, DType& src) { dst = -src; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_NOT> {
-    static void apply(DType &dst, DType &src)
-    {
-        dst = ~src;
-    }
+    static void apply(DType& dst, DType& src) { dst = ~src; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SQRT> {
-    static void apply(DType &dst, DType &src)
-    {
-        dst = static_cast<DType>(std::sqrt(static_cast<double>(src)));
-    }
+    static void apply(DType& dst, DType& src) { dst = static_cast<DType>(std::sqrt(static_cast<double>(src))); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_RECIP> {
-    static void apply(DType &dst, DType &src)
+    static void apply(DType& dst, DType& src)
     {
         assert(src != static_cast<DType>(0) && "Divider cannot be equal to zero");
         dst = 1 / src;
@@ -360,7 +364,7 @@ struct ElementOpCal<DType, ElementOp::OP_RECIP> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_RSQRT> {
-    static void apply(DType &dst, DType &src)
+    static void apply(DType& dst, DType& src)
     {
         assert(src != static_cast<DType>(0) && "Divider cannot be equal to zero");
         dst = static_cast<DType>(1.0 / std::sqrt(static_cast<double>(src)));
@@ -369,15 +373,12 @@ struct ElementOpCal<DType, ElementOp::OP_RSQRT> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_RELU> {
-    static void apply(DType &dst, DType &src)
-    {
-        dst = std::max(src, static_cast<DType>(0));
-    }
+    static void apply(DType& dst, DType& src) { dst = std::max(src, static_cast<DType>(0)); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SEL> {
-    static void apply(DType &dst, DType &mask, DType &src0, DType &src1)
+    static void apply(DType& dst, DType& mask, DType& src0, DType& src1)
     {
         if (mask == 1) {
             dst = src0;
@@ -389,63 +390,42 @@ struct ElementOpCal<DType, ElementOp::OP_SEL> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_ADDC> {
-    static void apply(DType &dst, DType &src0, DType &src1, DType &src2)
-    {
-        dst = src0 + src1 + src2;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, DType& src2) { dst = src0 + src1 + src2; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SUBC> {
-    static void apply(DType &dst, DType &src0, DType &src1, DType &src2)
-    {
-        dst = src0 - src1 + src2;
-    }
+    static void apply(DType& dst, DType& src0, DType& src1, DType& src2) { dst = src0 - src1 + src2; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_EXPANDS> {
-    static void apply(DType &dst, DType &scalar)
-    {
-        dst = scalar;
-    }
+    static void apply(DType& dst, DType& scalar) { dst = scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_ADDS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src + scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src + scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SUBS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src - scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src - scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_MULS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src * scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src * scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_DIVS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src / scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src / scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_RDIVS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    static void apply(DType& dst, DType& src, DType& scalar, size_t)
     {
         assert(src != static_cast<DType>(0) && "Divider cannot be equal to zero");
         dst = scalar / src;
@@ -454,7 +434,7 @@ struct ElementOpCal<DType, ElementOp::OP_RDIVS> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_POWS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    static void apply(DType& dst, DType& src, DType& scalar, size_t)
     {
         dst = static_cast<DType>(std::pow(static_cast<double>(src), static_cast<double>(scalar)));
     }
@@ -462,7 +442,7 @@ struct ElementOpCal<DType, ElementOp::OP_POWS> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_REMS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    static void apply(DType& dst, DType& src, DType& scalar, size_t)
     {
         if constexpr (std::is_integral_v<DType>) {
             dst = src % scalar;
@@ -477,47 +457,32 @@ struct ElementOpCal<DType, ElementOp::OP_REMS> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_MAXS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = std::max(src, scalar);
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = std::max(src, scalar); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_MINS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = std::min(src, scalar);
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = std::min(src, scalar); }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_ANDS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src & scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src & scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_ORS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src | scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src | scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_XORS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src ^ scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src ^ scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_CMPS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t extra)
+    static void apply(DType& dst, DType& src, DType& scalar, size_t extra)
     {
         switch (static_cast<CmpMode>(extra)) {
             case CmpMode::EQ:
@@ -539,7 +504,7 @@ struct ElementOpCal<DType, ElementOp::OP_CMPS> {
                 dst = (src <= scalar);
                 break;
             default:
-                assert(false && "Unsupport CMP_MODE.");
+                assert(false && "Unsupported CMP_MODE.");
                 break;
         }
     }
@@ -547,7 +512,7 @@ struct ElementOpCal<DType, ElementOp::OP_CMPS> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_LRELU> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    static void apply(DType& dst, DType& src, DType& scalar, size_t)
     {
         dst = (src > static_cast<DType>(0)) ? src : (src * scalar);
     }
@@ -555,7 +520,7 @@ struct ElementOpCal<DType, ElementOp::OP_LRELU> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_FMODS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
+    static void apply(DType& dst, DType& src, DType& scalar, size_t)
     {
         if constexpr (std::is_integral_v<DType>) {
             dst = src % scalar;
@@ -567,23 +532,17 @@ struct ElementOpCal<DType, ElementOp::OP_FMODS> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SHLS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src << scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src << scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SHRS> {
-    static void apply(DType &dst, DType &src, DType &scalar, size_t)
-    {
-        dst = src >> scalar;
-    }
+    static void apply(DType& dst, DType& src, DType& scalar, size_t) { dst = src >> scalar; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SELS> {
-    static void apply(DType &dst, DType &scalar, DType &src0, DType &src1)
+    static void apply(DType& dst, DType& scalar, DType& src0, DType& src1)
     {
         if (scalar == static_cast<DType>(1)) {
             dst = src0;
@@ -595,18 +554,12 @@ struct ElementOpCal<DType, ElementOp::OP_SELS> {
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_ADDCS> {
-    static void apply(DType &dst, DType &src0, DType &scalar, DType &src1)
-    {
-        dst = src0 + scalar + src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& scalar, DType& src1) { dst = src0 + scalar + src1; }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SUBCS> {
-    static void apply(DType &dst, DType &src0, DType &scalar, DType &src1)
-    {
-        dst = src0 - scalar + src1;
-    }
+    static void apply(DType& dst, DType& src0, DType& scalar, DType& src1) { dst = src0 - scalar + src1; }
 };
 } // namespace pto
 #endif

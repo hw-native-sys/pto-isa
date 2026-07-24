@@ -45,4 +45,3 @@ AICORE void RowSoftmaxOneTile(__gm__ T* out, __gm__ T* in) {
 - 当 `N` 很大时，通常沿列做 tiling，并组合部分归约结果。
 - 数值稳定性上，“减去最大值”步骤非常关键。
 - 边界 tile 的有效区域很重要；语义解释以 `docs/isa/conventions_zh.md` 为准。
-

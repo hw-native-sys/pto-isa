@@ -19,7 +19,7 @@ using namespace pto;
 
 // Unified TLOAD runner: Static shapes only
 template <typename T, int N, int C1, int H, int W, Layout L>
-void runTloadDynamic(__gm__ T *out, __gm__ T *src)
+void runTloadDynamic(__gm__ T* out, __gm__ T* src)
 {
     constexpr int C0 = 32 / sizeof(T);
     constexpr uint32_t totalElements = N * C1 * H * W * C0;
@@ -37,8 +37,8 @@ void runTloadDynamic(__gm__ T *out, __gm__ T *src)
     GlobalTensor<T, GShape, SelectedStride, L> srcGlobal(src);
 
     // 3. Dynamic Tile Shape (Keeping required statics [16, C0])
-    using TShape = std::conditional_t<L == Layout::NC1HWC0, ConvTileShape<N, C1, H, W>,
-                                      ConvTileShape<(C1 * H * W), (N / 16), 16, C0>>;
+    using TShape = std::conditional_t<
+        L == Layout::NC1HWC0, ConvTileShape<N, C1, H, W>, ConvTileShape<(C1 * H * W), (N / 16), 16, C0>>;
 
     // 5. Initialize ConvTile
     using MyTile = ConvTile<TileType::Mat, T, bufferSize, L, TShape>;
@@ -62,7 +62,7 @@ void runTloadDynamic(__gm__ T *out, __gm__ T *src)
 
 // Specialized runner for 5D Fractal Z Tiles
 template <typename T, int C1, int H, int W, int N>
-void runTloadFractalZ5D(__gm__ T *out, __gm__ T *src)
+void runTloadFractalZ5D(__gm__ T* out, __gm__ T* src)
 {
     // 1. Calculate C0 based on data type (32 bytes / size of T)
     constexpr int C0 = 32 / sizeof(T);
@@ -73,12 +73,13 @@ void runTloadFractalZ5D(__gm__ T *out, __gm__ T *src)
     constexpr Layout L = Layout::FRACTAL_Z;
 
     // 3. Static Strides for Global Memory: [C1, H, W, N, C0]
-    using StrideFractalZ = Stride<(int64_t)H * W * N * C0, // S0: Jump between C1 groups
-                                  (int64_t)W * N * C0,     // S1: Jump between H rows
-                                  (int64_t)N * C0,         // S2: Jump between W columns
-                                  (int64_t)C0,             // S3: Jump between N fractals
-                                  1                        // S4: Contiguous C0
-                                  >;
+    using StrideFractalZ = Stride<
+        (int64_t)H * W * N * C0, // S0: Jump between C1 groups
+        (int64_t)W * N * C0,     // S1: Jump between H rows
+        (int64_t)N * C0,         // S2: Jump between W columns
+        (int64_t)C0,             // S3: Jump between N fractals
+        1                        // S4: Contiguous C0
+        >;
 
     // 4. Global Shape (5D)
     using GShape = Shape<C1, H, W, N, C0>;
@@ -107,36 +108,36 @@ void runTloadFractalZ5D(__gm__ T *out, __gm__ T *src)
     }
 }
 
-extern "C" __global__ AICORE void launch_1(__gm__ uint8_t *o, __gm__ uint8_t *s)
+extern "C" __global__ AICORE void launch_1(__gm__ uint8_t* o, __gm__ uint8_t* s)
 {
-    runTloadDynamic<half, 1, 2, 4, 4, Layout::NC1HWC0>((__gm__ half *)o, (__gm__ half *)s);
+    runTloadDynamic<half, 1, 2, 4, 4, Layout::NC1HWC0>((__gm__ half*)o, (__gm__ half*)s);
 }
 
-extern "C" __global__ AICORE void launch_2(__gm__ uint8_t *o, __gm__ uint8_t *s)
+extern "C" __global__ AICORE void launch_2(__gm__ uint8_t* o, __gm__ uint8_t* s)
 {
-    runTloadDynamic<float, 1, 4, 10, 10, Layout::NC1HWC0>((__gm__ float *)o, (__gm__ float *)s);
+    runTloadDynamic<float, 1, 4, 10, 10, Layout::NC1HWC0>((__gm__ float*)o, (__gm__ float*)s);
 }
 
-extern "C" __global__ AICORE void launch_3(__gm__ uint8_t *o, __gm__ uint8_t *s)
+extern "C" __global__ AICORE void launch_3(__gm__ uint8_t* o, __gm__ uint8_t* s)
 {
-    runTloadDynamic<half, 16, 2, 1, 18, Layout::FRACTAL_Z>((__gm__ half *)o, (__gm__ half *)s);
+    runTloadDynamic<half, 16, 2, 1, 18, Layout::FRACTAL_Z>((__gm__ half*)o, (__gm__ half*)s);
 }
 
-extern "C" __global__ AICORE void launch_4(__gm__ uint8_t *o, __gm__ uint8_t *s)
+extern "C" __global__ AICORE void launch_4(__gm__ uint8_t* o, __gm__ uint8_t* s)
 {
-    runTloadFractalZ5D<int8_t, 4, 2, 6, 16>((__gm__ int8_t *)o, (__gm__ int8_t *)s);
+    runTloadFractalZ5D<int8_t, 4, 2, 6, 16>((__gm__ int8_t*)o, (__gm__ int8_t*)s);
 }
 
 #ifdef CPU_SIM_BFLOAT_ENABLED
-extern "C" __global__ AICORE void launch_5(__gm__ uint8_t *o, __gm__ uint8_t *s)
+extern "C" __global__ AICORE void launch_5(__gm__ uint8_t* o, __gm__ uint8_t* s)
 {
-    runTloadDynamic<bfloat16_t, 1, 2, 4, 4, Layout::NC1HWC0>((__gm__ bfloat16_t *)o, (__gm__ bfloat16_t *)s);
+    runTloadDynamic<bfloat16_t, 1, 2, 4, 4, Layout::NC1HWC0>((__gm__ bfloat16_t*)o, (__gm__ bfloat16_t*)s);
 }
 #endif
 
 // Unified Dispatcher for GTest
 template <int32_t testKey>
-void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
+void launchTLOAD(uint8_t* out, uint8_t* src, uint64_t* gLog, void* stream)
 {
     if constexpr (testKey == 1)
         launch_1(out, src);
@@ -153,10 +154,10 @@ void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream)
 }
 
 // Template instantiations
-template void launchTLOAD<1>(uint8_t *, uint8_t *, uint64_t *, void *);
-template void launchTLOAD<2>(uint8_t *, uint8_t *, uint64_t *, void *);
-template void launchTLOAD<3>(uint8_t *, uint8_t *, uint64_t *, void *);
-template void launchTLOAD<4>(uint8_t *, uint8_t *, uint64_t *, void *);
+template void launchTLOAD<1>(uint8_t*, uint8_t*, uint64_t*, void*);
+template void launchTLOAD<2>(uint8_t*, uint8_t*, uint64_t*, void*);
+template void launchTLOAD<3>(uint8_t*, uint8_t*, uint64_t*, void*);
+template void launchTLOAD<4>(uint8_t*, uint8_t*, uint64_t*, void*);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void launchTLOAD<5>(uint8_t *, uint8_t *, uint64_t *, void *);
+template void launchTLOAD<5>(uint8_t*, uint8_t*, uint64_t*, void*);
 #endif

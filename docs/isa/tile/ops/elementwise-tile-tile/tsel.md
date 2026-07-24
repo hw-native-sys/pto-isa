@@ -1,28 +1,27 @@
-# pto.tsel
+# TSEL
 
-`pto.tsel` is part of the [Elementwise Tile Tile](../../elementwise-tile-tile.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
 
-Per-element conditional selection between two tiles using a predicate mask.
+![TSEL tile operation](../../../../figures/isa/TSEL.svg)
 
-## Mechanism
+## Introduction
 
-For each element `(i, j)` in the destination's valid region:
+Select between two tiles using a mask tile (per-element selection).
+
+## Math Interpretation
+
+For each element `(i, j)` in the valid region:
 
 $$
 \mathrm{dst}_{i,j} =
 \begin{cases}
-\mathrm{src0}_{i,j} & \text{if } \mathrm{mask}_{i,j}\ \text{is true (non-zero)} \\
+\mathrm{src0}_{i,j} & \text{if } \mathrm{mask}_{i,j}\ \text{is true} \\
 \mathrm{src1}_{i,j} & \text{otherwise}
 \end{cases}
 $$
 
-The predicate mask tile uses a target-defined packed encoding. A temporary tile (`tmp`) is required as a working buffer for predicate unpacking.
-
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
@@ -41,87 +40,45 @@ Synchronous form:
 ```text
 pto.tsel ins(%mask, %src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
 template <typename TileData, typename MaskTile, typename TmpTile, typename... WaitEvents>
-PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0,
-                          TileData &src1, TmpTile &tmp, WaitEvents &... events);
+PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, TileData &src1, TmpTile &tmp, WaitEvents &... events);
 ```
-
-**Parameters:**
-- `dst`: destination tile receiving the selected values.
-- `selMask`: predicate mask tile. Lane `(i,j)` is true if non-zero; selects `src0[i,j]`.
-- `src0`: source tile selected when mask lane is true.
-- `src1`: source tile selected when mask lane is false.
-- `tmp`: required temporary working tile for predicate unpacking. Must have compatible shape.
-
-## Inputs
-
-| Operand | Role | Description |
-|---------|------|-------------|
-| `%dst` | Destination tile | Destination tile receiving the selected values |
-| `%mask` | Predicate mask tile | Predicate mask; lane `(i,j)` selects from `src0` if non-zero, otherwise from `src1` |
-| `%src0` | True-value source tile | Source tile selected for mask-true lanes; read at `(i, j)` for each `(i, j)` in `dst` valid region |
-| `%src1` | False-value source tile | Source tile selected for mask-false lanes; read at `(i, j)` for each `(i, j)` in `dst` valid region |
-| `%tmp` | Temporary tile | Required temporary working tile for predicate unpacking |
-| `WaitEvents...` | Optional synchronisation | `RecordEvent` tokens to wait on before issuing the operation |
-
-## Expected Outputs
-
-| Result | Type | Description |
-|--------|------|-------------|
-| `%dst` | `!pto.tile<...>` | Destination tile; all `(i, j)` in its valid region contain `src0[i,j]` where mask is true, otherwise `src1[i,j]` after the operation |
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
 
 ## Constraints
 
-!!! warning "Constraints"
-    - `sizeof(TileData::DType)` MUST be `2` or `4` bytes.
-    - `dst`, `src0`, and `src1` MUST use the **same element type**.
-    - `dst`, `src0`, and `src1` MUST be row-major layout.
-    - `dst`, `src0`, and `src1` MUST have the same declared shape.
-    - `selMask` layout MUST be compatible with the target's predicate unpacking format.
-    - The iteration domain is `dst.GetValidRow()` × `dst.GetValidCol()`.
-    - `tmp` MUST have sufficient capacity to hold intermediate predicate bits; its exact requirements are target-defined.
+- **Implementation checks (A2A3)**:
+    - `sizeof(TileData::DType)` must be `2` or `4` bytes.
+    - `TileData::DType` must be `int16_t` or `uint16_t` or `int32_t` or `uint32_t` or `half` or `bfloat16_t` or `float`.
+    - `dst`, `src0`, and `src1` must use the same element type.
+    - `dst`, `src0`, and `src1` must be row-major.
+    - The selection domain is `dst.GetValidRow()` / `dst.GetValidCol()`.
+- **Implementation checks (A5)**:
+    - `sizeof(TileData::DType)` must be `2` or `4` bytes.
+    - `TileData::DType` must be `int16_t` or `uint16_t` or `int32_t` or `uint32_t` or `half` or `bfloat16_t` or `float`.
+    - `dst`, `src0`, and `src1` must use the same element type.
+    - `dst`, `src0`, and `src1` must be row-major.
+    - The selection domain is `dst.GetValidRow()` / `dst.GetValidCol()`.
+- **Mask encoding**:
+    - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
-## Cases That Are Not Allowed
+## Temporary Space
 
-!!! danger "Cases That Are Not Allowed"
-    - **MUST NOT** use non-row-major `dst`/`src0`/`src1` tiles.
-    - **MUST NOT** use `dst`/`src0`/`src1` with different declared shapes.
+### A2A3
 
-## Target-Profile Restrictions
+`tmp` **is used** as a small buffer to hold the comparison mask (`cmpmask`) copied from the mask tile for each row. The A2A3 implementation uses `set_cmpmask` which requires the mask data to be in a specific UB location.
 
-??? info "Target-Profile Restrictions"
-    | Check | A2/A3 | A5 |
-    |-------|:-----:|:--:|
-    | Supported dtypes | `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `bfloat16_t`, `float` | Same |
-    | sizeof(dtype) | 2 or 4 bytes | Same |
-    | Row-major layout | Required | Required |
-    | Same shape (dst/src0/src1) | Required | Required |
-    | `tmp` tile required | Yes | Yes |
+- `tmp` element type must be `uint32_t`.
+- `tmp` size requirement: at least `cmpmaskLen` `uint32_t` elements per row, where `cmpmaskLen = 4` for 16-bit data types (`half`, `bfloat16_t`) — 16 bytes (128 bits), and `cmpmaskLen = 2` for 32-bit data types (`float`, `int32_t`, `uint32_t`) — 8 bytes (64 bits).
+- A typical `tmp` tile declaration: `Tile<TileType::Vec, uint32_t, 1, 16>` suffices for most use cases.
 
-## Performance
+### A5
 
-### A2/A3 Throughput
-
-`TSEL` compiles to CCE vector instructions via the `TBinOp.hpp` performance model. The throughput is identical to `TADD` (binary arithmetic):
-
-| Metric | Value (FP) | Value (INT) |
-|--------|-------------|-------------|
-| Startup latency | 14 | 14 |
-| Completion latency | 19 | 17 |
-| Per-repeat throughput | 2 | 2 |
-| Pipeline interval | 18 | 18 |
-
----
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based mask operations (`plds`, `vsel`) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 
@@ -166,15 +123,29 @@ void example_manual() {
 }
 ```
 
+## ASM Form Examples
+
+### Auto Mode
+
+```text
+# Auto mode: compiler/runtime-managed placement and scheduling.
+%dst = pto.tsel %mask, %src0, %src1 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### Manual Mode
+
+```text
+# Manual mode: resources must be bound explicitly before issuing the instruction.
+# Optional for tile operands:
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.tsel %mask, %src0, %src1 : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
 ### PTO Assembly Form
 
 ```text
 %dst = tsel %mask, %src0, %src1 : !pto.tile<...>
+# AS Level 2 (DPS)
 pto.tsel ins(%mask, %src0, %src1 : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Elementwise Tile Tile](../../elementwise-tile-tile.md)
-- Previous op in instruction set: [pto.tcvt](./tcvt.md)
-- Next op in instruction set: [pto.trsqrt](./trsqrt.md)

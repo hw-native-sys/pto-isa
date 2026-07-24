@@ -16,9 +16,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename DstVal, typename Src0Val, typename Src1Val>
-static inline void CheckAndGetValidRegions(const DstVal &dstVal, const Src0Val &src0Val, const Src1Val &src1Val,
-                                           int &dstRow, int &dstCol, int &src0Row, int &src0Col, int &src1Row,
-                                           int &src1Col)
+static inline void CheckAndGetValidRegions(
+    const DstVal& dstVal, const Src0Val& src0Val, const Src1Val& src1Val, int& dstRow, int& dstCol, int& src0Row,
+    int& src0Col, int& src1Row, int& src1Col)
 {
     using T = typename Src0Val::DType;
     TPartCheck<T, DstVal, Src0Val, Src1Val>(dstVal.GetValidRow(), dstVal.GetValidCol());
@@ -32,8 +32,8 @@ static inline void CheckAndGetValidRegions(const DstVal &dstVal, const Src0Val &
 
 template <typename CompareOp, typename ValType, typename IdxType>
 struct PartArgSelectOp {
-    static inline void apply(ValType &dstVal, ValType src0Val, ValType src1Val, IdxType &dstIdx, IdxType src0Idx,
-                             IdxType src1Idx)
+    static inline void apply(
+        ValType& dstVal, ValType src0Val, ValType src1Val, IdxType& dstIdx, IdxType src0Idx, IdxType src1Idx)
     {
         if (CompareOp::apply(src0Val, src1Val)) {
             dstVal = src0Val;

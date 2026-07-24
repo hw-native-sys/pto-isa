@@ -11,10 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_MOCKER_ARCH_CONFIG_HPP
 #define PTO_MOCKER_ARCH_CONFIG_HPP
 
-#include <array>
 #include <cstdint>
-#include <cstdlib>
-#include <limits>
 #include <string_view>
 
 namespace pto::mocker::evaluator {
@@ -22,10 +19,8 @@ namespace pto::mocker::evaluator {
 inline constexpr uint64_t kBlockBytes = 32;
 inline constexpr long double kBytesPerGb = 1024.0L * 1024.0L * 1024.0L;
 inline constexpr long double kMainFrequencyHz = 1.85e9L;
-inline constexpr long double kMicrosPerSecond = 1.0e6L;
 
-enum class PipeKey
-{
+enum class PipeKey {
     VECTOR,
     CUBE,
     GM_TO_UB,
@@ -118,10 +113,7 @@ inline constexpr ArchConfig kA2A3ArchConfig{
     },
 };
 
-inline const ArchConfig &GetDefaultArchConfig()
-{
-    return kA2A3ArchConfig;
-}
+inline const ArchConfig& GetDefaultArchConfig() { return kA2A3ArchConfig; }
 
 inline constexpr bool IsMemoryPipe(PipeKey key)
 {
@@ -129,7 +121,7 @@ inline constexpr bool IsMemoryPipe(PipeKey key)
 }
 
 inline constexpr std::array<bool, static_cast<std::size_t>(PipeKey::COUNT)> BuildBandwidthProvided(
-    const BandwidthTable &bandwidth)
+    const BandwidthTable& bandwidth)
 {
     std::array<bool, static_cast<std::size_t>(PipeKey::COUNT)> provided{};
     provided[static_cast<std::size_t>(PipeKey::GM_TO_UB)] = (bandwidth.GM_TO_UB > 0.0);
@@ -152,27 +144,21 @@ inline thread_local BandwidthTable gPredictBandwidthBytesPerUs = GetDefaultArchC
 inline thread_local std::array<bool, static_cast<std::size_t>(PipeKey::COUNT)> gPredictBandwidthProvided =
     BuildBandwidthProvided(gPredictBandwidthBytesPerUs);
 
-inline void SetPredictFrequencyAndBandwidth(long double frequencyMhz, const BandwidthTable &bandwidth)
+inline void SetPredictFrequencyAndBandwidth(long double frequencyMhz, const BandwidthTable& bandwidth)
 {
     gPredictFrequencyMHz = frequencyMhz;
     gPredictBandwidthBytesPerUs = bandwidth;
     gPredictBandwidthProvided = BuildBandwidthProvided(bandwidth);
 }
 
-inline void SetPredictArchConfig(const ArchConfig &archConfig)
+inline void SetPredictArchConfig(const ArchConfig& archConfig)
 {
     SetPredictFrequencyAndBandwidth(archConfig.frequency_hz / kMicrosPerSecond, archConfig.bandwidth);
 }
 
-inline void ResetPredictArchConfig()
-{
-    SetPredictArchConfig(GetDefaultArchConfig());
-}
+inline void ResetPredictArchConfig() { SetPredictArchConfig(GetDefaultArchConfig()); }
 
-inline long double GetPredictFrequencyMHz()
-{
-    return gPredictFrequencyMHz;
-}
+inline long double GetPredictFrequencyMHz() { return gPredictFrequencyMHz; }
 
 inline bool HasPredictBandwidthBytesPerUs(PipeKey key)
 {
@@ -182,10 +168,7 @@ inline bool HasPredictBandwidthBytesPerUs(PipeKey key)
     return gPredictBandwidthProvided[static_cast<std::size_t>(key)];
 }
 
-inline double GetPredictBandwidthBytesPerUs(PipeKey key)
-{
-    return gPredictBandwidthBytesPerUs[key];
-}
+inline double GetPredictBandwidthBytesPerUs(PipeKey key) { return gPredictBandwidthBytesPerUs[key]; }
 
 // ---------------------------------------------------------------------------
 // Hill bandwidth model (single-transfer size saturation + multi-core cap).
@@ -252,7 +235,7 @@ struct HillBandwidthModel {
 // Build the legacy flat model (peak = current table constant, K = 0, no cap).
 inline HillBandwidthModel MakeFlatHillModel()
 {
-    const BandwidthTable &b = GetDefaultArchConfig().bandwidth;
+    const BandwidthTable& b = GetDefaultArchConfig().bandwidth;
     HillBandwidthModel m;
     m.peak_gibs[static_cast<std::size_t>(PipeKey::GM_TO_UB)] = b.GM_TO_UB;
     m.peak_gibs[static_cast<std::size_t>(PipeKey::GM_TO_L1)] = b.GM_TO_L1;
@@ -277,14 +260,23 @@ inline HillBandwidthModel MakeFlatHillModel()
 inline HillBandwidthModel MakeFittedHillModel()
 {
     HillBandwidthModel m = MakeFlatHillModel();
+    // Per-pipe fitted params: peak bandwidth (GiB/s) and half-saturation size (k_bytes).
+    constexpr double kGmToUbPeakGiBs = 247.16;
+    constexpr double kGmToUbKBytes = 30643.0;
+    constexpr double kGmToL1PeakGiBs = 28.61;
+    constexpr double kGmToL1KBytes = 1107.0;
+    constexpr double kUbToGmPeakGiBs = 28.19;
+    constexpr double kUbToGmKBytes = 1755.0;
+    constexpr double kL0cToGmPeakGiBs = 41.25;
+    constexpr double kL0cToGmKBytes = 29104.0;
     auto set = [&](PipeKey k, double peak, double kb) {
         m.peak_gibs[static_cast<std::size_t>(k)] = peak;
         m.k_bytes[static_cast<std::size_t>(k)] = kb;
     };
-    set(PipeKey::GM_TO_UB, 247.16, 30643.0);
-    set(PipeKey::GM_TO_L1, 28.61, 1107.0);
-    set(PipeKey::UB_TO_GM, 28.19, 1755.0);
-    set(PipeKey::L0C_TO_GM, 41.25, 29104.0);
+    set(PipeKey::GM_TO_UB, kGmToUbPeakGiBs, kGmToUbKBytes);
+    set(PipeKey::GM_TO_L1, kGmToL1PeakGiBs, kGmToL1KBytes);
+    set(PipeKey::UB_TO_GM, kUbToGmPeakGiBs, kUbToGmKBytes);
+    set(PipeKey::L0C_TO_GM, kL0cToGmPeakGiBs, kL0cToGmKBytes);
     return m;
 }
 
@@ -292,10 +284,7 @@ inline thread_local HillBandwidthModel gHillBandwidth = MakeFlatHillModel();
 inline thread_local uint32_t gActiveCoreCount = 1;
 inline thread_local bool gHillBandwidthApplied = false;
 
-inline void SetHillBandwidthModel(const HillBandwidthModel &m)
-{
-    gHillBandwidth = m;
-}
+inline void SetHillBandwidthModel(const HillBandwidthModel& m) { gHillBandwidth = m; }
 
 inline void ResetHillBandwidthModel()
 {
@@ -304,10 +293,7 @@ inline void ResetHillBandwidthModel()
     gHillBandwidthApplied = true; // explicit reset suppresses env auto-apply
 }
 
-inline void SetActiveCoreCount(uint32_t n)
-{
-    gActiveCoreCount = n > 0 ? n : 1;
-}
+inline void SetActiveCoreCount(uint32_t n) { gActiveCoreCount = n > 0 ? n : 1; }
 
 // PTO_BW_MODE: "" / "flat" = legacy flat; "fitted" = fitted Hill params. Applied once.
 inline void ApplyHillBandwidthFromEnv()
@@ -316,7 +302,7 @@ inline void ApplyHillBandwidthFromEnv()
         return;
     }
     gHillBandwidthApplied = true;
-    const char *mode = std::getenv("PTO_BW_MODE");
+    const char* mode = std::getenv("PTO_BW_MODE");
     if (mode != nullptr && std::string_view(mode) == "fitted") {
         gHillBandwidth = MakeFittedHillModel();
     }
@@ -330,10 +316,7 @@ inline long double CyclesToUs(uint64_t cycles, long double frequencyMhz)
     return static_cast<long double>(cycles) / frequencyMhz;
 }
 
-inline long double CyclesToUs(uint64_t cycles)
-{
-    return CyclesToUs(cycles, GetPredictFrequencyMHz());
-}
+inline long double CyclesToUs(uint64_t cycles) { return CyclesToUs(cycles, GetPredictFrequencyMHz()); }
 
 inline long double TransferBytesToUs(uint64_t bytes, double bandwidthBytesPerUs)
 {

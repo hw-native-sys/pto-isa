@@ -36,22 +36,10 @@ void runTMul()
 
 } // namespace
 
-TEST(TMul, float_64x64)
-{
-    runTMul<float, 64, 64, 168.0f, 0.910713f>();
-}
+TEST(TMul, float_64x64) { runTMul<float, 64, 64, 168.0f, 0.910713f>(); }
 
-TEST(TMul, int32_64x64)
-{
-    runTMul<int32_t, 64, 64, 152.0f, 0.993420f>();
-}
+TEST(TMul, int32_64x64) { runTMul<int32_t, 64, 64, 152.0f, 0.993420f>(); }
 
-TEST(TMul, half_16x256)
-{
-    runTMul<half, 16, 256, 96.0f, 0.927082f>();
-}
+TEST(TMul, half_16x256) { runTMul<half, 16, 256, 96.0f, 0.927082f>(); }
 
-TEST(TMul, int16_64x64)
-{
-    runTMul<int16_t, 64, 64, 168.0f, 0.982141f>();
-}
+TEST(TMul, int16_64x64) { runTMul<int16_t, 64, 64, 168.0f, 0.982141f>(); }

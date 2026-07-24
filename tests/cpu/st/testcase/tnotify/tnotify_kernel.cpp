@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <int op_type>
-AICORE void runTNotify(__gm__ int32_t __out__ *out, __gm__ int32_t __in__ *src, __gm__ int32_t __in__ *signal)
+AICORE void runTNotify(__gm__ int32_t __out__* out, __gm__ int32_t __in__* src, __gm__ int32_t __in__* signal)
 {
     using NotifyOp = pto::comm::NotifyOp;
     pto::comm::Signal counterSignal(src);
@@ -27,10 +27,10 @@ AICORE void runTNotify(__gm__ int32_t __out__ *out, __gm__ int32_t __in__ *src, 
 }
 
 template <int op_type>
-void LaunchTNotify(int32_t *out, int32_t *src, int32_t *signal, void *stream)
+void LaunchTNotify(int32_t* out, int32_t* src, int32_t* signal, void* stream)
 {
     runTNotify<op_type>(out, src, signal);
 }
 
-template void LaunchTNotify<1>(int32_t *out, int32_t *src, int32_t *signal, void *stream);
-template void LaunchTNotify<2>(int32_t *out, int32_t *src, int32_t *signal, void *stream);
+template void LaunchTNotify<1>(int32_t* out, int32_t* src, int32_t* signal, void* stream);
+template void LaunchTNotify<2>(int32_t* out, int32_t* src, int32_t* signal, void* stream);

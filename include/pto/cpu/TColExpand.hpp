@@ -18,8 +18,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileOut, typename TileIn>
-PTO_INTERNAL void TColExpand_Impl(typename TileOut::TileDType dst, typename TileIn::TileDType src, unsigned validRow,
-                                  unsigned validCol)
+PTO_INTERNAL void TColExpand_Impl(
+    typename TileOut::TileDType dst, typename TileIn::TileDType src, unsigned validRow, unsigned validCol)
 {
     if (validRow == 0 || validCol == 0) {
         return;
@@ -33,7 +33,7 @@ PTO_INTERNAL void TColExpand_Impl(typename TileOut::TileDType dst, typename Tile
 }
 
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TCOLEXPAND_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TCOLEXPAND_IMPL(TileDataOut& dst, TileDataIn& src)
 {
     TColExpand_Impl<TileDataOut, TileDataIn>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol());
 }

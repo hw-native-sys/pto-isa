@@ -1,8 +1,8 @@
-# TFMODS
+﻿# TFMODS
 
 ## 指令示意图
 
-![TFMODS tile operation](../../../../figures/isa/TFMODS.svg)
+![TFMODS tile operation](../figures/isa/TFMODS.svg)
 
 ## 简介
 
@@ -15,8 +15,6 @@
 $$\mathrm{dst}_{i,j} = \mathrm{fmod}(\mathrm{src}_{i,j}, \mathrm{scalar})$$
 
 ## 汇编语法
-
-PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
 
 同步形式：
 
@@ -39,31 +37,40 @@ pto.tfmods ins(%src, %scalar : !pto.tile_buf<...>, f32) outs(%dst : !pto.tile_bu
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TFMODS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar, WaitEvents &... events);
+template <auto PrecisionType = FmodSAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
+          typename... WaitEvents>
+PTO_INST RecordEvent TFMODS(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar,
+                            WaitEvents &...events);
 ```
+
+`PrecisionType`可指定以下值：
+
+* `FmodSAlgorithm::DEFAULT`：普通算法，速度快但精度较低。
+* `FmodSAlgorithm::HIGH_PRECISION`：高精度算法，速度较慢，仅支持`float`类型。
 
 ## 约束
 
-!!! warning "约束"
-    - **实现检查 (A2A3)**:
-        - `dst` 和 `src` 必须使用相同的元素类型。
-        - 支持的元素类型为 `float` 和 `float32_t`。
-        - `dst` 和 `src` 必须是向量 Tile。
-        - `dst` 和 `src` 必须是行主序。
-        - 运行时：`dst.GetValidRow() == src.GetValidRow() > 0` 且 `dst.GetValidCol() == src.GetValidCol() > 0`。
-    - **实现检查 (A5)**:
-        - `dst` 和 `src` 必须使用相同的元素类型。
-        - 支持的元素类型为目标实现支持的 2 字节或 4 字节类型（包括 `half` 和 `float`）。
-        - `dst` 和 `src` 必须是向量 Tile。
-        - 两个 Tile 的静态有效边界都必须满足 `ValidRow <= Rows` 且 `ValidCol <= Cols`。
-        - 运行时：`dst.GetValidRow() == src.GetValidRow()` 且 `dst.GetValidCol() == src.GetValidCol()`。
-    - **除零**:
-        - 行为由目标定义；CPU 模拟器在调试构建中会断言。
-    - **有效区域**:
-        - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **实现检查 (A2A3)**:
+    - `dst` 和 `src` 必须使用相同的元素类型。
+    - 支持的元素类型为 `float` 和 `float32_t`。
+    - `dst` 和 `src` 必须是向量 Tile。
+    - `dst` 和 `src` 必须是行主序。
+    - 运行时：`dst.GetValidRow() == src.GetValidRow() > 0` 且 `dst.GetValidCol() == src.GetValidCol() > 0`。
+- **实现检查 (A5)**:
+    - `dst` 和 `src` 必须使用相同的元素类型。
+    - 支持的元素类型为目标实现支持的 2字节或 4字节类型（包括 `half` 和 `float`）。
+    - `dst` 和 `src` 必须是向量 Tile。
+    - 两个 Tile 的静态有效边界都必须满足 `ValidRow <= Rows` 且 `ValidCol <= Cols`。
+    - 运行时：`dst.GetValidRow() == src.GetValidRow()` 且 `dst.GetValidCol() == src.GetValidCol()`。
+- **除零**:
+    - 行为由目标定义；CPU 模拟器在调试构建中会断言。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **高精度算法**
+    - 仅在A5上有效，`PrecisionType`选项A3上将被忽略。
 
 ## 示例
 

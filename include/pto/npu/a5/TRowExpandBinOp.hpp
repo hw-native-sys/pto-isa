@@ -16,12 +16,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
-PTO_INTERNAL void TRowExpandBinOps_1D_NoPostUpdate(__ubuf__ typename TileData::DType *dstPtr,
-                                                   __ubuf__ typename TileDataSrc0::DType *src0Ptr,
-                                                   __ubuf__ typename TileDataSrc1::DType *src1Ptr, unsigned kValidRows,
-                                                   unsigned kValidCols)
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+PTO_INTERNAL void TRowExpandBinOps_1D_NoPostUpdate(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
 {
     using T = typename TileData::DType;
     uint16_t repeatTimesPerRow = CeilDivision(kValidCols, elementsPerRepeat);
@@ -30,18 +30,22 @@ PTO_INTERNAL void TRowExpandBinOps_1D_NoPostUpdate(__ubuf__ typename TileData::D
 
     __VEC_SCOPE__
     {
-        RegTensor<T> vreg0, vreg1, vreg2;
+        RegTensor<T> vreg0, vreg1, vreg2, vreg_uld;
         MaskReg preg;
+        vector_align ureg_1;
+        vector_bool preg_b8_all = pset_b8(PAT_ALL);
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-        using VldsType = std::conditional_t<sizeof(T) == 1, decltype(BRC_B8),
-                                            std::conditional_t<sizeof(T) == 2, decltype(BRC_B16), decltype(BRC_B32)>>;
+        using VldsType = std::conditional_t<
+            sizeof(T) == 1, decltype(BRC_B8), std::conditional_t<sizeof(T) == 2, decltype(BRC_B16), decltype(BRC_B32)>>;
         constexpr VldsType vldsValue{};
         uint32_t sreg = (uint32_t)(kValidCols);
         for (uint16_t i = 0; i < (uint16_t)repeatTimes; ++i) {
             uint16_t row = i / repeatTimesPerRow;
             sreg = (uint32_t)(kValidCols);
-            vlds(vreg1, src1Ptr, row * stride, vldsValue);
+            vldas(ureg_1, (__ubuf__ T *)(src1Ptr + row * stride));
+            vldus(vreg_uld, ureg_1, (__ubuf__ T *)(src1Ptr + row * stride));
+            vdup(vreg1, vreg_uld, preg_b8_all, POS_LOWEST, MODE_ZEROING);
 
             uint32_t offset = row * kValidCols + i % repeatTimesPerRow * elementsPerRepeat;
             preg = CreatePredicate<T>(sreg);
@@ -52,12 +56,12 @@ PTO_INTERNAL void TRowExpandBinOps_1D_NoPostUpdate(__ubuf__ typename TileData::D
     }
 }
 
-template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
-PTO_INTERNAL void TRowExpandBinOps_1D_NoPostUpdate32B(__ubuf__ typename TileData::DType *dstPtr,
-                                                      __ubuf__ typename TileDataSrc0::DType *src0Ptr,
-                                                      __ubuf__ typename TileDataSrc1::DType *src1Ptr,
-                                                      unsigned kValidRows, unsigned kValidCols)
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+PTO_INTERNAL void TRowExpandBinOps_1D_NoPostUpdate32B(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
 {
     using T = typename TileData::DType;
     uint16_t repeatTimesPerRow = CeilDivision(kValidCols, elementsPerRepeat);
@@ -83,12 +87,12 @@ PTO_INTERNAL void TRowExpandBinOps_1D_NoPostUpdate32B(__ubuf__ typename TileData
     }
 }
 
-template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
-PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate(__ubuf__ typename TileData::DType *dstPtr,
-                                                   __ubuf__ typename TileDataSrc0::DType *src0Ptr,
-                                                   __ubuf__ typename TileDataSrc1::DType *src1Ptr, unsigned kValidRows,
-                                                   unsigned kValidCols)
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
 {
     using T = typename TileData::DType;
     uint16_t repeatTimes = CeilDivision(kValidCols, elementsPerRepeat);
@@ -102,8 +106,8 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate(__ubuf__ typename TileData::D
         MaskReg preg;
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
-        using VldsType = std::conditional_t<sizeof(T) == 1, decltype(BRC_B8),
-                                            std::conditional_t<sizeof(T) == 2, decltype(BRC_B16), decltype(BRC_B32)>>;
+        using VldsType = std::conditional_t<
+            sizeof(T) == 1, decltype(BRC_B8), std::conditional_t<sizeof(T) == 2, decltype(BRC_B16), decltype(BRC_B32)>>;
         constexpr VldsType vldsValue{};
         for (uint16_t i = 0; i < (uint16_t)(kValidRows); ++i) {
             vlds(vreg1, src1Ptr, i * stride, vldsValue);
@@ -118,12 +122,12 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate(__ubuf__ typename TileData::D
     }
 }
 
-template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
-PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate32B(__ubuf__ typename TileData::DType *dstPtr,
-                                                      __ubuf__ typename TileDataSrc0::DType *src0Ptr,
-                                                      __ubuf__ typename TileDataSrc1::DType *src1Ptr,
-                                                      unsigned kValidRows, unsigned kValidCols)
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate32B(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
 {
     using T = typename TileData::DType;
     uint16_t repeatTimes = CeilDivision(kValidCols, elementsPerRepeat);
@@ -150,30 +154,34 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate32B(__ubuf__ typename TileData
     }
 }
 
-template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
-PTO_INTERNAL void RowExpandBinaryInstr(__ubuf__ typename TileData::DType *dstPtr,
-                                       __ubuf__ typename TileDataSrc0::DType *src0Ptr,
-                                       __ubuf__ typename TileDataSrc1::DType *src1Ptr, unsigned kValidRows,
-                                       unsigned kValidCols)
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+PTO_INTERNAL void RowExpandBinaryInstr(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
 {
     constexpr bool isContiguous = (TileData::ValidCol == TileData::Cols) || (TileData::Rows == 1);
 
     if constexpr (TileDataSrc1::isRowMajor) {
         if constexpr (TileData::Cols < elementsPerRepeat && isContiguous) {
-            TRowExpandBinOps_1D_NoPostUpdate32B<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                                                blockSizeElem>(dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+            TRowExpandBinOps_1D_NoPostUpdate32B<
+                Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+                dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
         } else {
-            TRowExpandBinOps_2D_NoPostUpdate32B<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                                                blockSizeElem>(dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+            TRowExpandBinOps_2D_NoPostUpdate32B<
+                Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+                dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
         }
     } else {
         if constexpr (TileData::Cols < elementsPerRepeat && isContiguous) {
-            TRowExpandBinOps_1D_NoPostUpdate<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                                             blockSizeElem>(dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+            TRowExpandBinOps_1D_NoPostUpdate<
+                Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+                dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
         } else {
-            TRowExpandBinOps_2D_NoPostUpdate<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                                             blockSizeElem>(dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+            TRowExpandBinOps_2D_NoPostUpdate<
+                Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+                dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
         }
     }
 }

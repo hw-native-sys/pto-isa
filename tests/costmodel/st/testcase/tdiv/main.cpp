@@ -36,27 +36,12 @@ void runTDiv()
 
 } // namespace
 
-TEST(TDiv, case_float_64x64_64x64_64x64)
-{
-    runTDiv<float, 64, 64, 64, 64, 288.0f, 0.993055f>();
-}
+TEST(TDiv, case_float_64x64_64x64_64x64) { runTDiv<float, 64, 64, 64, 64, 288.0f, 0.993055f>(); }
 
-TEST(TDiv, case_half_64x64_64x64_64x64)
-{
-    runTDiv<half, 64, 64, 64, 64, 304.0f, 0.999999f>();
-}
+TEST(TDiv, case_half_64x64_64x64_64x64) { runTDiv<half, 64, 64, 64, 64, 304.0f, 0.999999f>(); }
 
-TEST(TDiv, case_half_61x61_64x64_61x61)
-{
-    runTDiv<half, 64, 61, 64, 61, 0.0f, 0.0f>();
-}
+TEST(TDiv, case_half_61x61_64x64_61x61) { runTDiv<half, 64, 61, 64, 61, 0.0f, 0.0f>(); }
 
-TEST(TDiv, case_float_60x30_64x32_60x30)
-{
-    runTDiv<float, 64, 60, 32, 30, 0.0f, 0.0f>();
-}
+TEST(TDiv, case_float_60x30_64x32_60x30) { runTDiv<float, 64, 60, 32, 30, 0.0f, 0.0f>(); }
 
-TEST(TDiv, case_float_32x32_32x32_32x32)
-{
-    runTDiv<float, 32, 32, 32, 32, 0.0f, 0.0f>();
-}
+TEST(TDiv, case_float_32x32_32x32_32x32) { runTDiv<float, 32, 32, 32, 32, 0.0f, 0.0f>(); }

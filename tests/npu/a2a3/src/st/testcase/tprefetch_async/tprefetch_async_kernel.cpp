@@ -53,7 +53,7 @@ PTO_INTERNAL bool BoundsOkOrFinalize(int elem_count)
 // TLOAD/TSTORE copy loop used to validate the prefetched bytes after the
 // async event has completed.
 template <typename T, size_t count>
-PTO_INTERNAL void CopyViaTile(__gm__ T *src, __gm__ T *dst, int elem_count)
+PTO_INTERNAL void CopyViaTile(__gm__ T* src, __gm__ T* dst, int elem_count)
 {
     constexpr int kTileCols = (count <= 256) ? static_cast<int>(count) : 256;
     static_assert(count % kTileCols == 0, "count must be a multiple of kTileCols for fixed-size Tile");
@@ -81,8 +81,8 @@ PTO_INTERNAL void CopyViaTile(__gm__ T *src, __gm__ T *dst, int elem_count)
 // Correctness kernel - public GlobalTensor API.
 // ============================================================================
 template <typename T, size_t count>
-__global__ AICORE void TPrefetchAsyncCorrectnessKernel(__gm__ T *src, __gm__ T *dst, int elem_count,
-                                                       __gm__ uint8_t *sdmaWorkspace)
+__global__ AICORE void TPrefetchAsyncCorrectnessKernel(
+    __gm__ T* src, __gm__ T* dst, int elem_count, __gm__ uint8_t* sdmaWorkspace)
 {
     if (!BoundsOkOrFinalize<count>(elem_count)) {
         return;
@@ -105,10 +105,10 @@ __global__ AICORE void TPrefetchAsyncCorrectnessKernel(__gm__ T *src, __gm__ T *
 // ============================================================================
 struct SingleCardTestEnv {
     aclrtStream stream = nullptr;
-    uint8_t *inputHost = nullptr;
-    uint8_t *outputHost = nullptr;
-    void *srcDevice = nullptr;
-    void *dstDevice = nullptr;
+    uint8_t* inputHost = nullptr;
+    uint8_t* outputHost = nullptr;
+    void* srcDevice = nullptr;
+    void* dstDevice = nullptr;
     size_t dataBytes = 0;
     int aclStatus = 0;
 
@@ -117,8 +117,8 @@ struct SingleCardTestEnv {
         dataBytes = bytes;
         aclStatus |= aclrtSetDevice(deviceId);
         aclStatus |= aclrtCreateStream(&stream);
-        aclStatus |= aclrtMallocHost(reinterpret_cast<void **>(&inputHost), dataBytes);
-        aclStatus |= aclrtMallocHost(reinterpret_cast<void **>(&outputHost), dataBytes);
+        aclStatus |= aclrtMallocHost(reinterpret_cast<void**>(&inputHost), dataBytes);
+        aclStatus |= aclrtMallocHost(reinterpret_cast<void**>(&outputHost), dataBytes);
         aclStatus |= aclrtMalloc(&srcDevice, dataBytes, ACL_MEM_MALLOC_HUGE_FIRST);
         aclStatus |= aclrtMalloc(&dstDevice, dataBytes, ACL_MEM_MALLOC_HUGE_FIRST);
         return aclStatus == 0;
@@ -139,15 +139,15 @@ struct SingleCardTestEnv {
 };
 
 template <typename T>
-inline void FillAndUpload(SingleCardTestEnv &env, size_t count, int modulus)
+inline void FillAndUpload(SingleCardTestEnv& env, size_t count, int modulus)
 {
     if (modulus <= 0) {
         env.aclStatus |= -1;
         return;
     }
     const size_t checkedModulus = static_cast<size_t>(modulus);
-    T *in = reinterpret_cast<T *>(env.inputHost);
-    T *out = reinterpret_cast<T *>(env.outputHost);
+    T* in = reinterpret_cast<T*>(env.inputHost);
+    T* out = reinterpret_cast<T*>(env.outputHost);
     for (size_t i = 0; i < count; ++i) {
         in[i] = static_cast<T>(i % checkedModulus);
         out[i] = static_cast<T>(-1);
@@ -158,14 +158,14 @@ inline void FillAndUpload(SingleCardTestEnv &env, size_t count, int modulus)
 }
 
 template <typename T>
-inline bool VerifyOutputAndPrint(const SingleCardTestEnv &env, size_t count, int modulus, const char *tag)
+inline bool VerifyOutputAndPrint(const SingleCardTestEnv& env, size_t count, int modulus, const char* tag)
 {
     if (modulus <= 0) {
         std::cout << tag << ": invalid modulus " << modulus << std::endl;
         return false;
     }
     const size_t checkedModulus = static_cast<size_t>(modulus);
-    const T *out = reinterpret_cast<const T *>(env.outputHost);
+    const T* out = reinterpret_cast<const T*>(env.outputHost);
     for (size_t i = 0; i < count; ++i) {
         T expected = static_cast<T>(i % checkedModulus);
         if (out[i] != expected) {
@@ -192,14 +192,13 @@ bool RunPrefetchAsyncCorrectness(int deviceId)
     FillAndUpload<T>(env, count, 1000);
 
     SdmaWorkspaceManager sdmaMgr;
-    bool sdmaOk = sdmaMgr.Init();
-    if (!sdmaOk) {
+    if (!sdmaMgr.Init()) {
         std::cerr << "[WARN] SdmaWorkspaceManager Init failed - prefetch will be skipped inside kernel" << std::endl;
     }
-    uint8_t *wsAddr = sdmaOk ? reinterpret_cast<uint8_t *>(sdmaMgr.GetWorkspaceAddr()) : nullptr;
+    uint8_t* wsAddr = sdmaOk ? reinterpret_cast<uint8_t*>(sdmaMgr.GetWorkspaceAddr()) : nullptr;
 
     TPrefetchAsyncCorrectnessKernel<T, count><<<1, nullptr, env.stream>>>(
-        reinterpret_cast<T *>(env.srcDevice), reinterpret_cast<T *>(env.dstDevice), static_cast<int>(count), wsAddr);
+        reinterpret_cast<T*>(env.srcDevice), reinterpret_cast<T*>(env.dstDevice), static_cast<int>(count), wsAddr);
     env.SyncAndReadBack();
 
     bool is_ok = VerifyOutputAndPrint<T>(env, count, 1000, "TPREFETCH_ASYNC GlobalTensor correctness");

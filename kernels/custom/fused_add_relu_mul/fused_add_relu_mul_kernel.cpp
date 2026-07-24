@@ -20,7 +20,7 @@ using namespace pto;
  * @param end 输出：当前核心的结束位置
  * @return true 如果当前核心有数据要处理，false 否则
  */
-static inline bool CalculateBlockRange(uint32_t totalLength, int &start, int &end)
+static inline bool CalculateBlockRange(uint32_t totalLength, int& start, int& end)
 {
     int block_idx = get_block_idx();
     int block_num = get_block_num();
@@ -55,7 +55,7 @@ static inline bool CalculateBlockRange(uint32_t totalLength, int &start, int &en
  * @param scale 缩放因子
  */
 template <typename TileT>
-static inline void PerformFusedComputation(TileT &tile_result, const TileT &tile_x, float bias, float scale)
+static inline void PerformFusedComputation(TileT& tile_result, const TileT& tile_x, float bias, float scale)
 {
     // 步骤1：Add - 加上偏置
     TADDS(tile_result, tile_x, bias);
@@ -106,10 +106,7 @@ struct KernelContext {
     static constexpr int TILE_SIZE = Config::TILE_SIZE;
 
     // 初始化上下文
-    inline bool init(uint32_t totalLength)
-    {
-        return CalculateBlockRange(totalLength, start, end);
-    }
+    inline bool init(uint32_t totalLength) { return CalculateBlockRange(totalLength, start, end); }
 };
 
 // 宏：初始化 kernel 上下文（消除重复代码）
@@ -125,8 +122,8 @@ struct KernelContext {
  * @brief 基础 kernel 实现模板（消除重复代码）
  */
 template <typename Config>
-static inline void FusedAddReLUMulKernelImpl(__gm__ float *out, __gm__ const float *x, float bias, float scale,
-                                             uint32_t totalLength)
+static inline void FusedAddReLUMulKernelImpl(
+    __gm__ float* out, __gm__ const float* x, float bias, float scale, uint32_t totalLength)
 {
     INIT_KERNEL_CONTEXT(Config);
     using GlobalShape = Shape<1, 1, 1, Config::TILE_H, Config::TILE_W>;
@@ -152,8 +149,8 @@ static inline void FusedAddReLUMulKernelImpl(__gm__ float *out, __gm__ const flo
  * @brief 双缓冲 kernel 实现模板（消除重复代码）
  */
 template <typename Config>
-static inline void FusedAddReLUMulOptimizedKernelImpl(__gm__ float *out, __gm__ const float *x, float bias, float scale,
-                                                      uint32_t totalLength)
+static inline void FusedAddReLUMulOptimizedKernelImpl(
+    __gm__ float* out, __gm__ const float* x, float bias, float scale, uint32_t totalLength)
 {
     INIT_KERNEL_CONTEXT(Config);
     using GlobalShape = Shape<1, 1, 1, Config::TILE_H, Config::TILE_W>;
@@ -217,8 +214,8 @@ static inline void FusedAddReLUMulOptimizedKernelImpl(__gm__ float *out, __gm__ 
  * @param scale 缩放标量
  * @param totalLength 张量总元素数
  */
-__global__ __aicore__ void FusedAddReLUMulKernel(__gm__ float *out, __gm__ const float *x, float bias, float scale,
-                                                 uint32_t totalLength)
+__global__ __aicore__ void FusedAddReLUMulKernel(
+    __gm__ float* out, __gm__ const float* x, float bias, float scale, uint32_t totalLength)
 {
     FusedAddReLUMulKernelImpl<StandardTileConfig>(out, x, bias, scale, totalLength);
 }
@@ -233,8 +230,8 @@ __global__ __aicore__ void FusedAddReLUMulKernel(__gm__ float *out, __gm__ const
  *
  * 性能提升：相比基础版本可提升 1.5-2× 性能
  */
-__global__ __aicore__ void FusedAddReLUMulOptimizedKernel(__gm__ float *out, __gm__ const float *x, float bias,
-                                                          float scale, uint32_t totalLength)
+__global__ __aicore__ void FusedAddReLUMulOptimizedKernel(
+    __gm__ float* out, __gm__ const float* x, float bias, float scale, uint32_t totalLength)
 {
     FusedAddReLUMulOptimizedKernelImpl<StandardTileConfig>(out, x, bias, scale, totalLength);
 }
@@ -247,8 +244,8 @@ __global__ __aicore__ void FusedAddReLUMulOptimizedKernel(__gm__ float *out, __g
  * - 适用于 A5 平台（L1 容量更大）
  * - 减少循环迭代次数，降低控制流开销
  */
-__global__ __aicore__ void FusedAddReLUMulLargeTileKernel(__gm__ float *out, __gm__ const float *x, float bias,
-                                                          float scale, uint32_t totalLength)
+__global__ __aicore__ void FusedAddReLUMulLargeTileKernel(
+    __gm__ float* out, __gm__ const float* x, float bias, float scale, uint32_t totalLength)
 {
     FusedAddReLUMulKernelImpl<LargeTileConfig>(out, x, bias, scale, totalLength);
 }

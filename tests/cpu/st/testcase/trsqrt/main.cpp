@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TRSQRTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
-void LaunchTRSqrt(T *out, T *src, void *stream);
+void LaunchTRSqrt(T* out, T* src, void* stream);
 
 template <typename T, int kDstRows_, int kDstCols_, int kSrcRows_, int kSrcCols_, int kValRows_, int kValCols_>
 void test_trsqrt()
@@ -48,11 +46,11 @@ void test_trsqrt()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileDstSize);
-    aclrtMallocHost((void **)(&srcHost), fileSrcSize);
+    aclrtMallocHost((void**)(&dstHost), fileDstSize);
+    aclrtMallocHost((void**)(&srcHost), fileSrcSize);
 
-    aclrtMalloc((void **)&dstDevice, fileDstSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSrcSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileDstSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSrcSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSrcSize, srcHost, fileSrcSize);
 
@@ -89,11 +87,5 @@ void test_trsqrt()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TRSQRTTest, case_float_64x64_64x64_64x64)
-{
-    test_trsqrt<float, 64, 64, 64, 64, 64, 64>();
-}
-TEST_F(TRSQRTTest, case_half_64x64_64x64_64x64)
-{
-    test_trsqrt<aclFloat16, 64, 64, 64, 64, 64, 64>();
-}
+TEST_F(TRSQRTTest, case_float_64x64_64x64_64x64) { test_trsqrt<float, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TRSQRTTest, case_half_64x64_64x64_64x64) { test_trsqrt<aclFloat16, 64, 64, 64, 64, 64, 64>(); }

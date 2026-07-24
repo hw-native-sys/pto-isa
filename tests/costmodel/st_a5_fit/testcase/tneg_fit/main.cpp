@@ -38,7 +38,7 @@ struct A5VfFitCase {
     std::string_view op_params;
 };
 
-void RunCase(PtoOpcode op, const char *name, const A5VfFitCase &c)
+void RunCase(PtoOpcode op, const char* name, const A5VfFitCase& c)
 {
     CostModelInput input{
         .op = op,
@@ -61,7 +61,7 @@ constexpr A5VfFitCase kCases0[] = {
 
 TEST(A5TnegFit, fp16_1D_POST_UPDATE_full_none)
 {
-    for (const auto &c : kCases0) {
+    for (const auto& c : kCases0) {
         RunCase(PtoOpcode::TNEG, "TNEG", c);
     }
 }
@@ -73,7 +73,7 @@ constexpr A5VfFitCase kCases1[] = {
 
 TEST(A5TnegFit, fp32_1D_NO_POST_UPDATE_full_none)
 {
-    for (const auto &c : kCases1) {
+    for (const auto& c : kCases1) {
         RunCase(PtoOpcode::TNEG, "TNEG", c);
     }
 }
@@ -89,7 +89,7 @@ constexpr A5VfFitCase kCases2[] = {
 
 TEST(A5TnegFit, fp32_1D_POST_UPDATE_full_none)
 {
-    for (const auto &c : kCases2) {
+    for (const auto& c : kCases2) {
         RunCase(PtoOpcode::TNEG, "TNEG", c);
     }
 }
@@ -105,7 +105,7 @@ constexpr A5VfFitCase kCases3[] = {
 
 TEST(A5TnegFit, fp32_1D_POST_UPDATE_tail_none)
 {
-    for (const auto &c : kCases3) {
+    for (const auto& c : kCases3) {
         RunCase(PtoOpcode::TNEG, "TNEG", c);
     }
 }
@@ -132,7 +132,7 @@ constexpr A5VfFitCase kCases4[] = {
 
 TEST(A5TnegFit, fp32_2D_NO_POST_UPDATE_full_none)
 {
-    for (const auto &c : kCases4) {
+    for (const auto& c : kCases4) {
         RunCase(PtoOpcode::TNEG, "TNEG", c);
     }
 }
@@ -159,7 +159,7 @@ constexpr A5VfFitCase kCases5[] = {
 
 TEST(A5TnegFit, fp32_2D_NO_POST_UPDATE_tail_none)
 {
-    for (const auto &c : kCases5) {
+    for (const auto& c : kCases5) {
         RunCase(PtoOpcode::TNEG, "TNEG", c);
     }
 }

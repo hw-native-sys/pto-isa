@@ -93,7 +93,7 @@ inline size_t ChunkFlagMatrixWithSummarySize(int num_ranks, int num_tiles_per_sr
            static_cast<size_t>(num_ranks) * sizeof(int32_t);
 }
 
-inline void ChunkFlagMatrixInit(ChunkFlagMatrix *flags, int num_ranks, int num_tiles_per_src, int chunk_size)
+inline void ChunkFlagMatrixInit(ChunkFlagMatrix* flags, int num_ranks, int num_tiles_per_src, int chunk_size)
 {
     int actual_chunk_size = (chunk_size > 0) ? chunk_size : ComputeOptimalChunkSize(num_tiles_per_src);
     int num_chunks = (num_tiles_per_src + actual_chunk_size - 1) / actual_chunk_size;
@@ -109,29 +109,29 @@ inline void ChunkFlagMatrixInit(ChunkFlagMatrix *flags, int num_ranks, int num_t
     for (int i = 0; i < 9; i++)
         flags->padding[i] = 0;
 
-    int32_t *base = reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(flags) + sizeof(ChunkFlagMatrix));
+    int32_t* base = reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(flags) + sizeof(ChunkFlagMatrix));
     for (int i = 0; i < num_ranks * stride; ++i) {
         base[i] = 0;
     }
 }
 
-inline void ChunkFlagMatrixSummaryInit(int32_t *summary_base, int num_ranks)
+inline void ChunkFlagMatrixSummaryInit(int32_t* summary_base, int num_ranks)
 {
     for (int i = 0; i < num_ranks; ++i)
         summary_base[i] = 0;
 }
 
-inline void ChunkFlagMatrixReset(ChunkFlagMatrix *flags)
+inline void ChunkFlagMatrixReset(ChunkFlagMatrix* flags)
 {
-    int32_t *base = reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(flags) + sizeof(ChunkFlagMatrix));
+    int32_t* base = reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(flags) + sizeof(ChunkFlagMatrix));
     for (int i = 0; i < flags->num_ranks * flags->stride; ++i) {
         base[i] = 0;
     }
 }
 
-inline void ChunkFlagMatrixSetLocalReady(ChunkFlagMatrix *flags, int my_rank)
+inline void ChunkFlagMatrixSetLocalReady(ChunkFlagMatrix* flags, int my_rank)
 {
-    int32_t *base = reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(flags) + sizeof(ChunkFlagMatrix));
+    int32_t* base = reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(flags) + sizeof(ChunkFlagMatrix));
     int offset = my_rank * flags->stride;
     for (int c = 0; c < flags->num_chunks_per_src; ++c) {
         base[offset + c] = 1;
@@ -143,48 +143,49 @@ inline void ChunkFlagMatrixSetLocalReady(ChunkFlagMatrix *flags, int my_rank)
 // ChunkFlagMatrix device-side functions
 // ============================================================================
 
-AICORE inline size_t ChunkFlagMatrixBytes(volatile __gm__ ChunkFlagMatrix *flags)
+AICORE inline size_t ChunkFlagMatrixBytes(volatile __gm__ ChunkFlagMatrix* flags)
 {
     return sizeof(ChunkFlagMatrix) +
            static_cast<size_t>(flags->num_ranks) * static_cast<size_t>(flags->stride) * sizeof(int32_t);
 }
 
-AICORE inline volatile __gm__ int32_t *GetChunkFlagPtr(volatile __gm__ ChunkFlagMatrix *flags, int32_t src_rank,
-                                                       int32_t chunk_idx)
+AICORE inline volatile __gm__ int32_t* GetChunkFlagPtr(
+    volatile __gm__ ChunkFlagMatrix* flags, int32_t src_rank, int32_t chunk_idx)
 {
     int32_t stride = flags->stride;
     int32_t idx = src_rank * stride + chunk_idx;
-    volatile __gm__ int32_t *base = reinterpret_cast<volatile __gm__ int32_t *>(
-        reinterpret_cast<volatile __gm__ uint8_t *>(flags) + sizeof(ChunkFlagMatrix));
+    volatile __gm__ int32_t* base = reinterpret_cast<volatile __gm__ int32_t*>(
+        reinterpret_cast<volatile __gm__ uint8_t*>(flags) + sizeof(ChunkFlagMatrix));
     return base + idx;
 }
 
 // Summary base address: right after flag matrix, one int32 doorbell per src rank.
-AICORE inline volatile __gm__ int32_t *GetSummaryBase(volatile __gm__ ChunkFlagMatrix *flags)
+AICORE inline volatile __gm__ int32_t* GetSummaryBase(volatile __gm__ ChunkFlagMatrix* flags)
 {
-    return reinterpret_cast<volatile __gm__ int32_t *>(reinterpret_cast<volatile __gm__ uint8_t *>(flags) +
-                                                       ChunkFlagMatrixBytes(flags));
+    return reinterpret_cast<volatile __gm__ int32_t*>(
+        reinterpret_cast<volatile __gm__ uint8_t*>(flags) + ChunkFlagMatrixBytes(flags));
 }
 
 // Uses TNOTIFY AtomicAdd for hardware atomic semantics.
-AICORE inline void SetChunkFlagReady(volatile __gm__ ChunkFlagMatrix *flags, int32_t src_rank, int32_t chunk_idx)
+AICORE inline void SetChunkFlagReady(volatile __gm__ ChunkFlagMatrix* flags, int32_t src_rank, int32_t chunk_idx)
 {
-    volatile __gm__ int32_t *ptr = GetChunkFlagPtr(flags, src_rank, chunk_idx);
-    pto::comm::Signal sig(reinterpret_cast<__gm__ int32_t *>(const_cast<__gm__ int32_t *>(ptr)));
+    volatile __gm__ int32_t* ptr = GetChunkFlagPtr(flags, src_rank, chunk_idx);
+    pto::comm::Signal sig(reinterpret_cast<__gm__ int32_t*>(const_cast<__gm__ int32_t*>(ptr)));
     pto::comm::TNOTIFY(sig, 1, pto::comm::NotifyOp::AtomicAdd);
 }
 
 // Notify remote rank that chunk data is available.
 // If remote_summary_src_ptr is provided, also increments the summary doorbell.
-AICORE inline void SetRemoteChunkFlagReady(__gm__ ChunkFlagMatrix *remote_flags, int32_t src_rank, int32_t chunk_idx,
-                                           __gm__ int32_t *remote_summary_src_ptr = nullptr)
+AICORE inline void SetRemoteChunkFlagReady(
+    __gm__ ChunkFlagMatrix* remote_flags, int32_t src_rank, int32_t chunk_idx,
+    __gm__ int32_t* remote_summary_src_ptr = nullptr)
 {
-    volatile __gm__ ChunkFlagMatrix *r = reinterpret_cast<volatile __gm__ ChunkFlagMatrix *>(remote_flags);
+    volatile __gm__ ChunkFlagMatrix* r = reinterpret_cast<volatile __gm__ ChunkFlagMatrix*>(remote_flags);
     if (src_rank < 0 || src_rank >= r->num_ranks || chunk_idx < 0 || chunk_idx >= r->num_chunks_per_src) {
         return;
     }
-    volatile __gm__ int32_t *ptr = GetChunkFlagPtr(r, src_rank, chunk_idx);
-    pto::comm::Signal sig(reinterpret_cast<__gm__ int32_t *>(const_cast<__gm__ int32_t *>(ptr)));
+    volatile __gm__ int32_t* ptr = GetChunkFlagPtr(r, src_rank, chunk_idx);
+    pto::comm::Signal sig(reinterpret_cast<__gm__ int32_t*>(const_cast<__gm__ int32_t*>(ptr)));
     pto::comm::TNOTIFY(sig, 1, pto::comm::NotifyOp::AtomicAdd);
     if (remote_summary_src_ptr != nullptr) {
         pto::comm::Signal sumSig(remote_summary_src_ptr);
@@ -192,54 +193,54 @@ AICORE inline void SetRemoteChunkFlagReady(__gm__ ChunkFlagMatrix *remote_flags,
     }
 }
 
-AICORE inline void SetLocalSummaryReady(volatile __gm__ int32_t *summary_base, int32_t src_rank, int32_t value)
+AICORE inline void SetLocalSummaryReady(volatile __gm__ int32_t* summary_base, int32_t src_rank, int32_t value)
 {
     if (summary_base == nullptr || src_rank < 0)
         return;
-    volatile __gm__ int32_t *ptr = summary_base + src_rank;
-    dcci((__gm__ void *)ptr, SINGLE_CACHE_LINE);
+    volatile __gm__ int32_t* ptr = summary_base + src_rank;
+    dcci((__gm__ void*)ptr, SINGLE_CACHE_LINE);
     __asm__ __volatile__("" ::: "memory");
     *ptr = value;
-    dcci((__gm__ void *)ptr, SINGLE_CACHE_LINE);
+    dcci((__gm__ void*)ptr, SINGLE_CACHE_LINE);
     __asm__ __volatile__("" ::: "memory");
 }
 
-AICORE inline bool IsChunkReady(volatile __gm__ ChunkFlagMatrix *flags, int32_t src_rank, int32_t chunk_idx)
+AICORE inline bool IsChunkReady(volatile __gm__ ChunkFlagMatrix* flags, int32_t src_rank, int32_t chunk_idx)
 {
-    volatile __gm__ int32_t *ptr = GetChunkFlagPtr(flags, src_rank, chunk_idx);
+    volatile __gm__ int32_t* ptr = GetChunkFlagPtr(flags, src_rank, chunk_idx);
     int32_t epoch = flags->epoch;
-    dcci((__gm__ void *)ptr, SINGLE_CACHE_LINE);
+    dcci((__gm__ void*)ptr, SINGLE_CACHE_LINE);
     __asm__ __volatile__("" ::: "memory");
     return (*ptr >= epoch);
 }
 
 // First-level poll: check if any chunk from this src is ready.
-AICORE inline bool IsAnyReadyFromSrc(volatile __gm__ int32_t *summary_base, int32_t src_rank)
+AICORE inline bool IsAnyReadyFromSrc(volatile __gm__ int32_t* summary_base, int32_t src_rank)
 {
     if (summary_base == nullptr || src_rank < 0)
         return false;
-    volatile __gm__ int32_t *ptr = summary_base + src_rank;
-    dcci((__gm__ void *)ptr, SINGLE_CACHE_LINE);
+    volatile __gm__ int32_t* ptr = summary_base + src_rank;
+    dcci((__gm__ void*)ptr, SINGLE_CACHE_LINE);
     __asm__ __volatile__("" ::: "memory");
     return (*ptr >= 1);
 }
 
-AICORE inline int32_t GetReadyCountFromSrc(volatile __gm__ int32_t *summary_base, int32_t src_rank)
+AICORE inline int32_t GetReadyCountFromSrc(volatile __gm__ int32_t* summary_base, int32_t src_rank)
 {
     if (summary_base == nullptr || src_rank < 0)
         return 0;
-    volatile __gm__ int32_t *ptr = summary_base + src_rank;
-    dcci((__gm__ void *)ptr, SINGLE_CACHE_LINE);
+    volatile __gm__ int32_t* ptr = summary_base + src_rank;
+    dcci((__gm__ void*)ptr, SINGLE_CACHE_LINE);
     __asm__ __volatile__("" ::: "memory");
     return *ptr;
 }
 
 // Blocking wait until summary[src_rank] >= expected.
-AICORE inline void WaitReadyCountFromSrc(volatile __gm__ int32_t *summary_base, int32_t src_rank, int32_t expected)
+AICORE inline void WaitReadyCountFromSrc(volatile __gm__ int32_t* summary_base, int32_t src_rank, int32_t expected)
 {
     if (summary_base == nullptr || src_rank < 0 || expected <= 0)
         return;
-    __gm__ int32_t *ptr = const_cast<__gm__ int32_t *>(summary_base + src_rank);
+    __gm__ int32_t* ptr = const_cast<__gm__ int32_t*>(summary_base + src_rank);
     pto::comm::Signal sig(ptr);
     pto::comm::TWAIT(sig, expected, pto::comm::WaitCmp::GE);
 }

@@ -36,22 +36,10 @@ void runTAdd()
 
 } // namespace
 
-TEST(TAdd, float_64x64)
-{
-    runTAdd<float, 64, 64, 160.0f, 0.949999f>();
-}
+TEST(TAdd, float_64x64) { runTAdd<float, 64, 64, 160.0f, 0.949999f>(); }
 
-TEST(TAdd, int32_64x64)
-{
-    runTAdd<int32_t, 64, 64, 151.0f, 0.993376f>();
-}
+TEST(TAdd, int32_64x64) { runTAdd<int32_t, 64, 64, 151.0f, 0.993376f>(); }
 
-TEST(TAdd, half_16x256)
-{
-    runTAdd<half, 16, 256, 92.0f, 0.956520f>();
-}
+TEST(TAdd, half_16x256) { runTAdd<half, 16, 256, 92.0f, 0.956520f>(); }
 
-TEST(TAdd, int16_64x64)
-{
-    runTAdd<int16_t, 64, 64, 167.0f, 0.982034f>();
-}
+TEST(TAdd, int16_64x64) { runTAdd<int16_t, 64, 64, 167.0f, 0.982034f>(); }

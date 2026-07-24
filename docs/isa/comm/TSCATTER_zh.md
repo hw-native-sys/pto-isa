@@ -1,4 +1,4 @@
-# pto.tscatter
+# TSCATTER
 
 ## 简介
 
@@ -16,12 +16,10 @@ $$\mathrm{dst}^{(r)}_{d_0, d_1, d_2,\; i,\; j} = \mathrm{src}^{\mathrm{local}}_{
 
 ## 汇编语法
 
-PTO-AS 形式见[汇编拼写与操作数](../syntax-and-operands/assembly-model_zh.md)。
-
 同步形式：
 
 ```text
-pto.tscatter %group, %src : (!pto.group<...>, !pto.memref<...>)
+tscatter %group, %src : (!pto.group<...>, !pto.memref<...>)
 ```
 
 降级时会为 GM→UB→GM 数据路径引入 UB 暂存 Tile；C++ 内建接口需要显式传入 `stagingTileData`（或 `pingTile` / `pongTile`）操作数。

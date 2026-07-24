@@ -4,160 +4,27 @@ The stable PTO ISA manual entry points to the merged tree under `docs/isa/`. Tha
 
 The top-right language icon switches between English and Chinese. When a counterpart page exists, the switch lands there; otherwise it returns to the matching language landing page.
 
----
+- [Preface and reading order](mkdocs/src/manual/index.md)
+- [Manual overview chapter](mkdocs/src/manual/01-overview.md)
+- [Virtual ISA and AS contract](mkdocs/src/manual/08-virtual-isa-and-ir.md)
+- [Bytecode and toolchain contract](mkdocs/src/manual/09-bytecode-and-toolchain.md)
+- [Memory ordering and consistency](mkdocs/src/manual/10-memory-ordering-and-consistency.md)
+- [Backend profiles and conformance](mkdocs/src/manual/11-backend-profiles-and-conformance.md)
 
 ## Quick Navigation
 
-### I am new to PTO — where do I start?
-
-Follow this path in order:
-
-1. **[What is PTO VISA](isa/introduction/what-is-pto-visa.md)** — Overview, two compilation flows, key terms, and machine model
-2. **[Programming Model](isa/programming-model/tiles-and-valid-regions.md)** — Tiles, valid regions, layouts, auto vs. manual mode
-3. **[Instruction Overview](isa/instruction-families/README.md)** — Map of all five instruction sets
-4. **[Tile Instruction Reference](isa/tile/README.md)** — Primary programming instruction set
-5. **[Format of Instruction Descriptions](isa/reference/format-of-instruction-descriptions.md)** — How to read each instruction page
-
-### I am a kernel writer
-
-- **[Tile ISA Reference](isa/tile/README.md)** — `TADD`, `TMATMUL`, `TLOAD`, `TSTORE`, and all tile operations
-- **[Vector ISA Reference](isa/vector/README.md)** — `vadd`, `vmul`, `vlds`, `vsts`, and all vector operations
-- **[GlobalTensor and Data Movement](isa/programming-model/globaltensor-and-data-movement.md)** — GM↔local-tile-buffer data flow, including the vector tile buffer (hardware UB)
-- **[Ordering and Synchronization](isa/machine-model/ordering-and-synchronization.md)** — `set_flag`/`wait_flag`, `get_buf`/`rls_buf`, double-buffering
-
-### I am a compiler backend developer
-
-- **[Execution Agents and Target Profiles](isa/machine-model/execution-agents.md)** — CPU, A2A3 (Ascend 910B / 910C), and A5 (Ascend 950 PR / DT) profile details
-- **[Instruction Set Contracts](isa/instruction-families/README.md)** — Legal types, layouts, and shapes per instruction family
-- **[Location Intent and Legality](isa/state-and-types/location-intent-and-legality.md)** — TileType constraints
-- **[Portability and Target Profiles](isa/reference/portability-and-target-profiles.md)** — What's guaranteed across profiles
-
-### I want to find a specific instruction
-
-Use the instruction set index pages:
-
-| Instruction Set | Overview Page | Count |
-|---------------|-------------|-------|
-| Tile compute & data movement | [Tile Instructions](isa/tile/README.md) | ~125 operations |
-| Vector micro-instructions | [Vector Instructions](isa/vector/README.md) | ~110 operations |
-| Scalar, control & DMA | [Scalar and Control](isa/scalar/README.md) | ~50 operations |
-| Communication | [Communication Instructions](isa/comm/README.md) | 11 operations |
-| System scheduling | [System Scheduling Instructions](isa/system/README.md) | 3 operations |
-
-Or jump directly to the alphabetical index: [Instruction Families](isa/instruction-families/README.md)
-
----
-
-## PTO ISA At A Glance
-
-PTO is a virtual ISA that spans multiple targets — CPU simulation, A2A3 (Ascend 910B / 910C), and A5 (Ascend 950 PR / DT). The ISA is organized into five instruction sets:
-
-```
-pto.t*   Tile instructions         Tile-oriented compute and GM↔tile data movement
-pto.v*   Vector instructions       Low-level vector-pipe ops (predication, masks, etc.)
-pto.*    Scalar & control          Scalar setup, DMA config, pipeline sync
-pto.t*   Communication             TBROADCAST, TGET, TPUT, TREDUCE, TWAIT
-pto.t*   System scheduling         TPUSH, TPOP, TFREE
-```
-
-The manual explains what is guaranteed by PTO itself and what is only a target-profile restriction.
-
----
-
-## Manual Structure
-
-The manual is organized in layers — read the earlier chapters before the later ones:
-
-```
-Layer 1:  Introduction & Overview
-          ├── What Is PTO VISA
-          ├── Document Structure
-          ├── Goals Of PTO
-          ├── Current PTO ISA Scope
-          └── Scope And Boundaries
-
-Layer 2:  Programming Model
-          ├── Tiles and Valid Regions
-          ├── GlobalTensor and Data Movement
-          └── Auto vs Manual
-
-Layer 3:  Machine Model
-          ├── Execution Agents and Target Profiles
-          └── Ordering and Synchronization
-
-Layer 4:  Memory Model
-          ├── Consistency Baseline
-          └── Producer-Consumer Ordering
-
-Layer 5:  State and Types
-          ├── Type System
-          ├── Layout Reference
-          ├── Data Format Reference
-          └── Location Intent and Legality
-
-Layer 6:  Syntax and Operands
-          ├── Assembly Spelling and Operands
-          └── Operands and Attributes
-
-Layer 7:  Instruction Reference
-          ├── Tile ISA Reference
-          ├── Vector ISA Reference
-          ├── Scalar and Control Reference
-          ├── Communication ISA Reference
-          └── System Scheduling ISA Reference
-```
-
----
-
-## Start Here
-
-### Core Reading
-
-- [Introduction](isa/introduction/what-is-pto-visa.md)
-- [Document structure](isa/introduction/document-structure.md)
-- [Goals Of PTO](isa/introduction/goals-of-pto.md)
-- [Current PTO ISA Scope](isa/introduction/current-isa-scope.md)
-- [Scope And Boundaries](isa/introduction/design-goals-and-boundaries.md)
-
-### Programming and Machine Models
-
-- [Tiles and Valid Regions](isa/programming-model/tiles-and-valid-regions.md)
-- [GlobalTensor and Data Movement](isa/programming-model/globaltensor-and-data-movement.md)
-- [Auto vs Manual](isa/programming-model/auto-vs-manual.md)
-- [Execution Agents and Target Profiles](isa/machine-model/execution-agents.md)
-- [Ordering and Synchronization](isa/machine-model/ordering-and-synchronization.md)
-
-### Types, Memory, and Syntax
-
-- [Type system](isa/state-and-types/type-system.md)
-- [Layout reference](isa/state-and-types/layout.md)
-- [Data format reference](isa/state-and-types/data-format.md)
-- [Location intent and legality](isa/state-and-types/location-intent-and-legality.md)
-- [Memory model](isa/memory-model/consistency-baseline.md)
-- [Assembly spelling and operands](isa/syntax-and-operands/assembly-model.md)
-- [Operands and attributes](isa/syntax-and-operands/operands-and-attributes.md)
-- [Common conventions](isa/conventions.md)
-
-### Instruction Reference
-
-- [Instruction overview](isa/instruction-families/README.md)
-- [Instruction set contracts](isa/instruction-families/README.md)
-- [Format of instruction descriptions](isa/reference/format-of-instruction-descriptions.md)
-- [Glossary](isa/reference/glossary.md)
-- [Diagnostics and illegal cases](isa/reference/diagnostics-and-illegal-cases.md)
-- [Portability and target profiles](isa/reference/portability-and-target-profiles.md)
-- [Source of truth](isa/reference/source-of-truth.md)
-
-### Instruction Set References
-
-- [Tile ISA reference](isa/tile/README.md)
-- [Vector ISA reference](isa/vector/README.md)
-- [Scalar and control reference](isa/scalar/README.md)
-- [Communication ISA reference](isa/comm/README.md)
-- [System scheduling ISA reference](isa/system/README.md)
-
----
-
-## Canonical Hub
-
-The full manual index with all sections and per-op pages is at [PTO ISA manual and reference](isa/scalar/ops/micro-instruction/README.md).
+1. [Overview](mkdocs/src/manual/01-overview.md)
+2. [Execution Model](mkdocs/src/manual/02-machine-model.md)
+3. [State and Types](mkdocs/src/manual/03-state-and-types.md)
+4. [Tiles and GlobalTensor](mkdocs/src/manual/04-tiles-and-globaltensor.md)
+5. [Synchronization](mkdocs/src/manual/05-synchronization.md)
+6. [Instruction Set (overview)](mkdocs/src/manual/06-instructions.md)
+7. [Programming Guide](mkdocs/src/manual/07-programming.md)
+8. [Virtual ISA and AS](mkdocs/src/manual/08-virtual-isa-and-ir.md)
+9. [Bytecode and Toolchain](mkdocs/src/manual/09-bytecode-and-toolchain.md)
+10. [Memory Ordering and Consistency](mkdocs/src/manual/10-memory-ordering-and-consistency.md)
+11. [Backend Profiles and Conformance](mkdocs/src/manual/11-backend-profiles-and-conformance.md)
+12. [Appendix A: Glossary](mkdocs/src/manual/appendix-a-glossary.md)
+13. [Appendix B: Instruction Contract Template](mkdocs/src/manual/appendix-b-instruction-contract-template.md)
+14. [Appendix C: Diagnostics Taxonomy](mkdocs/src/manual/appendix-c-diagnostics-taxonomy.md)
+15. [Appendix D: Instruction Family Matrix](mkdocs/src/manual/appendix-d-instruction-family-matrix.md)

@@ -22,43 +22,46 @@ namespace pto {
 template <typename T>
 struct SubSOp {
     static constexpr bool isDynFunc = false;
-    PTO_INTERNAL static void BinSInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src, T scalar, MaskReg &preg)
+    PTO_INTERNAL static void BinSInstr(RegTensor<T>& reg_dst, RegTensor<T>& reg_src, T scalar, MaskReg& preg)
     {
         vadds(reg_dst, reg_src, -scalar, preg, MODE_ZEROING);
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned dstRowStride, unsigned src0RowStride>
-__tf__ PTO_INTERNAL OP_NAME(TSUBS)
-    OP_TYPE(element_wise) void TSubS(typename TileDataDst::TileDType __out__ dst,
-                                     typename TileDataSrc::TileDType __in__ src0, typename TileDataSrc::DType src1,
-                                     unsigned kValidRows, unsigned kValidCols,
-                                     VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem,
+    unsigned dstRowStride, unsigned src0RowStride>
+__tf__ PTO_INTERNAL OP_NAME(TSUBS) OP_TYPE(element_wise) void TSubS(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src0,
+    typename TileDataSrc::DType src1, unsigned kValidRows, unsigned kValidCols,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     BinaryInstr<SubSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride>(
         dstPtr, src0Ptr, src1, kValidRows, kValidCols, version);
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TSUBS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1)
+PTO_INTERNAL void TSUBS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileDataSrc::DType src1)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int8_t> ||
-                      std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint8_t> ||
-                      std::is_same_v<T, half> || std::is_same_v<T, float32_t> || std::is_same_v<T, bfloat16_t>,
-                  "TSUBS: Invalid data type");
-    static_assert((TileDataDst::Loc == TileType::Vec) && (TileDataSrc::Loc == TileType::Vec),
-                  "TileType of dst and src tiles must be TileType::Vec.");
-    static_assert((TileDataDst::ValidCol <= TileDataDst::Cols) && (TileDataDst::ValidRow <= TileDataDst::Rows) &&
-                      (TileDataSrc::ValidCol <= TileDataSrc::Cols) && (TileDataSrc::ValidRow <= TileDataSrc::Rows),
-                  "Number of valid columns and rows must not be greater than number of tile columns and rows.");
+    static_assert(
+        std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int8_t> ||
+            std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint8_t> ||
+            std::is_same_v<T, half> || std::is_same_v<T, float32_t> || std::is_same_v<T, bfloat16_t>,
+        "TSUBS: Invalid data type");
+    static_assert(
+        (TileDataDst::Loc == TileType::Vec) && (TileDataSrc::Loc == TileType::Vec),
+        "TileType of dst and src tiles must be TileType::Vec.");
+    static_assert(
+        (TileDataDst::ValidCol <= TileDataDst::Cols) && (TileDataDst::ValidRow <= TileDataDst::Rows) &&
+            (TileDataSrc::ValidCol <= TileDataSrc::Cols) && (TileDataSrc::ValidRow <= TileDataSrc::Rows),
+        "Number of valid columns and rows must not be greater than number of tile columns and rows.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned src0RowStride = TileDataSrc::RowStride;
 

@@ -15,29 +15,28 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <uint32_t tRows, uint32_t tCols, uint32_t vRows, uint32_t vCols,
-          uint32_t alignedCols = (vCols + 31 - 1) / 32 * 32>
-void launchTSORT32Half(uint64_t *out, uint64_t *src, uint32_t *idx, uint64_t *tmp, void *stream);
+template <
+    uint32_t tRows, uint32_t tCols, uint32_t vRows, uint32_t vCols, uint32_t alignedCols = (vCols + 31 - 1) / 32 * 32>
+void launchTSORT32Half(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);
 
 class TSort32Test : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, bool isHalf, uint32_t tRows, uint32_t tCols, uint32_t vRows, uint32_t vCols,
-          uint32_t colsAlign = (vCols + 31 - 1) / 32 * 32>
+template <
+    typename T, bool isHalf, uint32_t tRows, uint32_t tCols, uint32_t vRows, uint32_t vCols,
+    uint32_t colsAlign = (vCols + 31 - 1) / 32 * 32>
 void tsort32_test()
 {
     aclInit(nullptr);
@@ -54,15 +53,15 @@ void tsort32_test()
     uint64_t *dstDevice, *srcDevice, *tmpDevice;
     uint32_t *idxHost, *idxDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMallocHost((void **)(&idxHost), idxByteSize);
-    aclrtMallocHost((void **)(&tmpHost), tmpByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&idxHost), idxByteSize);
+    aclrtMallocHost((void**)(&tmpHost), tmpByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&tmpDevice, tmpByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&tmpDevice, tmpByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_arr.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/input_idx.bin", idxByteSize, idxHost, idxByteSize);
@@ -102,17 +101,8 @@ void tsort32_test()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TSort32Test, case1)
-{
-    tsort32_test<aclFloat16, true, 2, 32, 2, 32>();
-}
+TEST_F(TSort32Test, case1) { tsort32_test<aclFloat16, true, 2, 32, 2, 32>(); }
 
-TEST_F(TSort32Test, case2)
-{
-    tsort32_test<aclFloat16, true, 4, 64, 4, 64>();
-}
+TEST_F(TSort32Test, case2) { tsort32_test<aclFloat16, true, 4, 64, 4, 64>(); }
 
-TEST_F(TSort32Test, case3)
-{
-    tsort32_test<aclFloat16, true, 1, 32 * 256, 1, 32 * 256>();
-}
+TEST_F(TSort32Test, case3) { tsort32_test<aclFloat16, true, 1, 32 * 256, 1, 32 * 256>(); }

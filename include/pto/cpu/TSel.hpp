@@ -19,9 +19,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename tile_shape, typename mask_tile_shape>
-PTO_INTERNAL void TSel_Impl(typename tile_shape::TileDType dst, typename tile_shape::TileDType src0,
-                            typename tile_shape::TileDType src1, typename mask_tile_shape::TileDType selMask,
-                            unsigned validRow, unsigned validCol, unsigned validMaskCol)
+PTO_INTERNAL void TSel_Impl(
+    typename tile_shape::TileDType dst, typename tile_shape::TileDType src0, typename tile_shape::TileDType src1,
+    typename mask_tile_shape::TileDType selMask, unsigned validRow, unsigned validCol, unsigned validMaskCol)
 {
     constexpr uint8_t maskSize = 8;
     size_t maskRowIdx = 0;
@@ -46,8 +46,8 @@ PTO_INTERNAL void TSel_Impl(typename tile_shape::TileDType dst, typename tile_sh
     }
 }
 template <typename tile_shape, typename mask_tile_shape, typename tmp_shape>
-PTO_INTERNAL void TSEL_IMPL(tile_shape &dst, mask_tile_shape &selMask, tile_shape &src0, tile_shape &src1,
-                            tmp_shape &tmp)
+PTO_INTERNAL void TSEL_IMPL(
+    tile_shape& dst, mask_tile_shape& selMask, tile_shape& src0, tile_shape& src1, tmp_shape& tmp)
 {
     unsigned row = dst.GetValidRow();
     unsigned col = dst.GetValidCol();

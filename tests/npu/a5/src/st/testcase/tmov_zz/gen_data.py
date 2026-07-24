@@ -133,6 +133,9 @@ CASE_PARAMS = [
     ("TMOVZZTest.case_fp32_47x128", CaseParam(47, 128)),
     ("TMOVZZTest.case_fp32_31x256", CaseParam(31, 256)),
     ("TMOVZZTest.case_fp32_47x256", CaseParam(47, 256)),
+    # float8_e8m0_t typed TMOV ZZ (same data, validates new type path)
+    ("TMOVZZTest.case_e8m0_64x128", CaseParam(64, 128)),
+    ("TMOVZZTest.case_e8m0_32x64", CaseParam(32, 64)),
 ]
 
 

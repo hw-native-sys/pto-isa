@@ -24,9 +24,9 @@ Each --cases entry format: HEAD_SIZE,S0,S1,CUBE_S0[,TILE_S1]
 CUBE_S1 is fixed at 128; TILE_S1 defaults to 256 if omitted.
 Defaults replicate the previous hard-coded set if --cases is omitted.
 """
+
 import argparse
 import json
-import os
 from pathlib import Path
 from typing import List, Dict
 
@@ -44,7 +44,7 @@ DEFAULT_CASES = [
 
 
 def _parse_case_entry(raw: str, qk_preload: int, causal_mask: bool) -> Dict[str, int]:
-    parts = [p.strip() for p in raw.split(',') if p.strip()]
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
     if len(parts) not in (4, 5):
         raise ValueError(f"Expected 4 or 5 comma-separated values (HEAD_SIZE,S0,S1,CUBE_S0[,TILE_S1]), got '{raw}'")
     head, s0, s1, cube_s0 = map(int, parts[:4])
@@ -119,7 +119,8 @@ def _render_header(cases: List[Dict[str, int]]) -> str:
     array_entries = []
     for case in cases:
         array_entries.append(
-            "    {" + ", ".join(
+            "    {"
+            + ", ".join(
                 [
                     str(case["s0"]),
                     str(case["head_size"]),
@@ -131,7 +132,8 @@ def _render_header(cases: List[Dict[str, int]]) -> str:
                     str("true" if bool(case["causal_mask"]) else "false"),
                     f'"{_case_name(case)}"',
                 ]
-            ) + "}"
+            )
+            + "}"
         )
     array_block = ",\n".join(array_entries)
 
@@ -186,11 +188,7 @@ def main() -> None:
         default=str((Path(__file__).resolve().parent.parent / "build" / "generated_cases.json")),
         help="Output JSON path (default: kernels/fa_performance/build/generated_cases.json)",
     )
-    parser.add_argument(
-        "--causal-mask",
-        default=False,
-        help="Enable causal mask",
-    )
+    parser.add_argument("--causal-mask", default=False, help="Enable causal mask")
     args = parser.parse_args()
 
     if args.cases:
@@ -203,13 +201,7 @@ def main() -> None:
     header_path.parent.mkdir(parents=True, exist_ok=True)
     header_path.write_text(header_text)
 
-    json_payload = [
-        {
-            "name": _case_name(case),
-            **case,
-        }
-        for case in cases
-    ]
+    json_payload = [{"name": _case_name(case), **case} for case in cases]
     json_path = Path(args.output_json)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(json_payload, indent=2))
@@ -218,7 +210,9 @@ def main() -> None:
     print(f"[INFO] Wrote {json_path}")
     print("[INFO] Cases generated:")
     for case in json_payload:
-        print(f"  - {case['name']} (H={case['head_size']}, S0={case['s0']}, S1={case['s1']}, CUBE_S0={case['cube_s0']}, CUBE_S1={case['cube_s1']}, TILE_S1={case['tile_s1']}, QK_PRELOAD={case['qk_preload']}, CAUSAL_MASK={case['causal_mask']})")
+        print(
+            f"  - {case['name']} (H={case['head_size']}, S0={case['s0']}, S1={case['s1']}, CUBE_S0={case['cube_s0']}, CUBE_S1={case['cube_s1']}, TILE_S1={case['tile_s1']}, QK_PRELOAD={case['qk_preload']}, CAUSAL_MASK={case['causal_mask']})"
+        )
 
 
 if __name__ == "__main__":

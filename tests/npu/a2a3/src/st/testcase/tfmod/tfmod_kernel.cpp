@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW>
-__global__ AICORE void runTFmod(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1, int vRows,
-                                int vCols)
+__global__ AICORE void runTFmod(
+    __gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1, int vRows, int vCols)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
@@ -54,17 +54,18 @@ __global__ AICORE void runTFmod(__gm__ T __out__ *out, __gm__ T __in__ *src0, __
     out = dstGlobal.data();
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
-void LaunchTFMOD(T *out, T *src0, T *src1, void *stream)
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
+void LaunchTFMOD(T* out, T* src0, T* src1, void* stream)
 {
     runTFmod<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW>
         <<<1, nullptr, stream>>>(out, src0, src1, vRows, vCols);
 }
 
-template void LaunchTFMOD<float, 16, 64, 16, 128, 16, 128, 16, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMOD<float, 16, 32, 16, 64, 16, 32, 16, 32>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMOD<float, 16, 64, 16, 128, 16, 128, 16, 63>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMOD<float, 2, 32, 2, 64, 2, 32, 2, 31>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTFMOD<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(float *out, float *src0, float *src1,
-                                                                     void *stream);
+template void LaunchTFMOD<float, 16, 64, 16, 128, 16, 128, 16, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTFMOD<float, 16, 32, 16, 64, 16, 32, 16, 32>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTFMOD<float, 16, 64, 16, 128, 16, 128, 16, 63>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTFMOD<float, 2, 32, 2, 64, 2, 32, 2, 31>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTFMOD<float, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(
+    float* out, float* src0, float* src1, void* stream);

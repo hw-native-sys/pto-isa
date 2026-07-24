@@ -22,15 +22,16 @@ template <typename T>
 struct TColSumOp {
     using PadType = typename Padding<T>::Type;
     static constexpr auto InitVal = Padding<T>::Zero;
-    PTO_INTERNAL static void ReduceInstr(RegTensor<T> &dst, RegTensor<T> &src0, RegTensor<T> &src1, MaskReg &pReg)
+    PTO_INTERNAL static void ReduceInstr(RegTensor<T>& dst, RegTensor<T>& src0, RegTensor<T>& src1, MaskReg& pReg)
     {
         vadd(dst, src0, src1, pReg, MODE_ZEROING);
     }
 };
 
 template <typename T, unsigned TmpStride>
-PTO_INTERNAL void TColSum_Binary_TmpProc(RegTensor<T> &src0VReg, RegTensor<T> &src1VReg, RegTensor<T> &dstVReg,
-                                         MaskReg &pReg, __ubuf__ T *tmp, uint16_t nLoop, uint16_t BinaryAccLoopTimes)
+PTO_INTERNAL void TColSum_Binary_TmpProc(
+    RegTensor<T>& src0VReg, RegTensor<T>& src1VReg, RegTensor<T>& dstVReg, MaskReg& pReg, __ubuf__ T* tmp,
+    uint16_t nLoop, uint16_t BinaryAccLoopTimes)
 {
     bool remain;
     constexpr auto distValue =
@@ -60,8 +61,8 @@ PTO_INTERNAL void TColSum_Binary_TmpProc(RegTensor<T> &src0VReg, RegTensor<T> &s
 }
 
 template <typename T, unsigned SrcStride, unsigned TmpStride, unsigned elmPerRpt>
-PTO_INTERNAL void TColSum_Binary(__ubuf__ T *dst, __ubuf__ T *src, __ubuf__ T *tmp, unsigned validRow,
-                                 unsigned validCol)
+PTO_INTERNAL void TColSum_Binary(
+    __ubuf__ T* dst, __ubuf__ T* src, __ubuf__ T* tmp, unsigned validRow, unsigned validCol)
 {
     uint16_t repeatTimes = CeilDivision(validCol, elmPerRpt);
     uint16_t nLoop = validRow / 2;
@@ -107,17 +108,16 @@ PTO_INTERNAL void TColSum_Binary(__ubuf__ T *dst, __ubuf__ T *src, __ubuf__ T *t
 }
 
 template <typename T, typename TileDataOut, typename TileDataIn, typename TileDataTmp, bool isBinary>
-__tf__ PTO_INTERNAL OP_NAME(TCOLSUM)
-    OP_TYPE(reduce) void TColSum(typename TileDataOut::TileDType __out__ dstData,
-                                 typename TileDataIn::TileDType __in__ srcData,
-                                 typename TileDataTmp::TileDType __in__ tmpData, unsigned validRow, unsigned validCol,
-                                 unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TCOLSUM) OP_TYPE(reduce) void TColSum(
+    typename TileDataOut::TileDType __out__ dstData, typename TileDataIn::TileDType __in__ srcData,
+    typename TileDataTmp::TileDType __in__ tmpData, unsigned validRow, unsigned validCol,
+    unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
 
     if constexpr (isBinary) {
-        __ubuf__ T *tmp = (__ubuf__ T *)__cce_get_tile_ptr(tmpData);
+        __ubuf__ T* tmp = (__ubuf__ T*)__cce_get_tile_ptr(tmpData);
         constexpr unsigned elmPerRpt = CCE_VL / sizeof(T); // 每次repeat涉及多少个元素
         constexpr int tmpStride = TileDataTmp::RowStride * sizeof(typename TileDataTmp::DType) / sizeof(T);
         TColSum_Binary<T, TileDataIn::Cols, tmpStride, elmPerRpt>(dst, src, tmp, validRow, validCol);
@@ -127,7 +127,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCOLSUM)
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
-PTO_INTERNAL void TCOLSUM_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, bool isBinary)
+PTO_INTERNAL void TCOLSUM_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp, bool isBinary)
 {
     unsigned validCol = src.GetValidCol();
     unsigned validRow = src.GetValidRow();
@@ -139,8 +139,8 @@ PTO_INTERNAL void TCOLSUM_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &t
     using T = typename TileDataIn::DType;
     if (isBinary) {
         constexpr int tmpStride = TileDataTmp::RowStride * sizeof(typename TileDataTmp::DType) / sizeof(T);
-        PTO_ASSERT(validCol <= tmpStride,
-                   "Fix: TCOLSUM input valid columns must be less than or equal to the tmp columns.");
+        PTO_ASSERT(
+            validCol <= tmpStride, "Fix: TCOLSUM input valid columns must be less than or equal to the tmp columns.");
         TColSum<T, TileDataOut, TileDataIn, TileDataTmp, true>(dst.data(), src.data(), tmp.data(), validRow, validCol);
     } else {
         TColSum<T, TileDataOut, TileDataIn, TileDataTmp, false>(dst.data(), src.data(), tmp.data(), validRow, validCol);
@@ -148,17 +148,17 @@ PTO_INTERNAL void TCOLSUM_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &t
 }
 
 template <typename T, typename TileDataOut, typename TileDataIn>
-__tf__ PTO_INTERNAL void TColSum(typename TileDataOut::TileDType __out__ dstData,
-                                 typename TileDataIn::TileDType __in__ srcData, unsigned validRow, unsigned validCol,
-                                 unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL void TColSum(
+    typename TileDataOut::TileDType __out__ dstData, typename TileDataIn::TileDType __in__ srcData, unsigned validRow,
+    unsigned validCol, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
     TColReduceInstr<TColSumOp<T>, T, TileDataIn>(dst, src, validRow, validCol, version);
 }
 
 template <typename TileDataOut, typename TileDataIn>
-PTO_INTERNAL void TCOLSUM_IMPL(TileDataOut &dst, TileDataIn &src)
+PTO_INTERNAL void TCOLSUM_IMPL(TileDataOut& dst, TileDataIn& src)
 {
     int32_t validCol = src.GetValidCol();
     int32_t validRow = src.GetValidRow();

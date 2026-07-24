@@ -16,17 +16,15 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t testKey>
-void launchTLOAD(uint8_t *out, uint8_t *src, uint64_t *gLog, void *stream);
+void launchTLOAD(uint8_t* out, uint8_t* src, uint64_t* gLog, void* stream);
 
 class TLoadConvTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
-inline size_t GetFileSize(const std::string &filename)
+inline size_t GetFileSize(const std::string& filename)
 {
     std::ifstream in(filename, std::ios::binary | std::ios::ate);
 
@@ -35,7 +33,7 @@ inline size_t GetFileSize(const std::string &filename)
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -61,11 +59,11 @@ void tload_test()
     T *srcHost, *goldHost, *dstHost;
     void *srcDevice, *dstDevice, *logDevice = nullptr;
 
-    aclrtMallocHost((void **)&srcHost, in_byteSize);
-    aclrtMallocHost((void **)&goldHost, gold_byteSize);
-    aclrtMallocHost((void **)&dstHost, gold_byteSize);
-    aclrtMalloc((void **)&srcDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDevice, gold_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)&srcHost, in_byteSize);
+    aclrtMallocHost((void**)&goldHost, gold_byteSize);
+    aclrtMallocHost((void**)&dstHost, gold_byteSize);
+    aclrtMalloc((void**)&srcDevice, in_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, gold_byteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(path + "/input.bin", in_byteSize, srcHost, in_byteSize);
     ReadFile(path + "/golden.bin", gold_byteSize, goldHost, gold_byteSize);
@@ -75,10 +73,10 @@ void tload_test()
     aclrtMemcpy(dstDevice, gold_byteSize, dstHost, gold_byteSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
 #ifdef DEBUGLOG
-    aclrtMalloc((void **)&logDevice, MAXBLOCK * LOGSIZE * 8, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&logDevice, MAXBLOCK * LOGSIZE * 8, ACL_MEM_MALLOC_HUGE_FIRST);
 #endif
 
-    launchTLOAD<testKey>((uint8_t *)dstDevice, (uint8_t *)srcDevice, (uint64_t *)logDevice, stream);
+    launchTLOAD<testKey>((uint8_t*)dstDevice, (uint8_t*)srcDevice, (uint64_t*)logDevice, stream);
     aclrtSynchronizeStream(stream);
 
     aclrtMemcpy(dstHost, gold_byteSize, dstDevice, gold_byteSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -100,29 +98,14 @@ void tload_test()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TLoadConvTest, case_5HD_fused_fp16)
-{
-    tload_test<1, half>();
-}
+TEST_F(TLoadConvTest, case_5HD_fused_fp16) { tload_test<1, half>(); }
 
-TEST_F(TLoadConvTest, case_5HD_cropped_fp32)
-{
-    tload_test<2, float>();
-}
+TEST_F(TLoadConvTest, case_5HD_cropped_fp32) { tload_test<2, float>(); }
 
-TEST_F(TLoadConvTest, case_FracZ_4D_fp16)
-{
-    tload_test<3, half>();
-}
+TEST_F(TLoadConvTest, case_FracZ_4D_fp16) { tload_test<3, half>(); }
 
-TEST_F(TLoadConvTest, case_FracZ_5D_small_int8)
-{
-    tload_test<4, int8_t>();
-}
+TEST_F(TLoadConvTest, case_FracZ_5D_small_int8) { tload_test<4, int8_t>(); }
 
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TLoadConvTest, case_5HD_fused_bf16)
-{
-    tload_test<5, bfloat16_t>();
-}
+TEST_F(TLoadConvTest, case_5HD_fused_bf16) { tload_test<5, bfloat16_t>(); }
 #endif

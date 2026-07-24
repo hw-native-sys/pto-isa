@@ -15,77 +15,83 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TBinSOp.hpp"
 
 namespace pto {
-PTO_INTERNAL static void prepare_s32_data(__ubuf__ int32_t *dst, __ubuf__ int32_t *src0, int32_t src1, uint8_t repeats,
-                                          uint8_t dstRepeatStride, uint8_t srcRepeatStride)
+PTO_INTERNAL static void prepare_s32_data(
+    __ubuf__ int32_t* dst, __ubuf__ int32_t* src0, int32_t src1, uint8_t repeats, uint8_t dstRepeatStride,
+    uint8_t srcRepeatStride)
 {
     vector_dup(dst, src1, repeats, 1, 1, dstRepeatStride, 0);
     pipe_barrier(PIPE_V);
-    vconv_s322f32(reinterpret_cast<__ubuf__ float *>(dst), dst, repeats, 1, 1, dstRepeatStride, dstRepeatStride);
+    vconv_s322f32(reinterpret_cast<__ubuf__ float*>(dst), dst, repeats, 1, 1, dstRepeatStride, dstRepeatStride);
     pipe_barrier(PIPE_V);
-    vconv_s322f32(reinterpret_cast<__ubuf__ float *>(src0), src0, repeats, 1, 1, srcRepeatStride, srcRepeatStride);
+    vconv_s322f32(reinterpret_cast<__ubuf__ float*>(src0), src0, repeats, 1, 1, srcRepeatStride, srcRepeatStride);
     pipe_barrier(PIPE_V);
 }
 
-PTO_INTERNAL static void complate_s32_data(__ubuf__ int32_t *dst, uint8_t repeats, uint8_t dstRepeatStride)
+PTO_INTERNAL static void complete_s32_data(__ubuf__ int32_t* dst, uint8_t repeats, uint8_t dstRepeatStride)
 {
     pipe_barrier(PIPE_V);
-    vconv_f322s32z(dst, reinterpret_cast<__ubuf__ float *>(dst), repeats, 1, 1, dstRepeatStride, dstRepeatStride);
+    vconv_f322s32z(dst, reinterpret_cast<__ubuf__ float*>(dst), repeats, 1, 1, dstRepeatStride, dstRepeatStride);
     pipe_barrier(PIPE_V);
 }
 
-PTO_INTERNAL static void prepare_s16_data(__ubuf__ int16_t *dst, __ubuf__ int16_t *src0, int16_t src1, uint8_t repeats,
-                                          uint8_t dstRepeatStride, uint8_t srcRepeatStride)
+PTO_INTERNAL static void prepare_s16_data(
+    __ubuf__ int16_t* dst, __ubuf__ int16_t* src0, int16_t src1, uint8_t repeats, uint8_t dstRepeatStride,
+    uint8_t srcRepeatStride)
 {
     vector_dup(dst, src1, repeats, 1, 1, dstRepeatStride, 0);
     pipe_barrier(PIPE_V);
-    vconv_s162f16(reinterpret_cast<__ubuf__ half *>(dst), dst, repeats, 1, 1, dstRepeatStride, dstRepeatStride);
+    vconv_s162f16(reinterpret_cast<__ubuf__ half*>(dst), dst, repeats, 1, 1, dstRepeatStride, dstRepeatStride);
     pipe_barrier(PIPE_V);
-    vconv_s162f16(reinterpret_cast<__ubuf__ half *>(src0), src0, repeats, 1, 1, srcRepeatStride, srcRepeatStride);
+    vconv_s162f16(reinterpret_cast<__ubuf__ half*>(src0), src0, repeats, 1, 1, srcRepeatStride, srcRepeatStride);
     pipe_barrier(PIPE_V);
 }
 
-PTO_INTERNAL static void complate_s16_data(__ubuf__ int16_t *dst, uint8_t repeats, uint8_t dstRepeatStride)
+PTO_INTERNAL static void complete_s16_data(__ubuf__ int16_t* dst, uint8_t repeats, uint8_t dstRepeatStride)
 {
     pipe_barrier(PIPE_V);
-    vconv_f162s16z(dst, reinterpret_cast<__ubuf__ half *>(dst), repeats, 1, 1, dstRepeatStride, dstRepeatStride);
+    vconv_f162s16z(dst, reinterpret_cast<__ubuf__ half*>(dst), repeats, 1, 1, dstRepeatStride, dstRepeatStride);
     pipe_barrier(PIPE_V);
 }
 
 template <typename T>
 struct SDivOp {
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats)
+    PTO_INTERNAL static void BinSInstr(__ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats)
     {
         if constexpr (std::is_same<T, int32_t>::value) {
             prepare_s32_data(dst, src0, src1, repeats, 8, 8);
-            vdiv(reinterpret_cast<__ubuf__ float *>(dst), reinterpret_cast<__ubuf__ float *>(dst),
-                 reinterpret_cast<__ubuf__ float *>(src0), repeats, 1, 1, 1, 8, 8, 8);
-            complate_s32_data(dst, repeats, 8);
+            vdiv(
+                reinterpret_cast<__ubuf__ float*>(dst), reinterpret_cast<__ubuf__ float*>(dst),
+                reinterpret_cast<__ubuf__ float*>(src0), repeats, 1, 1, 1, 8, 8, 8);
+            complete_s32_data(dst, repeats, 8);
         } else if constexpr (std::is_same<T, int16_t>::value) {
             prepare_s16_data(dst, src0, src1, repeats, 8, 8);
-            vdiv(reinterpret_cast<__ubuf__ half *>(dst), reinterpret_cast<__ubuf__ half *>(dst),
-                 reinterpret_cast<__ubuf__ half *>(src0), repeats, 1, 1, 1, 8, 8, 8);
-            complate_s16_data(dst, repeats, 8);
+            vdiv(
+                reinterpret_cast<__ubuf__ half*>(dst), reinterpret_cast<__ubuf__ half*>(dst),
+                reinterpret_cast<__ubuf__ half*>(src0), repeats, 1, 1, 1, 8, 8, 8);
+            complete_s16_data(dst, repeats, 8);
         } else if constexpr (std::is_same<T, float>::value || std::is_same<T, half>::value) {
             vector_dup(dst, src1, repeats, 1, 1, 8, 0);
             pipe_barrier(PIPE_V);
             vdiv(dst, dst, src0, repeats, 1, 1, 1, 8, 8, 8);
         }
     }
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats,
-                                       uint8_t dstRepeatStride, uint8_t srcRepeatStride)
+    PTO_INTERNAL static void BinSInstr(
+        __ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats, uint8_t dstRepeatStride, uint8_t srcRepeatStride)
     {
         if constexpr (std::is_same<T, int32_t>::value) {
             prepare_s32_data(dst, src0, src1, repeats, dstRepeatStride, srcRepeatStride);
-            vdiv(reinterpret_cast<__ubuf__ float *>(dst), reinterpret_cast<__ubuf__ float *>(dst),
-                 reinterpret_cast<__ubuf__ float *>(src0), repeats, 1, 1, 1, dstRepeatStride, dstRepeatStride,
-                 srcRepeatStride);
-            complate_s32_data(dst, repeats, dstRepeatStride);
+            vdiv(
+                reinterpret_cast<__ubuf__ float*>(dst), reinterpret_cast<__ubuf__ float*>(dst),
+                reinterpret_cast<__ubuf__ float*>(src0), repeats, 1, 1, 1, dstRepeatStride, dstRepeatStride,
+                srcRepeatStride);
+            complete_s32_data(dst, repeats, dstRepeatStride);
         } else if constexpr (std::is_same<T, int16_t>::value) {
             prepare_s16_data(dst, src0, src1, repeats, dstRepeatStride, srcRepeatStride);
-            vdiv(reinterpret_cast<__ubuf__ half *>(dst), reinterpret_cast<__ubuf__ half *>(dst),
-                 reinterpret_cast<__ubuf__ half *>(src0), repeats, 1, 1, 1, dstRepeatStride, dstRepeatStride,
-                 srcRepeatStride);
-            complate_s16_data(dst, repeats, dstRepeatStride);
+            vdiv(
+                reinterpret_cast<__ubuf__ half*>(dst), reinterpret_cast<__ubuf__ half*>(dst),
+                reinterpret_cast<__ubuf__ half*>(src0), repeats, 1, 1, 1, dstRepeatStride, dstRepeatStride,
+                srcRepeatStride);
+            complete_s16_data(dst, repeats, dstRepeatStride);
         } else if constexpr (std::is_same<T, float>::value || std::is_same<T, half>::value) {
             vector_dup(dst, src1, repeats, 1, 1, dstRepeatStride, 0);
             pipe_barrier(PIPE_V);
@@ -96,7 +102,7 @@ struct SDivOp {
 
 template <typename T>
 struct DivSOp {
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats)
+    PTO_INTERNAL static void BinSInstr(__ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats)
     {
         // fix inplace alias: dst == src
         if (dst == src0) {
@@ -109,22 +115,24 @@ struct DivSOp {
 
         if constexpr (std::is_same<T, int32_t>::value) {
             prepare_s32_data(dst, src0, src1, repeats, 8, 8);
-            vdiv(reinterpret_cast<__ubuf__ float *>(dst), reinterpret_cast<__ubuf__ float *>(src0),
-                 reinterpret_cast<__ubuf__ float *>(dst), repeats, 1, 1, 1, 8, 8, 8);
-            complate_s32_data(dst, repeats, 8);
+            vdiv(
+                reinterpret_cast<__ubuf__ float*>(dst), reinterpret_cast<__ubuf__ float*>(src0),
+                reinterpret_cast<__ubuf__ float*>(dst), repeats, 1, 1, 1, 8, 8, 8);
+            complete_s32_data(dst, repeats, 8);
         } else if constexpr (std::is_same<T, int16_t>::value) {
             prepare_s16_data(dst, src0, src1, repeats, 8, 8);
-            vdiv(reinterpret_cast<__ubuf__ half *>(dst), reinterpret_cast<__ubuf__ half *>(src0),
-                 reinterpret_cast<__ubuf__ half *>(dst), repeats, 1, 1, 1, 8, 8, 8);
-            complate_s16_data(dst, repeats, 8);
+            vdiv(
+                reinterpret_cast<__ubuf__ half*>(dst), reinterpret_cast<__ubuf__ half*>(src0),
+                reinterpret_cast<__ubuf__ half*>(dst), repeats, 1, 1, 1, 8, 8, 8);
+            complete_s16_data(dst, repeats, 8);
         } else if constexpr (std::is_same<T, float>::value || std::is_same<T, half>::value) {
             vector_dup(dst, src1, repeats, 1, 1, 8, 0);
             pipe_barrier(PIPE_V);
             vdiv(dst, src0, dst, repeats, 1, 1, 1, 8, 8, 8);
         }
     }
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats,
-                                       uint8_t dstRepeatStride, uint8_t srcRepeatStride)
+    PTO_INTERNAL static void BinSInstr(
+        __ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats, uint8_t dstRepeatStride, uint8_t srcRepeatStride)
     {
         // fix inplace alias: dst == src
         if (dst == src0) {
@@ -137,16 +145,18 @@ struct DivSOp {
 
         if constexpr (std::is_same<T, int32_t>::value) {
             prepare_s32_data(dst, src0, src1, repeats, dstRepeatStride, srcRepeatStride);
-            vdiv(reinterpret_cast<__ubuf__ float *>(dst), reinterpret_cast<__ubuf__ float *>(src0),
-                 reinterpret_cast<__ubuf__ float *>(dst), repeats, 1, 1, 1, dstRepeatStride, srcRepeatStride,
-                 dstRepeatStride);
-            complate_s32_data(dst, repeats, dstRepeatStride);
+            vdiv(
+                reinterpret_cast<__ubuf__ float*>(dst), reinterpret_cast<__ubuf__ float*>(src0),
+                reinterpret_cast<__ubuf__ float*>(dst), repeats, 1, 1, 1, dstRepeatStride, srcRepeatStride,
+                dstRepeatStride);
+            complete_s32_data(dst, repeats, dstRepeatStride);
         } else if constexpr (std::is_same<T, int16_t>::value) {
             prepare_s16_data(dst, src0, src1, repeats, dstRepeatStride, srcRepeatStride);
-            vdiv(reinterpret_cast<__ubuf__ half *>(dst), reinterpret_cast<__ubuf__ half *>(src0),
-                 reinterpret_cast<__ubuf__ half *>(dst), repeats, 1, 1, 1, dstRepeatStride, srcRepeatStride,
-                 dstRepeatStride);
-            complate_s16_data(dst, repeats, dstRepeatStride);
+            vdiv(
+                reinterpret_cast<__ubuf__ half*>(dst), reinterpret_cast<__ubuf__ half*>(src0),
+                reinterpret_cast<__ubuf__ half*>(dst), repeats, 1, 1, 1, dstRepeatStride, srcRepeatStride,
+                dstRepeatStride);
+            complete_s16_data(dst, repeats, dstRepeatStride);
         } else if constexpr (std::is_same<T, float>::value || std::is_same<T, half>::value) {
             vector_dup(dst, src1, repeats, 1, 1, dstRepeatStride, 0);
             pipe_barrier(PIPE_V);
@@ -155,7 +165,7 @@ struct DivSOp {
     }
 };
 template <typename T, unsigned DstCols, unsigned SrcCols>
-PTO_INTERNAL void TDivs_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TDivs_naive(__ubuf__ T* dst, __ubuf__ T* src0, T src1, unsigned validRow, unsigned validCol)
 {
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     for (int row = 0; row < validRow; row++) {
@@ -169,7 +179,7 @@ PTO_INTERNAL void TDivs_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigne
 }
 
 template <typename T, unsigned DstCols, unsigned SrcCols>
-PTO_INTERNAL void TSDiv_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TSDiv_naive(__ubuf__ T* dst, __ubuf__ T* src0, T src1, unsigned validRow, unsigned validCol)
 {
     PtoSetWaitFlag<PIPE_V, PIPE_S>();
     for (int row = 0; row < validRow; row++) {
@@ -183,12 +193,12 @@ PTO_INTERNAL void TSDiv_naive(__ubuf__ T *dst, __ubuf__ T *src0, T src1, unsigne
 }
 
 template <typename T, typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TDivS(typename TileDataDst::TileDType __out__ dstData,
-                               typename TileDataSrc::TileDType __in__ srcData, T scalar, unsigned validRow,
-                               unsigned validCol)
+__tf__ PTO_INTERNAL void TDivS(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc::TileDType __in__ srcData, T scalar,
+    unsigned validRow, unsigned validCol)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
     constexpr unsigned elementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = pto::BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstStride = TileDataDst::RowStride;
@@ -202,26 +212,31 @@ __tf__ PTO_INTERNAL void TDivS(typename TileDataDst::TileDType __out__ dstData,
 }
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TDIVS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataSrc::DType;
-    static_assert(std::is_same_v<T, typename TileDataDst::DType>,
-                  "TDIVS: The data type of dst must be consistent with src.");
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, float16_t>::value ||
-                      std::is_same<T, float>::value || std::is_same<T, float32_t>::value,
-                  "TDIVS: Invalid data type");
+    static_assert(
+        std::is_same_v<T, typename TileDataDst::DType>, "TDIVS: The data type of dst must be consistent with src.");
+    static_assert(
+        std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, half>::value || std::is_same<T, float16_t>::value || std::is_same<T, float>::value ||
+            std::is_same<T, float32_t>::value,
+        "TDIVS: Invalid data type");
 
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
-    static_assert(TileDataSrc::ValidCol <= TileDataSrc::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataSrc::ValidRow <= TileDataSrc::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
-    static_assert(TileDataDst::ValidCol <= TileDataDst::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataDst::ValidRow <= TileDataDst::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataSrc::ValidCol <= TileDataSrc::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataSrc::ValidRow <= TileDataSrc::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataDst::ValidCol <= TileDataDst::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataDst::ValidRow <= TileDataDst::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
 
     PTO_ASSERT(src.GetValidCol() == dst.GetValidCol(), "Number of cols of src and dst must be the same.");
     PTO_ASSERT(src.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
@@ -237,16 +252,16 @@ PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDa
 }
 
 template <typename T, typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TSDiv(typename TileDataDst::TileDType __out__ dstData,
-                               typename TileDataSrc::TileDType __in__ srcData, T scalar, unsigned validRow,
-                               unsigned validCol)
+__tf__ PTO_INTERNAL void TSDiv(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc::TileDType __in__ srcData, T scalar,
+    unsigned validRow, unsigned validCol)
 {
     constexpr unsigned elementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = pto::BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstStride = TileDataDst::RowStride;
     constexpr unsigned srcStride = TileDataSrc::RowStride;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
     if constexpr (std::is_integral_v<T>) {
         TSDiv_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dst, src, scalar, validRow, validCol);
     } else {
@@ -255,26 +270,31 @@ __tf__ PTO_INTERNAL void TSDiv(typename TileDataDst::TileDType __out__ dstData,
     }
 }
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TDIVS_IMPL(TileDataDst &dst, typename TileDataDst::DType scalar, TileDataSrc &src)
+PTO_INTERNAL void TDIVS_IMPL(TileDataDst& dst, typename TileDataDst::DType scalar, TileDataSrc& src)
 {
     using T = typename TileDataSrc::DType;
-    static_assert(std::is_same_v<T, typename TileDataDst::DType>,
-                  "TDIVS: The data type of dst must be consistent with src.");
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, float16_t>::value ||
-                      std::is_same<T, float>::value || std::is_same<T, float32_t>::value,
-                  "TDIVS: Invalid data type");
+    static_assert(
+        std::is_same_v<T, typename TileDataDst::DType>, "TDIVS: The data type of dst must be consistent with src.");
+    static_assert(
+        std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, half>::value || std::is_same<T, float16_t>::value || std::is_same<T, float>::value ||
+            std::is_same<T, float32_t>::value,
+        "TDIVS: Invalid data type");
 
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
-    static_assert(TileDataSrc::ValidCol <= TileDataSrc::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataSrc::ValidRow <= TileDataSrc::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
-    static_assert(TileDataDst::ValidCol <= TileDataDst::Cols,
-                  "Number of valid columns must not be greater than number of tile columns.");
-    static_assert(TileDataDst::ValidRow <= TileDataDst::Rows,
-                  "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataSrc::ValidCol <= TileDataSrc::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataSrc::ValidRow <= TileDataSrc::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
+    static_assert(
+        TileDataDst::ValidCol <= TileDataDst::Cols,
+        "Number of valid columns must not be greater than number of tile columns.");
+    static_assert(
+        TileDataDst::ValidRow <= TileDataDst::Rows,
+        "Number of valid rows must not be greater than number of tile rows.");
 
     PTO_ASSERT(src.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
     PTO_ASSERT(src.GetValidCol() == dst.GetValidCol(), "Number of columns of src and dst must be the same.");

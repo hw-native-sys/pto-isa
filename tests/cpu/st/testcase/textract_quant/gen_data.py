@@ -119,7 +119,7 @@ def apply_quant_element(src_val, quant_gm, mode, dst_dtype, use_relu=False, satu
         res = np.clip(src_val, int16_lim.min, int16_lim.max)
 
     if use_relu:
-        res = np.maximum(res, 0)
+        res = np.fmax(res, 0)
 
     return NumExt.astype(np.array([res]), dst_dtype)[0]
 
@@ -136,7 +136,7 @@ def process_quant(data_array, quant_array, src_dtype, dst_dtype, is_vector, use_
         q_param = quant_array[j] if is_vector else quant_array[0]
         for i in range(rows):
             out[i, j] = apply_quant_element(data_array[i, j], q_param, mode, dst_dtype, use_relu, saturate_inf)
-
+    
     return out
 
 
@@ -178,16 +178,16 @@ def type2str(t):
 
 class TExtractParams:
     def __init__(
-        self,
-        src_dtype: np.dtype,
-        dst_dtype: np.dtype,
-        src_valid_rows: int,
-        src_valid_cols: int,
-        dst_valid_rows: int,
-        dst_valid_cols: int,
-        idx_row: int,
+        self, 
+        src_dtype: np.dtype, 
+        dst_dtype: np.dtype, 
+        src_valid_rows: int, 
+        src_valid_cols: int, 
+        dst_valid_rows: int, 
+        dst_valid_cols: int, 
+        idx_row: int, 
         idx_col: int,
-        is_v_quant: bool,
+        is_v_quant: bool, 
         saturate_inf: bool,
         use_relu: bool
     ):
@@ -207,6 +207,7 @@ class TExtractParams:
         self.is_v_quant = is_v_quant
         self.saturate_inf = saturate_inf
         self.use_relu = use_relu
+        
 
 def gen_case_name(param, idx):
     return f"case_{idx}_{type2str(param.src_dtype)}_{type2str(param.dst_dtype)}"
@@ -284,3 +285,4 @@ if __name__ == "__main__":
         gen_golden_data(case_name, case_param)
 
         os.chdir(original_dir)
+

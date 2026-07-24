@@ -16,14 +16,11 @@ Data flow: `srcGlobalData (local GM)` → `stagingTileData (UB)` → `dstGlobalD
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
-
 Synchronous form:
 
 ```text
-pto.tput %dst_remote, %src_local : (!pto.memref<...>, !pto.memref<...>)
+tput %dst_remote, %src_local : (!pto.memref<...>, !pto.memref<...>)
 ```
-
 Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
 
 ## C++ Intrinsic
@@ -60,22 +57,21 @@ PTO_INST RecordEvent PUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalD
 
 ## Constraints
 
-!!! warning "Constraints"
-    - **Type constraints**:
-        - `GlobalSrcData::RawDType` must equal `GlobalDstData::RawDType`.
-        - `TileData::DType` must equal `GlobalSrcData::RawDType`.
-        - `GlobalSrcData::layout` must equal `GlobalDstData::layout`.
-    - **Memory constraints**:
-        - `dstGlobalData` must point to remote address (on target NPU).
-        - `srcGlobalData` must point to local address (on current NPU).
-        - `stagingTileData` / `pingTile` / `pongTile` must be pre-allocated in Unified Buffer.
-    - **Valid region**:
-        - Transfer size is determined by `GlobalTensor` shape (auto-chunked to fit tile).
-    - **Atomic operation**:
-        - `atomicType` supports `AtomicNone` and `AtomicAdd`.
-    - **Ping-pong**:
-        - `pingTile` and `pongTile` must have the same type and dimensions.
-        - Must reside at non-overlapping UB offsets.
+- **Type constraints**:
+    - `GlobalSrcData::RawDType` must equal `GlobalDstData::RawDType`.
+    - `TileData::DType` must equal `GlobalSrcData::RawDType`.
+    - `GlobalSrcData::layout` must equal `GlobalDstData::layout`.
+- **Memory constraints**:
+    - `dstGlobalData` must point to remote address (on target NPU).
+    - `srcGlobalData` must point to local address (on current NPU).
+    - `stagingTileData` / `pingTile` / `pongTile` must be pre-allocated in Unified Buffer.
+- **Valid region**:
+    - Transfer size is determined by `GlobalTensor` shape (auto-chunked to fit tile).
+- **Atomic operation**:
+    - `atomicType` supports `AtomicNone` and `AtomicAdd`.
+- **Ping-pong**:
+    - `pingTile` and `pongTile` must have the same type and dimensions.
+    - Must reside at non-overlapping UB offsets.
 
 ## Examples
 
@@ -93,7 +89,7 @@ void example_put(__gm__ T* local_data, __gm__ T* remote_addr) {
     using GShape = Shape<1, 1, 1, 16, 16>;
     using GStride = BaseShape2D<T, 16, 16, Layout::ND>;
     /*
-    If the globalTensor is larger than UB Tile, PUT will perform 2D sliding automatically.
+    If the globalTensor is larger than UB Tile, TPUT will perform 2D sliding automatically.
     using GShape = Shape<1, 1, 1, 4096, 4096>;
     using GStride = BaseShape2D<T, 4096, 4096, Layout::ND>;
     */

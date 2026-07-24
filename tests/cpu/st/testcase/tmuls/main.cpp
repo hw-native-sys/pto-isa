@@ -16,28 +16,26 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTMULSTestCase(void *out, void *src, float scalar, aclrtStream stream);
+void launchTMULSTestCase(void* out, void* src, float scalar, aclrtStream stream);
 
 class TMULSTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, int row, int vaildRow, int col, int srcVaildCol>
+template <uint32_t caseId, typename T, int row, int validRow, int col, int srcValidCol>
 bool TMulSTestFramework()
 {
     aclInit(nullptr);
@@ -48,23 +46,23 @@ bool TMulSTestFramework()
 
     size_t dstByteSize = row * col * sizeof(T);
     size_t srcByteSize = row * col * sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     float scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
     std::string scalar_file = GetGoldenDir() + "/divider.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
+    file.read(reinterpret_cast<char*>(&scalar), 4);
     file.close();
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTMULSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
@@ -124,5 +122,23 @@ TEST_F(TMULSTest, case5)
 TEST_F(TMULSTest, case6)
 {
     bool ret = TMulSTestFramework<6, float, 256, 256, 16, 16>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TMULSTest, case7)
+{
+    bool ret = TMulSTestFramework<7, uint8_t, 32, 32, 64, 64>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TMULSTest, case8)
+{
+    bool ret = TMulSTestFramework<8, uint16_t, 32, 32, 64, 64>();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TMULSTest, case9)
+{
+    bool ret = TMulSTestFramework<9, uint32_t, 32, 32, 64, 64>();
     EXPECT_TRUE(ret);
 }

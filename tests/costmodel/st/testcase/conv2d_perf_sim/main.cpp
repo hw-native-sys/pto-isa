@@ -22,29 +22,30 @@ using namespace pto;
 // mLoop=1, nLoop=1, kLoop=3
 void runConv2d_Small()
 {
-    RunConv2dForward<half, half, half,
-                     /*blockDim=*/1,
-                     /*m=*/128, /*k=*/144, /*n=*/256,
-                     /*singleCoreM=*/128, /*singleCoreK=*/144, /*singleCoreN=*/256,
-                     /*baseM=*/128, /*baseK=*/48, /*baseN=*/256,
-                     /*stepM=*/1, /*stepKa=*/3, /*stepKb=*/3, /*stepN=*/1,
-                     /*batch=*/1, /*cin=*/16, /*hin=*/8, /*win=*/16, /*c0=*/16,
-                     /*hk=*/3, /*wk=*/3,
-                     /*hout=*/8, /*wout=*/16,
-                     /*strideH=*/1, /*strideW=*/1,
-                     /*dilationH=*/1, /*dilationW=*/1,
-                     /*padTop=*/1, /*padBottom=*/1, /*padLeft=*/1, /*padRight=*/1>(nullptr, nullptr, nullptr);
+    RunConv2dForward<
+        half, half, half,
+        /*blockDim=*/1,
+        /*m=*/128, /*k=*/144, /*n=*/256,
+        /*singleCoreM=*/128, /*singleCoreK=*/144, /*singleCoreN=*/256,
+        /*baseM=*/128, /*baseK=*/48, /*baseN=*/256,
+        /*stepM=*/1, /*stepKa=*/3, /*stepKb=*/3, /*stepN=*/1,
+        /*batch=*/1, /*cin=*/16, /*hin=*/8, /*win=*/16, /*c0=*/16,
+        /*hk=*/3, /*wk=*/3,
+        /*hout=*/8, /*wout=*/16,
+        /*strideH=*/1, /*strideW=*/1,
+        /*dilationH=*/1, /*dilationW=*/1,
+        /*padTop=*/1, /*padBottom=*/1, /*padLeft=*/1, /*padRight=*/1>(nullptr, nullptr, nullptr);
 }
 
 TEST(Conv2dPerfSim, RunConv2d_Small)
 {
     LAUNCH_KERNEL(runConv2d_Small, , (1, nullptr, nullptr));
 
-    auto &instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
+    auto& instrs = ::pto::perf_sim::PtoRecorder::GetForCore(0);
     EXPECT_GT(instrs.size(), 0u) << "Expected recorded Conv2D instructions";
 
     bool has_matrix = false, has_mte2 = false, has_fixp = false;
-    for (auto &rec : instrs) {
+    for (auto& rec : instrs) {
         if (rec.stage == ::pto::perf_sim::PipeStage::Matrix)
             has_matrix = true;
         if (rec.stage == ::pto::perf_sim::PipeStage::MTE2_AIC)

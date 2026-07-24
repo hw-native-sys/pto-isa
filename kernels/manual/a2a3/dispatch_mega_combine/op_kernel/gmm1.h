@@ -25,15 +25,16 @@ using Gmm1Pipeline = GmmCommonPipeline;
 template <typename InputElement>
 class Gmm1 {
 public:
-    AICORE inline void Init(GM_ADDR weight1GM, GM_ADDR scale1GM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
-                            const __gm__ MegaMoeTilingData *tilingData);
+    AICORE inline void Init(
+        GM_ADDR weight1GM, GM_ADDR scale1GM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+        const __gm__ MegaMoeTilingData* tilingData);
     AICORE inline void Process();
 
 private:
     AICORE inline uint32_t CoreLoops(uint32_t currentM) const
     {
-        return GmmCommonCoreLoops(currentM, problemN_, tilingData_->gmm1Tiling.l1TileM,
-                                  tilingData_->gmm1Tiling.l1TileN);
+        return GmmCommonCoreLoops(
+            currentM, problemN_, tilingData_->gmm1Tiling.l1TileM, tilingData_->gmm1Tiling.l1TileN);
     }
     AICORE inline uint32_t StartLoopIdx(uint32_t startCoreIdx) const
     {
@@ -43,22 +44,23 @@ private:
     {
         CrossCoreWaitFlag<0x2>(MegaMoeD2CHardFlagId(groupIdx + 1U));
     }
-    AICORE inline void RunGmmTile(Gmm1Pipeline &gmmPipeline, uint32_t groupIdx, uint32_t groupBase, uint32_t currentM,
-                                  uint32_t loopIdx) const
+    AICORE inline void RunGmmTile(
+        Gmm1Pipeline& gmmPipeline, uint32_t groupIdx, uint32_t groupBase, uint32_t currentM, uint32_t loopIdx) const
     {
-        GmmCommonRunTile(gmmPipeline, gmAPtr_, weight1Ptr_, gmCPtr_, scale1Ptr_, groupIdx, groupBase, currentM, loopIdx,
-                         problemN_, problemK_, problemK_, problemK_, problemN_, problemN_,
-                         tilingData_->gmm1Tiling.l1TileM, tilingData_->gmm1Tiling.l1TileN);
+        GmmCommonRunTile(
+            gmmPipeline, gmAPtr_, weight1Ptr_, gmCPtr_, scale1Ptr_, groupIdx, groupBase, currentM, loopIdx, problemN_,
+            problemK_, problemK_, problemK_, problemN_, problemN_, tilingData_->gmm1Tiling.l1TileM,
+            tilingData_->gmm1Tiling.l1TileN);
     }
     AICORE inline void SetC2VReady(uint32_t segmentIdx) const;
 
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
 
-    __gm__ int8_t *gmAPtr_ = nullptr;
-    __gm__ half *gmCPtr_ = nullptr;
-    __gm__ int8_t *weight1Ptr_ = nullptr;
-    __gm__ uint64_t *scale1Ptr_ = nullptr;
-    __gm__ int32_t *cumsumMMPtr_ = nullptr;
+    __gm__ int8_t* gmAPtr_ = nullptr;
+    __gm__ half* gmCPtr_ = nullptr;
+    __gm__ int8_t* weight1Ptr_ = nullptr;
+    __gm__ uint64_t* scale1Ptr_ = nullptr;
+    __gm__ int32_t* cumsumMMPtr_ = nullptr;
 
     uint32_t problemK_ = 0;
     uint32_t problemN_ = 0;
@@ -70,8 +72,9 @@ private:
 };
 
 template <typename InputElement>
-AICORE inline void Gmm1<InputElement>::Init(GM_ADDR weight1GM, GM_ADDR scale1GM, GM_ADDR expertTokenNumsGM,
-                                            GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData *tilingData)
+AICORE inline void Gmm1<InputElement>::Init(
+    GM_ADDR weight1GM, GM_ADDR scale1GM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+    const __gm__ MegaMoeTilingData* tilingData)
 {
     (void)expertTokenNumsGM;
     tilingData_ = tilingData;
@@ -84,11 +87,11 @@ AICORE inline void Gmm1<InputElement>::Init(GM_ADDR weight1GM, GM_ADDR scale1GM,
     coreIdx_ = get_block_idx();
     coreNum_ = get_block_num();
 
-    gmAPtr_ = reinterpret_cast<__gm__ int8_t *>(workspaceGM + tilingData_->dispatchTiling.gmAOffset);
-    gmCPtr_ = reinterpret_cast<__gm__ half *>(workspaceGM + tilingData_->gmm1Tiling.gmCOffset);
-    weight1Ptr_ = reinterpret_cast<__gm__ int8_t *>(weight1GM);
-    scale1Ptr_ = reinterpret_cast<__gm__ uint64_t *>(scale1GM);
-    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
+    gmAPtr_ = reinterpret_cast<__gm__ int8_t*>(workspaceGM + tilingData_->dispatchTiling.gmAOffset);
+    gmCPtr_ = reinterpret_cast<__gm__ half*>(workspaceGM + tilingData_->gmm1Tiling.gmCOffset);
+    weight1Ptr_ = reinterpret_cast<__gm__ int8_t*>(weight1GM);
+    scale1Ptr_ = reinterpret_cast<__gm__ uint64_t*>(scale1GM);
+    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
 }
 template <typename InputElement>
 AICORE inline void Gmm1<InputElement>::SetC2VReady(uint32_t segmentIdx) const

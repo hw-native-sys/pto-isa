@@ -20,8 +20,15 @@ def gen_golden_data_tcolexpandop(param, kind: str):
     dtype = param.dtype
     row, col = [param.tile_row, param.tile_col]
 
-    input1 = np.random.uniform(low=-2, high=2, size=[param.src_row, param.src_col]).astype(dtype)
-    input2 = np.random.uniform(low=1, high=2, size=[1, param.src_col]).astype(dtype)
+    is_integer = np.issubdtype(dtype, np.integer)
+
+    if is_integer:
+        input1 = np.random.randint(1, 8, size=[param.src_row, param.src_col]).astype(dtype)
+        input2 = np.random.randint(1, 8, size=[1, param.src_col]).astype(dtype)
+    else:
+        input1 = np.random.uniform(low=-2, high=2, size=[param.src_row, param.src_col]).astype(dtype)
+        input2 = np.random.uniform(low=1, high=2, size=[1, param.src_col]).astype(dtype)
+
     golden = np.zeros((param.dst_row, param.dst_col)).astype(dtype)
 
     input1_valid = input1[:row, :col]
@@ -29,7 +36,10 @@ def gen_golden_data_tcolexpandop(param, kind: str):
 
 
     if kind == "div":
-        golden[:row, :col] = input1_valid / input2_valid
+        if is_integer:
+            golden[:row, :col] = input1_valid // input2_valid
+        else:
+            golden[:row, :col] = input1_valid / input2_valid
     elif kind == "mul":
         golden[:row, :col] = input1_valid * input2_valid
     elif kind == "sub":
@@ -62,7 +72,12 @@ class TColExpandOpParams:
 
 
 def generate_case_name(param, kind: str):
-    dtype_str = {np.float32: "float", np.float16: "half"}[param.dtype]
+    dtype_str = {
+        np.float32: "float", np.float16: "half",
+        np.int16: "int16", np.int32: "int32",
+        np.uint16: "uint16", np.uint32: "uint32",
+        np.uint8: "uint8",
+    }[param.dtype]
 
     def substring(a, b) -> str:
         return f"_{a}x{b}"
@@ -80,9 +95,23 @@ if __name__ == "__main__":
         TColExpandOpParams(np.float16, 16, 256),
         TColExpandOpParams(np.float32, 16, 16, 32, 32, 64, 64),
     ]
+    case_int_params_list = [
+        TColExpandOpParams(np.int16, 16, 256),
+        TColExpandOpParams(np.int32, 64, 64),
+        TColExpandOpParams(np.uint16, 64, 64),
+        TColExpandOpParams(np.uint32, 64, 64),
+    ]
+    case_uint8_params_list = [
+        TColExpandOpParams(np.uint8, 64, 64),
+    ]
     kind_list = ["div", "mul", "sub", "add", "min", "max", "expdif"]
+    kind_list_int = ["div", "mul", "sub", "add", "min", "max"]
+    kind_list_uint8 = ["mul"]
 
     combinations = [(param, kind) for param in case_params_list for kind in kind_list]
+
+    combinations.extend([(param, kind) for param in case_int_params_list for kind in kind_list_int])
+    combinations.extend([(param, kind) for param in case_uint8_params_list for kind in kind_list_uint8])
 
     for param, kind in combinations:
         case_name = generate_case_name(param, kind)

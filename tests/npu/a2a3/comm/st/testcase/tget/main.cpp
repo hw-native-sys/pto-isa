@@ -192,7 +192,7 @@ TEST(TGet, PingPong_Float_7x10_tile5x7_PyptoAllReduceShape)
     SKIP_IF_RANKS_LT(2);
     ASSERT_TRUE((RunGetRingPingPong<float, 7, 10, 5, 7>(2, 2, 0, 0)));
 }
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);
     ::testing::InitGoogleTest(&argc, argv);

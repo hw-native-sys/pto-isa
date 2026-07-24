@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename T>
-PTO_INTERNAL void LogPrecisionImpl(RegTensor<T> &dstReg, RegTensor<T> &srcReg, MaskReg &mask)
+PTO_INTERNAL void LogPrecisionImpl(RegTensor<T>& dstReg, RegTensor<T>& srcReg, MaskReg& mask)
 {
     using ConvUnion = std::conditional_t<sizeof(T) == sizeof(half), union HalfConvUnion, union FloatConvUnion>;
     MaskReg cmpMask;

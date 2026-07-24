@@ -12,28 +12,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define COMMON_HPP
 
 #include <pto/common/type.hpp>
-#include <type_traits>
 
 namespace pto {
 
-template <typename T>
-PTO_INLINE void AtomicAccumulate(T *addr, T val)
-{
-    if constexpr (std::is_integral_v<T>) {
-        __atomic_fetch_add(addr, val, __ATOMIC_RELAXED);
-    } else {
-        T expected;
-        __atomic_load(addr, &expected, __ATOMIC_RELAXED);
-        T desired;
-        do {
-            desired = static_cast<T>(expected + val);
-        } while (
-            !__atomic_compare_exchange(addr, &expected, &desired, /*weak=*/true, __ATOMIC_RELAXED, __ATOMIC_RELAXED));
-    }
-}
-
-enum QuantModeCPU_t
-{
+enum QuantMode_t {
     NoQuant = 0,        // 不使能量化功能
     F322F16 = 1,        // float量化成half, scalar量化
     F322BF16 = 16,      // float量化成bfloat16_t, scalar量化
@@ -43,65 +25,71 @@ enum QuantModeCPU_t
     QF322F16_PRE = 32,  // float量化成half，scalar量化
     QF322BF16_PRE = 34, // float量化成bfloat16_t，scalar量化
     VQF322B8_PRE = 23,  // float量化成int8_t/uint8_t，tensor量化
-    REQ8 = 3,           // int32_t量化成int8_t/uint8_t，scalar量化
-    VREQ8 = 2,          // int32_t量化成int8_t/uint8_t，tensor量化
+    QS322BF16_PRE = 35,
+    VQS322BF16_PRE = 36,
+    REQ8 = 3,  // int32_t量化成int8_t/uint8_t，scalar量化
+    VREQ8 = 2, // int32_t量化成int8_t/uint8_t，tensor量化
     VSHIFTS322S16 = 12,
     SHIFTS322S16 = 13,
 };
 
+template <QuantMode_t Mode>
+inline constexpr bool is_vector_quant_v =
+    Mode == QuantMode_t::VQF322B8_PRE || Mode == QuantMode_t::VREQ8 || Mode == QuantMode_t::VDEQF16;
+
 template <typename SrcType, typename DstType>
-PTO_INTERNAL constexpr QuantModeCPU_t GetCastPreQuantMode()
+PTO_INTERNAL constexpr QuantMode_t GetCastPreQuantMode()
 {
-    QuantModeCPU_t quantPre = QuantModeCPU_t::NoQuant;
+    QuantMode_t quantPre = QuantMode_t::NoQuant;
     if constexpr (std::is_same<SrcType, float>::value) {
         if constexpr (std::is_same<DstType, half>::value) {
-            quantPre = QuantModeCPU_t::F322F16;
+            quantPre = QuantMode_t::F322F16;
         } else if constexpr (std::is_same<DstType, bfloat16_t>::value) {
-            quantPre = QuantModeCPU_t::F322BF16;
+            quantPre = QuantMode_t::F322BF16;
         }
     }
     return quantPre;
 }
 
 template <typename SrcType, typename DstType>
-PTO_INTERNAL constexpr QuantModeCPU_t GetScalarPreQuantMode()
+PTO_INTERNAL constexpr QuantMode_t GetScalarPreQuantMode()
 {
-    QuantModeCPU_t quantPre = QuantModeCPU_t::NoQuant;
+    QuantMode_t quantPre = QuantMode_t::NoQuant;
     if constexpr (std::is_same<SrcType, float>::value) {
         if constexpr ((std::is_same<DstType, int8_t>::value) || (std::is_same<DstType, uint8_t>::value)) {
-            quantPre = QuantModeCPU_t::QF322B8_PRE;
+            quantPre = QuantMode_t::QF322B8_PRE;
         } else if constexpr (std::is_same<DstType, half>::value) {
-            quantPre = QuantModeCPU_t::QF322F16_PRE;
+            quantPre = QuantMode_t::QF322F16_PRE;
         } else if constexpr (std::is_same<DstType, bfloat16_t>::value) {
-            quantPre = QuantModeCPU_t::QF322BF16_PRE;
+            quantPre = QuantMode_t::QF322BF16_PRE;
         }
     } else if constexpr (std::is_same<SrcType, int32_t>::value) {
         if constexpr ((std::is_same<DstType, int8_t>::value) || (std::is_same<DstType, uint8_t>::value)) {
-            quantPre = QuantModeCPU_t::REQ8;
+            quantPre = QuantMode_t::REQ8;
         } else if constexpr (std::is_same<DstType, half>::value) {
-            quantPre = QuantModeCPU_t::DEQF16;
+            quantPre = QuantMode_t::DEQF16;
         } else if constexpr (std::is_same<DstType, int16_t>::value) {
-            quantPre = QuantModeCPU_t::SHIFTS322S16;
+            quantPre = QuantMode_t::SHIFTS322S16;
         }
     }
     return quantPre;
 }
 
 template <typename SrcType, typename DstType>
-PTO_INTERNAL constexpr QuantModeCPU_t GetVectorPreQuantMode()
+PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantMode()
 {
-    QuantModeCPU_t quantPre = QuantModeCPU_t::NoQuant;
+    QuantMode_t quantPre = QuantMode_t::NoQuant;
     if constexpr (std::is_same<SrcType, float>::value) {
         if constexpr ((std::is_same<DstType, int8_t>::value) || (std::is_same<DstType, uint8_t>::value)) {
-            quantPre = QuantModeCPU_t::VQF322B8_PRE;
+            quantPre = QuantMode_t::VQF322B8_PRE;
         }
     } else if constexpr (std::is_same<SrcType, int32_t>::value) {
         if constexpr ((std::is_same<DstType, int8_t>::value) || (std::is_same<DstType, uint8_t>::value)) {
-            quantPre = QuantModeCPU_t::VREQ8;
+            quantPre = QuantMode_t::VREQ8;
         } else if constexpr (std::is_same<DstType, half>::value) {
-            quantPre = QuantModeCPU_t::VDEQF16;
+            quantPre = QuantMode_t::VDEQF16;
         } else if constexpr (std::is_same<DstType, int16_t>::value) {
-            quantPre = QuantModeCPU_t::VSHIFTS322S16;
+            quantPre = QuantMode_t::VSHIFTS322S16;
         }
     }
     return quantPre;
@@ -110,9 +98,7 @@ PTO_INTERNAL constexpr QuantModeCPU_t GetVectorPreQuantMode()
 template <typename T>
 inline T ReLU(T val)
 {
-    if (val < 0)
-        return 0;
-    return val;
+    return (val > 0) ? val : 0;
 }
 
 inline float extract_m1_from_quant(uint64_t quant)
@@ -132,39 +118,40 @@ inline float extract_m1_from_quant(uint64_t quant)
     return sign_val * mantissa_val * exponent_val;
 }
 
-template <typename DstType, typename SrcType, QuantModeCPU_t mode, bool use_relu>
+template <typename DstType, typename SrcType, QuantMode_t mode, bool use_relu>
 DstType quantize_element(SrcType src_val, uint64_t scalar)
 {
-    uint64_t ctrl_bits = get_task_cookie();
     float f_scale = extract_m1_from_quant(scalar);
+    uint64_t ctrl_bits = get_task_cookie();
     uint32_t offset = static_cast<uint32_t>((scalar >> 37) & 0x1FF);
     uint32_t sign = static_cast<uint32_t>((scalar >> 46) & 0x1);
     uint32_t saturate_inf = static_cast<uint32_t>((ctrl_bits >> 48) & 0x1);
 
     float result_f = static_cast<float>(src_val) * f_scale;
 
-    if constexpr (mode == QuantModeCPU_t::QF322B8_PRE || mode == QuantModeCPU_t::VQF322B8_PRE ||
-                  mode == QuantModeCPU_t::REQ8 || mode == QuantModeCPU_t::VREQ8) {
+    if constexpr (
+        mode == QuantMode_t::QF322B8_PRE || mode == QuantMode_t::VQF322B8_PRE || mode == QuantMode_t::REQ8 ||
+        mode == QuantMode_t::VREQ8) {
         float rounded = std::nearbyint(result_f + offset);
         float min = sign == 1 ? -128.0f : 0.0f;
         float max = sign == 1 ? 127.0f : 255.0f;
         result_f = std::clamp(rounded, min, max);
-    } else if constexpr (mode == QuantModeCPU_t::DEQF16 || mode == QuantModeCPU_t::VDEQF16) {
+    } else if constexpr (mode == QuantMode_t::DEQF16 || mode == QuantMode_t::VDEQF16) {
         result_f = std::clamp(result_f, -F16_MAX, F16_MAX);
-    } else if constexpr (mode == QuantModeCPU_t::QF322F16_PRE) {
+    } else if constexpr (mode == QuantMode_t::QF322F16_PRE) {
         if (std::isnan(result_f) && saturate_inf == 1) {
             result_f = 0.0f;
         } else if (std::isfinite(result_f) || saturate_inf == 1) {
             result_f = std::clamp(result_f, -F16_MAX, F16_MAX);
         }
-    } else if constexpr (mode == QuantModeCPU_t::QF322BF16_PRE) {
+    } else if constexpr (mode == QuantMode_t::QF322BF16_PRE || mode == QuantMode_t::F322BF16) {
         if (std::isnan(result_f) && saturate_inf == 1) {
             result_f = 0.0f;
         } else if (std::isfinite(result_f) || saturate_inf == 1) {
             float F32_MAX = std::numeric_limits<float>::max();
             result_f = std::clamp(result_f, -F32_MAX, F32_MAX);
         }
-    } else if constexpr (mode == QuantModeCPU_t::SHIFTS322S16 || mode == QuantModeCPU_t::VSHIFTS322S16) {
+    } else if constexpr (mode == QuantMode_t::SHIFTS322S16 || mode == QuantMode_t::VSHIFTS322S16) {
         int32_t shift_bit = ((scalar >> 32) & 0xF) + 1;
         int32_t shifted_val = src_val >> shift_bit;
         int16_t I16_MAX = std::numeric_limits<int16_t>::max();
@@ -177,10 +164,10 @@ DstType quantize_element(SrcType src_val, uint64_t scalar)
     return static_cast<DstType>(result_f);
 }
 
-template <typename D, typename S, QuantModeCPU_t quantMode, bool applyRelu>
+template <typename D, typename S, QuantMode_t quantMode, bool applyRelu>
 PTO_INLINE D ConvertStoreValue(S value, uint64_t scalar)
 {
-    if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+    if constexpr (quantMode != QuantMode_t::NoQuant) {
         return quantize_element<D, S, quantMode, applyRelu>(value, scalar);
     } else {
         if constexpr (applyRelu) {
@@ -190,20 +177,15 @@ PTO_INLINE D ConvertStoreValue(S value, uint64_t scalar)
     }
 }
 
-template <typename D, typename S, typename TileData, QuantModeCPU_t quantMode, bool applyRelu, bool atomicAdd = false>
-PTO_INLINE void StoreElement(D *dst, size_t dstIdx, S value, size_t r, size_t c, const std::vector<uint64_t> &scalars)
+template <typename D, typename S, typename TileData, QuantMode_t quantMode, bool applyRelu>
+PTO_INLINE void StoreElement(D* dst, size_t dstIdx, S value, size_t r, size_t c, const std::vector<uint64_t>& scalars)
 {
     size_t scalarIndex = TileData::isRowMajor ? c : r;
     uint64_t scalar = 0;
-    if constexpr (quantMode != QuantModeCPU_t::NoQuant) {
+    if constexpr (quantMode != QuantMode_t::NoQuant) {
         scalar = scalars[scalarIndex];
     }
-    D converted = ConvertStoreValue<D, S, quantMode, applyRelu>(value, scalar);
-    if constexpr (atomicAdd) {
-        AtomicAccumulate(&dst[dstIdx], converted);
-    } else {
-        dst[dstIdx] = converted;
-    }
+    dst[dstIdx] = ConvertStoreValue<D, S, quantMode, applyRelu>(value, scalar);
 }
 
 } // namespace pto

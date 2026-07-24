@@ -27,10 +27,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto_test_detail {
 class PtoTraceResetListener : public ::testing::EmptyTestEventListener {
 public:
-    void OnTestStart(const ::testing::TestInfo & /*test_info*/) override
-    {
-        ::pto::mocker::ResetTrace();
-    }
+    void OnTestStart(const ::testing::TestInfo& /*test_info*/) override { ::pto::mocker::ResetTrace(); }
 };
 
 inline int RegisterPtoTraceResetListener()

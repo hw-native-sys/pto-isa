@@ -18,17 +18,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDataOut, typename TileDataSrc, typename TileDataPara>
-__tf__ PTO_INTERNAL void TQuant_Int8Sym(typename TileDataOut::TileDType __out__ dst,
-                                        typename TileDataSrc::TileDType __in__ src,
-                                        typename TileDataPara::TileDType __in__ scale, unsigned validRows,
-                                        unsigned validCols)
+__tf__ PTO_INTERNAL void TQuant_Int8Sym(
+    typename TileDataOut::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataPara::TileDType __in__ scale, unsigned validRows, unsigned validCols)
 {
     using T = typename TileDataSrc::DType;  // fp32
     using S = typename TileDataPara::DType; // fp32
     using U = typename TileDataOut::DType;  // int8
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
-    __ubuf__ S *scalePtr = (__ubuf__ S *)__cce_get_tile_ptr(scale);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ U* dstPtr = (__ubuf__ U*)__cce_get_tile_ptr(dst);
+    __ubuf__ S* scalePtr = (__ubuf__ S*)__cce_get_tile_ptr(scale);
     uint16_t repeatTimes = CeilDivision(validCols, ELE_CNT_B32);
     __VEC_SCOPE__
     {
@@ -54,21 +53,20 @@ __tf__ PTO_INTERNAL void TQuant_Int8Sym(typename TileDataOut::TileDType __out__ 
     }
 }
 
-// TQuant: fp32 -> u8 conversion, Int8Asym
+// TQUANT: fp32 -> u8 conversion, Int8Asym
 template <typename TileDataOut, typename TileDataSrc, typename TileDataPara>
-__tf__ PTO_INTERNAL void TQuant_Int8Asym(typename TileDataOut::TileDType __out__ dst,
-                                         typename TileDataSrc::TileDType __in__ src,
-                                         typename TileDataPara::TileDType __in__ scale,
-                                         typename TileDataPara::TileDType __in__ offset, unsigned validRows,
-                                         unsigned validCols)
+__tf__ PTO_INTERNAL void TQuant_Int8Asym(
+    typename TileDataOut::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src,
+    typename TileDataPara::TileDType __in__ scale, typename TileDataPara::TileDType __in__ offset, unsigned validRows,
+    unsigned validCols)
 {
     using T = typename TileDataSrc::DType;  // fp32
     using U = typename TileDataOut::DType;  // uint8
     using S = typename TileDataPara::DType; // fp32
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ U *dstPtr = (__ubuf__ U *)__cce_get_tile_ptr(dst);
-    __ubuf__ S *scalePtr = (__ubuf__ S *)__cce_get_tile_ptr(scale);
-    __ubuf__ S *offsetPtr = (__ubuf__ S *)__cce_get_tile_ptr(offset);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ U* dstPtr = (__ubuf__ U*)__cce_get_tile_ptr(dst);
+    __ubuf__ S* scalePtr = (__ubuf__ S*)__cce_get_tile_ptr(scale);
+    __ubuf__ S* offsetPtr = (__ubuf__ S*)__cce_get_tile_ptr(offset);
     uint16_t repeatTimes = CeilDivision(validCols, ELE_CNT_B32);
     __VEC_SCOPE__
     {
@@ -96,9 +94,9 @@ __tf__ PTO_INTERNAL void TQuant_Int8Asym(typename TileDataOut::TileDType __out__
     }
 }
 
-// TQuant Interface for FP32/FP16/BF16->INT4/8/16
+// TQUANT Interface for FP32/FP16/BF16->INT4/8/16
 template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataPara>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &scale, TileDataPara *offset = nullptr)
+PTO_INTERNAL void TQUANT_IMPL(TileDataOut& dst, TileDataSrc& src, TileDataPara& scale, TileDataPara* offset = nullptr)
 {
     using T = typename TileDataSrc::DType;
     static_assert(std::is_same<T, float32_t>::value, "Fix: Input has to be float 32");
@@ -106,20 +104,21 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataPara &
     if constexpr (quant_type == QuantType::INT8_SYM) {
         using U = typename TileDataOut::DType;
         static_assert(std::is_same<U, int8_t>::value, "Fix: Quant INT8 sym: Out data type has to be int8");
-        TQuant_Int8Sym<TileDataOut, TileDataSrc, TileDataPara>(dst.data(), src.data(), scale.data(), src.GetValidRow(),
-                                                               src.GetValidCol());
+        TQuant_Int8Sym<TileDataOut, TileDataSrc, TileDataPara>(
+            dst.data(), src.data(), scale.data(), src.GetValidRow(), src.GetValidCol());
     } else if constexpr (quant_type == QuantType::INT8_ASYM) {
         using U = typename TileDataOut::DType;
         static_assert(std::is_same<U, uint8_t>::value, "Fix: Quant INT8 asym: Out data type has to be uint8");
-        TQuant_Int8Asym<TileDataOut, TileDataSrc, TileDataPara>(dst.data(), src.data(), scale.data(), offset->data(),
-                                                                src.GetValidRow(), src.GetValidCol());
+        TQuant_Int8Asym<TileDataOut, TileDataSrc, TileDataPara>(
+            dst.data(), src.data(), scale.data(), offset->data(), src.GetValidRow(), src.GetValidCol());
     }
 }
 
-template <QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
-          typename TileDataScaling>
-PTO_INTERNAL void TQUANT_IMPL(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
-                              TileDataScaling *scaling)
+template <
+    QuantType quant_type, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
+    typename TileDataScaling>
+PTO_INTERNAL void TQUANT_IMPL(
+    TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
 {
     static_assert(sizeof(typename TileDataSrc::DType) == 0, "Fix: TQUANT does not support MX data type in Kirin9030.");
 }

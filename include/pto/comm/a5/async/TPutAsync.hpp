@@ -30,20 +30,23 @@ namespace detail {
 // ============================================================================
 
 template <typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL AsyncEvent TPUT_ASYNC_MTE_FALLBACK(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                                                const sdma::SdmaExecContext &execCtx)
+PTO_INTERNAL AsyncEvent TPUT_ASYNC_MTE_FALLBACK(
+    GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const sdma::SdmaExecContext& execCtx)
 {
     (void)TPutAsyncCheckTensorCompatibility<GlobalDstData, GlobalSrcData>();
 
-    PTO_ASSERT(dstGlobalData.data() != nullptr && srcGlobalData.data() != nullptr,
-               "TPUT_ASYNC MTE fallback: src and dst tensor pointers must not be null.");
+    PTO_ASSERT(
+        dstGlobalData.data() != nullptr && srcGlobalData.data() != nullptr,
+        "TPUT_ASYNC MTE fallback: src and dst tensor pointers must not be null.");
 
-    PTO_ASSERT(TPutAsyncIsFlatContiguous1D(srcGlobalData),
-               "TPUT_ASYNC MTE fallback: src tensor must be flat contiguous 1D (packed layout, single logical line). "
-               "Multi-dimensional or non-contiguous tensors are not supported.");
-    PTO_ASSERT(TPutAsyncIsFlatContiguous1D(dstGlobalData),
-               "TPUT_ASYNC MTE fallback: dst tensor must be flat contiguous 1D (packed layout, single logical line). "
-               "Multi-dimensional or non-contiguous tensors are not supported.");
+    PTO_ASSERT(
+        TPutAsyncIsFlatContiguous1D(srcGlobalData),
+        "TPUT_ASYNC MTE fallback: src tensor must be flat contiguous 1D (packed layout, single logical line). "
+        "Multi-dimensional or non-contiguous tensors are not supported.");
+    PTO_ASSERT(
+        TPutAsyncIsFlatContiguous1D(dstGlobalData),
+        "TPUT_ASYNC MTE fallback: dst tensor must be flat contiguous 1D (packed layout, single logical line). "
+        "Multi-dimensional or non-contiguous tensors are not supported.");
 
     const uint32_t srcElems = TPutAsyncGetTotalElemCount(srcGlobalData);
     const uint32_t dstElems = TPutAsyncGetTotalElemCount(dstGlobalData);
@@ -55,27 +58,27 @@ PTO_INTERNAL AsyncEvent TPUT_ASYNC_MTE_FALLBACK(GlobalDstData &dstGlobalData, Gl
         return AsyncEvent(0, DmaEngine::SDMA);
     }
 
-    __ubuf__ uint8_t *ubBuf = execCtx.tmpBuf.addr;
+    __ubuf__ uint8_t* ubBuf = execCtx.tmpBuf.addr;
     const uint32_t ubSize = execCtx.tmpBuf.size;
     PTO_ASSERT(ubBuf != nullptr && ubSize > 0, "TPUT_ASYNC MTE fallback: tmpBuf is invalid");
 
-    __gm__ uint8_t *srcPtr = reinterpret_cast<__gm__ uint8_t *>(srcGlobalData.data());
-    __gm__ uint8_t *dstPtr = reinterpret_cast<__gm__ uint8_t *>(dstGlobalData.data());
+    __gm__ uint8_t* srcPtr = reinterpret_cast<__gm__ uint8_t*>(srcGlobalData.data());
+    __gm__ uint8_t* dstPtr = reinterpret_cast<__gm__ uint8_t*>(dstGlobalData.data());
 
     uint64_t offset = 0;
     while (offset < totalBytes) {
         const uint64_t remaining = totalBytes - offset;
         const uint32_t chunkBytes = static_cast<uint32_t>((remaining < ubSize) ? remaining : ubSize);
 
-        copy_gm_to_ubuf_align_v2(reinterpret_cast<__ubuf__ uint8_t *>(ubBuf),
-                                 reinterpret_cast<__gm__ uint8_t *>(srcPtr + offset), 0, 1, chunkBytes, 0, 0, false, 0,
-                                 chunkBytes, chunkBytes);
+        copy_gm_to_ubuf_align_v2(
+            reinterpret_cast<__ubuf__ uint8_t*>(ubBuf), reinterpret_cast<__gm__ uint8_t*>(srcPtr + offset), 0, 1,
+            chunkBytes, 0, 0, false, 0, chunkBytes, chunkBytes);
         set_flag(PIPE_MTE2, PIPE_MTE3, execCtx.syncId);
         wait_flag(PIPE_MTE2, PIPE_MTE3, execCtx.syncId);
 
-        copy_ubuf_to_gm_align_v2(reinterpret_cast<__gm__ uint8_t *>(dstPtr + offset),
-                                 reinterpret_cast<__ubuf__ uint8_t *>(ubBuf), 0, 1, chunkBytes, 0, chunkBytes,
-                                 chunkBytes);
+        copy_ubuf_to_gm_align_v2(
+            reinterpret_cast<__gm__ uint8_t*>(dstPtr + offset), reinterpret_cast<__ubuf__ uint8_t*>(ubBuf), 0, 1,
+            chunkBytes, 0, chunkBytes, chunkBytes);
         set_flag(PIPE_MTE3, PIPE_MTE2, execCtx.syncId);
         wait_flag(PIPE_MTE3, PIPE_MTE2, execCtx.syncId);
 
@@ -87,17 +90,19 @@ PTO_INTERNAL AsyncEvent TPUT_ASYNC_MTE_FALLBACK(GlobalDstData &dstGlobalData, Gl
 
 #ifdef PTO_URMA_SUPPORTED
 template <typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL AsyncEvent TPUT_ASYNC_URMA_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                                             const urma::UrmaExecContext &execCtx)
+PTO_INTERNAL AsyncEvent
+TPUT_ASYNC_URMA_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const urma::UrmaExecContext& execCtx)
 {
     (void)TPutAsyncCheckTensorCompatibility<GlobalDstData, GlobalSrcData>();
 
-    PTO_ASSERT(TPutAsyncIsFlatContiguous1D(srcGlobalData),
-               "TPUT_ASYNC URMA: src tensor must be flat contiguous 1D (packed layout, single logical line). "
-               "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
-    PTO_ASSERT(TPutAsyncIsFlatContiguous1D(dstGlobalData),
-               "TPUT_ASYNC URMA: dst tensor must be flat contiguous 1D (packed layout, single logical line). "
-               "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
+    PTO_ASSERT(
+        TPutAsyncIsFlatContiguous1D(srcGlobalData),
+        "TPUT_ASYNC URMA: src tensor must be flat contiguous 1D (packed layout, single logical line). "
+        "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
+    PTO_ASSERT(
+        TPutAsyncIsFlatContiguous1D(dstGlobalData),
+        "TPUT_ASYNC URMA: dst tensor must be flat contiguous 1D (packed layout, single logical line). "
+        "Multi-dimensional or non-contiguous tensors are not supported by URMA async path.");
 
     const uint32_t srcElems = TPutAsyncGetTotalElemCount(srcGlobalData);
     const uint32_t dstElems = TPutAsyncGetTotalElemCount(dstGlobalData);
@@ -105,12 +110,13 @@ PTO_INTERNAL AsyncEvent TPUT_ASYNC_URMA_IMPL(GlobalDstData &dstGlobalData, Globa
 
     using T = typename GlobalSrcData::RawDType;
     const uint64_t transferSize = static_cast<uint64_t>(srcElems) * sizeof(T);
-    PTO_ASSERT(transferSize > 0 && transferSize <= urma::kUrmaMaxWqeTransferBytes,
-               "TPUT_ASYNC URMA: transfer size must be in (0, 256MB] per single WQE");
+    PTO_ASSERT(
+        transferSize > 0 && transferSize <= urma::kUrmaMaxWqeTransferBytes,
+        "TPUT_ASYNC URMA: transfer size must be in (0, 256MB] per single WQE");
 
-    const uint64_t eventHandle =
-        urma::__urma_put_async(reinterpret_cast<__gm__ uint8_t *>(dstGlobalData.data()),
-                               reinterpret_cast<__gm__ uint8_t *>(srcGlobalData.data()), transferSize, execCtx);
+    const uint64_t eventHandle = urma::__urma_put_async(
+        reinterpret_cast<__gm__ uint8_t*>(dstGlobalData.data()),
+        reinterpret_cast<__gm__ uint8_t*>(srcGlobalData.data()), transferSize, execCtx);
     return AsyncEvent(eventHandle, DmaEngine::URMA);
 }
 #endif
@@ -123,8 +129,8 @@ PTO_INTERNAL AsyncEvent TPUT_ASYNC_URMA_IMPL(GlobalDstData &dstGlobalData, Globa
 // ============================================================================
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL AsyncEvent TPUT_ASYNC_IMPL(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
-                                        const AsyncSession &session)
+PTO_INTERNAL AsyncEvent
+TPUT_ASYNC_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const AsyncSession& session)
 {
     if constexpr (engine == DmaEngine::SDMA) {
         return detail::TPUT_ASYNC_MTE_FALLBACK(dstGlobalData, srcGlobalData, session.sdmaSession.execCtx);

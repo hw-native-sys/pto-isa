@@ -14,10 +14,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-#define PTO_DIV_ROUNDUP(x, y) (((x) + (y)-1) / (y))
+#define PTO_DIV_ROUNDUP(x, y) (((x) + (y) - 1) / (y))
 
 template <typename T, int validRows, int validCols, int upperOrLower, int diagonal>
-__global__ AICORE void runTTri(__gm__ T *out)
+__global__ AICORE void runTTri(__gm__ T* out)
 {
     constexpr uint16_t alignedCol = PTO_DIV_ROUNDUP(validCols, BLOCK_BYTE_SIZE) * BLOCK_BYTE_SIZE;
 
@@ -37,24 +37,24 @@ __global__ AICORE void runTTri(__gm__ T *out)
 }
 
 template <typename T, int validRows, int validCols, int upperOrLower, int diagonal>
-void LaunchTTri(T *out, void *stream)
+void LaunchTTri(T* out, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTTri<half, validRows, validCols, upperOrLower, diagonal><<<1, nullptr, stream>>>((half *)(out));
+        runTTri<half, validRows, validCols, upperOrLower, diagonal><<<1, nullptr, stream>>>((half*)(out));
     } else {
         runTTri<T, validRows, validCols, upperOrLower, diagonal><<<1, nullptr, stream>>>(out);
     }
 }
 
-template void LaunchTTri<float, 32, 91, 0, 0>(float *out, void *stream);
-template void LaunchTTri<float, 128, 128, 0, 0>(float *out, void *stream);
-template void LaunchTTri<float, 32, 91, 0, 3>(float *out, void *stream);
-template void LaunchTTri<float, 128, 128, 0, 3>(float *out, void *stream);
-template void LaunchTTri<float, 32, 91, 0, -3>(float *out, void *stream);
-template void LaunchTTri<float, 128, 128, 0, -3>(float *out, void *stream);
-template void LaunchTTri<float, 32, 91, 1, 0>(float *out, void *stream);
-template void LaunchTTri<float, 128, 128, 1, 0>(float *out, void *stream);
-template void LaunchTTri<float, 32, 91, 1, 3>(float *out, void *stream);
-template void LaunchTTri<float, 128, 128, 1, 3>(float *out, void *stream);
-template void LaunchTTri<float, 32, 91, 1, -3>(float *out, void *stream);
-template void LaunchTTri<float, 128, 128, 1, -3>(float *out, void *stream);
+template void LaunchTTri<float, 32, 91, 0, 0>(float* out, void* stream);
+template void LaunchTTri<float, 128, 128, 0, 0>(float* out, void* stream);
+template void LaunchTTri<float, 32, 91, 0, 3>(float* out, void* stream);
+template void LaunchTTri<float, 128, 128, 0, 3>(float* out, void* stream);
+template void LaunchTTri<float, 32, 91, 0, -3>(float* out, void* stream);
+template void LaunchTTri<float, 128, 128, 0, -3>(float* out, void* stream);
+template void LaunchTTri<float, 32, 91, 1, 0>(float* out, void* stream);
+template void LaunchTTri<float, 128, 128, 1, 0>(float* out, void* stream);
+template void LaunchTTri<float, 32, 91, 1, 3>(float* out, void* stream);
+template void LaunchTTri<float, 128, 128, 1, 3>(float* out, void* stream);
+template void LaunchTTri<float, 32, 91, 1, -3>(float* out, void* stream);
+template void LaunchTTri<float, 128, 128, 1, -3>(float* out, void* stream);

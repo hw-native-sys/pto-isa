@@ -15,15 +15,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int vRows, int vCols>
-__global__ AICORE void runTAndS(__gm__ T __out__ *out, __gm__ T __in__ *src0, T scalar)
+__global__ AICORE void runTAndS(__gm__ T __out__* out, __gm__ T __in__* src0, T scalar)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
     using GlobalData = GlobalTensor<T, DynShape, DynStride>;
-    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, vCols),
-                         pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
-    GlobalData src0Global(src0, pto::Shape(1, 1, 1, vRows, vCols),
-                          pto::Stride(srcTileH * srcTileW, srcTileH * srcTileW, srcTileH * srcTileW, srcTileW, 1));
+    GlobalData dstGlobal(
+        out, pto::Shape(1, 1, 1, vRows, vCols),
+        pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
+    GlobalData src0Global(
+        src0, pto::Shape(1, 1, 1, vRows, vCols),
+        pto::Stride(srcTileH * srcTileW, srcTileH * srcTileW, srcTileH * srcTileW, srcTileW, 1));
 
     using TileDataDst = Tile<TileType::Vec, T, dstTileH, dstTileW, BLayout::RowMajor, -1, -1>;
     using TileDataSrc = Tile<TileType::Vec, T, srcTileH, srcTileW, BLayout::RowMajor, -1, -1>;
@@ -47,26 +49,26 @@ __global__ AICORE void runTAndS(__gm__ T __out__ *out, __gm__ T __in__ *src0, T 
 }
 
 template <typename T, int dstTileH, int dstTileW, int srcTileH, int srcTileW, int vRows, int vCols>
-void LaunchTAndS(T *out, T *src, T scalar, void *stream)
+void LaunchTAndS(T* out, T* src, T scalar, void* stream)
 {
     runTAndS<T, dstTileH, dstTileW, srcTileH, srcTileW, vRows, vCols><<<1, nullptr, stream>>>(out, src, scalar);
 }
 
-template void LaunchTAndS<int16_t, 64, 64, 64, 64, 64, 64>(int16_t *out, int16_t *src, int16_t scalar, void *stream);
-template void LaunchTAndS<int16_t, 32, 128, 32, 128, 32, 128>(int16_t *out, int16_t *src, int16_t scalar, void *stream);
-template void LaunchTAndS<int16_t, 32, 112, 32, 128, 32, 111>(int16_t *out, int16_t *src, int16_t scalar, void *stream);
-template void LaunchTAndS<uint16_t, 64, 64, 64, 64, 64, 64>(uint16_t *out, uint16_t *src, uint16_t scalar,
-                                                            void *stream);
-template void LaunchTAndS<uint16_t, 32, 128, 32, 128, 32, 128>(uint16_t *out, uint16_t *src, uint16_t scalar,
-                                                               void *stream);
-template void LaunchTAndS<uint16_t, 32, 112, 32, 128, 32, 111>(uint16_t *out, uint16_t *src, uint16_t scalar,
-                                                               void *stream);
-template void LaunchTAndS<int32_t, 64, 64, 64, 64, 64, 64>(int32_t *out, int32_t *src, int32_t scalar, void *stream);
-template void LaunchTAndS<int32_t, 32, 128, 32, 128, 32, 128>(int32_t *out, int32_t *src, int32_t scalar, void *stream);
-template void LaunchTAndS<int32_t, 32, 112, 32, 128, 32, 111>(int32_t *out, int32_t *src, int32_t scalar, void *stream);
-template void LaunchTAndS<uint32_t, 64, 64, 64, 64, 64, 64>(uint32_t *out, uint32_t *src, uint32_t scalar,
-                                                            void *stream);
-template void LaunchTAndS<uint32_t, 32, 128, 32, 128, 32, 128>(uint32_t *out, uint32_t *src, uint32_t scalar,
-                                                               void *stream);
-template void LaunchTAndS<uint32_t, 32, 112, 32, 128, 32, 111>(uint32_t *out, uint32_t *src, uint32_t scalar,
-                                                               void *stream);
+template void LaunchTAndS<int16_t, 64, 64, 64, 64, 64, 64>(int16_t* out, int16_t* src, int16_t scalar, void* stream);
+template void LaunchTAndS<int16_t, 32, 128, 32, 128, 32, 128>(int16_t* out, int16_t* src, int16_t scalar, void* stream);
+template void LaunchTAndS<int16_t, 32, 112, 32, 128, 32, 111>(int16_t* out, int16_t* src, int16_t scalar, void* stream);
+template void LaunchTAndS<uint16_t, 64, 64, 64, 64, 64, 64>(
+    uint16_t* out, uint16_t* src, uint16_t scalar, void* stream);
+template void LaunchTAndS<uint16_t, 32, 128, 32, 128, 32, 128>(
+    uint16_t* out, uint16_t* src, uint16_t scalar, void* stream);
+template void LaunchTAndS<uint16_t, 32, 112, 32, 128, 32, 111>(
+    uint16_t* out, uint16_t* src, uint16_t scalar, void* stream);
+template void LaunchTAndS<int32_t, 64, 64, 64, 64, 64, 64>(int32_t* out, int32_t* src, int32_t scalar, void* stream);
+template void LaunchTAndS<int32_t, 32, 128, 32, 128, 32, 128>(int32_t* out, int32_t* src, int32_t scalar, void* stream);
+template void LaunchTAndS<int32_t, 32, 112, 32, 128, 32, 111>(int32_t* out, int32_t* src, int32_t scalar, void* stream);
+template void LaunchTAndS<uint32_t, 64, 64, 64, 64, 64, 64>(
+    uint32_t* out, uint32_t* src, uint32_t scalar, void* stream);
+template void LaunchTAndS<uint32_t, 32, 128, 32, 128, 32, 128>(
+    uint32_t* out, uint32_t* src, uint32_t scalar, void* stream);
+template void LaunchTAndS<uint32_t, 32, 112, 32, 128, 32, 111>(
+    uint32_t* out, uint32_t* src, uint32_t scalar, void* stream);

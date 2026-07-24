@@ -579,6 +579,19 @@
       "notes": []
     },
     {
+      "instruction": "TAXPY",
+      "category": "Tile-Scalar / Tile-Immediate",
+      "summary_en": "In-place scaled accumulation (AXPY): dst = scalar * src0 + dst.",
+      "summary_zh": "原位缩放累加（AXPY）：dst = scalar * src0 + dst。",
+      "diagram_template": "scalar",
+      "operands": [
+        "dst",
+        "src0",
+        "scalar"
+      ],
+      "notes": []
+    },
+    {
       "instruction": "TDIVS",
       "category": "Tile-Scalar / Tile-Immediate",
       "summary_en": "Elementwise division with a scalar (tile/scalar or scalar/tile).",
@@ -1588,6 +1601,35 @@
       "notes": []
     },
     {
+      "instruction": "TDEQUANT",
+      "category": "Complex",
+      "summary_en": "Affine dequantization of a quantized tile (S8/S16 -> FP32): dst = (src - offset) * scale.",
+      "summary_zh": "对量化 Tile 做仿射反量化（S8/S16 -> FP32）：dst = (src - offset) * scale。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src",
+        "scale",
+        "offset"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "THISTOGRAM",
+      "category": "Complex",
+      "summary_en": "Per-byte histogram (256 bins) over a selected byte of each source element, with optional cascaded upper-byte filtering; the radix-sort bucket-count primitive.",
+      "summary_zh": "对源元素的某个字节统计直方图（256 桶），可按高位字节级联过滤；基数排序的桶计数原语。",
+      "diagram_template": "complex",
+      "operands": [
+        "dst",
+        "src",
+        "idx"
+      ],
+      "notes": [
+        "Available on A5 / Kirin9030 / CPU-sim only (PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_KIRIN9030 || __CPU_SIM)."
+      ]
+    },
+    {
       "instruction": "TADDReluConv",
       "category": "Complex",
       "summary_en": "Fused elementwise add, ReLU clamp, and type conversion: dst = convert(max(0, src0 + src1)).",
@@ -1597,6 +1639,20 @@
         "dst",
         "src0",
         "src1"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "TAddDeqRelu",
+      "category": "Complex",
+      "summary_en": "Fused elementwise add, dequantization scale, and ReLU clamp: dst = half(max(0, (src0 + src1) * deqScale)).",
+      "summary_zh": "融合逐元素加法、反量化缩放和 ReLU 限幅：dst = half(max(0, (src0 + src1) * deqScale))。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1",
+        "tmp"
       ],
       "notes": []
     }

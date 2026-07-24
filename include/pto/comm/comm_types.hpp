@@ -36,44 +36,35 @@ template <typename GlobalData>
 struct ParallelGroup {
     using value_type = GlobalData; // Type alias for type traits
 
-    GlobalData *tensors{nullptr};  // Points to external array of GlobalData objects
+    GlobalData* tensors{nullptr}; // Points to external array of GlobalData objects
     int nranks{0};
     int rootIdx{-1};
 
     constexpr ParallelGroup() = default;
 
     // Constructor: takes array of GlobalData objects
-    AICORE constexpr ParallelGroup(GlobalData *tensorArray, int size, int root)
+    AICORE constexpr ParallelGroup(GlobalData* tensorArray, int size, int root)
         : tensors(tensorArray), nranks(size), rootIdx(root)
     {}
 
     // Factory function (recommended).
     // rootIdx: the index of the root rank in the group (not the caller's own rank).
     // All ranks in the group must pass the same rootIdx value.
-    AICORE static constexpr ParallelGroup Create(GlobalData *tensorArray, int size, int rootIdx)
+    AICORE static constexpr ParallelGroup Create(GlobalData* tensorArray, int size, int rootIdx)
     {
         return ParallelGroup(tensorArray, size, rootIdx);
     }
 
-    AICORE constexpr int GetRootIdx() const
-    {
-        return rootIdx;
-    }
-    AICORE constexpr int GetSize() const
-    {
-        return nranks;
-    }
-    AICORE constexpr bool empty() const
-    {
-        return nranks == 0;
-    }
+    AICORE constexpr int GetRootIdx() const { return rootIdx; }
+    AICORE constexpr int GetSize() const { return nranks; }
+    AICORE constexpr bool empty() const { return nranks == 0; }
 
-    AICORE constexpr GlobalData &operator[](int teamRank)
+    AICORE constexpr GlobalData& operator[](int teamRank)
     {
         PTO_ASSERT(teamRank >= 0 && teamRank < nranks, "ParallelGroup: teamRank out of bounds");
         return tensors[teamRank];
     }
-    AICORE constexpr const GlobalData &operator[](int teamRank) const
+    AICORE constexpr const GlobalData& operator[](int teamRank) const
     {
         PTO_ASSERT(teamRank >= 0 && teamRank < nranks, "ParallelGroup: teamRank out of bounds");
         return tensors[teamRank];
@@ -95,8 +86,7 @@ struct ParallelGroupTraits<ParallelGroup<GlobalData>> {
 // NotifyOp: Notification operation type for TNOTIFY
 // ============================================================================
 
-enum class NotifyOp : uint8_t
-{
+enum class NotifyOp : uint8_t {
     AtomicAdd = 0, // Atomic add operation
     Set = 1,       // Direct set operation
 };
@@ -105,8 +95,7 @@ enum class NotifyOp : uint8_t
 // WaitCmp: Comparison operators for signal wait/test operations
 // ============================================================================
 
-enum class WaitCmp : uint8_t
-{
+enum class WaitCmp : uint8_t {
     EQ = 0, // Equal
     NE = 1, // Not equal
     GT = 2, // Greater than
@@ -119,8 +108,7 @@ enum class WaitCmp : uint8_t
 // ReduceOp: Reduction operators for TREDUCE
 // ============================================================================
 
-enum class ReduceOp : uint8_t
-{
+enum class ReduceOp : uint8_t {
     Sum = 0, // Element-wise sum
     Max = 1, // Element-wise maximum
     Min = 2, // Element-wise minimum
@@ -130,8 +118,7 @@ enum class ReduceOp : uint8_t
 // DmaEngine: DMA constraints for data transfer
 // ============================================================================
 
-enum class DmaEngine : uint8_t
-{
+enum class DmaEngine : uint8_t {
     SDMA = 0, // Supports 2D transfer
     URMA = 1, // Supports 1D transfer (HCCP V2 Jetty, NPU_ARCH 3510 only)
 };
@@ -142,8 +129,7 @@ enum class DmaEngine : uint8_t
 //   CCU  — AIV triggers CKE gate, CCU hardware performs the collective
 // ============================================================================
 
-enum class CollEngine : uint8_t
-{
+enum class CollEngine : uint8_t {
     AIV = 0,
     CCU = 1,
 };
@@ -164,8 +150,7 @@ enum class CollEngine : uint8_t
 //                CCU reduce → outputAddr, all without host memcpy.
 // ============================================================================
 
-enum class CcuInputSource : uint8_t
-{
+enum class CcuInputSource : uint8_t {
     HostManaged = 0,
     AivStored = 1,
 };
@@ -173,9 +158,6 @@ enum class CcuInputSource : uint8_t
 // ============================================================================
 // CcuTriggerContext: Opaque context passed from host to AIV kernel for CCU path.
 // Host fills it from ccu::TryGet() + rtGetDevResAddress() before kernel launch.
-//
-// `selfIdx` and `inputSource` are only consulted by the CCU IMPL when
-// `inputSource == AivStored`; HostManaged callers may leave them at default.
 // ============================================================================
 
 struct CcuTriggerContext {
@@ -196,15 +178,11 @@ struct AsyncEvent {
     DmaEngine engine{DmaEngine::SDMA};
 
     AICORE constexpr AsyncEvent() = default;
-    AICORE constexpr AsyncEvent(uint64_t h, DmaEngine e) : handle(h), engine(e)
-    {}
-    AICORE constexpr bool valid() const
-    {
-        return handle != 0;
-    }
+    AICORE constexpr AsyncEvent(uint64_t h, DmaEngine e) : handle(h), engine(e) {}
+    AICORE constexpr bool valid() const { return handle != 0; }
 
-    PTO_INTERNAL bool Wait(const AsyncSession &session) const;
-    PTO_INTERNAL bool Test(const AsyncSession &session) const;
+    PTO_INTERNAL bool Wait(const AsyncSession& session) const;
+    PTO_INTERNAL bool Test(const AsyncSession& session) const;
 };
 
 // ============================================================================
@@ -244,11 +222,10 @@ private:
 
 public:
     // Dense constructor: stride = Cols (contiguous layout)
-    PTO_INTERNAL Signal2D(typename Base::DType *ptr) : Base(ptr, typename Base::Shape{}, typename Base::Stride{Cols})
-    {}
+    PTO_INTERNAL Signal2D(typename Base::DType* ptr) : Base(ptr, typename Base::Shape{}, typename Base::Stride{Cols}) {}
 
     // Strided constructor: custom DIM_3 stride for sub-region views
-    PTO_INTERNAL Signal2D(typename Base::DType *ptr, int stride)
+    PTO_INTERNAL Signal2D(typename Base::DType* ptr, int stride)
         : Base(ptr, typename Base::Shape{}, typename Base::Stride{stride})
     {}
 };

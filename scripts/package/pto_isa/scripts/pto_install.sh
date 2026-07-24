@@ -70,7 +70,7 @@ get_opts() {
 
   if [ "${TARGET_INSTALL_PATH}" = "" ] || [ "${TARGET_USERNAME}" = "" ] ||
     [ "${TARGET_USERGROUP}" = "" ] || [ "${INSTALL_TYPE}" = "" ]; then
-    logandprint "[ERROR]: ERR_NO:${PARAM_INVALID};ERR_DES:Empty paramters is invalid for install."
+    logandprint "[ERROR]: ERR_NO:${PARAM_INVALID};ERR_DES:Empty parameters is invalid for install."
     exit 1
   fi
 
@@ -679,7 +679,7 @@ main() {
 
   # change installed folder's owner and group except aicpu
   chown "${TARGET_USERNAME}":"${TARGET_USERGROUP}" "${TARGET_MOULDE_DIR}" 2>/dev/null
-  log_with_errorlevel "$?" "error" "[ERROR]: ERR_NO:${INSTALL_FAILED};ERR_DES:Change pto onwership failed.."
+  log_with_errorlevel "$?" "error" "[ERROR]: ERR_NO:${INSTALL_FAILED};ERR_DES:Change pto ownership failed.."
 
   logandprint "[INFO]: upgradePercentage:100%"
 

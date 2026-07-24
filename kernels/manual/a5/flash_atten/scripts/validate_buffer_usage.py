@@ -46,10 +46,7 @@ def compute_l1_usage_nd(cube_s0: int, cube_s1: int, head_size: int, qk_preload: 
 
     total_bytes = q_bytes + k_bytes + p_bytes + v_bytes
 
-    return {
-        "total_bytes": total_bytes,
-        "fits_in_l1": total_bytes <= MAX_L1_BYTES,
-    }
+    return {"total_bytes": total_bytes, "fits_in_l1": total_bytes <= MAX_L1_BYTES}
 
 
 def compute_ub_usage_nd(cube_s0: int, cube_s1: int, head_size: int, tile_s1: int, cv_fifo_size: int) -> dict:
@@ -81,10 +78,7 @@ def compute_ub_usage_nd(cube_s0: int, cube_s1: int, head_size: int, tile_s1: int
     main_bytes = src_bytes + pv_bytes + xexp_bytes + (reduce_tile_f_bytes * (4 + exp_max_buffers)) + tile_out_gu_bytes
     total_bytes = main_bytes + tile_data_h_nz_bytes
 
-    return {
-        "total_bytes": total_bytes,
-        "fits_in_ub": total_bytes <= MAX_UB_BYTES,
-    }
+    return {"total_bytes": total_bytes, "fits_in_ub": total_bytes <= MAX_UB_BYTES}
 
 
 def compute_l1_usage_dn(cube_s0: int, cube_s1: int, head_size: int) -> dict:
@@ -105,10 +99,7 @@ def compute_l1_usage_dn(cube_s0: int, cube_s1: int, head_size: int) -> dict:
 
     total_bytes = q_bytes + k_bytes + p_bytes + v_bytes
 
-    return {
-        "total_bytes": total_bytes,
-        "fits_in_l1": total_bytes <= MAX_L1_BYTES,
-    }
+    return {"total_bytes": total_bytes, "fits_in_l1": total_bytes <= MAX_L1_BYTES}
 
 
 def compute_ub_usage_dn(cube_s0: int, cube_s1: int, head_size: int, tile_s1: int, cv_fifo_size: int) -> dict:
@@ -137,13 +128,16 @@ def compute_ub_usage_dn(cube_s0: int, cube_s1: int, head_size: int, tile_s1: int
 
     exp_max_buffers = cv_fifo_size
 
-    total_bytes = src_bytes + pv_bytes + xexp_bytes + \
-                  (reduce_tile_f_bytes * (3 + exp_max_buffers)) + tile_out_gu_bytes + tile_data_h_nz_bytes
+    total_bytes = (
+        src_bytes
+        + pv_bytes
+        + xexp_bytes
+        + (reduce_tile_f_bytes * (3 + exp_max_buffers))
+        + tile_out_gu_bytes
+        + tile_data_h_nz_bytes
+    )
 
-    return {
-        "total_bytes": total_bytes,
-        "fits_in_ub": total_bytes <= MAX_UB_BYTES,
-    }
+    return {"total_bytes": total_bytes, "fits_in_ub": total_bytes <= MAX_UB_BYTES}
 
 
 def format_size(bytes_val: int) -> str:
@@ -153,26 +147,10 @@ def format_size(bytes_val: int) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Validate buffer usage for FlashAttention cases"
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["nd", "dn"],
-        required=True,
-        help="Mode: nd (normal) or dn (dense)"
-    )
-    parser.add_argument(
-        "--cases",
-        required=True,
-        help="Path to generated_cases.json"
-    )
-    parser.add_argument(
-        "--cv_fifo_size",
-        type=int,
-        default=4,
-        help="CV FIFO size (default: 4)"
-    )
+    parser = argparse.ArgumentParser(description="Validate buffer usage for FlashAttention cases")
+    parser.add_argument("--mode", choices=["nd", "dn"], required=True, help="Mode: nd (normal) or dn (dense)")
+    parser.add_argument("--cases", required=True, help="Path to generated_cases.json")
+    parser.add_argument("--cv_fifo_size", type=int, default=4, help="CV FIFO size (default: 4)")
     args = parser.parse_args()
 
     cases_path = Path(args.cases)

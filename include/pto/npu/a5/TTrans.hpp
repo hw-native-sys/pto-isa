@@ -21,9 +21,9 @@ using namespace pto;
 namespace pto {
 
 template <typename TileDataSrc, typename TileDataDst, unsigned elementsPerRepeat, unsigned blockSizeElem>
-PTO_INTERNAL void TTransB32ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
-                                   __ubuf__ typename TileDataSrc::DType *srcPtr, unsigned numRows, unsigned numCols,
-                                   unsigned dstStride, unsigned srcStride)
+PTO_INTERNAL void TTransB32ColWise(
+    __ubuf__ typename TileDataDst::DType* dstPtr, __ubuf__ typename TileDataSrc::DType* srcPtr, unsigned numRows,
+    unsigned numCols, unsigned dstStride, unsigned srcStride)
 {
     using T = typename TileDataSrc::DType;
     if constexpr (std::is_same_v<T, uint32_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, float>) {
@@ -44,18 +44,18 @@ PTO_INTERNAL void TTransB32ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM_B32>())>();
             for (uint16_t col = 0; col < (uint16_t)numCols; ++col) {
                 for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
-                    vci((RegTensor<int32_t> &)vreg0, (int32_t)(chunk * elementsPerRepeat), INC_ORDER);
+                    vci((RegTensor<int32_t>&)vreg0, (int32_t)(chunk * elementsPerRepeat), INC_ORDER);
                     vmins(vreg0, vreg0, (uint32_t)(numRows - 1), pregFull);
                     vmuls(vreg0, vreg0, srcStride, pregFull);
                     vadds(vreg0, vreg0, col, pregFull);
-                    vgather2(vreg1, srcPtr, (RegTensor<uint32_t> &)vreg0, pregFull);
+                    vgather2(vreg1, srcPtr, (RegTensor<uint32_t>&)vreg0, pregFull);
                     vsts(vreg1, dstPtr, (col * dstStride + chunk * elementsPerRepeat), distValue, pregFull);
                 }
-                vci((RegTensor<int32_t> &)vreg0, (int32_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vci((RegTensor<int32_t>&)vreg0, (int32_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
                 vmins(vreg0, vreg0, (uint32_t)(numRows - 1), pregTail);
                 vmuls(vreg0, vreg0, srcStride, pregTail);
                 vadds(vreg0, vreg0, col, pregTail);
-                vgather2(vreg1, srcPtr, (RegTensor<uint32_t> &)vreg0, pregTail);
+                vgather2(vreg1, srcPtr, (RegTensor<uint32_t>&)vreg0, pregTail);
                 vsts(vreg1, dstPtr, (col * dstStride + lastRepeat * elementsPerRepeat), distValue, pregTail);
             }
         }
@@ -65,9 +65,9 @@ PTO_INTERNAL void TTransB32ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
 }
 
 template <typename TileDataSrc, typename TileDataDst, unsigned elementsPerRepeat, unsigned blockSizeElem>
-PTO_INTERNAL void TTransB32RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
-                                   __ubuf__ typename TileDataSrc::DType *srcPtr, unsigned numRows, unsigned numCols,
-                                   unsigned dstStride, unsigned srcStride)
+PTO_INTERNAL void TTransB32RowWise(
+    __ubuf__ typename TileDataDst::DType* dstPtr, __ubuf__ typename TileDataSrc::DType* srcPtr, unsigned numRows,
+    unsigned numCols, unsigned dstStride, unsigned srcStride)
 {
     using T = typename TileDataSrc::DType;
 
@@ -88,18 +88,18 @@ PTO_INTERNAL void TTransB32RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
             for (uint16_t row = 0; row < (uint16_t)numRows; ++row) {
                 for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vlds(vreg1, srcPtr, (row * srcStride + chunk * elementsPerRepeat), NORM);
-                    vci((RegTensor<int32_t> &)vreg0, (int32_t)(chunk * elementsPerRepeat), INC_ORDER);
+                    vci((RegTensor<int32_t>&)vreg0, (int32_t)(chunk * elementsPerRepeat), INC_ORDER);
                     vmins(vreg0, vreg0, (uint32_t)(numCols - 1), pregFull);
                     vmuls(vreg0, vreg0, dstStride, pregFull);
                     vadds(vreg0, vreg0, row, pregFull);
-                    vscatter(vreg1, dstPtr, (RegTensor<uint32_t> &)vreg0, pregFull);
+                    vscatter(vreg1, dstPtr, (RegTensor<uint32_t>&)vreg0, pregFull);
                 }
                 vlds(vreg1, srcPtr, (row * srcStride + lastRepeat * elementsPerRepeat), NORM);
-                vci((RegTensor<int32_t> &)vreg0, (int32_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vci((RegTensor<int32_t>&)vreg0, (int32_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
                 vmins(vreg0, vreg0, (uint32_t)(numCols - 1), pregTail);
                 vmuls(vreg0, vreg0, dstStride, pregTail);
                 vadds(vreg0, vreg0, row, pregTail);
-                vscatter(vreg1, dstPtr, (RegTensor<uint32_t> &)vreg0, pregTail);
+                vscatter(vreg1, dstPtr, (RegTensor<uint32_t>&)vreg0, pregTail);
             }
         }
     } else {
@@ -108,13 +108,14 @@ PTO_INTERNAL void TTransB32RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
 }
 
 template <typename TileDataSrc, typename TileDataDst, unsigned elementsPerRepeat, unsigned blockSizeElem>
-PTO_INTERNAL void TTransB16ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
-                                   __ubuf__ typename TileDataSrc::DType *srcPtr, unsigned numRows, unsigned numCols,
-                                   unsigned dstStride, unsigned srcStride)
+PTO_INTERNAL void TTransB16ColWise(
+    __ubuf__ typename TileDataDst::DType* dstPtr, __ubuf__ typename TileDataSrc::DType* srcPtr, unsigned numRows,
+    unsigned numCols, unsigned dstStride, unsigned srcStride)
 {
     using T = typename TileDataSrc::DType;
-    if constexpr (std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
-                  std::is_same_v<T, bfloat16_t>) {
+    if constexpr (
+        std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
+        std::is_same_v<T, bfloat16_t>) {
         uint16_t repeatTimes = CeilDivision(numRows, elementsPerRepeat);
         uint32_t tailEleNum = numRows % elementsPerRepeat;
         if (tailEleNum == 0) {
@@ -132,18 +133,18 @@ PTO_INTERNAL void TTransB16ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
                 std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM_B16>())>();
             for (uint16_t col = 0; col < (uint16_t)numCols; ++col) {
                 for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
-                    vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * elementsPerRepeat), INC_ORDER);
+                    vci((RegTensor<int16_t>&)vreg0, (int16_t)(chunk * elementsPerRepeat), INC_ORDER);
                     vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregFull);
                     vmuls(vreg0, vreg0, srcStride, pregFull);
                     vadds(vreg0, vreg0, col, pregFull);
-                    vgather2(vreg1, srcPtr, (RegTensor<uint16_t> &)vreg0, pregFull);
+                    vgather2(vreg1, srcPtr, (RegTensor<uint16_t>&)vreg0, pregFull);
                     vsts(vreg1, dstPtr, (col * dstStride + chunk * elementsPerRepeat), distValue, pregFull);
                 }
-                vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vci((RegTensor<int16_t>&)vreg0, (int16_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
                 vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregTail);
                 vmuls(vreg0, vreg0, srcStride, pregTail);
                 vadds(vreg0, vreg0, col, pregTail);
-                vgather2(vreg1, srcPtr, (RegTensor<uint16_t> &)vreg0, pregTail);
+                vgather2(vreg1, srcPtr, (RegTensor<uint16_t>&)vreg0, pregTail);
                 vsts(vreg1, dstPtr, (col * dstStride + lastRepeat * elementsPerRepeat), distValue, pregTail);
             }
         }
@@ -153,14 +154,15 @@ PTO_INTERNAL void TTransB16ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
 }
 
 template <typename TileDataSrc, typename TileDataDst, unsigned elementsPerRepeat, unsigned blockSizeElem>
-PTO_INTERNAL void TTransB16RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
-                                   __ubuf__ typename TileDataSrc::DType *srcPtr, unsigned numRows, unsigned numCols,
-                                   unsigned dstStride, unsigned srcStride)
+PTO_INTERNAL void TTransB16RowWise(
+    __ubuf__ typename TileDataDst::DType* dstPtr, __ubuf__ typename TileDataSrc::DType* srcPtr, unsigned numRows,
+    unsigned numCols, unsigned dstStride, unsigned srcStride)
 {
     using T = typename TileDataSrc::DType;
 
-    if constexpr (std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
-                  std::is_same_v<T, bfloat16_t>) {
+    if constexpr (
+        std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
+        std::is_same_v<T, bfloat16_t>) {
         uint16_t repeatTimes = CeilDivision(numCols, elementsPerRepeat);
         uint32_t tailEleNum = numCols % elementsPerRepeat;
         if (tailEleNum == 0) {
@@ -177,18 +179,18 @@ PTO_INTERNAL void TTransB16RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
             for (uint16_t row = 0; row < (uint16_t)numRows; ++row) {
                 for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                     vlds(vreg1, srcPtr, (row * srcStride + chunk * elementsPerRepeat), NORM);
-                    vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * elementsPerRepeat), INC_ORDER);
+                    vci((RegTensor<int16_t>&)vreg0, (int16_t)(chunk * elementsPerRepeat), INC_ORDER);
                     vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregFull);
                     vmuls(vreg0, vreg0, dstStride, pregFull);
                     vadds(vreg0, vreg0, row, pregFull);
-                    vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, pregFull);
+                    vscatter(vreg1, dstPtr, (RegTensor<uint16_t>&)vreg0, pregFull);
                 }
                 vlds(vreg1, srcPtr, (row * srcStride + lastRepeat * elementsPerRepeat), NORM);
-                vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
+                vci((RegTensor<int16_t>&)vreg0, (int16_t)(lastRepeat * elementsPerRepeat), INC_ORDER);
                 vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregTail);
                 vmuls(vreg0, vreg0, dstStride, pregTail);
                 vadds(vreg0, vreg0, row, pregTail);
-                vscatter(vreg1, dstPtr, (RegTensor<uint16_t> &)vreg0, pregTail);
+                vscatter(vreg1, dstPtr, (RegTensor<uint16_t>&)vreg0, pregTail);
             }
         }
     } else {
@@ -197,15 +199,15 @@ PTO_INTERNAL void TTransB16RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
 }
 
 template <typename TileDataSrc, typename TileDataDst, unsigned elementsPerRepeat, unsigned blockSizeElem>
-PTO_INTERNAL void TTransB8ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
-                                  __ubuf__ typename TileDataSrc::DType *srcPtr, unsigned numRows, unsigned numCols,
-                                  unsigned dstStride, unsigned srcStride)
+PTO_INTERNAL void TTransB8ColWise(
+    __ubuf__ typename TileDataDst::DType* dstPtr, __ubuf__ typename TileDataSrc::DType* srcPtr, unsigned numRows,
+    unsigned numCols, unsigned dstStride, unsigned srcStride)
 {
     using T = typename TileDataSrc::DType;
     using WorkT =
         std::conditional_t<sizeof(T) == 1 && !std::is_same_v<T, uint8_t> && !std::is_same_v<T, int8_t>, uint8_t, T>;
-    __ubuf__ WorkT *srcWorkPtr = (__ubuf__ WorkT *)srcPtr;
-    __ubuf__ WorkT *dstWorkPtr = (__ubuf__ WorkT *)dstPtr;
+    __ubuf__ WorkT* srcWorkPtr = (__ubuf__ WorkT*)srcPtr;
+    __ubuf__ WorkT* dstWorkPtr = (__ubuf__ WorkT*)dstPtr;
     constexpr uint32_t sregLower = elementsPerRepeat >> 1;
     uint16_t repeatTimes = CeilDivision(numRows, sregLower);
     uint32_t tailEleNum = numRows % sregLower;
@@ -224,35 +226,34 @@ PTO_INTERNAL void TTransB8ColWise(__ubuf__ typename TileDataDst::DType *dstPtr,
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<WorkT, DistVST::DIST_PK_B16>())>();
         for (uint16_t col = 0; col < (uint16_t)numCols; ++col) {
             for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
-                vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * sregLower), INC_ORDER);
+                vci((RegTensor<int16_t>&)vreg0, (int16_t)(chunk * sregLower), INC_ORDER);
                 vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregFull);
                 vmuls(vreg0, vreg0, srcStride, pregFull);
                 vadds(vreg0, vreg0, col, pregFull);
-                vgather2((RegTensor<uint16_t> &)vreg1, (__ubuf__ uint8_t *)srcWorkPtr, (RegTensor<uint16_t> &)vreg0,
-                         pregFull);
+                vgather2(
+                    (RegTensor<uint16_t>&)vreg1, (__ubuf__ uint8_t*)srcWorkPtr, (RegTensor<uint16_t>&)vreg0, pregFull);
                 vsts(vreg1, dstWorkPtr, (col * dstStride + chunk * sregLower), distValue, pregFull);
             }
-            vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * sregLower), INC_ORDER);
+            vci((RegTensor<int16_t>&)vreg0, (int16_t)(lastRepeat * sregLower), INC_ORDER);
             vmins(vreg0, vreg0, (uint16_t)(numRows - 1), pregTail);
             vmuls(vreg0, vreg0, srcStride, pregTail);
             vadds(vreg0, vreg0, col, pregTail);
-            vgather2((RegTensor<uint16_t> &)vreg1, (__ubuf__ uint8_t *)srcWorkPtr, (RegTensor<uint16_t> &)vreg0,
-                     pregTail);
+            vgather2((RegTensor<uint16_t>&)vreg1, (__ubuf__ uint8_t*)srcWorkPtr, (RegTensor<uint16_t>&)vreg0, pregTail);
             vsts(vreg1, dstWorkPtr, (col * dstStride + lastRepeat * sregLower), distValue, pregTail);
         }
     }
 }
 
 template <typename TileDataSrc, typename TileDataDst, unsigned elementsPerRepeat, unsigned blockSizeElem>
-PTO_INTERNAL void TTransB8RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
-                                  __ubuf__ typename TileDataSrc::DType *srcPtr, unsigned numRows, unsigned numCols,
-                                  unsigned dstStride, unsigned srcStride)
+PTO_INTERNAL void TTransB8RowWise(
+    __ubuf__ typename TileDataDst::DType* dstPtr, __ubuf__ typename TileDataSrc::DType* srcPtr, unsigned numRows,
+    unsigned numCols, unsigned dstStride, unsigned srcStride)
 {
     using T = typename TileDataSrc::DType;
     using WorkT =
         std::conditional_t<sizeof(T) == 1 && !std::is_same_v<T, uint8_t> && !std::is_same_v<T, int8_t>, uint8_t, T>;
-    __ubuf__ WorkT *srcWorkPtr = (__ubuf__ WorkT *)srcPtr;
-    __ubuf__ WorkT *dstWorkPtr = (__ubuf__ WorkT *)dstPtr;
+    __ubuf__ WorkT* srcWorkPtr = (__ubuf__ WorkT*)srcPtr;
+    __ubuf__ WorkT* dstWorkPtr = (__ubuf__ WorkT*)dstPtr;
 
     constexpr uint32_t sregLower = elementsPerRepeat >> 1;
     uint16_t repeatTimes = CeilDivision(numCols, sregLower);
@@ -271,31 +272,30 @@ PTO_INTERNAL void TTransB8RowWise(__ubuf__ typename TileDataDst::DType *dstPtr,
         for (uint16_t row = 0; row < (uint16_t)numRows; ++row) {
             for (uint16_t chunk = 0; chunk < lastRepeat; ++chunk) {
                 vlds(vreg1, srcWorkPtr, (row * srcStride + chunk * sregLower), UNPK_B8);
-                vci((RegTensor<int16_t> &)vreg0, (int16_t)(chunk * sregLower), INC_ORDER);
+                vci((RegTensor<int16_t>&)vreg0, (int16_t)(chunk * sregLower), INC_ORDER);
                 vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregFull);
                 vmuls(vreg0, vreg0, dstStride, pregFull);
                 vadds(vreg0, vreg0, row, pregFull);
-                vscatter(vreg1, dstWorkPtr, (RegTensor<uint16_t> &)vreg0, pregFull);
+                vscatter(vreg1, dstWorkPtr, (RegTensor<uint16_t>&)vreg0, pregFull);
             }
             vlds(vreg1, srcWorkPtr, (row * srcStride + lastRepeat * sregLower), UNPK_B8);
-            vci((RegTensor<int16_t> &)vreg0, (int16_t)(lastRepeat * sregLower), INC_ORDER);
+            vci((RegTensor<int16_t>&)vreg0, (int16_t)(lastRepeat * sregLower), INC_ORDER);
             vmins(vreg0, vreg0, (uint16_t)(numCols - 1), pregTail);
             vmuls(vreg0, vreg0, dstStride, pregTail);
             vadds(vreg0, vreg0, row, pregTail);
-            vscatter(vreg1, dstWorkPtr, (RegTensor<uint16_t> &)vreg0, pregTail);
+            vscatter(vreg1, dstWorkPtr, (RegTensor<uint16_t>&)vreg0, pregTail);
         }
     }
 }
 
 template <typename TileDataDst, typename TileDataSrc, unsigned elementsPerRepeat, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL OP_NAME(TTRANS)
-    OP_TYPE(element_wise) void TTransTile(typename TileDataDst::TileDType __out__ dst,
-                                          typename TileDataSrc::TileDType __in__ src, unsigned validRows,
-                                          unsigned validCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TTRANS) OP_TYPE(element_wise) void TTransTile(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src, unsigned validRows,
+    unsigned validCols, VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataSrc::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     constexpr unsigned srcStride = TileDataSrc::RowStride;
     constexpr unsigned dstStride = TileDataDst::RowStride;
     if constexpr (sizeof(T) == 4) {
@@ -344,13 +344,14 @@ __tf__ PTO_INTERNAL OP_NAME(TTRANS)
 }
 
 template <typename T>
-PTO_INTERNAL void TTransConvNCHW2NC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned dstC1,
-                                                unsigned rows, unsigned cols, unsigned nStride, unsigned cStride)
+PTO_INTERNAL void TTransConvNCHW2NC1HWC0Unalign(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned srcN, unsigned dstC1, unsigned rows, unsigned cols, unsigned nStride,
+    unsigned cStride)
 {
     for (int n = 0; n < srcN; n++) {
         for (int c = 0; c < dstC1; c++) {
-            __ubuf__ T *srcPtr = src + n * nStride + c * cStride;
-            __ubuf__ T *dstPtr = dst + n * nStride + c * cStride;
+            __ubuf__ T* srcPtr = src + n * nStride + c * cStride;
+            __ubuf__ T* dstPtr = dst + n * nStride + c * cStride;
             for (int i = 0; i < rows; i++) {
                 for (int j = 0; j < cols; j++) {
                     dstPtr[j * rows + i] = srcPtr[i * cols + j];
@@ -362,43 +363,43 @@ PTO_INTERNAL void TTransConvNCHW2NC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src
 }
 
 template <typename TileData, typename T, unsigned blockSizeElem>
-PTO_INTERNAL void TTransConvNCHW2NC1HWC0Align(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcN, unsigned srcC,
-                                              unsigned srcH, unsigned srcW, unsigned dstC0)
+PTO_INTERNAL void TTransConvNCHW2NC1HWC0Align(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned srcN, unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
 {
     unsigned srcStride = srcH * srcW;
     unsigned dstStride = dstC0;
     unsigned rows = dstC0;
     unsigned cols = srcH * srcW;
     unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T); // REPEAT_BYTE = 256
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T); // CCE_VL = 256
     unsigned nStride = dstC1 * dstC0 * srcH * srcW;
     unsigned cStride = dstC0 * srcH * srcW;
     for (int n = 0; n < srcN; n++) {
         for (int c = 0; c < dstC1; c++) {
-            __ubuf__ T *srcPtr = src + n * nStride + c * cStride;
-            __ubuf__ T *dstPtr = dst + n * nStride + c * cStride;
+            __ubuf__ T* srcPtr = src + n * nStride + c * cStride;
+            __ubuf__ T* dstPtr = dst + n * nStride + c * cStride;
             if constexpr (sizeof(T) == 4) {
-                TTransB32ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, rows, cols,
-                                                                                       dstStride, srcStride);
+                TTransB32ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(
+                    dstPtr, srcPtr, rows, cols, dstStride, srcStride);
             } else if constexpr (sizeof(T) == 2) {
-                TTransB16ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, rows, cols,
-                                                                                       dstStride, srcStride);
+                TTransB16ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(
+                    dstPtr, srcPtr, rows, cols, dstStride, srcStride);
             } else if constexpr (sizeof(T) == 1) {
-                TTransB8ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(dstPtr, srcPtr, rows, cols,
-                                                                                      dstStride, srcStride);
+                TTransB8ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(
+                    dstPtr, srcPtr, rows, cols, dstStride, srcStride);
             }
         }
     }
 }
 
 template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(typename TileData::TileDType __out__ dst,
-                                                typename TileData::TileDType __in__ src, unsigned srcN, unsigned srcC,
-                                                unsigned srcH, unsigned srcW, unsigned dstC0)
+__tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(
+    typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src, unsigned srcN, unsigned srcC,
+    unsigned srcH, unsigned srcW, unsigned dstC0)
 {
     using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(src);
     unsigned rows = dstC0;
     unsigned cols = srcH * srcW;
     unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
@@ -412,9 +413,9 @@ __tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(typename TileData::TileDType __o
 }
 
 template <typename T>
-PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcG, unsigned srcN,
-                                                  unsigned dstC1, unsigned rows, unsigned cols, unsigned gStride,
-                                                  unsigned nStride, unsigned cStride)
+PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0Unalign(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned srcG, unsigned srcN, unsigned dstC1, unsigned rows, unsigned cols,
+    unsigned gStride, unsigned nStride, unsigned cStride)
 {
     const unsigned blockElems = rows * cols;
     const unsigned nBlocksPerG = srcN * dstC1;
@@ -424,8 +425,8 @@ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *s
         const unsigned rem = b - g * nBlocksPerG;
         const unsigned n = rem / dstC1;
         const unsigned c = rem - n * dstC1;
-        __ubuf__ T *srcPtr = src + g * gStride + n * nStride + c * cStride;
-        __ubuf__ T *dstPtr = dst + g * gStride + n * nStride + c * cStride;
+        __ubuf__ T* srcPtr = src + g * gStride + n * nStride + c * cStride;
+        __ubuf__ T* dstPtr = dst + g * gStride + n * nStride + c * cStride;
         for (unsigned k = 0; k < blockElems; ++k) {
             const unsigned i = k / cols;
             const unsigned j = k - i * cols;
@@ -435,32 +436,33 @@ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0Unalign(__ubuf__ T *dst, __ubuf__ T *s
 }
 
 template <typename TileData, typename T, unsigned blockSizeElem>
-PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0Align(__ubuf__ T *dst, __ubuf__ T *src, unsigned srcG, unsigned srcN,
-                                                unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
+PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0Align(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned srcG, unsigned srcN, unsigned srcC, unsigned srcH, unsigned srcW,
+    unsigned dstC0)
 {
     unsigned srcStride = srcH * srcW;
     unsigned dstStride = dstC0;
     unsigned rows = dstC0;
     unsigned cols = srcH * srcW;
     unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T); // REPEAT_BYTE = 256
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T); // CCE_VL = 256
     unsigned gStride = srcN * dstC1 * dstC0 * srcH * srcW;
     unsigned nStride = dstC1 * dstC0 * srcH * srcW;
     unsigned cStride = dstC0 * srcH * srcW;
     for (int g = 0; g < srcG; g++) {
         for (int n = 0; n < srcN; n++) {
             for (int c = 0; c < dstC1; c++) {
-                __ubuf__ T *gsrcPtr = src + g * gStride + n * nStride + c * cStride;
-                __ubuf__ T *gdstPtr = dst + g * gStride + n * nStride + c * cStride;
+                __ubuf__ T* gsrcPtr = src + g * gStride + n * nStride + c * cStride;
+                __ubuf__ T* gdstPtr = dst + g * gStride + n * nStride + c * cStride;
                 if constexpr (sizeof(T) == 4) {
-                    TTransB32ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(gdstPtr, gsrcPtr, rows, cols,
-                                                                                           dstStride, srcStride);
+                    TTransB32ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(
+                        gdstPtr, gsrcPtr, rows, cols, dstStride, srcStride);
                 } else if constexpr (sizeof(T) == 2) {
-                    TTransB16ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(gdstPtr, gsrcPtr, rows, cols,
-                                                                                           dstStride, srcStride);
+                    TTransB16ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(
+                        gdstPtr, gsrcPtr, rows, cols, dstStride, srcStride);
                 } else if constexpr (sizeof(T) == 1) {
-                    TTransB8ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(gdstPtr, gsrcPtr, rows, cols,
-                                                                                          dstStride, srcStride);
+                    TTransB8ColWise<TileData, TileData, elementsPerRepeat, blockSizeElem>(
+                        gdstPtr, gsrcPtr, rows, cols, dstStride, srcStride);
                 }
             }
         }
@@ -468,13 +470,13 @@ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0Align(__ubuf__ T *dst, __ubuf__ T *src
 }
 
 template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(typename TileData::TileDType __out__ dst,
-                                                  typename TileData::TileDType __in__ src, unsigned srcG, unsigned srcN,
-                                                  unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
+__tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(
+    typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src, unsigned srcG, unsigned srcN,
+    unsigned srcC, unsigned srcH, unsigned srcW, unsigned dstC0)
 {
     using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(src);
     unsigned rows = dstC0;
     unsigned cols = srcH * srcW;
     unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
@@ -482,17 +484,17 @@ __tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(typename TileData::TileDType _
     unsigned nStride = dstC1 * dstC0 * srcH * srcW;
     unsigned cStride = dstC0 * srcH * srcW;
     if (cols * sizeof(T) % BLOCK_BYTE_SIZE != 0 || rows * sizeof(T) % BLOCK_BYTE_SIZE != 0) {
-        TTransConvGNCHW2GNC1HWC0Unalign<T>(dstPtrOrig, srcPtrOrig, srcG, srcN, dstC1, rows, cols, gStride, nStride,
-                                           cStride);
+        TTransConvGNCHW2GNC1HWC0Unalign<T>(
+            dstPtrOrig, srcPtrOrig, srcG, srcN, dstC1, rows, cols, gStride, nStride, cStride);
         return;
     }
-    TTransConvGNCHW2GNC1HWC0Align<TileData, T, blockSizeElem>(dstPtrOrig, srcPtrOrig, srcG, srcN, srcC, srcH, srcW,
-                                                              dstC0);
+    TTransConvGNCHW2GNC1HWC0Align<TileData, T, blockSizeElem>(
+        dstPtrOrig, srcPtrOrig, srcG, srcN, srcC, srcH, srcW, dstC0);
 }
 
 template <typename T>
-PTO_INTERNAL void ConvNC1HWC02C1HWNC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned dstN, unsigned srcN,
-                                             unsigned srcC1HW, unsigned srcC0)
+PTO_INTERNAL void ConvNC1HWC02C1HWNC0Unalign(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned dstN, unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
     unsigned validCol = srcC0;
     unsigned validRow = srcC1HW;
@@ -500,8 +502,8 @@ PTO_INTERNAL void ConvNC1HWC02C1HWNC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, u
     unsigned dstStride = dstN * srcC0;
     unsigned nStride = srcC1HW * srcC0;
     for (uint16_t num = 0; num < (uint16_t)srcN; num++) {
-        __ubuf__ T *srcPtr = src + num * nStride;
-        __ubuf__ T *dstPtr = dst + num * srcC0;
+        __ubuf__ T* srcPtr = src + num * nStride;
+        __ubuf__ T* dstPtr = dst + num * srcC0;
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             for (uint16_t j = 0; j < (uint16_t)validCol; ++j) {
                 dstPtr[i * dstStride + j] = srcPtr[i * srcStride + j];
@@ -511,14 +513,14 @@ PTO_INTERNAL void ConvNC1HWC02C1HWNC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, u
 }
 
 template <typename T>
-PTO_INTERNAL void ConvNC1HWC02C1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, unsigned dstN, unsigned srcN,
-                                           unsigned srcC1HW, unsigned srcC0)
+PTO_INTERNAL void ConvNC1HWC02C1HWNC0Align(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned dstN, unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
     unsigned validCol = srcC0;
     unsigned validRow = srcC1HW;
     unsigned srcStride = srcC0;
     unsigned dstStride = dstN * srcC0;
-    constexpr unsigned nRepeatElem = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned nRepeatElem = CCE_VL / sizeof(T);
     uint16_t repeatTimes = CeilDivision(validCol, nRepeatElem);
     uint32_t tailEleNum = validCol % nRepeatElem;
     if (tailEleNum == 0) {
@@ -535,8 +537,8 @@ PTO_INTERNAL void ConvNC1HWC02C1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, uns
         constexpr auto distValue =
             std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
         for (uint16_t num = 0; num < (uint16_t)srcN; num++) {
-            __ubuf__ T *srcPtr = src + num * nStride;
-            __ubuf__ T *dstPtr = dst + num * srcC0;
+            __ubuf__ T* srcPtr = src + num * nStride;
+            __ubuf__ T* dstPtr = dst + num * srcC0;
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
                 for (uint16_t j = 0; j < (uint16_t)lastRepeat; ++j) {
                     vlds(vreg0, srcPtr, i * srcStride + j * nRepeatElem, NORM);
@@ -550,13 +552,13 @@ PTO_INTERNAL void ConvNC1HWC02C1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, uns
 }
 
 template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvNC1HWC02C1HWNC0(typename TileData::TileDType __out__ dst,
-                                                   typename TileData::TileDType __in__ src, unsigned dstN,
-                                                   unsigned srcN, unsigned srcC1HW, unsigned srcC0)
+__tf__ PTO_INTERNAL void TTransConvNC1HWC02C1HWNC0(
+    typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src, unsigned dstN, unsigned srcN,
+    unsigned srcC1HW, unsigned srcC0)
 {
     using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(src);
     if (srcC0 * sizeof(T) % BLOCK_BYTE_SIZE == 0) {
         ConvNC1HWC02C1HWNC0Align<T>(dstPtrOrig, srcPtrOrig, dstN, srcN, srcC1HW, srcC0);
     } else {
@@ -565,8 +567,8 @@ __tf__ PTO_INTERNAL void TTransConvNC1HWC02C1HWNC0(typename TileData::TileDType 
 }
 
 template <typename T>
-PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0PadDstNRemain(__ubuf__ T *dst, unsigned dstN, unsigned srcG, unsigned srcN,
-                                                     unsigned srcC1HW, unsigned srcC0)
+PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0PadDstNRemain(
+    __ubuf__ T* dst, unsigned dstN, unsigned srcG, unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
     const unsigned remain = dstN - srcN;
     if (remain == 0U) {
@@ -579,7 +581,7 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0PadDstNRemain(__ubuf__ T *dst, unsigned d
     const unsigned c1hwTimesC0 = validRow * validCol;
     const unsigned totalPad = remain * c1hwTimesC0;
     for (uint16_t g = 0; g < (uint16_t)srcG; g++) {
-        __ubuf__ T *const padBase = dst + g * gStride + srcN * srcC0;
+        __ubuf__ T* const padBase = dst + g * gStride + srcN * srcC0;
         for (unsigned k = 0; k < totalPad; ++k) {
             const unsigned r = k / c1hwTimesC0;
             const unsigned rem = k - r * c1hwTimesC0;
@@ -591,8 +593,8 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0PadDstNRemain(__ubuf__ T *dst, unsigned d
 }
 
 template <typename T>
-PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Unalign(__ubuf__ T *dst, __ubuf__ T *src, unsigned dstN, unsigned srcG,
-                                               unsigned srcN, unsigned srcC1HW, unsigned srcC0)
+PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Unalign(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned dstN, unsigned srcG, unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
     unsigned srcStride = srcC0;
     unsigned dstStride = dstN * srcC0;
@@ -602,8 +604,8 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Unalign(__ubuf__ T *dst, __ubuf__ T *src,
     unsigned nStride = srcC1HW * srcC0;
     for (uint16_t g = 0; g < (uint16_t)srcG; g++) {
         for (uint16_t num = 0; num < (uint16_t)srcN; num++) {
-            __ubuf__ T *dstPtr = dst + g * gStride1 + num * srcC0;
-            __ubuf__ T *srcPtr = src + g * gStride1 + num * nStride;
+            __ubuf__ T* dstPtr = dst + g * gStride1 + num * srcC0;
+            __ubuf__ T* srcPtr = src + g * gStride1 + num * nStride;
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
                 for (uint16_t j = 0; j < (uint16_t)validCol; ++j) {
                     dstPtr[i * dstStride + j] = srcPtr[i * srcStride + j];
@@ -615,14 +617,14 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Unalign(__ubuf__ T *dst, __ubuf__ T *src,
 }
 
 template <typename T>
-PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, unsigned dstN, unsigned srcG,
-                                             unsigned srcN, unsigned srcC1HW, unsigned srcC0)
+PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Align(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned dstN, unsigned srcG, unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
     unsigned validCol = srcC0;
     unsigned validRow = srcC1HW;
     unsigned srcStride = srcC0;
     unsigned dstStride = dstN * srcC0;
-    constexpr unsigned nRepeatElem = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned nRepeatElem = CCE_VL / sizeof(T);
     uint16_t repeatTimes = CeilDivision(validCol, nRepeatElem);
     uint32_t tailEleNum = validCol % nRepeatElem;
     if (tailEleNum == 0) {
@@ -643,8 +645,8 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, u
         for (uint16_t gn = 0; gn < (uint16_t)gnCount; ++gn) {
             const unsigned g = gn / srcN;
             const unsigned num = gn % srcN;
-            __ubuf__ T *srcPtr = src + g * gStride2 + num * nStride;
-            __ubuf__ T *dstPtr = dst + g * gStride2 + num * srcC0;
+            __ubuf__ T* srcPtr = src + g * gStride2 + num * nStride;
+            __ubuf__ T* dstPtr = dst + g * gStride2 + num * srcC0;
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
                 for (uint16_t j = 0; j < (uint16_t)lastRepeat; ++j) {
                     vlds(vreg0, srcPtr, i * srcStride + j * nRepeatElem, NORM);
@@ -659,13 +661,13 @@ PTO_INTERNAL void ConvGNC1HWC02GC1HWNC0Align(__ubuf__ T *dst, __ubuf__ T *src, u
 }
 
 template <typename TileData, unsigned blockSizeElem>
-__tf__ PTO_INTERNAL void TTransConvGNC1HWC02GC1HWNC0(typename TileData::TileDType __out__ dst,
-                                                     typename TileData::TileDType __in__ src, unsigned dstN,
-                                                     unsigned srcG, unsigned srcN, unsigned srcC1HW, unsigned srcC0)
+__tf__ PTO_INTERNAL void TTransConvGNC1HWC02GC1HWNC0(
+    typename TileData::TileDType __out__ dst, typename TileData::TileDType __in__ src, unsigned dstN, unsigned srcG,
+    unsigned srcN, unsigned srcC1HW, unsigned srcC0)
 {
     using T = typename TileData::DType;
-    __ubuf__ T *dstPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtrOrig = (__ubuf__ T *)__cce_get_tile_ptr(src);
+    __ubuf__ T* dstPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtrOrig = (__ubuf__ T*)__cce_get_tile_ptr(src);
     if (srcC0 * sizeof(T) % BLOCK_BYTE_SIZE == 0) {
         ConvGNC1HWC02GC1HWNC0Align<T>(dstPtrOrig, srcPtrOrig, dstN, srcG, srcN, srcC1HW, srcC0);
     } else {
@@ -674,7 +676,7 @@ __tf__ PTO_INTERNAL void TTransConvGNC1HWC02GC1HWNC0(typename TileData::TileDTyp
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
-PTO_INTERNAL void CheckConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp)
+PTO_INTERNAL void CheckConvTile(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp)
 {
 #ifdef _DEBUG
     using T = typename TileDataSrc::DType;
@@ -693,8 +695,9 @@ PTO_INTERNAL void CheckConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp 
         unsigned dstSize = dstN * dstC1 * dstC0 * dstH * dstW;
         unsigned tmpSize = TileDataTmp::Rows * TileDataTmp::Cols;
         PTO_ASSERT(srcH * srcW * sizeof(T) % BLOCK_BYTE_SIZE == 0, "expect align for H * W");
-        PTO_ASSERT(srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
-                   "expect same size for src and dst.");
+        PTO_ASSERT(
+            srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
+            "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
     } else if constexpr (TileDataSrc::layout == Layout::NC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         unsigned srcN = src.GetShape(GlobalTensorDim::DIM_0);
@@ -709,15 +712,16 @@ PTO_INTERNAL void CheckConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp 
         unsigned srcSize = srcN * srcC1 * srcC0 * srcH * srcW;
         unsigned dstSize = dstC1HW * dstN1 * dstN0 * dstC0;
         unsigned tmpSize = TileDataTmp::Rows * TileDataTmp::Cols;
-        PTO_ASSERT(srcC1 * srcH * srcW == dstC1HW && srcC0 == dstC0 && dstN1 == (srcN + dstN0 - 1) / dstN0,
-                   "expect same size for src and dst.");
+        PTO_ASSERT(
+            srcC1 * srcH * srcW == dstC1HW && srcC0 == dstC0 && dstN1 == (srcN + dstN0 - 1) / dstN0,
+            "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
     }
 #endif
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
-PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp)
+PTO_INTERNAL void CheckGroupConvTile(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp)
 {
 #ifdef _DEBUG
     using T = typename TileDataSrc::DType;
@@ -738,8 +742,9 @@ PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned dstSize = dstG * dstN * dstC1 * dstC0 * dstH * dstW;
         unsigned tmpSize = TileDataTmp::Rows * TileDataTmp::Cols;
         PTO_ASSERT(srcH * srcW * sizeof(T) % BLOCK_BYTE_SIZE == 0, "expect align for H * W");
-        PTO_ASSERT(srcG == dstG && srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
-                   "expect same size for src and dst.");
+        PTO_ASSERT(
+            srcG == dstG && srcN == dstN && srcH == dstH && srcW == dstW && dstC1 == (srcC + dstC0 - 1) / dstC0,
+            "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
     } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
@@ -755,15 +760,16 @@ PTO_INTERNAL void CheckGroupConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcSize = srcN * srcC1 * srcC0 * srcH * srcW;
         unsigned dstSize = dstGC1HW * dstN1 * dstN0 * dstC0;
         unsigned tmpSize = TileDataTmp::Rows * TileDataTmp::Cols;
-        PTO_ASSERT(srcG * srcC1 * srcH * srcW == dstGC1HW && srcC0 == dstC0 && dstN1 == (srcN + dstN0 - 1) / dstN0,
-                   "expect same size for src and dst.");
+        PTO_ASSERT(
+            srcG * srcC1 * srcH * srcW == dstGC1HW && srcC0 == dstC0 && dstN1 == (srcN + dstN0 - 1) / dstN0,
+            "expect same size for src and dst.");
         PTO_ASSERT((srcSize + dstSize + tmpSize) * sizeof(T) < UB_SIZE, "ERROR: memory usage exceeds UB limit!");
     }
 #endif
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
-PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp)
+PTO_INTERNAL void TTransImplConvTile(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp)
 {
     using T = typename TileDataSrc::DType;
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
@@ -784,8 +790,8 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcC0 = src.GetShape(GlobalTensorDim::DIM_4);
         unsigned dstN1 = dst.GetShape(GlobalTensorDim::DIM_1);
         unsigned dstN0 = dst.GetShape(GlobalTensorDim::DIM_2);
-        TTransConvNC1HWC02C1HWNC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), dstN0 * dstN1, srcN,
-                                                              srcC1 * srcH * srcW, srcC0);
+        TTransConvNC1HWC02C1HWNC0<TileDataSrc, blockSizeElem>(
+            dst.data(), src.data(), dstN0 * dstN1, srcN, srcC1 * srcH * srcW, srcC0);
     } else if constexpr (TileDataSrc::layout == Layout::GNCHW && TileDataDst::layout == Layout::GNC1HWC0) {
         CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
@@ -794,8 +800,8 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcH = src.GetShape(GlobalTensorDim::DIM_3);
         unsigned srcW = src.GetShape(GlobalTensorDim::DIM_4);
         unsigned dstC0 = dst.GetShape(GlobalTensorDim::TOTAL_DIM);
-        TTransConvGNCHW2GNC1HWC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), srcG, srcN, srcC, srcH, srcW,
-                                                             dstC0);
+        TTransConvGNCHW2GNC1HWC0<TileDataSrc, blockSizeElem>(
+            dst.data(), src.data(), srcG, srcN, srcC, srcH, srcW, dstC0);
     } else if constexpr (TileDataSrc::layout == Layout::GNC1HWC0 && TileDataDst::layout == Layout::FRACTAL_Z) {
         CheckGroupConvTile<TileDataDst, TileDataSrc, TileDataTmp>(dst, src, tmp);
         unsigned srcG = src.GetShape(GlobalTensorDim::DIM_0);
@@ -806,13 +812,13 @@ PTO_INTERNAL void TTransImplConvTile(TileDataDst &dst, TileDataSrc &src, TileDat
         unsigned srcC0 = src.GetShape(GlobalTensorDim::TOTAL_DIM);
         unsigned dstN1 = dst.GetShape(GlobalTensorDim::DIM_1);
         unsigned dstN0 = dst.GetShape(GlobalTensorDim::DIM_2);
-        TTransConvGNC1HWC02GC1HWNC0<TileDataSrc, blockSizeElem>(dst.data(), src.data(), dstN0 * dstN1, srcG, srcN,
-                                                                srcC1 * srcH * srcW, srcC0);
+        TTransConvGNC1HWC02GC1HWNC0<TileDataSrc, blockSizeElem>(
+            dst.data(), src.data(), dstN0 * dstN1, srcG, srcN, srcC1 * srcH * srcW, srcC0);
     }
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
-PTO_INTERNAL void TTRANS_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataTmp &tmp)
+PTO_INTERNAL void TTRANS_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp)
 {
     using T = typename TileDataSrc::DType;
     using U = typename TileDataDst::DType;
@@ -826,13 +832,13 @@ PTO_INTERNAL void TTRANS_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataTmp &t
         static_assert(TileDataSrc::Cols * sizeof(T) % 32 == 0, "Fix: TTRANS has inconsistent input shape.");
         static_assert(TileDataDst::Cols * sizeof(U) % 32 == 0, "Fix: TTRANS has inconsistent output shape.");
 
-        constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+        constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
         constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
 
         unsigned numRows = (unsigned)src.GetValidRow();
         unsigned numCols = (unsigned)src.GetValidCol();
-        TTransTile<TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem>(dst.data(), src.data(), numRows,
-                                                                               numCols);
+        TTransTile<TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem>(
+            dst.data(), src.data(), numRows, numCols);
     }
 }
 } // namespace pto

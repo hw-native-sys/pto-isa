@@ -1,14 +1,15 @@
-# pto.tmatmul_acc
+﻿# TMATMUL_ACC
 
-`pto.tmatmul_acc` is part of the [Matrix And Matrix Vector](../../matrix-and-matrix-vector.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
+
+![TMATMUL_ACC tile operation](../figures/isa/TMATMUL_ACC.svg)
+
+## Introduction
 
 Matrix multiply with accumulator input (fused accumulate).
 
-## Mechanism
-
-Matrix multiply with accumulator input (fused accumulate). It operates on tile payloads rather than scalar control state, and its legality is constrained by tile shape, layout, valid-region, and target-profile support.
+## Math Interpretation
 
 Let:
 
@@ -20,9 +21,7 @@ For `0 <= i < M` and `0 <= j < N`:
 
 $$ \mathrm{C1}_{i,j} = \mathrm{C0}_{i,j} + \sum_{k=0}^{K-1} \mathrm{A}_{i,k} \cdot \mathrm{B}_{k,j} $$
 
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
@@ -41,19 +40,6 @@ Synchronous form:
 ```text
 pto.tmatmul.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
 ```
-
-### IR Level 1 (SSA)
-
-```text
-%c_out = pto.tmatmul.acc %c_in, %a, %b : (!pto.tile<...>, !pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
-```
-
-### IR Level 2 (DPS)
-
-```text
-pto.tmatmul.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
-```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -67,41 +53,15 @@ PTO_INST RecordEvent TMATMUL_ACC(TileRes &cOutMatrix, TileRes &cInMatrix, TileLe
 
 template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight,
           typename... WaitEvents>
-PTO_INST RecordEvent TMATMUL_ACC(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, WaitEvents &... events);
+PTO_INST RecordEvent TMATMUL_ACC(TileRes &cMatrix, TileLeft &aMatrix, TileRight &bMatrix, WaitEvents &... events); // Note: this overload uses cMatrix as both accumulator input and output (in-place), reading its current value as C0 and writing back C1 = C0 + A·B; it neither zeroes nor overwrites
 ```
-
-## Inputs
-
-- `cIn` is the input accumulator tile.
-- `a` is the left operand tile (must be TileLeft location).
-- `b` is the right operand tile (must be TileRight location).
-- `dst` names the output accumulator tile. The operation iterates over dst's valid region.
-
-## Expected Outputs
-
-`dst` holds the accumulated matrix multiply result: `dst[i,j]` = `cIn[i,j]` + sum over `k` of `a[i,k] * b[k,j]`.
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
 
 ## Constraints
 
-!!! warning "Constraints"
-    - All constraints from `TMATMUL` apply to the `(cOutMatrix, aMatrix, bMatrix)` triple.
-
-## Exceptions
-
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
-
-## Target-Profile Restrictions
-
-??? info "Target-Profile Restrictions"
-    - **Implementation notes (A2A3/A5)**:
-        - `TMATMUL_ACC_IMPL` uses `aMatrix.GetValidRow()`, `aMatrix.GetValidCol()`, and `bMatrix.GetValidCol()` for `m/k/n`.
-        - `cInMatrix` is not validated by explicit assertions in the current implementations (target-defined behavior).
+- All constraints from `TMATMUL` apply to the `(cOutMatrix, aMatrix, bMatrix)` triple.
+- **Implementation notes (A2A3/A5)**:
+    - `TMATMUL_ACC_IMPL` uses `aMatrix.GetValidRow()`, `aMatrix.GetValidCol()`, and `bMatrix.GetValidCol()` for `m/k/n`.
+    - `cInMatrix` is not validated by explicit assertions in the current implementations (target-defined behavior).
 
 ## Examples
 
@@ -145,6 +105,8 @@ void example_manual() {
 }
 ```
 
+## ASM Form Examples
+
 ### Auto Mode
 
 ```text
@@ -155,7 +117,7 @@ void example_manual() {
 ### Manual Mode
 
 ```text
-# Manual mode: bind resources explicitly before issuing the instruction.
+# Manual mode: resources must be bound explicitly before issuing the instruction.
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
@@ -169,9 +131,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tmatmul.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%c_out : !pto.tile_buf<...>)
 ```
-
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Matrix And Matrix Vector](../../matrix-and-matrix-vector.md)
-- Previous op in instruction set: [pto.tmatmul](./tmatmul.md)
-- Next op in instruction set: [pto.tmatmul_bias](./tmatmul-bias.md)

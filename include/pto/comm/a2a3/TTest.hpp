@@ -52,7 +52,7 @@ PTO_INTERNAL bool TestCompareSignal(int32_t sigVal, int32_t cmpVal, WaitCmp cmp)
 } // namespace detail
 
 template <typename GlobalSignalData>
-PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp)
+PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData& signalData, int32_t cmpValue, WaitCmp cmp)
 {
     static_assert(std::is_same_v<typename GlobalSignalData::RawDType, int32_t>, "TTEST: signal type must be int32_t");
 
@@ -69,7 +69,7 @@ PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, Wai
     const int64_t st3 = signalData.GetStride(GlobalTensorDim::DIM_3);
     const int64_t st4 = signalData.GetStride(GlobalTensorDim::DIM_4);
 
-    volatile __gm__ int32_t *basePtr = (volatile __gm__ int32_t *)signalData.data();
+    volatile __gm__ int32_t* basePtr = (volatile __gm__ int32_t*)signalData.data();
 
     // Test if all signals satisfy the condition (full 5-D traversal)
     for (int d0 = 0; d0 < s0; ++d0) {
@@ -79,7 +79,7 @@ PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData &signalData, int32_t cmpValue, Wai
                     for (int d4 = 0; d4 < s4; ++d4) {
                         const int64_t idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
                         __asm__ __volatile__("");
-                        dcci((__gm__ void *)(basePtr + idx), SINGLE_CACHE_LINE);
+                        dcci((__gm__ void*)(basePtr + idx), SINGLE_CACHE_LINE);
                         __asm__ __volatile__("");
                         if (!detail::TestCompareSignal(basePtr[idx], cmpValue, cmp)) {
                             return false;

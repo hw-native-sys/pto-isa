@@ -10,25 +10,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTRELU_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTRELU_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TRELUTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTRelu(T *out, T *src0, void *stream);
+void LaunchTRelu(T* out, T* src0, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_trelu()
@@ -51,11 +51,11 @@ void test_trelu()
     T *dstHost, *src0Host;
     T *dstDevice, *src0Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize));
 
@@ -85,28 +85,11 @@ void test_trelu()
 
     EXPECT_TRUE(ret);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-TEST_F(TRELUTest, case_float_64x64_64x64_64x64)
-{
-    test_trelu<float, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TRELUTest, case_int32_64x64_64x64_64x64)
-{
-    test_trelu<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TRELUTest, case_int16_64x64_64x64_64x64)
-{
-    test_trelu<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TRELUTest, case_half_16x256_16x256_16x256)
-{
-    test_trelu<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
+
+TEST_F(TRELUTest, case_float_64x64_64x64_64x64) { test_trelu<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TRELUTest, case_int32_64x64_64x64_64x64) { test_trelu<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TRELUTest, case_int16_64x64_64x64_64x64) { test_trelu<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TRELUTest, case_half_16x256_16x256_16x256) { test_trelu<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TRELUTest, case_bf16_16x256_16x256_16x256)
-{
-    test_trelu<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
+TEST_F(TRELUTest, case_bf16_16x256_16x256_16x256) { test_trelu<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #endif

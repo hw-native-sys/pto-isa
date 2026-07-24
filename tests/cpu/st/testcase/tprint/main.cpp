@@ -21,17 +21,15 @@ using namespace pto;
 
 class TPrintTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 template <typename Func>
-static std::string CaptureStdout(Func &&func)
+static std::string CaptureStdout(Func&& func)
 {
     std::ostringstream oss;
-    auto *oldBuf = std::cout.rdbuf();
+    auto* oldBuf = std::cout.rdbuf();
     std::cout.rdbuf(oss.rdbuf());
     func();
     std::cout.rdbuf(oldBuf);
@@ -103,7 +101,7 @@ TEST_F(TPrintTest, Int8AndUint8PrintedAsNumbers)
     Int8Tile int8Tile;
     UInt8Tile uint8Tile;
     TASSIGN(int8Tile, 0);
-    TASSIGN(uint8Tile, Int8Tile::Numel * sizeof(int8_t));
+    TASSIGN(uint8Tile, Int8Tile::GetSizeInBytes());
     int8Tile.data()[0] = static_cast<int8_t>(-12);
     int8Tile.data()[1] = static_cast<int8_t>(65);
     uint8Tile.data()[0] = static_cast<uint8_t>(255);
@@ -133,7 +131,7 @@ TEST_F(TPrintTest, OverloadWithTempBuf)
     TileT tile;
     TileT tmp;
     TASSIGN(tile, 0);
-    TASSIGN(tmp, TileT::Numel * sizeof(float));
+    TASSIGN(tmp, TileT::GetSizeInBytes());
     tile.data()[0] = 3.141592f;
     const std::string output = CaptureStdout([&]() { TPRINT<PrintFormat::Width10_Precision6>(tile, tmp); });
 

@@ -16,21 +16,19 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t GROW, uint32_t GCOL, uint32_t TROW, uint32_t TCOL, uint32_t descending, uint32_t mode>
-void launchTCI_demo_b32(int32_t *out, void *stream);
+void launchTCI_demo_b32(int32_t* out, void* stream);
 template <uint32_t GROW, uint32_t GCOL, uint32_t TROW, uint32_t TCOL, uint32_t descending, uint32_t mode>
-void launchTCI_demo_b16(int16_t *out, void *stream);
+void launchTCI_demo_b16(int16_t* out, void* stream);
 
 class TCITest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -48,11 +46,11 @@ void test_vci_b32()
 
     size_t FileSize = ROW * COL * sizeof(T);
 
-    int32_t *dstHost;
-    int32_t *dstDevice;
+    int32_t* dstHost;
+    int32_t* dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), FileSize);
-    aclrtMalloc((void **)&dstDevice, FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), FileSize);
+    aclrtMalloc((void**)&dstDevice, FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     launchTCI_demo_b32<ROW, COL, ROW, COL, descending, mode>(dstDevice, stream);
 
@@ -87,11 +85,11 @@ void test_vci_b16()
 
     size_t FileSize = ROW * COL * sizeof(T);
 
-    int16_t *dstHost;
-    int16_t *dstDevice;
+    int16_t* dstHost;
+    int16_t* dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), FileSize);
-    aclrtMalloc((void **)&dstDevice, FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), FileSize);
+    aclrtMalloc((void**)&dstDevice, FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     launchTCI_demo_b16<ROW, COL, ROW, COL, descending, mode>(dstDevice, stream);
 
@@ -116,77 +114,32 @@ void test_vci_b16()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TCITest, case1_int32)
-{
-    test_vci_b32<int32_t, 1, 128, 0, 0, 0>();
-}
+TEST_F(TCITest, case1_int32) { test_vci_b32<int32_t, 1, 128, 0, 0, 0>(); }
 
-TEST_F(TCITest, case2_int32)
-{
-    test_vci_b32<int32_t, 1, 600, 0, 0, 0>();
-}
+TEST_F(TCITest, case2_int32) { test_vci_b32<int32_t, 1, 600, 0, 0, 0>(); }
 
-TEST_F(TCITest, case3_int32)
-{
-    test_vci_b32<int32_t, 1, 32, 1, 0, 0>();
-}
+TEST_F(TCITest, case3_int32) { test_vci_b32<int32_t, 1, 32, 1, 0, 0>(); }
 
-TEST_F(TCITest, case4_int32)
-{
-    test_vci_b32<int32_t, 1, 2000, 1, 0, 0>();
-}
+TEST_F(TCITest, case4_int32) { test_vci_b32<int32_t, 1, 2000, 1, 0, 0>(); }
 
-TEST_F(TCITest, case5_int16)
-{
-    test_vci_b16<int16_t, 1, 256, 0, 0, 0>();
-}
+TEST_F(TCITest, case5_int16) { test_vci_b16<int16_t, 1, 256, 0, 0, 0>(); }
 
-TEST_F(TCITest, case6_int16)
-{
-    test_vci_b16<int16_t, 1, 800, 1, 0, 0>();
-}
+TEST_F(TCITest, case6_int16) { test_vci_b16<int16_t, 1, 800, 1, 0, 0>(); }
 
-TEST_F(TCITest, case7_int16)
-{
-    test_vci_b16<int16_t, 1, 64, 0, 0, 0>();
-}
+TEST_F(TCITest, case7_int16) { test_vci_b16<int16_t, 1, 64, 0, 0, 0>(); }
 
-TEST_F(TCITest, case8_int16)
-{
-    test_vci_b16<int16_t, 1, 5120, 1, 0, 0>();
-}
+TEST_F(TCITest, case8_int16) { test_vci_b16<int16_t, 1, 5120, 1, 0, 0>(); }
 
-TEST_F(TCITest, case9_int32)
-{
-    test_vci_b32<int32_t, 1, 128, 0, 0, 1>();
-}
+TEST_F(TCITest, case9_int32) { test_vci_b32<int32_t, 1, 128, 0, 0, 1>(); }
 
-TEST_F(TCITest, case10_int32)
-{
-    test_vci_b32<int32_t, 1, 32, 1, 0, 1>();
-}
+TEST_F(TCITest, case10_int32) { test_vci_b32<int32_t, 1, 32, 1, 0, 1>(); }
 
-TEST_F(TCITest, case11_int16)
-{
-    test_vci_b16<int16_t, 1, 256, 0, 0, 1>();
-}
+TEST_F(TCITest, case11_int16) { test_vci_b16<int16_t, 1, 256, 0, 0, 1>(); }
 
-TEST_F(TCITest, case12_int16)
-{
-    test_vci_b16<int16_t, 1, 800, 1, 0, 1>();
-}
+TEST_F(TCITest, case12_int16) { test_vci_b16<int16_t, 1, 800, 1, 0, 1>(); }
 
-TEST_F(TCITest, case13_int16)
-{
-    test_vci_b16<int16_t, 1, 3328, 1, 0, 1>();
-}
+TEST_F(TCITest, case13_int16) { test_vci_b16<int16_t, 1, 3328, 1, 0, 1>(); }
 
-TEST_F(TCITest, case14_int16)
-{
-    test_vci_b16<int16_t, 1, 64, 0, 0, 1>();
-}
+TEST_F(TCITest, case14_int16) { test_vci_b16<int16_t, 1, 64, 0, 0, 1>(); }
 
-TEST_F(TCITest, case15_int16)
-{
-    test_vci_b16<int16_t, 1, 32, 1, 0, 1>();
-}
+TEST_F(TCITest, case15_int16) { test_vci_b16<int16_t, 1, 32, 1, 0, 1>(); }

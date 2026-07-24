@@ -2,26 +2,26 @@
 
 ## 简介
 
-释放FIFO中的槽位(slot)空间。
+释放 `TPipe` 条目的 FIFO 空间。
 
-对于 TileData `TPOP` 流程，A2A3平台上`TPOP` 已经在内部执行空闲空间通知步骤。因此，面向 TileData 的 `TFREE(Pipe &pipe)` 接口当前是空操作，只是为了与 `GlobalData` 流程保持 API 对称。 A5平台上TFREE会释放TPOP使用的FIFO 槽位空间。
+对于TileData `TPOP` 流程，Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品平台上`TPOP` 已经在内部执行空闲空间通知步骤。因此，面向TileData的 `TFREE(Pipe &pipe)` 接口当前是空操作，只是为了与 `GlobalData` 流程保持API对称。Ascend 950PR/Ascend 950DT平台上TFREE会释放TPOP使用的FIFO槽位空间。
 
-对于 `GlobalData` 流程，`TFREE(Pipe&, GlobalData&)` 会释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图。
+对于 `GlobalData` 流程，`TFREE(Pipe&, GlobalData&)` 会释放由 `TPOP(Pipe&, GlobalData&)` 返回的FIFO槽位视图。
 
 ## 操作语义
 
-对于 TileData 流程：
+对于TileData流程：
 
-1. `TPUSH(Pipe&, TileData&, Split)` 将生产者 tile 存入当前 FIFO 槽位，并为消费者记录数据就绪同步。生产者 tile 索引在槽位地址计算完成后递增。
-2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前 FIFO 槽位加载到消费者 tile 中。消费者 tile 索引在槽位地址计算完成后递增。
-3. `TFREE(Pipe&, Split)` 释放 FIFO 中的槽位空间。A2A3 平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），A5 平台上会释放 `TPOP` 使用的 FIFO 槽位空间。
+1. `TPUSH(Pipe&, TileData&, Split)` 将生产者tile存入当前FIFO槽位，并为消费者记录数据就绪同步。生产者tile索引在槽位地址计算完成后递增。
+2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前FIFO槽位加载到消费者tile中。消费者tile索引在槽位地址计算完成后递增。
+3. `TFREE(Pipe&, Split)` 释放FIFO中的槽位空间。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），Ascend 950PR/Ascend 950DT平台上会释放 `TPOP` 使用的FIFO槽位空间。
 
-对于 GlobalData 流程:
+对于GlobalData流程:
 
-1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者 FIFO 槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
-2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将 FIFO 槽位提交给消费者。它本身不会存储 tile 数据。
-3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前 FIFO 槽位地址，并递增消费者 tile 索引。它不会将数据加载到本地 tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
-4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的 FIFO 槽位视图，通知生产者该槽位空间已空闲。
+1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者FIFO槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
+2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将FIFO槽位提交给消费者。它本身不会存储tile数据。
+3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前FIFO槽位地址，并递增消费者tile索引。它不会将数据加载到本地tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
+4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的FIFO槽位视图，通知生产者该槽位空间已空闲。
 
 ## C++ Intrinsic
 
@@ -36,7 +36,7 @@ template <typename Pipe, typename GlobalData, TileSplitAxis Split,
 PTO_INST RecordEvent TFREE(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
 ```
 
-`include/pto/npu/a2a3/TPop.hpp` 中对应的 A2A3 实现对该重载有意保持为空：
+`include/pto/npu/a2a3/TPop.hpp` 中对应的Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现对该重载有意保持为空（Ascend 950PR/Ascend 950DT上实现位于 `include/pto/npu/a5/TPop.hpp`，执行实际的空闲空间通知）：
 
 ```cpp
 template <typename Pipe, TileSplitAxis Split>
@@ -48,19 +48,18 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 
 ## 约束
 
-- **TileData 流程**：
-    - 当弹出的 FIFO 槽位中的数据不再需要时，使用 `TFREE(Pipe&, GlobalData&)`。
+- **TileData流程**：
+    - 当弹出的FIFO槽位中的数据不再需要时，使用 `TFREE(Pipe&)`。
     - 搭配使用TPUSH/TPOP/TFREE实现核间同步和数据传输，数据传输时推入的tileshape和弹出的tileshape的大小比例关系是1:1或者1:2。
-    
-- **GlobalData 流程**：
-    - 当弹出的 FIFO 槽位中的数据不再需要时，使用 `TFREE(Pipe&, GlobalData&)`。
-    - `gmTensor` 只用于选择重载；实现不会读取或写入 tensor 内容。
+
+- **GlobalData流程**：
+    - 当弹出的FIFO槽位中的数据不再需要时，使用 `TFREE(Pipe&)`。
+    - `gmTensor` 只用于选择重载；实现不会读取或写入tensor内容。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。
-    - 如果非1:1或者1:2关系，即存在subtile的数据传输，需要搭配使用TALLOC/TPUSH/TPOP/TFREE来实现核间同步和数据传输。
 
 ## 示例
 
-### TileData 流程
+### TileData流程
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -83,11 +82,11 @@ AICORE void example_tiledata(__gm__ void *fifoMem)
 
     TPOP<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, tile);
     ...  // final use of VecTile
-    TFREE<Pipe, VecTile, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+    TFREE<Pipe, TileSplitAxis::TILE_UP_DOWN>(pipe);
 }
 ```
 
-### GlobalData 槽位释放
+### GlobalData槽位释放
 
 ```cpp
 #include <pto/pto-inst.hpp>
@@ -108,12 +107,13 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     Pipe pipe(fifoMem, 0x0, 0x0);
     SlotGlobal slot;
 
-    TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
-    // Load or otherwise consume data from slot here.
+    TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot); // TPOP 会重新赋值 slot
+    // 在此处从 slot 加载或消费数据。
     TFREE<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
 }
 ```
 
-## ASM 形式示例
+## ASM形式示例
 
-当前公开的汇编参考尚未为 `TFREE` 定义稳定的 PTO-AS 写法。手写 CV FIFO 程序时请使用 C++ intrinsic 形式。
+当前公开的汇编参考尚未为 `TFREE` 定义稳定的PTO-AS写法。手写CV FIFO程序时请使用C++ intrinsic形式。
+```

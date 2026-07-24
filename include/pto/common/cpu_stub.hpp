@@ -31,8 +31,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 #include <cstdio>
 #include <dlfcn.h>
-#include "pto/common/type.hpp"
 #include <string>
+#include "type.hpp"
 
 #define __global__
 #define AICORE
@@ -49,8 +49,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define __biasbuf__
 #define __tf__
 
-typedef void *aclrtStream;
-inline uint32_t get_block_idx();
+typedef void* aclrtStream;
 typedef int pipe_t;
 using event_t = int;
 const pipe_t PIPE_S = 0;
@@ -61,67 +60,18 @@ const pipe_t PIPE_MTE3 = 4;
 const pipe_t PIPE_M = 5;
 const pipe_t PIPE_ALL = 6;
 const pipe_t PIPE_FIX = 7;
-inline void pipe_barrier(pipe_t pipe)
-{
-    (void)pipe;
-}
+inline void pipe_barrier(pipe_t pipe) { (void)pipe; }
 
-// CCEC provides cache maintenance intrinsics and barrier constants for real
-// AICore builds. Host CPU sim kernels still see generated dcci/dsb calls, so
-// model them as full fences to preserve cross-thread ordering.
-#ifndef dcci
-template <typename... Args>
-inline void dcci(Args &&...)
-{
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-}
-#endif
-#ifndef mem_dsb_t
-typedef int mem_dsb_t;
-#endif
-#ifndef dsb
-#define dsb(kind)                                            \
-    do {                                                     \
-        (void)(kind);                                        \
-        std::atomic_thread_fence(std::memory_order_seq_cst); \
-    } while (0)
-#endif
-#ifndef ENTIRE_DATA_CACHE
-#define ENTIRE_DATA_CACHE 0
-#endif
-#ifndef SINGLE_CACHE_LINE
-#define SINGLE_CACHE_LINE 0
-#endif
-#ifndef CACHELINE_OUT
-#define CACHELINE_OUT 0
-#endif
-#ifndef DSB_DDR
-#define DSB_DDR 0
-#endif
-#ifndef DSB_ALL
-#define DSB_ALL 0
-#endif
-#ifndef DSB_UB
-#define DSB_UB 0
-#endif
+#define aclFloat16ToFloat(x) ((float)(x))
 
-constexpr pipe_t opPipeList[] = {};
-
-enum
-{
+enum {
     ACL_MEM_MALLOC_HUGE_FIRST = 0,
-};
-
-enum
-{
     ACL_MEMCPY_HOST_TO_DEVICE = 0,
     ACL_MEMCPY_DEVICE_TO_HOST = 1,
     ACL_MEMCPY_DEVICE_TO_DEVICE = 2,
 };
 
-#define aclFloat16ToFloat(x) ((float)(x))
-
-static inline int aclrtMallocHost(void **p, size_t sz)
+static inline int aclrtMallocHost(void** p, size_t sz)
 {
     assert(sz != 0 && "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/coding/debug.md\n");
     *p = malloc(sz);
@@ -133,20 +83,12 @@ static inline int aclrtMallocHost(void **p, size_t sz)
 #define __cce_get_tile_ptr(x) x
 #define set_mask_norm(...)
 #define set_vector_mask(...)
-inline uint64_t get_ctrl()
-{
-    return 0;
-}
-inline void set_ctrl(uint64_t)
-{}
-inline uint64_t sbitset1(uint64_t value, int)
-{
-    return value;
-}
-inline uint64_t sbitset0(uint64_t value, int)
-{
-    return value;
-}
+inline uint64_t get_ctrl() { return 0; }
+inline void set_ctrl(uint64_t) {}
+inline uint64_t sbitset1(uint64_t value, int) { return value; }
+inline uint64_t sbitset0(uint64_t value, int) { return value; }
+
+inline uint32_t get_block_idx();
 
 #include <pto/cpu/trace.hpp>
 
@@ -156,6 +98,9 @@ inline uint64_t sbitset0(uint64_t value, int)
 #define CommMpiFinalize()
 #define SKIP_IF_RANKS_LT(n)
 static constexpr uint32_t HCCL_MAX_RANK_NUM = 64;
+
+static constexpr uint32_t QUANT_SCALAR_REG_OFFSET = 0;
+static constexpr uint32_t QUANT_VECTOR_REG_OFFSET = 1;
 
 struct HcclRootInfo {};
 
@@ -197,11 +142,11 @@ struct StreamState {
 inline const auto g_time_origin = std::chrono::steady_clock::now();
 
 using SetExecutionContextHookFn = void (*)(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim);
-using GetExecutionContextHookFn = void (*)(uint32_t *block_idx, uint32_t *subblock_id, uint32_t *subblock_dim);
-using GetSharedStorageHookFn = void *(*)(std::string key, size_t size);
+using GetExecutionContextHookFn = void (*)(uint32_t* block_idx, uint32_t* subblock_id, uint32_t* subblock_dim);
+using GetSharedStorageHookFn = void* (*)(std::string key, size_t size);
 using GetTaskCookieHookFn = uint64_t (*)();
 using GetSubblockIdInjectedHookFn = uint32_t (*)();
-using GetPipeSharedStateInjectedHookFn = void *(*)(uint64_t pipe_key, size_t size);
+using GetPipeSharedStateInjectedHookFn = void* (*)(uint64_t pipe_key, size_t size);
 
 inline void set_execution_context(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim);
 inline void reset_execution_context();
@@ -209,19 +154,19 @@ inline void reset_execution_context();
 inline GetSubblockIdInjectedHookFn injected_subblock_id_hook = nullptr;
 inline GetPipeSharedStateInjectedHookFn injected_pipe_shared_state_hook = nullptr;
 
-inline RuntimeConfig &runtime_config()
+inline RuntimeConfig& runtime_config()
 {
     static RuntimeConfig config;
     return config;
 }
 
-inline uint32_t ReadEnvU32(const char *name, uint32_t fallback)
+inline uint32_t ReadEnvU32(const char* name, uint32_t fallback)
 {
-    const char *value = std::getenv(name);
+    const char* value = std::getenv(name);
     if (value == nullptr || *value == '\0') {
         return fallback;
     }
-    char *end = nullptr;
+    char* end = nullptr;
     const unsigned long parsed = std::strtoul(value, &end, 10);
     if (end == value || *end != '\0') {
         return fallback;
@@ -229,9 +174,9 @@ inline uint32_t ReadEnvU32(const char *name, uint32_t fallback)
     return parsed == 0 ? fallback : static_cast<uint32_t>(parsed);
 }
 
-inline bool ReadEnvBool(const char *name, bool fallback)
+inline bool ReadEnvBool(const char* name, bool fallback)
 {
-    const char *value = std::getenv(name);
+    const char* value = std::getenv(name);
     if (value == nullptr || *value == '\0') {
         return fallback;
     }
@@ -246,12 +191,12 @@ inline bool ReadEnvBool(const char *name, bool fallback)
 
 inline void InitializeRuntime()
 {
-    auto &config = runtime_config();
+    auto& config = runtime_config();
     std::scoped_lock lock(config.mutex);
     config.device_id = 0;
     config.num_cores = ReadEnvU32("PTO_CPU_SIM_NUM_CORES", 4);
     config.trace_enabled = kInstructionTraceEnabled && ReadEnvBool("PTO_CPU_SIM_TRACE_ENABLE", true);
-    if (const char *trace_dir = std::getenv("PTO_CPU_SIM_TRACE_DIR"); trace_dir != nullptr && *trace_dir != '\0') {
+    if (const char* trace_dir = std::getenv("PTO_CPU_SIM_TRACE_DIR"); trace_dir != nullptr && *trace_dir != '\0') {
         config.trace_root = trace_dir;
     } else {
         config.trace_root = "cpu_sim_traces";
@@ -265,7 +210,7 @@ inline void InitializeRuntime()
 
 inline void ShutdownRuntime()
 {
-    auto &config = runtime_config();
+    auto& config = runtime_config();
     std::scoped_lock lock(config.mutex);
     config.initialized = false;
     config.next_stream_id = 1;
@@ -298,12 +243,12 @@ inline std::filesystem::path GetTraceRoot()
 
 inline uint64_t NextLaunchId()
 {
-    auto &config = runtime_config();
+    auto& config = runtime_config();
     std::scoped_lock lock(config.mutex);
     return config.next_launch_id++;
 }
 
-inline std::filesystem::path CreateKernelTraceDir(const std::string &kernel_name)
+inline std::filesystem::path CreateKernelTraceDir(const std::string& kernel_name)
 {
     EnsureRuntimeInitialized();
     const auto dir = GetTraceRoot() / kernel_name / ("launch_" + std::to_string(NextLaunchId()));
@@ -323,8 +268,8 @@ struct KernelLaunchOptions {
     bool write_trace_files = true;
 };
 
-inline uint32_t ResolveActiveCoreCount(uint32_t requested_cores, uint32_t total_work_items = 0,
-                                       uint32_t work_quantum = 1)
+inline uint32_t ResolveActiveCoreCount(
+    uint32_t requested_cores, uint32_t total_work_items = 0, uint32_t work_quantum = 1)
 {
     const uint32_t configured = requested_cores == 0 ? GetConfiguredCoreCount() : requested_cores;
     uint32_t active = std::max<uint32_t>(1, configured);
@@ -345,7 +290,7 @@ inline uint32_t ResolveActiveCoreCount(uint32_t requested_cores, uint32_t total_
 }
 
 template <typename KernelFn>
-inline void LaunchKernelMultiCore(const KernelLaunchOptions &options, aclrtStream stream, KernelFn &&kernel)
+inline void LaunchKernelMultiCore(const KernelLaunchOptions& options, aclrtStream stream, KernelFn&& kernel)
 {
     (void)stream;
     EnsureRuntimeInitialized();
@@ -390,7 +335,7 @@ inline void LaunchKernelMultiCore(const KernelLaunchOptions &options, aclrtStrea
         });
     }
 
-    for (auto &worker : workers) {
+    for (auto& worker : workers) {
         worker.join();
     }
 
@@ -400,16 +345,13 @@ inline void LaunchKernelMultiCore(const KernelLaunchOptions &options, aclrtStrea
 
     if (trace_enabled) {
         std::ofstream combined(trace_dir / "trace.jsonl", std::ios::trunc);
-        for (const auto &chunk : trace_chunks) {
+        for (const auto& chunk : trace_chunks) {
             combined << chunk;
         }
     }
 }
 
-inline StreamState *ToStreamState(aclrtStream stream)
-{
-    return reinterpret_cast<StreamState *>(stream);
-}
+inline StreamState* ToStreamState(aclrtStream stream) { return reinterpret_cast<StreamState*>(stream); }
 
 inline SetExecutionContextHookFn ResolveSetExecutionContextHook()
 {
@@ -459,7 +401,7 @@ struct ExecutionContext {
 
 inline thread_local ExecutionContext execution_context{};
 
-inline void register_hooks(void *get_subblock_id, void *get_pipe_shared_state)
+inline void register_hooks(void* get_subblock_id, void* get_pipe_shared_state)
 {
     injected_subblock_id_hook = reinterpret_cast<GetSubblockIdInjectedHookFn>(get_subblock_id);
     injected_pipe_shared_state_hook = reinterpret_cast<GetPipeSharedStateInjectedHookFn>(get_pipe_shared_state);
@@ -475,15 +417,9 @@ inline void set_execution_context(uint32_t block_idx, uint32_t subblock_id, uint
     }
 }
 
-inline void reset_execution_context()
-{
-    execution_context = {};
-}
+inline void reset_execution_context() { execution_context = {}; }
 
-inline void set_task_cookie(uint64_t task_cookie)
-{
-    execution_context.task_cookie = task_cookie;
-}
+inline void set_task_cookie(uint64_t task_cookie) { execution_context.task_cookie = task_cookie; }
 
 class ScopedExecutionContext {
 public:
@@ -493,10 +429,7 @@ public:
         set_execution_context(block_idx, subblock_id, subblock_dim);
     }
 
-    ~ScopedExecutionContext()
-    {
-        execution_context = saved_;
-    }
+    ~ScopedExecutionContext() { execution_context = saved_; }
 
 private:
     ExecutionContext saved_{};
@@ -505,13 +438,13 @@ private:
 
 namespace cce {
 template <typename... Args>
-inline int printf(const char *fmt, Args... args)
+inline int printf(const char* fmt, Args... args)
 {
     return std::printf(fmt, args...);
 }
 } // namespace cce
 
-inline int aclInit(const char *)
+inline int aclInit(const char*)
 {
     pto::cpu_sim::InitializeRuntime();
     return 0;
@@ -519,17 +452,17 @@ inline int aclInit(const char *)
 
 inline int aclrtSetDevice(int device_id)
 {
-    auto &config = pto::cpu_sim::runtime_config();
+    auto& config = pto::cpu_sim::runtime_config();
     std::scoped_lock lock(config.mutex);
     config.device_id = static_cast<uint32_t>(std::max(0, device_id));
     return 0;
 }
 
-inline int aclrtCreateStream(aclrtStream *stream)
+inline int aclrtCreateStream(aclrtStream* stream)
 {
     pto::cpu_sim::EnsureRuntimeInitialized();
-    auto &config = pto::cpu_sim::runtime_config();
-    auto *state = new pto::cpu_sim::StreamState();
+    auto& config = pto::cpu_sim::runtime_config();
+    auto* state = new pto::cpu_sim::StreamState();
     {
         std::scoped_lock lock(config.mutex);
         state->id = config.next_stream_id++;
@@ -538,18 +471,15 @@ inline int aclrtCreateStream(aclrtStream *stream)
     return 0;
 }
 
-inline int aclrtMalloc(void **p, size_t sz, int)
-{
-    return aclrtMallocHost(p, sz);
-}
+inline int aclrtMalloc(void** p, size_t sz, int) { return aclrtMallocHost(p, sz); }
 
-inline int aclrtMemcpy(void *dst, size_t sz_dst, const void *src, size_t sz_src, int)
+inline int aclrtMemcpy(void* dst, size_t sz_dst, const void* src, size_t sz_src, int)
 {
     std::memcpy(dst, src, std::min(sz_dst, sz_src));
     return 0;
 }
 
-inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
+inline int aclrtMemset(void* dst, size_t dstSize, int value, size_t count)
 {
     constexpr int ACL_SUCCESS = 0;
     constexpr int ACL_ERROR_GE_PARAM_INVALID = 145000;
@@ -560,22 +490,19 @@ inline int aclrtMemset(void *dst, size_t dstSize, int value, size_t count)
     if (dst == nullptr || count > dstSize) {
         return ACL_ERROR_GE_PARAM_INVALID;
     }
-    std::fill_n(reinterpret_cast<uint8_t *>(dst), count, static_cast<uint8_t>(value));
+    std::fill_n(reinterpret_cast<uint8_t*>(dst), count, static_cast<uint8_t>(value));
     return ACL_SUCCESS;
 }
 
-inline int aclrtSynchronizeStream(aclrtStream)
-{
-    return 0;
-}
+inline int aclrtSynchronizeStream(aclrtStream) { return 0; }
 
-inline int aclrtFree(void *p)
+inline int aclrtFree(void* p)
 {
     free(p);
     return 0;
 }
 
-inline int aclrtFreeHost(void *p)
+inline int aclrtFreeHost(void* p)
 {
     free(p);
     return 0;
@@ -587,10 +514,7 @@ inline int aclrtDestroyStream(aclrtStream stream)
     return 0;
 }
 
-inline int aclrtResetDevice(int)
-{
-    return 0;
-}
+inline int aclrtResetDevice(int) { return 0; }
 
 inline int aclFinalize()
 {
@@ -640,15 +564,9 @@ inline uint32_t get_subblockdim()
     return pto::cpu_sim::execution_context.subblock_dim;
 }
 
-inline uint32_t get_block_num()
-{
-    return pto::cpu_sim::GetConfiguredCoreCount();
-}
+inline uint32_t get_block_num() { return pto::cpu_sim::GetConfiguredCoreCount(); }
 
-inline uint32_t get_coreid()
-{
-    return get_block_idx();
-}
+inline uint32_t get_coreid() { return get_block_idx(); }
 
 inline uint64_t get_task_cookie()
 {
@@ -672,7 +590,7 @@ inline void SYNCALL_IMPL()
 }
 
 template <SyncCoreType CoreType = SyncCoreType::AIVOnly>
-inline void SYNCALL_SOFT_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, int32_t usedCores)
+inline void SYNCALL_SOFT_IMPL(int32_t* gmWorkspace, int32_t* ubWorkspace, int32_t usedCores)
 {
     (void)CoreType;
     (void)gmWorkspace;
@@ -680,7 +598,7 @@ inline void SYNCALL_SOFT_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, int32_
     (void)usedCores;
 }
 
-inline void SYNCALL_SOFT_AIC_IMPL(int32_t *gmWorkspace, int32_t *l1Workspace, int32_t usedCores)
+inline void SYNCALL_SOFT_AIC_IMPL(int32_t* gmWorkspace, int32_t* l1Workspace, int32_t usedCores)
 {
     (void)gmWorkspace;
     (void)l1Workspace;
@@ -688,7 +606,7 @@ inline void SYNCALL_SOFT_AIC_IMPL(int32_t *gmWorkspace, int32_t *l1Workspace, in
 }
 
 template <SyncCoreType CoreType = SyncCoreType::Mix>
-inline void SYNCALL_SOFT_MIX_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, int32_t *l1Workspace, int32_t usedCores)
+inline void SYNCALL_SOFT_MIX_IMPL(int32_t* gmWorkspace, int32_t* ubWorkspace, int32_t* l1Workspace, int32_t usedCores)
 {
     (void)CoreType;
     (void)gmWorkspace;
@@ -697,26 +615,5 @@ inline void SYNCALL_SOFT_MIX_IMPL(int32_t *gmWorkspace, int32_t *ubWorkspace, in
     (void)usedCores;
 }
 } // namespace pto
-
-inline uint64_t get_sys_cnt()
-{
-    const auto now = std::chrono::steady_clock::now();
-    return static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(now - pto::cpu_sim::g_time_origin).count());
-}
-
-inline void set_ffts_base_addr(uint64_t)
-{}
-
-inline int rtGetC2cCtrlAddr(uint64_t *addr, uint32_t *len)
-{
-    if (addr != nullptr) {
-        *addr = 0;
-    }
-    if (len != nullptr) {
-        *len = 0;
-    }
-    return 0;
-}
 
 #endif

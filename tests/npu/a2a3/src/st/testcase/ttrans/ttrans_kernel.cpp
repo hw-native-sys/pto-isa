@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int tRows, int tCols>
-__global__ AICORE void runTTRANS(__gm__ T __out__ *out, __gm__ T __in__ *src, int vRows, int vCols)
+__global__ AICORE void runTTRANS(__gm__ T __out__* out, __gm__ T __in__* src, int vRows, int vCols)
 {
     using DynShapeSrc = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStrideSrc = pto::Stride<-1, -1, -1, -1, -1>;
@@ -70,31 +70,31 @@ __global__ AICORE void runTTRANS(__gm__ T __out__ *out, __gm__ T __in__ *src, in
 }
 
 template <typename T, int tRows, int tCols, int vRows, int vCols>
-void LaunchTTRANS(T *out, T *src, void *stream)
+void LaunchTTRANS(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTTRANS<half, tRows, tCols><<<1, nullptr, stream>>>((half *)(out), (half *)(src), vRows, vCols);
+        runTTRANS<half, tRows, tCols><<<1, nullptr, stream>>>((half*)(out), (half*)(src), vRows, vCols);
     } else {
         runTTRANS<T, tRows, tCols><<<1, nullptr, stream>>>(out, src, vRows, vCols);
     }
 }
 
-template void LaunchTTRANS<float, 16, 8, 16, 8>(float *out, float *src, void *stream);
-template void LaunchTTRANS<aclFloat16, 16, 16, 16, 16>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTTRANS<float, 32, 16, 31, 15>(float *out, float *src, void *stream);
-template void LaunchTTRANS<aclFloat16, 32, 32, 31, 31>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTTRANS<float, 2, 512, 2, 512>(float *out, float *src, void *stream);
-template void LaunchTTRANS<float, 9, 512, 9, 512>(float *out, float *src, void *stream);
-template void LaunchTTRANS<float, 32, 16, 23, 15>(float *out, float *src, void *stream);
-template void LaunchTTRANS<float, 64, 128, 27, 77>(float *out, float *src, void *stream);
-template void LaunchTTRANS<aclFloat16, 100, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTTRANS<aclFloat16, 128, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTTRANS<aclFloat16, 128, 64, 100, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTTRANS<float, 512, 32, 512, 2>(float *out, float *src, void *stream);
-template void LaunchTTRANS<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTTRANS<float, 64, 32, 64, 32>(float *out, float *src, void *stream);
-template void LaunchTTRANS<float, 64, 64, 36, 64>(float *out, float *src, void *stream);
-template void LaunchTTRANS<float, 2, 16, 2, 16>(float *out, float *src, void *stream);
-template void LaunchTTRANS<uint8_t, 32, 32, 32, 32>(uint8_t *out, uint8_t *src, void *stream);
-template void LaunchTTRANS<uint8_t, 64, 64, 22, 63>(uint8_t *out, uint8_t *src, void *stream);
-template void LaunchTTRANS<float, 8, 8, 8, 8>(float *out, float *src, void *stream);
+template void LaunchTTRANS<float, 16, 8, 16, 8>(float* out, float* src, void* stream);
+template void LaunchTTRANS<aclFloat16, 16, 16, 16, 16>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANS<float, 32, 16, 31, 15>(float* out, float* src, void* stream);
+template void LaunchTTRANS<aclFloat16, 32, 32, 31, 31>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANS<float, 2, 512, 2, 512>(float* out, float* src, void* stream);
+template void LaunchTTRANS<float, 9, 512, 9, 512>(float* out, float* src, void* stream);
+template void LaunchTTRANS<float, 32, 16, 23, 15>(float* out, float* src, void* stream);
+template void LaunchTTRANS<float, 64, 128, 27, 77>(float* out, float* src, void* stream);
+template void LaunchTTRANS<aclFloat16, 100, 64, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANS<aclFloat16, 128, 64, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANS<aclFloat16, 128, 64, 100, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANS<float, 512, 32, 512, 2>(float* out, float* src, void* stream);
+template void LaunchTTRANS<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTTRANS<float, 64, 32, 64, 32>(float* out, float* src, void* stream);
+template void LaunchTTRANS<float, 64, 64, 36, 64>(float* out, float* src, void* stream);
+template void LaunchTTRANS<float, 2, 16, 2, 16>(float* out, float* src, void* stream);
+template void LaunchTTRANS<uint8_t, 32, 32, 32, 32>(uint8_t* out, uint8_t* src, void* stream);
+template void LaunchTTRANS<uint8_t, 64, 64, 22, 63>(uint8_t* out, uint8_t* src, void* stream);
+template void LaunchTTRANS<float, 8, 8, 8, 8>(float* out, float* src, void* stream);

@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TCONCATTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -45,13 +43,13 @@ struct TilesSize {
 };
 
 template <typename T, TilesSize sizes>
-void LaunchTConcat(T *out, T *src0, T *src1, void *stream);
+void LaunchTConcat(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, typename TIdx, TilesSize sizes, TilesSize idxSizes>
-void LaunchTConcat(T *out, T *src0, T *src1, TIdx *src0Idx, TIdx *src1Idx, void *stream);
+void LaunchTConcat(T* out, T* src0, T* src1, TIdx* src0Idx, TIdx* src1Idx, void* stream);
 
 template <typename T, typename TIdx, TilesSize sizes, TilesSize idxSizes = sizes>
-void LaunchTConcat(T *out, T *src0, T *src1, TIdx *outIdx, TIdx *src0Idx, TIdx *src1Idx, void *stream);
+void LaunchTConcat(T* out, T* src0, T* src1, TIdx* outIdx, TIdx* src0Idx, TIdx* src1Idx, void* stream);
 
 constexpr int WITHOUT_IDX_TILES = 0;
 constexpr int USE_SRC_IDX = 1;
@@ -77,16 +75,16 @@ void test_tconcat()
     TIdx *dstIdxHost, *src0IdxHost, *src1IdxHost;
     TIdx *dstIdxDevice, *src0IdxDevice, *src1IdxDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSizeDst);
-    aclrtMallocHost((void **)(&src0Host), fileSizeSrc0);
-    aclrtMallocHost((void **)(&src1Host), fileSizeSrc1);
+    aclrtMallocHost((void**)(&dstHost), fileSizeDst);
+    aclrtMallocHost((void**)(&src0Host), fileSizeSrc0);
+    aclrtMallocHost((void**)(&src1Host), fileSizeSrc1);
 
     if constexpr (useIdx == USE_DST_IDX) {
-        aclrtMallocHost((void **)(&dstIdxHost), fileSizeDstIdx);
+        aclrtMallocHost((void**)(&dstIdxHost), fileSizeDstIdx);
     }
     if constexpr (useIdx >= USE_SRC_IDX) {
-        aclrtMallocHost((void **)(&src0IdxHost), fileSizeSrc0Idx);
-        aclrtMallocHost((void **)(&src1IdxHost), fileSizeSrc1Idx);
+        aclrtMallocHost((void**)(&src0IdxHost), fileSizeSrc0Idx);
+        aclrtMallocHost((void**)(&src1IdxHost), fileSizeSrc1Idx);
     }
 
     std::fill(dstHost, dstHost + sizes.dstH * sizes.dstW, 0u);
@@ -95,16 +93,16 @@ void test_tconcat()
         std::fill(dstIdxHost, dstIdxHost + idxSizes.dstH * idxSizes.dstW, 0u);
     }
 
-    aclrtMalloc((void **)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSizeDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSizeSrc0, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSizeSrc1, ACL_MEM_MALLOC_HUGE_FIRST);
 
     if constexpr (useIdx == USE_DST_IDX) {
-        aclrtMalloc((void **)&dstIdxDevice, fileSizeDstIdx, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc((void**)&dstIdxDevice, fileSizeDstIdx, ACL_MEM_MALLOC_HUGE_FIRST);
     }
     if constexpr (useIdx >= USE_SRC_IDX) {
-        aclrtMalloc((void **)&src0IdxDevice, fileSizeSrc0Idx, ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMalloc((void **)&src1IdxDevice, fileSizeSrc1Idx, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc((void**)&src0IdxDevice, fileSizeSrc0Idx, ACL_MEM_MALLOC_HUGE_FIRST);
+        aclrtMalloc((void**)&src1IdxDevice, fileSizeSrc1Idx, ACL_MEM_MALLOC_HUGE_FIRST);
     }
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSizeSrc0, src0Host, fileSizeSrc0));
@@ -126,11 +124,11 @@ void test_tconcat()
     }
 
     if constexpr (useIdx == USE_DST_IDX) {
-        LaunchTConcat<T, TIdx, sizes, idxSizes>(dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice,
-                                                src1IdxDevice, stream);
+        LaunchTConcat<T, TIdx, sizes, idxSizes>(
+            dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice, src1IdxDevice, stream);
     } else if constexpr (useIdx == USE_SRC_IDX) {
-        LaunchTConcat<T, TIdx, sizes, idxSizes>(dstDevice, src0Device, src1Device, src0IdxDevice, src1IdxDevice,
-                                                stream);
+        LaunchTConcat<T, TIdx, sizes, idxSizes>(
+            dstDevice, src0Device, src1Device, src0IdxDevice, src1IdxDevice, stream);
     } else {
         LaunchTConcat<T, sizes>(dstDevice, src0Device, src1Device, stream);
     }

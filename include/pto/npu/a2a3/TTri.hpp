@@ -19,12 +19,12 @@ namespace pto {
 
 // lower-triangular
 template <typename T, unsigned rowStride>
-PTO_INTERNAL void TTril(__ubuf__ T *dstPtr, unsigned validRow, unsigned validCol, int diagonal)
+PTO_INTERNAL void TTril(__ubuf__ T* dstPtr, unsigned validRow, unsigned validCol, int diagonal)
 {
     T one = static_cast<T>(1);
     T zero = static_cast<T>(0);
     for (unsigned i = 0; i < validRow; ++i) {
-        __ubuf__ T *drow = dstPtr + i * rowStride;
+        __ubuf__ T* drow = dstPtr + i * rowStride;
 
         // write full zero first
         set_vector_mask(0, validCol);
@@ -45,12 +45,12 @@ PTO_INTERNAL void TTril(__ubuf__ T *dstPtr, unsigned validRow, unsigned validCol
 
 // upper-triangular
 template <typename T, unsigned rowStride>
-PTO_INTERNAL void TTriu(__ubuf__ T *dstPtr, unsigned validRow, unsigned validCol, int diagonal)
+PTO_INTERNAL void TTriu(__ubuf__ T* dstPtr, unsigned validRow, unsigned validCol, int diagonal)
 {
     T one = static_cast<T>(1);
     T zero = static_cast<T>(0);
     for (unsigned i = 0; i < validRow; ++i) {
-        __ubuf__ T *drow = dstPtr + i * rowStride;
+        __ubuf__ T* drow = dstPtr + i * rowStride;
 
         // write full one first
         set_vector_mask(0, validCol);
@@ -69,11 +69,11 @@ PTO_INTERNAL void TTriu(__ubuf__ T *dstPtr, unsigned validRow, unsigned validCol
 }
 
 template <typename TileData, int isUpperOrLower, unsigned rowStride>
-__tf__ PTO_INTERNAL void TTri(typename TileData::TileDType __out__ dst, unsigned validRow, unsigned validCol,
-                              int diagonal)
+__tf__ PTO_INTERNAL void TTri(
+    typename TileData::TileDType __out__ dst, unsigned validRow, unsigned validCol, int diagonal)
 {
     using T = typename TileData::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
 
     set_mask_count();
     if constexpr (isUpperOrLower == 0) {
@@ -87,20 +87,20 @@ __tf__ PTO_INTERNAL void TTri(typename TileData::TileDType __out__ dst, unsigned
 }
 
 template <typename TileData, int isUpperOrLower>
-PTO_INTERNAL void TTriCheck(const TileData &dst)
+PTO_INTERNAL void TTriCheck(const TileData& dst)
 {
     using T = typename TileData::DType;
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, float16_t>::value ||
-                      std::is_same<T, float>::value || std::is_same<T, float32_t>::value,
-                  "Fix: TTRI has invalid data type.");
+    static_assert(
+        std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, half>::value ||
+            std::is_same<T, float16_t>::value || std::is_same<T, float>::value || std::is_same<T, float32_t>::value,
+        "Fix: TTRI has invalid data type.");
     static_assert(isUpperOrLower == 0 || isUpperOrLower == 1, "Fix: isUpperOrLower must be 0 or 1.");
     static_assert(TileData::isRowMajor, "Fix: TTRI only support row major layout.");
 }
 
 template <typename TileData, int isUpperOrLower>
-PTO_INTERNAL void TTRI_IMPL(TileData &dst, int diagonal)
+PTO_INTERNAL void TTRI_IMPL(TileData& dst, int diagonal)
 {
     TTriCheck<TileData, isUpperOrLower>(dst);
     constexpr unsigned rowStride = TileData::RowStride;

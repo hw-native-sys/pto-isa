@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t testKey>
-void launchTSORT32(uint64_t *out, uint64_t *src, uint32_t *idx, uint64_t *tmp, void *stream);
+void launchTSORT32(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);
 
 class TSort32Test : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -53,15 +51,15 @@ void tsort32_test(int32_t rows, int32_t cols, int32_t colsAlign)
     uint64_t *dstDevice, *srcDevice, *tmpDevice;
     uint32_t *idxHost, *idxDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
-    aclrtMallocHost((void **)(&idxHost), idxByteSize);
-    aclrtMallocHost((void **)(&tmpHost), tmpByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&idxHost), idxByteSize);
+    aclrtMallocHost((void**)(&tmpHost), tmpByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&tmpDevice, tmpByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&idxDevice, idxByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&tmpDevice, tmpByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input_arr.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/input_idx.bin", idxByteSize, idxHost, idxByteSize);
@@ -99,22 +97,10 @@ void tsort32_test(int32_t rows, int32_t cols, int32_t colsAlign)
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TSort32Test, case1)
-{
-    tsort32_test<1, float>(2, 32, 32);
-}
+TEST_F(TSort32Test, case1) { tsort32_test<1, float>(2, 32, 32); }
 
-TEST_F(TSort32Test, case2)
-{
-    tsort32_test<2, uint16_t>(4, 64, 64);
-}
+TEST_F(TSort32Test, case2) { tsort32_test<2, uint16_t>(4, 64, 64); }
 
-TEST_F(TSort32Test, case3)
-{
-    tsort32_test<3, float>(1, 32 * 256, 32 * 256);
-}
+TEST_F(TSort32Test, case3) { tsort32_test<3, float>(1, 32 * 256, 32 * 256); }
 
-TEST_F(TSort32Test, case4)
-{
-    tsort32_test<4, float>(2, 13, 16);
-}
+TEST_F(TSort32Test, case4) { tsort32_test<4, float>(2, 13, 16); }

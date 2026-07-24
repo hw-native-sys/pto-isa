@@ -15,32 +15,32 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
-void launchTCVT(D *dst, S *src, void *stream);
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
+void launchTCVT(D* dst, S* src, void* stream);
 
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void launchTCVTSaturationTest(D *dstSaturated, D *dstTruncated, D *dstDefault, S *src, void *stream);
+void launchTCVTSaturationTest(D* dstSaturated, D* dstTruncated, D* dstDefault, S* src, void* stream);
 
 class TCVTTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-          int kValidCols_ = kTCols_>
+template <
+    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+    int kValidCols_ = kTCols_>
 void test_tcvt()
 {
     uint32_t M = kGRows_;
@@ -57,11 +57,11 @@ void test_tcvt()
     D *dstHost, *dstDevice;
     S *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemset(dstHost, dstFileSize, 0, dstFileSize);
@@ -95,35 +95,14 @@ void test_tcvt()
     EXPECT_TRUE(ret);
 }
 
-#define GENERATE_TCVT_TESTS(dst_type, src_type, type_name)       \
-    TEST_F(TCVTTest, case_##type_name##_1x128)                   \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 1, 128, 1, 128>();         \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_2x64)                    \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 2, 64, 2, 64>();           \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_4x32)                    \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 4, 32, 4, 32>();           \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_2x128)                   \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 2, 128, 2, 128>();         \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_4x128_4x65)              \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 4, 128, 4, 128, 4, 65>();  \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_4x256_4x200)             \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 4, 256, 4, 256, 4, 200>(); \
-    }                                                            \
-    TEST_F(TCVTTest, case_##type_name##_1x256_1x129)             \
-    {                                                            \
-        test_tcvt<dst_type, src_type, 1, 256, 1, 256, 1, 129>(); \
-    }
+#define GENERATE_TCVT_TESTS(dst_type, src_type, type_name)                                                        \
+    TEST_F(TCVTTest, case_##type_name##_1x128) { test_tcvt<dst_type, src_type, 1, 128, 1, 128>(); }               \
+    TEST_F(TCVTTest, case_##type_name##_2x64) { test_tcvt<dst_type, src_type, 2, 64, 2, 64>(); }                  \
+    TEST_F(TCVTTest, case_##type_name##_4x32) { test_tcvt<dst_type, src_type, 4, 32, 4, 32>(); }                  \
+    TEST_F(TCVTTest, case_##type_name##_2x128) { test_tcvt<dst_type, src_type, 2, 128, 2, 128>(); }               \
+    TEST_F(TCVTTest, case_##type_name##_4x128_4x65) { test_tcvt<dst_type, src_type, 4, 128, 4, 128, 4, 65>(); }   \
+    TEST_F(TCVTTest, case_##type_name##_4x256_4x200) { test_tcvt<dst_type, src_type, 4, 256, 4, 256, 4, 200>(); } \
+    TEST_F(TCVTTest, case_##type_name##_1x256_1x129) { test_tcvt<dst_type, src_type, 1, 256, 1, 256, 1, 129>(); }
 
 // FP32 Source → fp16, int16, int32, variants
 GENERATE_TCVT_TESTS(aclFloat16, float, fp32_fp16)
@@ -186,23 +165,23 @@ void test_tcvt_saturation()
     D *dstSatHost, *dstTruncHost, *dstDefaultHost, *dstSatDevice, *dstTruncDevice, *dstDefaultDevice;
     S *srcHost, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstSatHost), dstFileSize);
-    aclrtMallocHost((void **)(&dstTruncHost), dstFileSize);
-    aclrtMallocHost((void **)(&dstDefaultHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstSatHost), dstFileSize);
+    aclrtMallocHost((void**)(&dstTruncHost), dstFileSize);
+    aclrtMallocHost((void**)(&dstDefaultHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstSatDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstTruncDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstDefaultDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstSatDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstTruncDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDefaultDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     // Run saturation test - produces saturated, truncated, and default outputs
-    launchTCVTSaturationTest<D, S, kGRows_, kGCols_, kTRows_, kTCols_>(dstSatDevice, dstTruncDevice, dstDefaultDevice,
-                                                                       srcDevice, stream);
+    launchTCVTSaturationTest<D, S, kGRows_, kGCols_, kTRows_, kTCols_>(
+        dstSatDevice, dstTruncDevice, dstDefaultDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstSatHost, dstFileSize, dstSatDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -249,28 +228,13 @@ void test_tcvt_saturation()
 // Minimal saturation mode tests (fp32→int8 is NOT supported on A5 hardware)
 // Disabled at compile time by default - define ENABLE_SATURATION_TESTS to enable
 #ifdef ENABLE_SATURATION_TESTS
-TEST_F(TCVTTest, saturation_fp16_int8_1x32)
-{
-    test_tcvt_saturation<int8_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp16_int8_1x32) { test_tcvt_saturation<int8_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_fp32_int16_1x32)
-{
-    test_tcvt_saturation<int16_t, float, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp32_int16_1x32) { test_tcvt_saturation<int16_t, float, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_fp16_int16_1x32)
-{
-    test_tcvt_saturation<int16_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp16_int16_1x32) { test_tcvt_saturation<int16_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_fp16_uint8_1x32)
-{
-    test_tcvt_saturation<uint8_t, aclFloat16, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_fp16_uint8_1x32) { test_tcvt_saturation<uint8_t, aclFloat16, 1, 32, 1, 32>(); }
 
-TEST_F(TCVTTest, saturation_int32_int16_1x32)
-{
-    test_tcvt_saturation<int16_t, int32_t, 1, 32, 1, 32>();
-}
+TEST_F(TCVTTest, saturation_int32_int16_1x32) { test_tcvt_saturation<int16_t, int32_t, 1, 32, 1, 32>(); }
 #endif // ENABLE_SATURATION_TESTS

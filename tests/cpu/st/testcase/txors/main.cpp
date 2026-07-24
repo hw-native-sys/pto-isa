@@ -10,25 +10,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTXors_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTXors_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TXORSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTXors(T *out, T *src, T *scalar, void *stream);
+void LaunchTXors(T* out, T* src, T* scalar, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_txors()
@@ -51,13 +51,13 @@ void test_txors()
 
     T *dstHost, *srcHost, *scalarHost;
     T *dstDevice, *srcDevice, *scalarDevice;
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
-    aclrtMallocHost((void **)(&scalarHost), scalarSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&scalarHost), scalarSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scalarDevice, scalarSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, srcHost, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/scalar.bin", scalarSize, scalarHost, scalarSize));
@@ -91,12 +91,5 @@ void test_txors()
     EXPECT_TRUE(ret);
 }
 
-const int NUM_64 = 64;
-TEST_F(TXORSTest, case_int32_64x64_64x64_64x64)
-{
-    test_txors<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TXORSTest, case_int16_64x64_64x64_64x64)
-{
-    test_txors<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
+TEST_F(TXORSTest, case_int32_64x64_64x64_64x64) { test_txors<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TXORSTest, case_int16_64x64_64x64_64x64) { test_txors<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }

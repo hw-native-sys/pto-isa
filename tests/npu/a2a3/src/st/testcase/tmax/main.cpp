@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TMAXTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 template <typename T>
-bool ResultCmp1(const T *golden, const T *devFinal, int tileRow, int tileCol, int validRow, int validCol,
-                float tolerance)
+bool ResultCmp1(
+    const T* golden, const T* devFinal, int tileRow, int tileCol, int validRow, int validCol, float tolerance)
 {
     // Iterate over the valid region and compare elements
     for (int h = 0; h < validRow; ++h) {
@@ -43,7 +41,7 @@ bool ResultCmp1(const T *golden, const T *devFinal, int tileRow, int tileCol, in
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -51,7 +49,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType>
-void LaunchTMax(T *out, T *src0, T *src1, void *stream);
+void LaunchTMax(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType>
 void test_tmax()
@@ -66,21 +64,21 @@ void test_tmax()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize);
 
     aclrtMemcpy(src0Device, fileSize, src0Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSize, src1Host, fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTMax<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>(dstDevice, src0Device, src1Device,
-                                                                                      stream);
+    LaunchTMax<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType>(
+        dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);

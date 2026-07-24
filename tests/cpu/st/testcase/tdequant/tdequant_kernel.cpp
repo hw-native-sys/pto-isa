@@ -14,8 +14,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename dstType, typename srcType, int kTRows_, int kTCols_, int vRows, int vCols>
-__global__ AICORE void runTDeuant(__gm__ dstType __out__ *out, __gm__ srcType __in__ *src, __gm__ dstType __in__ *scale,
-                                  __gm__ dstType __in__ *offset)
+__global__ AICORE void runTDeuant(
+    __gm__ dstType __out__* out, __gm__ srcType __in__* src, __gm__ dstType __in__* scale,
+    __gm__ dstType __in__* offset)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using DynStridDim5 = pto::Stride<1, 1, -1, -1, 1>;
@@ -48,12 +49,12 @@ __global__ AICORE void runTDeuant(__gm__ dstType __out__ *out, __gm__ srcType __
 }
 
 template <typename dstType, typename srcType, int kTRows_, int kTCols_, int vRows, int vCols>
-void launchTDequant(dstType *out, srcType *src, dstType *scale, dstType *offset, void *stream)
+void launchTDequant(dstType* out, srcType* src, dstType* scale, dstType* offset, void* stream)
 {
     runTDeuant<dstType, srcType, kTRows_, kTCols_, vRows, vCols>(out, src, scale, offset);
 }
 
-template void launchTDequant<float, int16_t, 64, 64, 64, 64>(float *out, int16_t *src, float *scale, float *offset,
-                                                             void *stream);
-template void launchTDequant<float, int8_t, 64, 64, 64, 64>(float *out, int8_t *src, float *scale, float *offset,
-                                                            void *stream);
+template void launchTDequant<float, int16_t, 64, 64, 64, 64>(
+    float* out, int16_t* src, float* scale, float* offset, void* stream);
+template void launchTDequant<float, int8_t, 64, 64, 64, 64>(
+    float* out, int8_t* src, float* scale, float* offset, void* stream);

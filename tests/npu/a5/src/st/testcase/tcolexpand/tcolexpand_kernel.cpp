@@ -16,7 +16,7 @@ using namespace pto;
 namespace TColExpandTest {
 
 template <typename T, uint32_t srcRows, uint32_t dstRows, uint32_t cols, uint32_t validCols>
-__global__ AICORE void runCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runCOLEXPAND(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, srcRows, validCols>;
     using DynStridDim5 = pto::Stride<srcRows * cols, srcRows * cols, srcRows * cols, cols, 1>;
@@ -57,19 +57,19 @@ __global__ AICORE void runCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, uint32_t srcRows, uint32_t dstRows, uint32_t cols, uint32_t validCols>
-void launchTCOLEXPAND(T *out, T *src, void *stream)
+void launchTCOLEXPAND(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runCOLEXPAND<half, srcRows, dstRows, cols, validCols><<<1, nullptr, stream>>>((half *)out, (half *)src);
+        runCOLEXPAND<half, srcRows, dstRows, cols, validCols><<<1, nullptr, stream>>>((half*)out, (half*)src);
     } else {
         runCOLEXPAND<T, srcRows, dstRows, cols, validCols><<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void launchTCOLEXPAND<aclFloat16, 1, 16, 512, 512>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTCOLEXPAND<int8_t, 2, 32, 256, 255>(int8_t *out, int8_t *src, void *stream);
-template void launchTCOLEXPAND<float, 1, 8, 128, 63>(float *out, float *src, void *stream);
-template void launchTCOLEXPAND<aclFloat16, 1, 33, 512, 512>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void launchTCOLEXPAND<int8_t, 2, 17, 256, 44>(int8_t *out, int8_t *src, void *stream);
-template void launchTCOLEXPAND<float, 1, 54, 64, 63>(float *out, float *src, void *stream);
+template void launchTCOLEXPAND<aclFloat16, 1, 16, 512, 512>(aclFloat16* out, aclFloat16* src, void* stream);
+template void launchTCOLEXPAND<int8_t, 2, 32, 256, 255>(int8_t* out, int8_t* src, void* stream);
+template void launchTCOLEXPAND<float, 1, 8, 128, 63>(float* out, float* src, void* stream);
+template void launchTCOLEXPAND<aclFloat16, 1, 33, 512, 512>(aclFloat16* out, aclFloat16* src, void* stream);
+template void launchTCOLEXPAND<int8_t, 2, 17, 256, 44>(int8_t* out, int8_t* src, void* stream);
+template void launchTCOLEXPAND<float, 1, 54, 64, 63>(float* out, float* src, void* stream);
 } // namespace TColExpandTest

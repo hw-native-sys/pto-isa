@@ -19,7 +19,7 @@ using namespace pto;
 #define CASENAME TADD_TDIV
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-__global__ AICORE void CONCAT(run, CASENAME)(__gm__ T *out, __gm__ T *src0, __gm__ T *src1, __gm__ T *src2)
+__global__ AICORE void CONCAT(run, CASENAME)(__gm__ T* out, __gm__ T* src0, __gm__ T* src1, __gm__ T* src2)
 {
     using DynShapeDim5 = Shape<1, 1, 1, vRows, vCols>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kTCols_, 1>;
@@ -55,16 +55,16 @@ __global__ AICORE void CONCAT(run, CASENAME)(__gm__ T *out, __gm__ T *src0, __gm
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void CONCAT(Launch, CASENAME)(T *out, T *src0, T *src1, T *src2, void *stream)
+void CONCAT(Launch, CASENAME)(T* out, T* src0, T* src1, T* src2, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
         CONCAT(run, CASENAME)<half, kTRows_, kTCols_, vRows, vCols>
-            <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1), (half *)(src2));
+            <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(src1), (half*)(src2));
     else
         CONCAT(run, CASENAME)<T, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>(out, src0, src1, src2);
 }
 
-template void CONCAT(Launch, CASENAME)<float, 64, 64, 64, 64>(float *out, float *src0, float *src1, float *src2,
-                                                              void *stream);
-template void CONCAT(Launch, CASENAME)<aclFloat16, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src0,
-                                                                     aclFloat16 *src1, aclFloat16 *src2, void *stream);
+template void CONCAT(Launch, CASENAME)<float, 64, 64, 64, 64>(
+    float* out, float* src0, float* src1, float* src2, void* stream);
+template void CONCAT(Launch, CASENAME)<aclFloat16, 16, 256, 16, 256>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, aclFloat16* src2, void* stream);

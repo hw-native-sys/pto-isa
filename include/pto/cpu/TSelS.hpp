@@ -19,8 +19,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, typename TileDataTmp>
-__aicore__ PTO_INLINE void TSELS_IMPL(TileDataDst &dst, TileDataMask &mask, TileDataSrc &src, TileDataTmp &tmp,
-                                      typename TileDataSrc::DType scalar)
+__aicore__ PTO_INLINE void TSELS_IMPL(
+    TileDataDst& dst, TileDataMask& mask, TileDataSrc& src, TileDataTmp& tmp, typename TileDataSrc::DType scalar)
 {
     static_assert(std::is_same_v<typename TileDataDst::DType, typename TileDataSrc::DType>);
     unsigned validRow = dst.GetValidRow();

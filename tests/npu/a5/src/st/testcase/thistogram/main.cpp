@@ -21,25 +21,23 @@ using pto::HistByte;
 // uint16 launch declaration
 // ---------------------------------------------------------------------------
 template <int validRows, int validCols, HistByte byte>
-void LaunchTHistogramU16(uint16_t *src, uint32_t *dst, void *stream, uint8_t *idx);
+void LaunchTHistogramU16(uint16_t* src, uint32_t* dst, void* stream, uint8_t* idx);
 
 // ---------------------------------------------------------------------------
 // uint32 launch declaration
 // ---------------------------------------------------------------------------
 template <int validRows, int validCols, HistByte byte>
-void LaunchTHistogramU32(uint32_t *src, uint32_t *dst, void *stream, uint8_t *idx);
+void LaunchTHistogramU32(uint32_t* src, uint32_t* dst, void* stream, uint8_t* idx);
 
 class THISTOGRAMTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -66,12 +64,12 @@ void test_thistogram()
     uint8_t *idxHost, *idxDevice;
     uint32_t *dstHost, *dstDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMallocHost((void **)(&idxHost), idxFileSize);
-    aclrtMalloc((void **)&idxDevice, idxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&idxHost), idxFileSize);
+    aclrtMalloc((void**)&idxDevice, idxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     // Read input data and copy to device
     size_t readSize = srcFileSize;
@@ -134,12 +132,12 @@ void test_thistogram_u32()
     uint8_t *idxHost, *idxDevice;
     uint32_t *dstHost, *dstDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMallocHost((void **)(&idxHost), idxFileSize);
-    aclrtMalloc((void **)&idxDevice, idxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&idxHost), idxFileSize);
+    aclrtMalloc((void**)&idxDevice, idxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t readSize = srcFileSize;
     ReadFile(GetGoldenDir() + "/input.bin", readSize, srcHost, srcFileSize);
@@ -182,165 +180,57 @@ void test_thistogram_u32()
 // ===========================================================================
 // uint16 test cases — BYTE_1 = MSB (bits 15-8), BYTE_0 = LSB (bits 7-0)
 // ===========================================================================
-TEST_F(THISTOGRAMTest, case_2x128_b1)
-{
-    test_thistogram<2, 128, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_4x64_b1)
-{
-    test_thistogram<4, 64, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_8x128_b1)
-{
-    test_thistogram<8, 128, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_1x256_b1)
-{
-    test_thistogram<1, 256, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_4x256_b1)
-{
-    test_thistogram<4, 256, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_2x100_b1)
-{
-    test_thistogram<2, 100, HistByte::BYTE_1>();
-}
+TEST_F(THISTOGRAMTest, case_2x128_b1) { test_thistogram<2, 128, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_4x64_b1) { test_thistogram<4, 64, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_8x128_b1) { test_thistogram<8, 128, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_1x256_b1) { test_thistogram<1, 256, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_4x256_b1) { test_thistogram<4, 256, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_2x100_b1) { test_thistogram<2, 100, HistByte::BYTE_1>(); }
 
-TEST_F(THISTOGRAMTest, case_2x128_b0_k108)
-{
-    test_thistogram<2, 128, HistByte::BYTE_0>();
-}
+TEST_F(THISTOGRAMTest, case_2x128_b0_k108) { test_thistogram<2, 128, HistByte::BYTE_0>(); }
 
-TEST_F(THISTOGRAMTest, case_4x64_b0_k52)
-{
-    test_thistogram<4, 64, HistByte::BYTE_0>();
-}
+TEST_F(THISTOGRAMTest, case_4x64_b0_k52) { test_thistogram<4, 64, HistByte::BYTE_0>(); }
 
-TEST_F(THISTOGRAMTest, case_8x128_b0_k104)
-{
-    test_thistogram<8, 128, HistByte::BYTE_0>();
-}
+TEST_F(THISTOGRAMTest, case_8x128_b0_k104) { test_thistogram<8, 128, HistByte::BYTE_0>(); }
 
-TEST_F(THISTOGRAMTest, case_1x256_b0_k210)
-{
-    test_thistogram<1, 256, HistByte::BYTE_0>();
-}
+TEST_F(THISTOGRAMTest, case_1x256_b0_k210) { test_thistogram<1, 256, HistByte::BYTE_0>(); }
 
-TEST_F(THISTOGRAMTest, case_4x256_b0_k220)
-{
-    test_thistogram<4, 256, HistByte::BYTE_0>();
-}
+TEST_F(THISTOGRAMTest, case_4x256_b0_k220) { test_thistogram<4, 256, HistByte::BYTE_0>(); }
 
-TEST_F(THISTOGRAMTest, case_2x100_b0_k82)
-{
-    test_thistogram<2, 100, HistByte::BYTE_0>();
-}
+TEST_F(THISTOGRAMTest, case_2x100_b0_k82) { test_thistogram<2, 100, HistByte::BYTE_0>(); }
 
 // ===========================================================================
 // uint32 test cases
 // ===========================================================================
 
 // BYTE_3: histogram of byte3 (MSB), no filtering
-TEST_F(THISTOGRAMTest, case_u32_1x128_b3_k64)
-{
-    test_thistogram_u32<1, 128, HistByte::BYTE_3>();
-}
-TEST_F(THISTOGRAMTest, case_u32_1x256_b3_k128)
-{
-    test_thistogram_u32<1, 256, HistByte::BYTE_3>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x128_b3_k100)
-{
-    test_thistogram_u32<2, 128, HistByte::BYTE_3>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x4096_b3_k96)
-{
-    test_thistogram_u32<2, 4096, HistByte::BYTE_3>();
-}
-TEST_F(THISTOGRAMTest, case_u32_4x4096_b3_k128)
-{
-    test_thistogram_u32<4, 4096, HistByte::BYTE_3>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x192_b3_k64)
-{
-    test_thistogram_u32<2, 192, HistByte::BYTE_3>();
-}
-TEST_F(THISTOGRAMTest, case_u32_6x912_b3_k64)
-{
-    test_thistogram_u32<6, 912, HistByte::BYTE_3>();
-}
+TEST_F(THISTOGRAMTest, case_u32_1x128_b3_k64) { test_thistogram_u32<1, 128, HistByte::BYTE_3>(); }
+TEST_F(THISTOGRAMTest, case_u32_1x256_b3_k128) { test_thistogram_u32<1, 256, HistByte::BYTE_3>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x128_b3_k100) { test_thistogram_u32<2, 128, HistByte::BYTE_3>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x4096_b3_k96) { test_thistogram_u32<2, 4096, HistByte::BYTE_3>(); }
+TEST_F(THISTOGRAMTest, case_u32_4x4096_b3_k128) { test_thistogram_u32<4, 4096, HistByte::BYTE_3>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x192_b3_k64) { test_thistogram_u32<2, 192, HistByte::BYTE_3>(); }
+TEST_F(THISTOGRAMTest, case_u32_6x912_b3_k64) { test_thistogram_u32<6, 912, HistByte::BYTE_3>(); }
 
 // BYTE_2: histogram of byte2, filtered by byte3
-TEST_F(THISTOGRAMTest, case_u32_1x128_b2_k64)
-{
-    test_thistogram_u32<1, 128, HistByte::BYTE_2>();
-}
-TEST_F(THISTOGRAMTest, case_u32_1x256_b2_k128)
-{
-    test_thistogram_u32<1, 256, HistByte::BYTE_2>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x128_b2_k100)
-{
-    test_thistogram_u32<2, 128, HistByte::BYTE_2>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x4096_b2_k96)
-{
-    test_thistogram_u32<2, 4096, HistByte::BYTE_2>();
-}
-TEST_F(THISTOGRAMTest, case_u32_4x4096_b2_k128)
-{
-    test_thistogram_u32<4, 4096, HistByte::BYTE_2>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x192_b2_k64)
-{
-    test_thistogram_u32<2, 192, HistByte::BYTE_2>();
-}
-TEST_F(THISTOGRAMTest, case_u32_6x912_b2_k64)
-{
-    test_thistogram_u32<6, 912, HistByte::BYTE_2>();
-}
+TEST_F(THISTOGRAMTest, case_u32_1x128_b2_k64) { test_thistogram_u32<1, 128, HistByte::BYTE_2>(); }
+TEST_F(THISTOGRAMTest, case_u32_1x256_b2_k128) { test_thistogram_u32<1, 256, HistByte::BYTE_2>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x128_b2_k100) { test_thistogram_u32<2, 128, HistByte::BYTE_2>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x4096_b2_k96) { test_thistogram_u32<2, 4096, HistByte::BYTE_2>(); }
+TEST_F(THISTOGRAMTest, case_u32_4x4096_b2_k128) { test_thistogram_u32<4, 4096, HistByte::BYTE_2>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x192_b2_k64) { test_thistogram_u32<2, 192, HistByte::BYTE_2>(); }
+TEST_F(THISTOGRAMTest, case_u32_6x912_b2_k64) { test_thistogram_u32<6, 912, HistByte::BYTE_2>(); }
 
 // BYTE_1: histogram of byte1, filtered by byte3 & byte2
-TEST_F(THISTOGRAMTest, case_u32_1x128_b1_k64)
-{
-    test_thistogram_u32<1, 128, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_u32_1x256_b1_k128)
-{
-    test_thistogram_u32<1, 256, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x4096_b1_k96)
-{
-    test_thistogram_u32<2, 4096, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x192_b1_k64)
-{
-    test_thistogram_u32<2, 192, HistByte::BYTE_1>();
-}
-TEST_F(THISTOGRAMTest, case_u32_6x912_b1_k64)
-{
-    test_thistogram_u32<6, 912, HistByte::BYTE_1>();
-}
+TEST_F(THISTOGRAMTest, case_u32_1x128_b1_k64) { test_thistogram_u32<1, 128, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_u32_1x256_b1_k128) { test_thistogram_u32<1, 256, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x4096_b1_k96) { test_thistogram_u32<2, 4096, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x192_b1_k64) { test_thistogram_u32<2, 192, HistByte::BYTE_1>(); }
+TEST_F(THISTOGRAMTest, case_u32_6x912_b1_k64) { test_thistogram_u32<6, 912, HistByte::BYTE_1>(); }
 
 // BYTE_0: histogram of byte0 (LSB), filtered by all upper bytes
-TEST_F(THISTOGRAMTest, case_u32_1x128_b0_k64)
-{
-    test_thistogram_u32<1, 128, HistByte::BYTE_0>();
-}
-TEST_F(THISTOGRAMTest, case_u32_1x256_b0_k128)
-{
-    test_thistogram_u32<1, 256, HistByte::BYTE_0>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x4096_b0_k96)
-{
-    test_thistogram_u32<2, 4096, HistByte::BYTE_0>();
-}
-TEST_F(THISTOGRAMTest, case_u32_2x192_b0_k64)
-{
-    test_thistogram_u32<2, 192, HistByte::BYTE_0>();
-}
-TEST_F(THISTOGRAMTest, case_u32_6x912_b0_k64)
-{
-    test_thistogram_u32<6, 912, HistByte::BYTE_0>();
-}
+TEST_F(THISTOGRAMTest, case_u32_1x128_b0_k64) { test_thistogram_u32<1, 128, HistByte::BYTE_0>(); }
+TEST_F(THISTOGRAMTest, case_u32_1x256_b0_k128) { test_thistogram_u32<1, 256, HistByte::BYTE_0>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x4096_b0_k96) { test_thistogram_u32<2, 4096, HistByte::BYTE_0>(); }
+TEST_F(THISTOGRAMTest, case_u32_2x192_b0_k64) { test_thistogram_u32<2, 192, HistByte::BYTE_0>(); }
+TEST_F(THISTOGRAMTest, case_u32_6x912_b0_k64) { test_thistogram_u32<6, 912, HistByte::BYTE_0>(); }

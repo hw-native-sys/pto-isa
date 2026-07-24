@@ -16,9 +16,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 // NCHW -> NC1HWC0
-template <typename T, int dstN, int dstC1, int dstH, int dstW, int dstC0, int gWholeShape0, int gWholeShape1,
-          int gWholeShape2, int gWholeShape3, int gWholeShape4>
-__global__ AICORE void runTTRANSConv1(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int dstN, int dstC1, int dstH, int dstW, int dstC0, int gWholeShape0, int gWholeShape1,
+    int gWholeShape2, int gWholeShape3, int gWholeShape4>
+__global__ AICORE void runTTRANSConv1(__gm__ T* out, __gm__ T* src)
 {
     constexpr int bufferSize = dstN * dstC1 * dstH * dstW * dstC0 * sizeof(T);
     constexpr int validRow = dstN * dstC1 * dstH * dstW;
@@ -75,9 +76,10 @@ __global__ AICORE void runTTRANSConv1(__gm__ T *out, __gm__ T *src)
     TSTORE(dstGlobal, dst0Tile);
 }
 
-template <typename T, int dstC1, int dstH, int dstW, int dstN1, int dstN0, int dstC0, int srcN, int srcC1, int srcH,
-          int srcW, int srcC0>
-__global__ AICORE void runTTRANSConv2(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int dstC1, int dstH, int dstW, int dstN1, int dstN0, int dstC0, int srcN, int srcC1, int srcH, int srcW,
+    int srcC0>
+__global__ AICORE void runTTRANSConv2(__gm__ T* out, __gm__ T* src)
 {
     static_assert(srcC0 == dstC0);
     static_assert(srcW == dstW);
@@ -103,8 +105,8 @@ __global__ AICORE void runTTRANSConv2(__gm__ T *out, __gm__ T *src)
     static_assert(srcTile.totalDimCount == 5);
     TASSIGN<0x0>(srcTile);
 
-    using DstTileData = ConvTile<TileType::Vec, T, bufferSize, Layout::FRACTAL_Z,
-                                 ConvTileShape<dstC1 * dstH * dstW, dstN1, dstN0, dstC0>>;
+    using DstTileData = ConvTile<
+        TileType::Vec, T, bufferSize, Layout::FRACTAL_Z, ConvTileShape<dstC1 * dstH * dstW, dstN1, dstN0, dstC0>>;
     using TmpTileData = Tile<TileType::Vec, T, 16, 32, BLayout::RowMajor, 16, 32>;
     DstTileData dstTile;
     static_assert(dstTile.totalDimCount == 4);
@@ -136,67 +138,72 @@ __global__ AICORE void runTTRANSConv2(__gm__ T *out, __gm__ T *src)
     TSTORE(dstGlobal, dst0Tile);
 }
 
-template <typename T, int format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gShape5,
-          int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
-void LaunchTTRANSConv(T *out, T *src, void *stream)
+template <
+    typename T, int format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gShape5,
+    int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
+void LaunchTTRANSConv(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         if constexpr (format == 0) {
-            runTTRANSConv1<half, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
-                           gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            runTTRANSConv1<
+                half, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
+                gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>((half*)(out), (half*)(src));
         } else if constexpr (format == 1) {
-            runTTRANSConv2<half, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1,
-                           gWholeShape2, gWholeShape3, gWholeShape4>
-                <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            runTTRANSConv2<
+                half, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1, gWholeShape2,
+                gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>((half*)(out), (half*)(src));
         }
     } else {
         if constexpr (format == 0) {
-            runTTRANSConv1<T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
-                           gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
+            runTTRANSConv1<
+                T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2, gWholeShape3,
+                gWholeShape4><<<1, nullptr, stream>>>(out, src);
         } else if constexpr (format == 1) {
-            runTTRANSConv2<T, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1,
-                           gWholeShape2, gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
+            runTTRANSConv2<
+                T, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1, gWholeShape2,
+                gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
         }
     }
 }
 
 // NCHW -> NC1HWC0
-template void LaunchTTRANSConv<int32_t, 0, 1, 1, 1, 8, 8, 1, 1, 1, 8, 1, 8>(int32_t *out, int32_t *src, void *stream);
-template void LaunchTTRANSConv<float, 0, 5, 4, 4, 16, 16, 1, 1, 5, 57, 4, 16>(float *out, float *src, void *stream);
-template void LaunchTTRANSConv<aclFloat16, 0, 1, 2, 2, 16, 16, 1, 1, 1, 30, 2, 16>(aclFloat16 *out, aclFloat16 *src,
-                                                                                   void *stream);
-template void LaunchTTRANSConv<int16_t, 0, 7, 4, 6, 16, 16, 1, 1, 7, 53, 6, 16>(int16_t *out, int16_t *src,
-                                                                                void *stream);
-template void LaunchTTRANSConv<int8_t, 0, 3, 2, 2, 64, 32, 1, 1, 3, 64, 2, 64>(int8_t *out, int8_t *src, void *stream);
-template void LaunchTTRANSConv<int8_t, 0, 1, 2, 2, 128, 32, 1, 1, 1, 63, 2, 128>(int8_t *out, int8_t *src,
-                                                                                 void *stream);
-template void LaunchTTRANSConv<int8_t, 0, 5, 2, 2, 16, 32, 1, 1, 5, 58, 2, 16>(int8_t *out, int8_t *src, void *stream);
-template void LaunchTTRANSConv<uint8_t, 0, 9, 3, 6, 16, 32, 1, 1, 9, 87, 6, 16>(uint8_t *out, uint8_t *src,
-                                                                                void *stream);
+template void LaunchTTRANSConv<int32_t, 0, 1, 1, 1, 8, 8, 1, 1, 1, 8, 1, 8>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTTRANSConv<float, 0, 5, 4, 4, 16, 16, 1, 1, 5, 57, 4, 16>(float* out, float* src, void* stream);
+template void LaunchTTRANSConv<aclFloat16, 0, 1, 2, 2, 16, 16, 1, 1, 1, 30, 2, 16>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANSConv<int16_t, 0, 7, 4, 6, 16, 16, 1, 1, 7, 53, 6, 16>(
+    int16_t* out, int16_t* src, void* stream);
+template void LaunchTTRANSConv<int8_t, 0, 3, 2, 2, 64, 32, 1, 1, 3, 64, 2, 64>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTTRANSConv<int8_t, 0, 1, 2, 2, 128, 32, 1, 1, 1, 63, 2, 128>(
+    int8_t* out, int8_t* src, void* stream);
+template void LaunchTTRANSConv<int8_t, 0, 5, 2, 2, 16, 32, 1, 1, 5, 58, 2, 16>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTTRANSConv<uint8_t, 0, 9, 3, 6, 16, 32, 1, 1, 9, 87, 6, 16>(
+    uint8_t* out, uint8_t* src, void* stream);
 
-template void LaunchTTRANSConv<float, 0, 1, 8, 6, 48, 4, 1, 1, 1, 32, 6, 48>(float *out, float *src, void *stream);
-template void LaunchTTRANSConv<uint16_t, 0, 1, 7, 2, 16, 4, 1, 1, 1, 26, 2, 16>(uint16_t *out, uint16_t *src,
-                                                                                void *stream);
-template void LaunchTTRANSConv<int8_t, 0, 5, 5, 2, 16, 4, 1, 1, 5, 18, 2, 16>(int8_t *out, int8_t *src, void *stream);
+template void LaunchTTRANSConv<float, 0, 1, 8, 6, 48, 4, 1, 1, 1, 32, 6, 48>(float* out, float* src, void* stream);
+template void LaunchTTRANSConv<uint16_t, 0, 1, 7, 2, 16, 4, 1, 1, 1, 26, 2, 16>(
+    uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTTRANSConv<int8_t, 0, 5, 5, 2, 16, 4, 1, 1, 5, 18, 2, 16>(int8_t* out, int8_t* src, void* stream);
 
 // NC1HWC0 -> C1HWN1N0C0
-template void LaunchTTRANSConv<float, 1, 2, 2, 16, 2, 2, 4, 3, 2, 2, 16, 4>(float *out, float *src, void *stream);
-template void LaunchTTRANSConv<int32_t, 1, 2, 3, 10, 3, 16, 8, 37, 2, 3, 10, 8>(int32_t *out, int32_t *src,
-                                                                                void *stream);
-template void LaunchTTRANSConv<aclFloat16, 1, 2, 1, 8, 1, 16, 16, 7, 2, 1, 8, 16>(aclFloat16 *out, aclFloat16 *src,
-                                                                                  void *stream);
-template void LaunchTTRANSConv<aclFloat16, 1, 2, 1, 8, 1, 16, 4, 7, 2, 1, 8, 4>(aclFloat16 *out, aclFloat16 *src,
-                                                                                void *stream);
-template void LaunchTTRANSConv<uint16_t, 1, 3, 2, 7, 3, 16, 16, 45, 3, 2, 7, 16>(uint16_t *out, uint16_t *src,
-                                                                                 void *stream);
-template void LaunchTTRANSConv<int8_t, 1, 5, 1, 6, 2, 16, 32, 25, 5, 1, 6, 32>(int8_t *out, int8_t *src, void *stream);
-template void LaunchTTRANSConv<uint8_t, 1, 2, 7, 7, 1, 16, 32, 11, 2, 7, 7, 32>(uint8_t *out, uint8_t *src,
-                                                                                void *stream);
+template void LaunchTTRANSConv<float, 1, 2, 2, 16, 2, 2, 4, 3, 2, 2, 16, 4>(float* out, float* src, void* stream);
+template void LaunchTTRANSConv<int32_t, 1, 2, 3, 10, 3, 16, 8, 37, 2, 3, 10, 8>(
+    int32_t* out, int32_t* src, void* stream);
+template void LaunchTTRANSConv<aclFloat16, 1, 2, 1, 8, 1, 16, 16, 7, 2, 1, 8, 16>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANSConv<aclFloat16, 1, 2, 1, 8, 1, 16, 4, 7, 2, 1, 8, 4>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANSConv<uint16_t, 1, 3, 2, 7, 3, 16, 16, 45, 3, 2, 7, 16>(
+    uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTTRANSConv<int8_t, 1, 5, 1, 6, 2, 16, 32, 25, 5, 1, 6, 32>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTTRANSConv<uint8_t, 1, 2, 7, 7, 1, 16, 32, 11, 2, 7, 7, 32>(
+    uint8_t* out, uint8_t* src, void* stream);
 
 // GNCHW -> GNC1HWC0
-template <typename T, int dstG, int dstN, int dstC1, int dstH, int dstW, int dstC0, int gWholeShape0, int gWholeShape1,
-          int gWholeShape2, int gWholeShape3, int gWholeShape4, int gWholeShape5>
-__global__ AICORE void runTTRANSGroupConv1(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int dstG, int dstN, int dstC1, int dstH, int dstW, int dstC0, int gWholeShape0, int gWholeShape1,
+    int gWholeShape2, int gWholeShape3, int gWholeShape4, int gWholeShape5>
+__global__ AICORE void runTTRANSGroupConv1(__gm__ T* out, __gm__ T* src)
 {
     constexpr int bufferSize = dstG * dstN * dstC1 * dstH * dstW * dstC0 * sizeof(T);
     static_assert(gWholeShape0 == 1, "");
@@ -252,9 +259,10 @@ __global__ AICORE void runTTRANSGroupConv1(__gm__ T *out, __gm__ T *src)
     TSTORE(dstGlobal, dst0Tile);
 }
 
-template <typename T, int dstG, int dstC1, int dstH, int dstW, int dstN1, int dstN0, int dstC0, int srcG, int srcN,
-          int srcC1, int srcH, int srcW, int srcC0>
-__global__ AICORE void runTTRANSGroupConv2(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int dstG, int dstC1, int dstH, int dstW, int dstN1, int dstN0, int dstC0, int srcG, int srcN, int srcC1,
+    int srcH, int srcW, int srcC0>
+__global__ AICORE void runTTRANSGroupConv2(__gm__ T* out, __gm__ T* src)
 {
     static_assert(srcG == dstG);
     static_assert(srcC0 == dstC0);
@@ -279,8 +287,9 @@ __global__ AICORE void runTTRANSGroupConv2(__gm__ T *out, __gm__ T *src)
     static_assert(srcTile.totalDimCount == 6);
     TASSIGN<0x0>(srcTile);
 
-    using DstTileData = ConvTile<TileType::Vec, T, bufferSize, Layout::FRACTAL_Z,
-                                 ConvTileShape<dstG * dstC1 * dstH * dstW, dstN1, dstN0, dstC0>>;
+    using DstTileData = ConvTile<
+        TileType::Vec, T, bufferSize, Layout::FRACTAL_Z,
+        ConvTileShape<dstG * dstC1 * dstH * dstW, dstN1, dstN0, dstC0>>;
     using TmpTileData = Tile<TileType::Vec, T, 16, 32, BLayout::RowMajor, 16, 32>;
     DstTileData dstTile;
     static_assert(dstTile.totalDimCount == 4);
@@ -312,55 +321,53 @@ __global__ AICORE void runTTRANSGroupConv2(__gm__ T *out, __gm__ T *src)
     TSTORE(dstGlobal, dst0Tile);
 }
 
-template <typename T, int format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gShape5,
-          int gShape6, int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4,
-          int gWholeShape5>
-void LaunchTTRANSGroupConv(T *out, T *src, void *stream)
+template <
+    typename T, int format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gShape5, int gShape6,
+    int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4, int gWholeShape5>
+void LaunchTTRANSGroupConv(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
         if constexpr (format == 0) {
-            runTTRANSGroupConv1<half, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1,
-                                gWholeShape2, gWholeShape3, gWholeShape4, gWholeShape5>
-                <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            runTTRANSGroupConv1<
+                half, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1, gWholeShape2,
+                gWholeShape3, gWholeShape4, gWholeShape5><<<1, nullptr, stream>>>((half*)(out), (half*)(src));
         } else if constexpr (format == 1) {
-            runTTRANSGroupConv2<half, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gShape6, gWholeShape0,
-                                gWholeShape1, gWholeShape2, gWholeShape3, gWholeShape4, gWholeShape5>
-                <<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+            runTTRANSGroupConv2<
+                half, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gShape6, gWholeShape0, gWholeShape1,
+                gWholeShape2, gWholeShape3, gWholeShape4, gWholeShape5>
+                <<<1, nullptr, stream>>>((half*)(out), (half*)(src));
         }
     } else {
         if constexpr (format == 0) {
-            runTTRANSGroupConv1<T, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1,
-                                gWholeShape2, gWholeShape3, gWholeShape4, gWholeShape5>
-                <<<1, nullptr, stream>>>(out, src);
+            runTTRANSGroupConv1<
+                T, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gWholeShape0, gWholeShape1, gWholeShape2,
+                gWholeShape3, gWholeShape4, gWholeShape5><<<1, nullptr, stream>>>(out, src);
         } else if constexpr (format == 1) {
-            runTTRANSGroupConv2<T, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gShape6, gWholeShape0,
-                                gWholeShape1, gWholeShape2, gWholeShape3, gWholeShape4, gWholeShape5>
-                <<<1, nullptr, stream>>>(out, src);
+            runTTRANSGroupConv2<
+                T, gShape0, gShape1, gShape2, gShape3, gShape4, gShape5, gShape6, gWholeShape0, gWholeShape1,
+                gWholeShape2, gWholeShape3, gWholeShape4, gWholeShape5><<<1, nullptr, stream>>>(out, src);
         }
     }
 }
 
 // GNCHW -> GNC1HWC0
-template void LaunchTTRANSGroupConv<int32_t, 0, 4, 1, 1, 1, 8, 8, 1, 1, 4, 1, 8, 1, 8>(int32_t *out, int32_t *src,
-                                                                                       void *stream);
-template void LaunchTTRANSGroupConv<float, 0, 2, 5, 2, 4, 16, 16, 1, 1, 2, 5, 30, 4, 16>(float *out, float *src,
-                                                                                         void *stream);
-template void LaunchTTRANSGroupConv<aclFloat16, 0, 1, 1, 2, 2, 16, 16, 1, 1, 1, 1, 30, 2, 16>(aclFloat16 *out,
-                                                                                              aclFloat16 *src,
-                                                                                              void *stream);
-template void LaunchTTRANSGroupConv<float, 0, 2, 1, 8, 6, 12, 4, 1, 1, 2, 1, 32, 6, 12>(float *out, float *src,
-                                                                                        void *stream);
+template void LaunchTTRANSGroupConv<int32_t, 0, 4, 1, 1, 1, 8, 8, 1, 1, 4, 1, 8, 1, 8>(
+    int32_t* out, int32_t* src, void* stream);
+template void LaunchTTRANSGroupConv<float, 0, 2, 5, 2, 4, 16, 16, 1, 1, 2, 5, 30, 4, 16>(
+    float* out, float* src, void* stream);
+template void LaunchTTRANSGroupConv<aclFloat16, 0, 1, 1, 2, 2, 16, 16, 1, 1, 1, 1, 30, 2, 16>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANSGroupConv<float, 0, 2, 1, 8, 6, 12, 4, 1, 1, 2, 1, 32, 6, 12>(
+    float* out, float* src, void* stream);
 
 // GNC1HWC0 -> GC1HWN1N0C0
-template void LaunchTTRANSGroupConv<float, 1, 1, 2, 2, 16, 2, 2, 4, 1, 3, 2, 2, 16, 4>(float *out, float *src,
-                                                                                       void *stream);
-template void LaunchTTRANSGroupConv<float, 1, 2, 2, 2, 16, 2, 2, 4, 2, 3, 2, 2, 16, 4>(float *out, float *src,
-                                                                                       void *stream);
-template void LaunchTTRANSGroupConv<float, 1, 2, 2, 2, 16, 2, 2, 4, 2, 4, 2, 2, 16, 4>(float *out, float *src,
-                                                                                       void *stream);
-template void LaunchTTRANSGroupConv<aclFloat16, 1, 1, 2, 1, 8, 1, 16, 16, 1, 7, 2, 1, 8, 16>(aclFloat16 *out,
-                                                                                             aclFloat16 *src,
-                                                                                             void *stream);
-template void LaunchTTRANSGroupConv<aclFloat16, 1, 4, 2, 1, 8, 1, 16, 4, 4, 7, 2, 1, 8, 4>(aclFloat16 *out,
-                                                                                           aclFloat16 *src,
-                                                                                           void *stream);
+template void LaunchTTRANSGroupConv<float, 1, 1, 2, 2, 16, 2, 2, 4, 1, 3, 2, 2, 16, 4>(
+    float* out, float* src, void* stream);
+template void LaunchTTRANSGroupConv<float, 1, 2, 2, 2, 16, 2, 2, 4, 2, 3, 2, 2, 16, 4>(
+    float* out, float* src, void* stream);
+template void LaunchTTRANSGroupConv<float, 1, 2, 2, 2, 16, 2, 2, 4, 2, 4, 2, 2, 16, 4>(
+    float* out, float* src, void* stream);
+template void LaunchTTRANSGroupConv<aclFloat16, 1, 1, 2, 1, 8, 1, 16, 16, 1, 7, 2, 1, 8, 16>(
+    aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTTRANSGroupConv<aclFloat16, 1, 4, 2, 1, 8, 1, 16, 4, 4, 7, 2, 1, 8, 4>(
+    aclFloat16* out, aclFloat16* src, void* stream);

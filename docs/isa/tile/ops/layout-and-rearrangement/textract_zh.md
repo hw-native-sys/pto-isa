@@ -6,19 +6,17 @@
 
 ## 简介
 
-从较大的源 Tile 中提取较小的子 Tile。
+从较大的源Tile中提取较小的子Tile。
 
 ## 数学语义
 
-概念上从较大的 `src` Tile 中，以 `(indexRow, indexCol)` 为起点复制一个较小窗口到 `dst`。确切的映射取决于 tile 布局。
+概念上从较大的 `src` Tile中，以 `(indexRow, indexCol)` 为起点复制一个较小窗口到 `dst`。确切的映射取决于tile布局。
 
 设 `R = dst.GetValidRow()` 和 `C = dst.GetValidCol()`。对于 `0 <= i < R` 和 `0 <= j < C`：
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src}_{\mathrm{indexRow}+i,\; \mathrm{indexCol}+j} $$
 
 ## 汇编语法
-
-PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/assembly-model_zh.md)。
 
 同步形式：
 
@@ -38,9 +36,10 @@ PTO-AS 形式：参见 [汇编写法与操作数](../../../syntax-and-operands/a
 pto.textract ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename DstTileData, typename SrcTileData, typename... WaitEvents>
@@ -68,26 +67,26 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
       - `indexRow + DstTileData::Rows <= SrcTileData::Rows`
       - `indexCol + DstTileData::Cols <= SrcTileData::Cols`
 
-    ### A2A3 实现检查
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
-    - 支持的元素类型：`int8_t`、`half`、`bfloat16_t`、`float`。
-    - 源布局必须满足以下已检查到的 A2A3 提取布局之一：
-      - `(SFractal == ColMajor && isRowMajor)`，或
-      - `(SFractal == RowMajor && !isRowMajor)`。
-    - 在以 `TileType::Left` 为目标的 GEMV 场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
-    - 目标必须是 `TileType::Left` 或 `TileType::Right`，并具有目标支持的布局配置。
+- 支持的元素类型：`int8_t`、`half`、`bfloat16_t`、`float`。
+- 源布局必须满足以下已检查到的Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品提取布局之一：
+    - `(SFractal == ColMajor && isRowMajor)`，或
+    - `(SFractal == RowMajor && !isRowMajor)`。
+- 在以 `TileType::Left` 为目标的GEMV场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
+- 目标必须是 `TileType::Left` 或 `TileType::Right`，并具有目标支持的布局配置。
 
-    ### A5 实现检查
+### Ascend 950PR/Ascend 950DT实现检查
 
-    - 支持的元素类型：`int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`、`float8_e8m0_t`。
-    - 源布局必须满足以下已检查到的 A5 提取布局之一：
-      - 对于 `Left` / `Right`：`(SFractal == ColMajor && isRowMajor)` 或 `(SFractal == RowMajor && !isRowMajor)`
-      - 对于 `ScaleLeft`：`(SFractal == RowMajor && isRowMajor)`
-      - 对于 `ScaleRight`：`(SFractal == ColMajor && !isRowMajor)`
-    - 在以 `Left` 为目标的 GEMV 场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
-    - 目标支持 `TileType::Mat -> TileType::Left/Right/Scale`、`TileType::Acc -> TileType::Mat`（含 relu、标量量化、向量量化形式）、`TileType::Acc -> TileType::Vec`，以及特定的 `TileType::Vec -> TileType::Mat` 提取路径。
-    - 向量量化形式额外要求提供 `FpTileData` 缩放操作数，对应 `TEXTRACT_FP(...)` 接口。
-    - 对于 `TileType::Acc -> TileType::Vec`，当目标为 32 位类型（`float`/`int32_t`）且使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
+- 支持的元素类型：`int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`、`float8_e8m0_t`。
+- 源布局必须满足以下已检查到的Ascend 950PR/Ascend 950DT提取布局之一：
+    - 对于 `Left` / `Right`：`(SFractal == ColMajor && isRowMajor)` 或 `(SFractal == RowMajor && !isRowMajor)`
+    - 对于 `ScaleLeft`：`(SFractal == RowMajor && isRowMajor)`
+    - 对于 `ScaleRight`：`(SFractal == ColMajor && !isRowMajor)`
+- 在以 `Left` 为目标的GEMV场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
+- 目标支持 `TileType::Mat -> TileType::Left/Right/Scale`、`TileType::Acc -> TileType::Mat`（含relu、标量量化、向量量化形式）、`TileType::Acc -> TileType::Vec`，以及特定的 `TileType::Vec -> TileType::Mat` 提取路径。
+- 向量量化形式额外要求提供 `FpTileData` 缩放操作数，对应 `TEXTRACT_FP(...)` 接口。
+- 对于 `TileType::Acc -> TileType::Vec`，当目标为32位类型（`float`/`int32_t`）且使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
 
 ## 示例
 
@@ -144,7 +143,7 @@ void example_manual() {
 %dst = pto.textract %src, %idxrow, %idxcol : (!pto.tile<...>, dtype, dtype) -> !pto.tile<...>
 ```
 
-### PTO 汇编形式
+### PTO汇编形式
 
 ```text
 %dst = textract %src[%r0, %r1] : !pto.tile<...> -> !pto.tile<...>

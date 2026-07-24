@@ -30,7 +30,7 @@ static constexpr size_t HCCL_WIN_SYNC_PREFIX = 64 * sizeof(int32_t);
 // Helper kernels: access window memory via AICORE instead of aclrtMemcpy,
 // because aclrtMemcpy may not work correctly on HCCL window memory on A5.
 // ============================================================================
-__global__ AICORE void WindowMemInit(__gm__ int32_t *ptr, int32_t value, int count)
+__global__ AICORE void WindowMemInit(__gm__ int32_t* ptr, int32_t value, int count)
 {
     for (int i = 0; i < count; ++i) {
         ptr[i] = value;
@@ -38,7 +38,7 @@ __global__ AICORE void WindowMemInit(__gm__ int32_t *ptr, int32_t value, int cou
     pipe_barrier(PIPE_ALL);
 }
 
-__global__ AICORE void WindowMemRead(__gm__ int32_t *devDst, __gm__ int32_t *winSrc, int count)
+__global__ AICORE void WindowMemRead(__gm__ int32_t* devDst, __gm__ int32_t* winSrc, int count)
 {
     for (int i = 0; i < count; ++i) {
         devDst[i] = winSrc[i];
@@ -51,14 +51,14 @@ __global__ AICORE void WindowMemRead(__gm__ int32_t *devDst, __gm__ int32_t *win
 // All ranks perform atomic add 1 to rank 0's counter
 // The final counter value should equal n_ranks
 // ============================================================================
-__global__ AICORE void TNotifyAtomicAddKernel(__gm__ int32_t *shmem_counter, __gm__ CommDeviceContext *hcclCtx,
-                                              int nranks)
+__global__ AICORE void TNotifyAtomicAddKernel(
+    __gm__ int32_t* shmem_counter, __gm__ CommDeviceContext* hcclCtx, int nranks)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int target_rank = 0; // All ranks notify rank 0
 
     // Get remote PE's counter address using CommRemotePtr
-    __gm__ int32_t *remote_counter = CommRemotePtr(hcclCtx, shmem_counter, target_rank);
+    __gm__ int32_t* remote_counter = CommRemotePtr(hcclCtx, shmem_counter, target_rank);
 
     // Create GlobalTensor pointing to rank 0's counter
     pto::comm::Signal counterSignal(remote_counter);
@@ -75,7 +75,7 @@ __global__ AICORE void TNotifyAtomicAddKernel(__gm__ int32_t *shmem_counter, __g
 // Each rank sets the next rank's signal to its own rank_id + 100
 // Ring notification: rank i -> rank (i+1) % n_ranks
 // ============================================================================
-__global__ AICORE void TNotifySetKernel(__gm__ int32_t *shmem_signals, __gm__ CommDeviceContext *hcclCtx, int nranks)
+__global__ AICORE void TNotifySetKernel(__gm__ int32_t* shmem_signals, __gm__ CommDeviceContext* hcclCtx, int nranks)
 {
     if (nranks <= 0)
         return;
@@ -83,7 +83,7 @@ __global__ AICORE void TNotifySetKernel(__gm__ int32_t *shmem_signals, __gm__ Co
     int next_rank = (my_rank + 1) % nranks;
 
     // Get remote PE's signal address using CommRemotePtr
-    __gm__ int32_t *remote_signal = CommRemotePtr(hcclCtx, shmem_signals, next_rank);
+    __gm__ int32_t* remote_signal = CommRemotePtr(hcclCtx, shmem_signals, next_rank);
 
     // Create GlobalTensor pointing to next rank's signal
     pto::comm::Signal nextSignal(remote_signal);
@@ -102,17 +102,17 @@ __global__ AICORE void TNotifySetKernel(__gm__ int32_t *shmem_signals, __gm__ Co
 // scoreboard[rank_id] = rank_id + 1000
 // ============================================================================
 template <size_t numSlots>
-__global__ AICORE void TNotifyScoreboardKernel(__gm__ int32_t *shmem_scoreboard, __gm__ CommDeviceContext *hcclCtx,
-                                               int nranks)
+__global__ AICORE void TNotifyScoreboardKernel(
+    __gm__ int32_t* shmem_scoreboard, __gm__ CommDeviceContext* hcclCtx, int nranks)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int target_rank = 0;
 
     // Get remote PE's scoreboard base address
-    __gm__ int32_t *remote_scoreboard = CommRemotePtr(hcclCtx, shmem_scoreboard, target_rank);
+    __gm__ int32_t* remote_scoreboard = CommRemotePtr(hcclCtx, shmem_scoreboard, target_rank);
 
     // Calculate own slot offset in scoreboard
-    __gm__ int32_t *my_slot = remote_scoreboard + my_rank;
+    __gm__ int32_t* my_slot = remote_scoreboard + my_rank;
 
     // Create GlobalTensor pointing to specific slot in rank 0's scoreboard
     pto::comm::Signal slotSignal(my_slot);
@@ -129,14 +129,14 @@ __global__ AICORE void TNotifyScoreboardKernel(__gm__ int32_t *shmem_scoreboard,
 // Kernel 4: Runtime NotifyOp Test
 // Test runtime-specified NotifyOp version
 // ============================================================================
-__global__ AICORE void TNotifyRuntimeOpKernel(__gm__ int32_t *shmem_counter, __gm__ CommDeviceContext *hcclCtx,
-                                              int nranks)
+__global__ AICORE void TNotifyRuntimeOpKernel(
+    __gm__ int32_t* shmem_counter, __gm__ CommDeviceContext* hcclCtx, int nranks)
 {
     int my_rank = static_cast<int>(hcclCtx->rankId);
     int target_rank = 0;
 
     // Get remote PE's counter address
-    __gm__ int32_t *remote_counter = CommRemotePtr(hcclCtx, shmem_counter, target_rank);
+    __gm__ int32_t* remote_counter = CommRemotePtr(hcclCtx, shmem_counter, target_rank);
     pto::comm::Signal counterSignal(remote_counter);
 
     // Use runtime-specified NotifyOp (Set operation)
@@ -150,8 +150,8 @@ __global__ AICORE void TNotifyRuntimeOpKernel(__gm__ int32_t *shmem_counter, __g
 // Host-side Test Implementation
 // ============================================================================
 
-bool RunNotifyAtomicAddKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                              const HcclRootInfo *rootInfo)
+bool RunNotifyAtomicAddKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -161,7 +161,7 @@ bool RunNotifyAtomicAddKernel(int rank_id, int n_ranks, int n_devices, int first
     size_t winOffset = 0;
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_counter = (int32_t *)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
+    int32_t* shmem_counter = (int32_t*)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_counter, 0, 1);
     aclrtSynchronizeStream(ctx.stream);
@@ -176,8 +176,8 @@ bool RunNotifyAtomicAddKernel(int rank_id, int n_ranks, int n_devices, int first
     bool is_ok = true;
 
     if (rank_id == 0) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_counter, 1);
         aclrtSynchronizeStream(ctx.stream);
 
@@ -202,7 +202,7 @@ bool RunNotifyAtomicAddKernel(int rank_id, int n_ranks, int n_devices, int first
     return ctx.Finalize() && is_ok;
 }
 
-bool RunNotifySetKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo *rootInfo)
+bool RunNotifySetKernel(int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     if (n_ranks <= 0)
         return false;
@@ -214,7 +214,7 @@ bool RunNotifySetKernel(int rank_id, int n_ranks, int n_devices, int first_devic
     size_t winOffset = 0;
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_signal = (int32_t *)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
+    int32_t* shmem_signal = (int32_t*)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_signal, 0, 1);
     aclrtSynchronizeStream(ctx.stream);
@@ -235,8 +235,8 @@ bool RunNotifySetKernel(int rank_id, int n_ranks, int n_devices, int first_devic
     int prev_rank = (rank_id + n_ranks - 1) % n_ranks;
     int32_t expected = static_cast<int32_t>(prev_rank + 100);
 
-    int32_t *result_dev = nullptr;
-    aclrtMalloc(reinterpret_cast<void **>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+    int32_t* result_dev = nullptr;
+    aclrtMalloc(reinterpret_cast<void**>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
     WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_signal, 1);
     aclrtSynchronizeStream(ctx.stream);
 
@@ -262,8 +262,8 @@ bool RunNotifySetKernel(int rank_id, int n_ranks, int n_devices, int first_devic
 }
 
 template <size_t numSlots>
-bool RunNotifyScoreboardKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                               const HcclRootInfo *rootInfo)
+bool RunNotifyScoreboardKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -273,7 +273,7 @@ bool RunNotifyScoreboardKernel(int rank_id, int n_ranks, int n_devices, int firs
     size_t winOffset = 0;
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_scoreboard = (int32_t *)WindowAlloc(localWinBase, winOffset, numSlots * sizeof(int32_t));
+    int32_t* shmem_scoreboard = (int32_t*)WindowAlloc(localWinBase, winOffset, numSlots * sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_scoreboard, 0, static_cast<int>(numSlots));
     aclrtSynchronizeStream(ctx.stream);
@@ -288,14 +288,15 @@ bool RunNotifyScoreboardKernel(int rank_id, int n_ranks, int n_devices, int firs
     bool is_ok = true;
 
     if (rank_id == 0) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), numSlots * sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), numSlots * sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_scoreboard, static_cast<int>(numSlots));
         aclrtSynchronizeStream(ctx.stream);
 
         std::vector<int32_t> results(numSlots);
-        aclrtMemcpy(results.data(), numSlots * sizeof(int32_t), result_dev, numSlots * sizeof(int32_t),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            results.data(), numSlots * sizeof(int32_t), result_dev, numSlots * sizeof(int32_t),
+            ACL_MEMCPY_DEVICE_TO_HOST);
         aclrtFree(result_dev);
 
         std::cout << "[DEBUG] Scoreboard results: [ ";
@@ -330,8 +331,8 @@ bool RunNotifyScoreboardKernel(int rank_id, int n_ranks, int n_devices, int firs
     return ctx.Finalize() && is_ok;
 }
 
-bool RunNotifyRuntimeOpKernel(int rank_id, int n_ranks, int n_devices, int first_device_id,
-                              const HcclRootInfo *rootInfo)
+bool RunNotifyRuntimeOpKernel(
+    int rank_id, int n_ranks, int n_devices, int first_device_id, const HcclRootInfo* rootInfo)
 {
     TestContext ctx;
     if (!ctx.Init(rank_id, n_ranks, n_devices, first_device_id, rootInfo))
@@ -341,7 +342,7 @@ bool RunNotifyRuntimeOpKernel(int rank_id, int n_ranks, int n_devices, int first
     size_t winOffset = 0;
     WindowAlloc(localWinBase, winOffset, HCCL_WIN_SYNC_PREFIX);
 
-    int32_t *shmem_counter = (int32_t *)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
+    int32_t* shmem_counter = (int32_t*)WindowAlloc(localWinBase, winOffset, sizeof(int32_t));
 
     WindowMemInit<<<1, nullptr, ctx.stream>>>(shmem_counter, 0, 1);
     aclrtSynchronizeStream(ctx.stream);
@@ -356,8 +357,8 @@ bool RunNotifyRuntimeOpKernel(int rank_id, int n_ranks, int n_devices, int first
     bool is_ok = true;
 
     if (rank_id == 0) {
-        int32_t *result_dev = nullptr;
-        aclrtMalloc(reinterpret_cast<void **>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
+        int32_t* result_dev = nullptr;
+        aclrtMalloc(reinterpret_cast<void**>(&result_dev), sizeof(int32_t), ACL_MEM_MALLOC_HUGE_FIRST);
         WindowMemRead<<<1, nullptr, ctx.stream>>>(result_dev, shmem_counter, 1);
         aclrtSynchronizeStream(ctx.stream);
 
@@ -391,7 +392,7 @@ bool RunNotifyRuntimeOpKernel(int rank_id, int n_ranks, int n_devices, int first
 bool RunNotifyAtomicAdd(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunNotifyAtomicAddKernel(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -399,7 +400,7 @@ bool RunNotifyAtomicAdd(int n_ranks, int n_devices, int first_rank_id, int first
 bool RunNotifySet(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunNotifySetKernel(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -408,7 +409,7 @@ template <size_t numSlots>
 bool RunNotifyScoreboard(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunNotifyScoreboardKernel<numSlots>(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }
@@ -416,7 +417,7 @@ bool RunNotifyScoreboard(int n_ranks, int n_devices, int first_rank_id, int firs
 bool RunNotifyRuntimeOp(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return ForkAndRunWithHcclRootInfo(
-        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo *rootInfo) {
+        n_ranks, first_rank_id, first_device_id, [&](int rankId, const HcclRootInfo* rootInfo) {
             return RunNotifyRuntimeOpKernel(rankId, n_ranks, n_devices, first_device_id, rootInfo);
         });
 }

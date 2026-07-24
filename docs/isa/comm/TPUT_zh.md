@@ -1,32 +1,34 @@
-# pto.tput
+# TPUT
 
 ## 简介
 
-`TPUT` 是远程写原语：把当前 NPU 本地 GM 中的数据写到远端 NPU 的 GM。它通过 UB 中的暂存 Tile 完成 GM→UB→GM 路径。
+远程写操作：将本地数据写入远端NPU的内存。数据通过UB Tile作为中间暂存缓冲区进行传输。
 
-当 `GlobalTensor` 的行或列超出单个 UB Tile 容量时，`TPUT` 会自动沿 `DIM_3` 和 `DIM_4` 做二维滑动分块。
+当GlobalTensor超出UB Tile容量时，TPUT将自动执行**二维滑动**——沿行（DIM_3）和列（DIM_4）分块以适配Tile，并遍历所有外层维度（DIM_0、DIM_1、DIM_2）。
 
 ## 数学语义
 
 对有效区域内每个元素 `(i, j)`：
 
-$$ \mathrm{dst}^{\mathrm{remote}}_{i,j} = \mathrm{src}^{\mathrm{local}}_{i,j} $$
+$$\mathrm{dst}^{\mathrm{remote}}_{i,j} = \mathrm{src}^{\mathrm{local}}_{i,j}$$
+
+数据流：`srcGlobalData（本地 GM）` → `stagingTileData（UB）` → `dstGlobalData（远端 GM）`
 
 ## 汇编语法
 
-PTO-AS 形式：
+同步形式：
 
 ```text
 tput %dst_remote, %src_local : (!pto.memref<...>, !pto.memref<...>)
 ```
 
-lowering 会为 GM→UB→GM 路径引入 UB 暂存 Tile，因此 C++ 接口要求显式传入 `stagingTileData`，或在双缓冲场景下传入 `pingTile` / `pongTile`。
+降级时会为GM→UB→GM数据路径引入UB暂存Tile；C++内建接口需要显式传入 `stagingTileData`（或 `pingTile` / `pongTile`）操作数。
 
-## C++ 内建接口
+## C++内建接口
 
-声明于 `include/pto/comm/pto_comm_inst.hpp`：
+声明于 `include/pto/comm/pto_comm_inst.hpp`
 
-### 单暂存 Tile
+### 单Tile（自动分块）
 
 ```cpp
 template <AtomicType atomicType = AtomicType::AtomicNone,
@@ -37,6 +39,8 @@ PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 
 ### 乒乓双缓冲
 
+使用两个暂存Tile，将相邻块的TLOAD与TSTORE重叠执行，隐藏DMA传输延迟。
+
 ```cpp
 template <AtomicType atomicType = AtomicType::AtomicNone,
           typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
@@ -44,7 +48,7 @@ PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
                           TileData &pingTile, TileData &pongTile, WaitEvents&... events);
 ```
 
-### 运行时原子模式
+### 运行时原子类型
 
 ```cpp
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
@@ -54,28 +58,25 @@ PTO_INST RecordEvent TPUT(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 
 ## 约束
 
-!!! warning "约束"
-    ### 类型约束
-
-    - `GlobalSrcData::RawDType` 必须等于 `GlobalDstData::RawDType`
-    - `TileData::DType` 必须等于 `GlobalSrcData::RawDType`
-    - `GlobalSrcData::layout` 必须等于 `GlobalDstData::layout`
-
-    ### 内存约束
-
-    - `dstGlobalData` 必须指向远端地址（目标 NPU）
-    - `srcGlobalData` 必须指向本地地址（当前 NPU）
-    - `stagingTileData`、`pingTile`、`pongTile` 必须预先在 UB 中分配
-
-    ### 原子与双缓冲约束
-
-    - 当前接口支持 `AtomicNone` 与 `AtomicAdd`
-    - `pingTile` 与 `pongTile` 的类型和维度必须一致
-    - 两者必须位于不重叠的 UB 偏移处
+- **类型约束**：
+    - `GlobalSrcData::RawDType` 必须等于 `GlobalDstData::RawDType`。
+    - `TileData::DType` 必须等于 `GlobalSrcData::RawDType`。
+    - `GlobalSrcData::layout` 必须等于 `GlobalDstData::layout`。
+- **内存约束**：
+    - `dstGlobalData` 必须指向远端地址（目标NPU）。
+    - `srcGlobalData` 必须指向本地地址（当前NPU）。
+    - `stagingTileData` / `pingTile` / `pongTile` 必须预先在统一缓冲区中分配。
+- **有效区域**：
+    - 传输大小由 `GlobalTensor` 的形状决定（自动分块以适配Tile）。
+- **原子操作**：
+    - `atomicType` 支持 `AtomicNone` 和 `AtomicAdd`。
+- **乒乓约束**：
+    - `pingTile` 和 `pongTile` 必须具有相同的类型和维度。
+    - 必须位于不重叠的UB偏移处。
 
 ## 示例
 
-### 基础形式
+### 基础用法
 
 ```cpp
 #include <pto/comm/pto_comm_inst.hpp>
@@ -95,7 +96,10 @@ void example_tput(__gm__ T* local_data, __gm__ T* remote_addr) {
     TileT stagingTile;
     TASSIGN(stagingTile, 0);
 
+    // 基础远程写
     comm::TPUT(dstG, srcG, stagingTile);
+
+    // 带原子加的远程写
     comm::TPUT<AtomicType::AtomicAdd>(dstG, srcG, stagingTile);
 }
 ```
@@ -107,19 +111,15 @@ constexpr size_t tileUBBytes = ((64 * 64 * sizeof(float) + 1023) / 1024) * 1024;
 TileT pingTile(64, 64);
 TileT pongTile(64, 64);
 TASSIGN(pingTile, 0);
-TASSIGN(pongTile, tileUBBytes);
+TASSIGN(pongTile, tileUBBytes);  // 不重叠的 UB 区域
 
+// 将 TLOAD[i+1] 与 TSTORE[i] 重叠执行以提升流水线利用率
 comm::TPUT(dstG, srcG, pingTile, pongTile);
 ```
 
-### 运行时指定原子模式
+### 运行时原子类型
 
 ```cpp
+// 在运行时而非编译期模板参数中选择原子类型
 comm::TPUT(dstG, srcG, stagingTile, AtomicType::AtomicAdd);
 ```
-
-## 相关页面
-
-- [通信与运行时](communication-runtime_zh.md)
-- [TGET](./TGET_zh.md)
-- [TSCATTER](./TSCATTER_zh.md)

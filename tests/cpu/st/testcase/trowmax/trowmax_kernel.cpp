@@ -13,14 +13,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTROWMAX(__gm__ T __out__ *out, __gm__ T __in__ *src)
+AICORE void runTROWMAX(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using DynStridDim5 = Stride<1, 1, -1, -1, 1>;
     using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
 
     using srcTileData = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
-    using dstTileData = Tile<TileType::Vec, T, kTRows_, 16, BLayout::RowMajor, -1, -1>;
+    using dstTileData = Tile<TileType::Vec, T, kTRows_, 32, BLayout::RowMajor, -1, -1>;
 
     srcTileData srcTile(kTRows_, kTCols_);
     dstTileData dstTile(kTRows_, 1);
@@ -41,19 +41,21 @@ AICORE void runTROWMAX(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTROWMAX(T *out, T *src, void *stream)
+void LaunchTROWMAX(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTROWMAX<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src));
+        runTROWMAX<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src));
     else
         runTROWMAX<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src);
 }
 
-template void LaunchTROWMAX<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTROWMAX<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTROWMAX<aclFloat16, 161, 161, 32, 32>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTROWMAX<float, 77, 81, 32, 16>(float *out, float *src, void *stream);
-template void LaunchTROWMAX<float, 32, 32, 32, 16>(float *out, float *src, void *stream);
+template void LaunchTROWMAX<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTROWMAX<aclFloat16, 64, 64, 64, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTROWMAX<aclFloat16, 161, 161, 32, 32>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTROWMAX<float, 77, 81, 32, 16>(float* out, float* src, void* stream);
+template void LaunchTROWMAX<float, 32, 32, 32, 16>(float* out, float* src, void* stream);
+template void LaunchTROWMAX<int8_t, 64, 64, 64, 64>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTROWMAX<uint8_t, 64, 64, 64, 64>(uint8_t* out, uint8_t* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTROWMAX<bfloat16_t, 64, 64, 64, 64>(bfloat16_t *out, bfloat16_t *src, void *stream);
+template void LaunchTROWMAX<bfloat16_t, 64, 64, 64, 64>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif

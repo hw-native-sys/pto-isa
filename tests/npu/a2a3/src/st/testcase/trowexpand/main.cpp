@@ -16,26 +16,24 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename T, int rows, int src_col, int src_validCol, int dst_col, int dst_validCol>
-void launchTROWEXPAND(T *out, T *src, void *stream);
+void launchTROWEXPAND(T* out, T* src, void* stream);
 
 class TROWEXPANDTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int rows, int srcCols, int srcVaildCols, int dstCols, int dstVaildCols>
+template <typename T, int rows, int srcCols, int srcValidCols, int dstCols, int dstValidCols>
 bool TRowExpandFramework()
 {
     size_t inputFileSize = rows * srcCols * sizeof(T);
@@ -50,16 +48,16 @@ bool TRowExpandFramework()
     T *dstHost, *src0Host;
     T *dstDevice, *src0Device;
 
-    aclrtMallocHost((void **)(&dstHost), outputFileSize);
-    aclrtMallocHost((void **)(&src0Host), inputFileSize);
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), inputFileSize);
 
-    aclrtMalloc((void **)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", inputFileSize, src0Host, inputFileSize);
 
     aclrtMemcpy(src0Device, inputFileSize, src0Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTROWEXPAND<T, rows, srcCols, srcVaildCols, dstCols, dstVaildCols>(dstDevice, src0Device, stream);
+    launchTROWEXPAND<T, rows, srcCols, srcValidCols, dstCols, dstValidCols>(dstDevice, src0Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

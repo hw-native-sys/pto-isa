@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TSORT32_HPP
 
 #include <algorithm>
+#include <iterator>
 #include <type_traits>
 #include <vector>
 #include <pto/common/pto_tile.hpp>
@@ -29,7 +30,7 @@ struct ScoreIndexPair {
     uint32_t index;
 
     // 用于降序排序的比较函数（稳定排序）
-    bool operator<(const ScoreIndexPair &other) const
+    bool operator<(const ScoreIndexPair& other) const
     {
         // 降序排序：分数大的在前
         if (score != other.score) {
@@ -41,8 +42,9 @@ struct ScoreIndexPair {
 };
 
 template <typename T, typename TileDataDst, typename TileDataSrc, typename TileDataIdx>
-PTO_INTERNAL void TSort32(typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src,
-                          typename TileDataIdx::TileDType idx, int validRow, int validCol)
+PTO_INTERNAL void TSort32(
+    typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src, typename TileDataIdx::TileDType idx,
+    int validRow, int validCol)
 {
     for (int i = 0; i < validRow; i++) {
         for (int j = 0; j < validCol; j += sortNum) {
@@ -59,15 +61,15 @@ PTO_INTERNAL void TSort32(typename TileDataDst::TileDType dst, typename TileData
 
             // 对当前分段进行稳定排序（降序）
             // 使用稳定排序以保持相同分数的原始顺序
-            std::stable_sort(segment.begin(), segment.end(),
-                             [](const ScoreIndexPair<T> &a, const ScoreIndexPair<T> &b) {
-                                 // 主要按分数降序排序
-                                 if (a.score != b.score) {
-                                     return a.score > b.score; // 降序
-                                 }
-                                 // 分数相同时，按原始索引升序（i<j时优先存储i）
-                                 return a.index < b.index;
-                             });
+            std::stable_sort(
+                segment.begin(), segment.end(), [](const ScoreIndexPair<T>& a, const ScoreIndexPair<T>& b) {
+                    // 主要按分数降序排序
+                    if (a.score != b.score) {
+                        return a.score > b.score; // 降序
+                    }
+                    // 分数相同时，按原始索引升序（i<j时优先存储i）
+                    return a.index < b.index;
+                });
 
             int num = 0;
             int t = 0;
@@ -75,10 +77,16 @@ PTO_INTERNAL void TSort32(typename TileDataDst::TileDType dst, typename TileData
                 if constexpr (sizeof(T) == sizeof(half)) {
                     dst[dstOffset + t] = segment[num].score;
                     dst[dstOffset + t + 1] = 0;
-                    memcpy(&dst[dstOffset + t + halfStride], &segment[num].index, sizeof(uint32_t));
+
+                    const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(&segment[num].index);
+                    uint8_t* dstPtr = reinterpret_cast<uint8_t*>(&dst[dstOffset + t + halfStride]);
+                    std::copy(srcPtr, srcPtr + sizeof(uint32_t), dstPtr);
                 } else {
                     dst[dstOffset + t] = segment[num].score;
-                    memcpy(&dst[dstOffset + t + 1], &segment[num].index, sizeof(uint32_t));
+
+                    const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(&segment[num].index);
+                    uint8_t* dstPtr = reinterpret_cast<uint8_t*>(&dst[dstOffset + t + 1]);
+                    std::copy(srcPtr, srcPtr + sizeof(uint32_t), dstPtr);
                 }
                 num++;
                 t += totalByte / sizeof(T);
@@ -88,22 +96,25 @@ PTO_INTERNAL void TSort32(typename TileDataDst::TileDType dst, typename TileData
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataIdx>
-PTO_INTERNAL void TSORT32_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataIdx &idx)
+PTO_INTERNAL void TSORT32_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataIdx& idx)
 {
     using T = typename TileDataSrc::DType;
-    static_assert(std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
-                      std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float>,
-                  "TSORT32: Invalid data type.");
-    static_assert(std::is_same_v<typename TileDataDst::DType, T>,
-                  "The Src data type must be consistent with the dst data type");
+    static_assert(
+        std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, half> ||
+            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, float>,
+        "TSort32: Invalid data type.");
+    static_assert(
+        std::is_same_v<typename TileDataDst::DType, T>, "The Src data type must be consistent with the dst data type");
     static_assert(std::is_same_v<typename TileDataIdx::DType, uint32_t>, "The Idx data type must be uint32");
-    static_assert(TileDataSrc::RowStride == TileDataIdx::RowStride,
-                  "The Src stride must be consistent with the idx stride");
-    static_assert(TileDataSrc::isRowMajor && TileDataIdx::isRowMajor && TileDataDst::isRowMajor,
-                  "TSORT32: only RowMajor tiles are supported in CPU sim");
-    static_assert(TileDataSrc::SFractal == SLayout::NoneBox && TileDataIdx::SFractal == SLayout::NoneBox &&
-                      TileDataDst::SFractal == SLayout::NoneBox,
-                  "TSORT32: only NoneBox tiles are supported in CPU sim");
+    static_assert(
+        TileDataSrc::RowStride == TileDataIdx::RowStride, "The Src stride must be consistent with the idx stride");
+    static_assert(
+        TileDataSrc::isRowMajor && TileDataIdx::isRowMajor && TileDataDst::isRowMajor,
+        "TSort32: only RowMajor tiles are supported in CPU sim");
+    static_assert(
+        TileDataSrc::SFractal == SLayout::NoneBox && TileDataIdx::SFractal == SLayout::NoneBox &&
+            TileDataDst::SFractal == SLayout::NoneBox,
+        "TSort32: only NoneBox tiles are supported in CPU sim");
 
     const int validRow = src.GetValidRow();
     const int validCol = src.GetValidCol();
@@ -117,7 +128,7 @@ PTO_INTERNAL void TSORT32_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataIdx &
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataIdx, typename TmpTileData>
-PTO_INTERNAL void TSORT32_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataIdx &idx, TmpTileData &tmp)
+PTO_INTERNAL void TSORT32_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataIdx& idx, TmpTileData& tmp)
 {
     TSORT32_IMPL(dst, src, idx);
 }

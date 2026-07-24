@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTAnds(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ T __in__ *scalar)
+AICORE void runTAnds(__gm__ T __out__* out, __gm__ T __in__* src, __gm__ T __in__* scalar)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -36,15 +36,29 @@ AICORE void runTAnds(__gm__ T __out__ *out, __gm__ T __in__ *src, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTAnds(T *out, T *src, T *scalar, void *stream)
+void LaunchTAnds(T* out, T* src, T* scalar, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTAnds<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src), (half *)(scalar));
+        runTAnds<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src), (half*)(scalar));
     else
         runTAnds<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src, scalar);
 }
-const int NUM_64 = 64;
-template void LaunchTAnds<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(int32_t *out, int32_t *src, int32_t *scalar,
-                                                                   void *stream);
-template void LaunchTAnds<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src, int16_t *scalar,
-                                                                   void *stream);
+
+template void LaunchTAnds<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int16_t* out, int16_t* src, int16_t* scalar, void* stream);
+template void LaunchTAnds<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTAnds<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTAnds<int32_t, NUM_77, NUM_96, NUM_77, NUM_96>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTAnds<int32_t, NUM_1, NUM_32, NUM_1, NUM_32>(
+    int32_t* out, int32_t* src, int32_t* scalar, void* stream);
+template void LaunchTAnds<uint32_t, NUM_32, NUM_32, NUM_32, NUM_32>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);
+template void LaunchTAnds<uint32_t, NUM_8, NUM_64, NUM_8, NUM_64>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);
+template void LaunchTAnds<uint32_t, NUM_128, NUM_128, NUM_128, NUM_128>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);
+template void LaunchTAnds<uint32_t, NUM_16, NUM_32, NUM_16, NUM_32>(
+    uint32_t* out, uint32_t* src, uint32_t* scalar, void* stream);

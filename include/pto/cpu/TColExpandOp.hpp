@@ -17,23 +17,33 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename TileDst, typename TileSrc0, typename TileSrc1>
+template <ElementOp Op, typename T>
+constexpr bool IsColExpandAllowedType =
+    std::is_same_v<T, float> || std::is_same_v<T, half> ||
+    (Op != ElementOp::OP_EXPDIF && (std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> ||
+                                    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t>)) ||
+    (Op == ElementOp::OP_MUL && std::is_same_v<T, uint8_t>);
+
+template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp Op>
 PTO_INTERNAL void CheckColExtendTiles()
 {
     using T = typename TileDst::DType;
-    static_assert(std::is_same_v<T, typename TileSrc0::DType> && std::is_same_v<T, typename TileSrc1::DType>,
-                  "TColExpandOp: The data type of dst must be consistent with src0, src1.");
-    static_assert(std::is_same_v<T, float> || std::is_same_v<T, half>,
-                  "TColExpandOp: The data type of dst, src0, src1 must be one of: `half`, `float`");
+    static_assert(
+        std::is_same_v<T, typename TileSrc0::DType> && std::is_same_v<T, typename TileSrc1::DType>,
+        "TColExpandOp: The data type of dst must be consistent with src0, src1.");
+    static_assert(
+        IsColExpandAllowedType<Op, T>, "TColExpandOp: unsupported data type. Supported types for this operation: "
+                                       "`half`, `float`, and selected integer types.");
 
-    static_assert(TileDst::isRowMajor && TileSrc0::isRowMajor && TileSrc1::isRowMajor,
-                  "TColExpandOp: TileType of src and dst tiles must be Row Major.");
+    static_assert(
+        TileDst::isRowMajor && TileSrc0::isRowMajor && TileSrc1::isRowMajor,
+        "TColExpandOp: TileType of src and dst tiles must be Row Major.");
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp TileOperation>
-PTO_INTERNAL void TColExpand_Op(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TColExpand_Op(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
-    CheckColExtendTiles<TileDst, TileSrc0, TileSrc1>();
+    CheckColExtendTiles<TileDst, TileSrc0, TileSrc1, TileOperation>();
 
     using T = typename TileDst::DType;
     const std::size_t validRow = static_cast<std::size_t>(dst.GetValidRow());
@@ -54,43 +64,43 @@ PTO_INTERNAL void TColExpand_Op(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
 }
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INTERNAL void TCOLEXPANDDIV_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDDIV_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     TColExpand_Op<TileDst, TileSrc0, TileSrc1, ElementOp::OP_DIV>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INTERNAL void TCOLEXPANDMUL_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDMUL_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     TColExpand_Op<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MUL>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INTERNAL void TCOLEXPANDSUB_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDSUB_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     TColExpand_Op<TileDst, TileSrc0, TileSrc1, ElementOp::OP_SUB>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INTERNAL void TCOLEXPANDADD_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDADD_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     TColExpand_Op<TileDst, TileSrc0, TileSrc1, ElementOp::OP_ADD>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INTERNAL void TCOLEXPANDMAX_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDMAX_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     TColExpand_Op<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MAX>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INTERNAL void TCOLEXPANDMIN_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDMIN_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     TColExpand_Op<TileDst, TileSrc0, TileSrc1, ElementOp::OP_MIN>(dst, src0, src1);
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1>
-PTO_INTERNAL void TCOLEXPANDEXPDIF_IMPL(TileDst &dst, TileSrc0 &src0, TileSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDEXPDIF_IMPL(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
 {
     TColExpand_Op<TileDst, TileSrc0, TileSrc1, ElementOp::OP_EXPDIF>(dst, src0, src1);
 }

@@ -16,19 +16,17 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey, int32_t format>
-void LaunchTMOV_MX(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3, void *stream);
+void LaunchTMOV_MX(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
 
 class TMOVMXTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -54,8 +52,9 @@ const T CeilAlign(T num_1, T num_2)
 }
 
 template <typename T, typename U, typename S, bool isFp4, int32_t key, int format>
-void TmovMXTest(uint32_t validM, uint32_t validK, uint32_t validN, uint16_t indexM, uint16_t indexK, uint16_t indexN,
-                uint16_t baseM = 0, uint16_t baseK = 0, uint16_t baseN = 0)
+void TmovMXTest(
+    uint32_t validM, uint32_t validK, uint32_t validN, uint16_t indexM, uint16_t indexK, uint16_t indexN,
+    uint16_t baseM = 0, uint16_t baseK = 0, uint16_t baseN = 0)
 {
     uint32_t kAlign = CeilAlign<uint32_t>(validK, 64);
     size_t aFileSize = isFp4 ? CeilDiv<uint32_t>(validM * validK, 2) : validM * validK * sizeof(U);
@@ -79,17 +78,17 @@ void TmovMXTest(uint32_t validM, uint32_t validK, uint32_t validN, uint16_t inde
     uint8_t *dstHost, *src0Host, *src1Host, *src2Host, *src3Host;
     uint8_t *dstDevice, *src0Device, *src1Device, *src2Device, *src3Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&src2Host), aScaleFileSize);
-    aclrtMallocHost((void **)(&src3Host), bScaleFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&src2Host), aScaleFileSize);
+    aclrtMallocHost((void**)(&src3Host), bScaleFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, aScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src3Device, bScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, aScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src3Device, bScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -269,10 +268,7 @@ TEST_F(TMOVMXTest, case15)
     TmovMXTest<float, uint8_t, uint8_t, true, 15, 2>(M, K, N, 16, 0, 64);
 }
 
-TEST_F(TMOVMXTest, case16)
-{
-    TmovMXTest<float, uint8_t, uint8_t, false, 16, 0>(46, 66, 45, 0, 0, 0, 128, 256, 128);
-}
+TEST_F(TMOVMXTest, case16) { TmovMXTest<float, uint8_t, uint8_t, false, 16, 0>(46, 66, 45, 0, 0, 0, 128, 256, 128); }
 
 TEST_F(TMOVMXTest, case17)
 {
@@ -284,32 +280,20 @@ TEST_F(TMOVMXTest, case18)
     TmovMXTest<float, uint8_t, uint8_t, true, 18, 0>(127, 126, 130, 32, 64, 64, 256, 128, 256);
 }
 
-TEST_F(TMOVMXTest, case19)
-{
-    TmovMXTest<float, uint8_t, uint8_t, false, 19, 1>(80, 96, 192, 48, 0, 64, 128, 256, 256);
-}
+TEST_F(TMOVMXTest, case19) { TmovMXTest<float, uint8_t, uint8_t, false, 19, 1>(80, 96, 192, 48, 0, 64, 128, 256, 256); }
 
 TEST_F(TMOVMXTest, case20)
 {
     TmovMXTest<float, uint8_t, uint8_t, false, 20, 1>(98, 126, 108, 32, 64, 32, 128, 256, 128);
 }
 
-TEST_F(TMOVMXTest, case21)
-{
-    TmovMXTest<float, uint8_t, uint8_t, true, 21, 1>(68, 196, 80, 0, 64, 64, 128, 256, 128);
-}
+TEST_F(TMOVMXTest, case21) { TmovMXTest<float, uint8_t, uint8_t, true, 21, 1>(68, 196, 80, 0, 64, 64, 128, 256, 128); }
 
-TEST_F(TMOVMXTest, case22)
-{
-    TmovMXTest<float, uint8_t, uint8_t, false, 22, 2>(32, 64, 108, 16, 0, 32, 128, 256, 128);
-}
+TEST_F(TMOVMXTest, case22) { TmovMXTest<float, uint8_t, uint8_t, false, 22, 2>(32, 64, 108, 16, 0, 32, 128, 256, 128); }
 
 TEST_F(TMOVMXTest, case23)
 {
     TmovMXTest<float, uint8_t, uint8_t, false, 23, 2>(196, 146, 96, 64, 64, 32, 256, 256, 128);
 }
 
-TEST_F(TMOVMXTest, case24)
-{
-    TmovMXTest<float, uint8_t, uint8_t, true, 24, 2>(97, 96, 122, 32, 0, 64, 128, 256, 128);
-}
+TEST_F(TMOVMXTest, case24) { TmovMXTest<float, uint8_t, uint8_t, true, 24, 2>(97, 96, 122, 32, 0, 64, 128, 256, 128); }

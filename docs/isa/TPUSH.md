@@ -8,20 +8,19 @@ This page describes all `TPUSH` overloads for pushing data into a `TPipe` FIFO: 
 
 ## Operation Semantics
 
-For the TileData flow:
+For the TileData overload, `TPUSH` performs three steps:
 
-1. `TPUSH(Pipe&, TileData&, Split)` stores the producer tile into the current FIFO slot and records data-ready synchronization for the consumer. The producer tile index is incremented after the slot address is computed.
-2. `TPOP(Pipe&, TileData&, Split)` waits for the producer's data-ready synchronization and loads the current FIFO slot into the consumer tile. The consumer tile index is incremented after the slot address is computed.
-3. `TFREE(Pipe&, Split)` releases FIFO slot space. On the A2A3 platform this interface is a no-op (`TPOP` already performs free-space notification internally), while on the A5 platform it releases the FIFO slot space used by `TPOP`.
+1. Wait for FIFO space when `Pipe::shouldWaitFree(pipe.prod.tileIndex)` is true.
+2. Store the producer tile into the current FIFO slot. In this step:
+   - For Cube-to-Vector data push, the `AccTile` is pushed into the `TPipe` FIFO.
+   - For Vector-to-Cube data push, the `VecTile` is pushed into the `TPipe` FIFO.
+3. Record data-ready synchronization for the consumer.
 
-For the GlobalData flow:
+The producer tile index is incremented after the FIFO slot address is computed.
 
-1. `TALLOC(Pipe&, GlobalData&)` allocates a producer FIFO slot from `TPipe` and exposes it as a `GlobalTensor` view. The producer can write data to the slot using instructions such as `TSTORE`.
-2. `TPUSH(Pipe&, GlobalData&)` records data-ready synchronization for a slot already allocated by `TALLOC`, committing the FIFO slot to the consumer. It does not store tile data by itself.
-3. `TPOP(Pipe&, GlobalData&)` waits for data-ready, assigns `gmTensor` to the current FIFO slot address, and increments the consumer tile index. It does not load data into a local tile and does not release the slot. The consumer can read data from the slot using instructions such as `TLOAD`.
-4. `TFREE(Pipe&, GlobalData&)` releases the FIFO slot view returned by `TPOP(Pipe&, GlobalData&)`, notifying the producer that the slot space is free.
+For the `GlobalData` overload, `TPUSH` only records data-ready synchronization for a slot that was already allocated by `TALLOC`. It does not store tile data by itself.
 
-For the `TConfig` overload `TPUSH(Pipe&, TileProd&, TConfig)`, the `TConfig` template parameter is used to configure fixpipe parameters for L0C→GM/UB.
+For the `TConfig` overload `TPUSH(Pipe&, TileProd&, TConfig)`, the `TConfig` template parameters is used to configure fixpipe parameters from L0C->GM/UB.
 
 ## C++ Intrinsic
 
@@ -64,7 +63,7 @@ struct TPipe;
     - `TileSplitAxis::TILE_LEFT_RIGHT`: Vector subblocks map to column halves.
 - **A5 split behavior**:
     - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied.
-    - `TileSplitAxis::TILE_UP_DOWN`: Data is split into row halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validRows` must be a power of 2; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
+    - `TileSplitAxis::TILE_UP_DOWN`: Data is split into row halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validRows` must be even (a multiple of 2); for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: Data is split into two column halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validCols` must be a multiple of 32; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
 - **Simplified TileData overload**:
     - `TPUSH(TileData&, Pipe&)` uses `TileSplitAxis::TILE_NO_SPLIT` semantics internally.
@@ -242,3 +241,4 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
 ## ASM Form Examples
 
 The current public assembly reference does not define a stable PTO-AS spelling for `TPUSH`. Use the C++ intrinsic form for manual CV FIFO programming.
+```

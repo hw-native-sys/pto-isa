@@ -14,15 +14,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-enum TileSplitAxis : uint8_t
-{
+enum TileSplitAxis : uint8_t {
     TILE_NO_SPLIT = 0,   // 1:1 mode, no split, using AIV0
     TILE_UP_DOWN = 1,    // Split/combine along rows: AIV0=upper half, AIV1=lower half
     TILE_LEFT_RIGHT = 2, // Split/combine along cols: AIV0=left half, AIV1=right half
 };
 
-enum Direction : uint8_t
-{
+enum Direction : uint8_t {
     UNDEFINED = 0,
     DIR_C2V = 1,                  // Cube → Vector: Cube is producer, Vector is consumer
     DIR_V2C = 2,                  // Vector → Cube: Vector is producer, Cube is consumer
@@ -37,7 +35,7 @@ enum Direction : uint8_t
 
 template <int SlotSize, int SlotNum, int LocalSlotNum>
 struct RingFIFO {
-    __gm__ void *GM_SLOT_BUFFER = nullptr; // Global memory
+    __gm__ void* GM_SLOT_BUFFER = nullptr; // Global memory
     uint32_t C2V_CONSUMER_BUF = 0x0;       // UB buffer
     uint32_t V2C_CONSUMER_BUF = 0x0;       // L1 buffer
     uint64_t V2C_CONTROL_BUF = 0x0;        // scalar buffer for control signals
@@ -46,22 +44,20 @@ struct RingFIFO {
     static constexpr uint32_t SLOT_SYNCT = SlotNum;
     static constexpr uint32_t LOCAL_SLOT_NUM = LocalSlotNum;
 
-    PTO_INTERNAL RingFIFO(__gm__ void *gmSlotBuf, uint32_t c2vConsBuf, uint32_t v2cConBuf)
+    PTO_INTERNAL RingFIFO(__gm__ void* gmSlotBuf, uint32_t c2vConsBuf, uint32_t v2cConBuf)
         : GM_SLOT_BUFFER(gmSlotBuf), C2V_CONSUMER_BUF(c2vConsBuf), V2C_CONSUMER_BUF(v2cConBuf)
     {}
 };
 
 //---------------------------------------------------
-enum class FIFOType : uint8_t
-{
+enum class FIFOType : uint8_t {
     GM_FIFO = 0,   // FIFO implemented in Global Memory
     VEC_FIFO = 1,  // FIFO implemented in Vector core's local memory
     MAT_FIFO = 2,  // FIFO implemented in Cube core's local memory (e.g., L1)
     CTRL_FIFO = 3, // FIFO for control signals, implemented in scalar buffer
 };
 
-enum class VecCubeRatio : uint8_t
-{
+enum class VecCubeRatio : uint8_t {
     V1C1_VEC0 = 0, // 1 Vector core : 1 Cube core, Vec core only used Vector 0
     V1C1_VEC1 = 1, // 1 Vector core : 1 Cube core, Vec core only used Vector 1
     V2C1_VECS = 2, // 2 Vector cores : 1 Cube core
@@ -77,30 +73,26 @@ struct IsGMFiFo {
 };
 
 template <typename DataType, FIFOType FifoType, int Depth, int Period, int LocalDepth>
-struct DataFIFO<DataType, FifoType, Depth, Period, LocalDepth,
-                typename std::enable_if<IsGMFiFo<FifoType>::value>::type> {
+struct DataFIFO<
+    DataType, FifoType, Depth, Period, LocalDepth, typename std::enable_if<IsGMFiFo<FifoType>::value>::type> {
     static constexpr int fifoDepth = Depth;
     static constexpr int fifoPeriod = Period;
     static constexpr FIFOType fifoType = FifoType;
     using DType = DataType;
     // base address of the GM FIFO buffer in global memory
-    __gm__ DataType *fifoBase = nullptr;
+    __gm__ DataType* fifoBase = nullptr;
     // base address of local FIFO buffer in local memory
     uint32_t localFiFoBase = 0;
     static constexpr int localFiFoDepth = LocalDepth;
     static constexpr bool useLocalFiFo = (localFiFoDepth > 0);
 
-    PTO_INTERNAL DataFIFO(__gm__ DataType *ptr, uint32_t localBase) : fifoBase(ptr), localFiFoBase(localBase)
-    {}
+    PTO_INTERNAL DataFIFO(__gm__ DataType* ptr, uint32_t localBase) : fifoBase(ptr), localFiFoBase(localBase) {}
 
     template <int M = LocalDepth, typename std::enable_if<M == 0, int>::type = 0>
-    PTO_INTERNAL DataFIFO(__gm__ DataType *ptr) : fifoBase(ptr)
+    PTO_INTERNAL DataFIFO(__gm__ DataType* ptr) : fifoBase(ptr)
     {}
 
-    __gm__ DataType *getBasePtr()
-    {
-        return fifoBase;
-    }
+    __gm__ DataType* getBasePtr() { return fifoBase; }
 };
 
 // 2. VEC_FIFO and MAT_FIFO (both use local memory)
@@ -110,16 +102,15 @@ struct IsTileFiFo {
 };
 
 template <typename DataType, FIFOType FifoType, int Depth, int Period, int LocalDepth_unused>
-struct DataFIFO<DataType, FifoType, Depth, Period, LocalDepth_unused,
-                typename std::enable_if<IsTileFiFo<FifoType>::value>::type> {
+struct DataFIFO<
+    DataType, FifoType, Depth, Period, LocalDepth_unused, typename std::enable_if<IsTileFiFo<FifoType>::value>::type> {
     static constexpr int fifoDepth = Depth;
     static constexpr int fifoPeriod = Period;
     static constexpr FIFOType fifoType = FifoType;
 
     uint32_t fifoBase = 0; // fifo base address in local memory
 
-    PTO_INTERNAL DataFIFO(uint32_t base) : fifoBase(base)
-    {}
+    PTO_INTERNAL DataFIFO(uint32_t base) : fifoBase(base) {}
 };
 
 template <FIFOType T>
@@ -128,16 +119,15 @@ struct IsCtrlFiFo {
 };
 
 template <typename DataType, FIFOType FifoType, int Depth, int Period, int LocalDepth_unused>
-struct DataFIFO<DataType, FifoType, Depth, Period, LocalDepth_unused,
-                typename std::enable_if<IsCtrlFiFo<FifoType>::value>::type> {
+struct DataFIFO<
+    DataType, FifoType, Depth, Period, LocalDepth_unused, typename std::enable_if<IsCtrlFiFo<FifoType>::value>::type> {
     static constexpr int fifoDepth = Depth;
     static constexpr int fifoPeriod = Period;
     static constexpr FIFOType fifoType = FifoType;
     bool ctrlSignal = false; // control signal to be sent through the FIFO
     uint32_t fifoBase = 0x0; // fifo base address in global memory or scalar buffer
 
-    PTO_INTERNAL DataFIFO(uint32_t base) : fifoBase(base)
-    {}
+    PTO_INTERNAL DataFIFO(uint32_t base) : fifoBase(base) {}
 };
 
 } // namespace pto

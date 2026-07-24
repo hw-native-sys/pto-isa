@@ -16,7 +16,7 @@ using namespace pto;
 namespace TColExpandDivTest {
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool highPrecision = false>
-__global__ AICORE void runCOLEXPANDDIV(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+__global__ AICORE void runCOLEXPANDDIV(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, src1Row, src1Col>;
     using DynStridDim5 = pto::Stride<1, 1, 1, src1Col, 1>;
@@ -62,34 +62,34 @@ __global__ AICORE void runCOLEXPANDDIV(__gm__ T __out__ *out, __gm__ T __in__ *s
 }
 
 template <typename T, uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool highPrecision>
-void launchTColExpandDiv(T *out, T *src0, T *src1, void *stream)
+void launchTColExpandDiv(T* out, T* src0, T* src1, void* stream)
 {
     runCOLEXPANDDIV<T, dstRow, dstCol, src1Row, src1Col, highPrecision><<<1, nullptr, stream>>>(out, src0, src1);
 }
 
 template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool highPrecision>
-void launchTColExpandDivHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, void *stream)
+void launchTColExpandDivHalf(aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream)
 {
     runCOLEXPANDDIV<half, dstRow, dstCol, src1Row, src1Col, highPrecision>
-        <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+        <<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
 }
 
-template void launchTColExpandDiv<float, 32, 64, 1, 64, false>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandDiv<float, 8, 32, 1, 32, false>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandDivHalf<16, 64, 1, 64, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                            void *stream);
-template void launchTColExpandDivHalf<4, 128, 1, 128, false>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                             void *stream);
-template void launchTColExpandDiv<float, 40, 32, 1, 32, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandDivHalf<16, 128, 1, 128, true>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                             void *stream);
-template void launchTColExpandDiv<float, 20, 64, 1, 64, true>(float *out, float *src0, float *src1, void *stream);
-template void launchTColExpandDiv<int32_t, 16, 32, 1, 32, false>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                 void *stream);
-template void launchTColExpandDiv<int16_t, 16, 64, 1, 64, false>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                 void *stream);
-template void launchTColExpandDiv<uint32_t, 16, 32, 1, 32, false>(uint32_t *out, uint32_t *src0, uint32_t *src1,
-                                                                  void *stream);
-template void launchTColExpandDiv<uint16_t, 8, 64, 1, 64, false>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                 void *stream);
+template void launchTColExpandDiv<float, 32, 64, 1, 64, false>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandDiv<float, 8, 32, 1, 32, false>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandDivHalf<16, 64, 1, 64, false>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTColExpandDivHalf<4, 128, 1, 128, false>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTColExpandDiv<float, 40, 32, 1, 32, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandDivHalf<16, 128, 1, 128, true>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void launchTColExpandDiv<float, 20, 64, 1, 64, true>(float* out, float* src0, float* src1, void* stream);
+template void launchTColExpandDiv<int32_t, 16, 32, 1, 32, false>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void launchTColExpandDiv<int16_t, 16, 64, 1, 64, false>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void launchTColExpandDiv<uint32_t, 16, 32, 1, 32, false>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void launchTColExpandDiv<uint16_t, 8, 64, 1, 64, false>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
 } // namespace TColExpandDivTest

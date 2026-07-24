@@ -1,15 +1,73 @@
+minimum_pre_commit_version: 4.0.0
+exclude: ^LICENSES/|^\.gitcode/|\.(html|csv|svg|xml|cmake|ya?ml|toml|json|ini|cfg|gitkeep)$|(^|/)(CMakeLists\.txt|LICENSE|MANIFEST\.in|Makefile|\.gitignore|\.gitattributes|Third_Party_Open_Source_Software_Notice)$|requirements\.txt$|^(tests|demos)/.*\.py$
+
+default_stages: [pre-commit]
+ci:
+  autofix_prs: false
+  autoupdate_schedule: monthly
+
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
+  # pre-commit 基础检查
+  - repo: https://gitcode.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
-      - id: check-added-large-files
-      - id: check-yaml
-      - id: end-of-file-fixer
       - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-json
 
-  - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v16.0.0
+  # C++ 代码格式化检查
+  - repo: https://gitcode.com/pre-commit-clang/mirrors-clang-format
+    rev: v18.1.8
     hooks:
       - id: clang-format
-        types_or: [c++, c]
-        exclude: ^3rdparty/
+        files: \.(c|h|cpp|hpp|cc|hh|cxx|hxx)$
+        args:
+          - "--verbose"
+          - "-i"
+        exclude: ^build/|tests/third_party/
+
+  # Python 代码检查
+  - repo: https://gitcode.com/gh_mirrors/ru/ruff-pre-commit
+    rev: v0.14.14
+    hooks:
+      - id: ruff-check
+        args: ["--output-format", "github", "--fix"]
+        types: [python]
+      - id: ruff-format
+        types: [python]
+
+  # 拼写检查
+  - repo: https://gitcode.com/gh_mirrors/co/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        args: [
+            "-L",
+            "CANN,cann,NNAL,nnal,ASCEND,ascend,EnQue,CopyIn,ArchType,AND,ND,Nd,nd,tbe,copyin,alog,subtile,Subtile,subtiles,Subtiles,SUBTILE,SUBTILES,TTEST,ttest,FpT,indexT,curEv,Fo,vor,requestors,fo,adn,eles,binar,mis,compatiable",
+            "--skip",
+            "*.py,*.cpp,*.hpp,*.c,*.h",
+          ]
+
+  # typos 检查
+  - repo: https://gitcode.com/gh_mirrors/ty/typos
+    rev: v1.32.0
+    hooks:
+      - id: typos
+        args: ["--force-exclude"]
+
+  # OAT 合规性检查 (Open Source Audit Tool)
+  - repo: local
+    hooks:
+      - id: oat-check
+        name: OAT Compliance Check
+        entry: bash scripts/oat_check.sh
+        language: system
+        pass_filenames: true
+        require_serial: true
+        types: [file]
+        verbose: true

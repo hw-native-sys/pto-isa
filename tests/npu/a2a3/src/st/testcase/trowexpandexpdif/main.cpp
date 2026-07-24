@@ -16,33 +16,31 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <typename T, int validRow, int validCol, int Row, int Col, bool src0eqdst>
-void launchTRowExpandExpdif(T *out, T *src0, T *src1, void *stream);
+void launchTRowExpandExpdif(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int validRow, int validCol, int Row, int Col, bool src0eqdst>
-void launchTRowExpandExpdif2(T *out, T *src0, T *src1, void *stream);
+void launchTRowExpandExpdif2(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int validRow, int validCol, int Row, int Col, bool src0eqdst>
-void launchTRowExpandExpdif3(T *out, T *src0, T *src1, void *stream);
+void launchTRowExpandExpdif3(T* out, T* src0, T* src1, void* stream);
 
 class TROWEXPANDEXPDIFTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int validRow, int validCol, int Row, int Col, bool src0eqdst, bool isRowMajor,
-          bool declTmp = false>
+template <
+    typename T, int validRow, int validCol, int Row, int Col, bool src0eqdst, bool isRowMajor, bool declTmp = false>
 void test_trowexpandexpdif()
 {
     size_t dstFileSize = Row * Col * sizeof(T);
@@ -59,13 +57,13 @@ void test_trowexpandexpdif()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&src0Host), dstFileSize);
-    aclrtMallocHost((void **)(&src1Host), src1FileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&src0Host), dstFileSize);
+    aclrtMallocHost((void**)(&src1Host), src1FileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1FileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input1.bin", dstFileSize, src0Host, dstFileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", src1FileSize, src1Host, src1FileSize);
@@ -106,88 +104,34 @@ void test_trowexpandexpdif()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TROWEXPANDEXPDIFTest, case1)
-{
-    test_trowexpandexpdif<float, 16, 16, 16, 16, true, false>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case1) { test_trowexpandexpdif<float, 16, 16, 16, 16, true, false>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case2)
-{
-    test_trowexpandexpdif<float, 16, 16, 32, 32, true, false>();
-}
-TEST_F(TROWEXPANDEXPDIFTest, case3)
-{
-    test_trowexpandexpdif<aclFloat16, 16, 16, 16, 16, true, false>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case2) { test_trowexpandexpdif<float, 16, 16, 32, 32, true, false>(); }
+TEST_F(TROWEXPANDEXPDIFTest, case3) { test_trowexpandexpdif<aclFloat16, 16, 16, 16, 16, true, false>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case4)
-{
-    test_trowexpandexpdif<aclFloat16, 16, 16, 32, 32, true, false>();
-}
-TEST_F(TROWEXPANDEXPDIFTest, case5)
-{
-    test_trowexpandexpdif<float, 1, 16384, 1, 16384, true, false>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case4) { test_trowexpandexpdif<aclFloat16, 16, 16, 32, 32, true, false>(); }
+TEST_F(TROWEXPANDEXPDIFTest, case5) { test_trowexpandexpdif<float, 1, 16384, 1, 16384, true, false>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case6)
-{
-    test_trowexpandexpdif<float, 2048, 1, 2048, 8, true, false>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case6) { test_trowexpandexpdif<float, 2048, 1, 2048, 8, true, false>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case7)
-{
-    test_trowexpandexpdif<float, 16, 16, 16, 16, true, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case7) { test_trowexpandexpdif<float, 16, 16, 16, 16, true, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case8)
-{
-    test_trowexpandexpdif<float, 16, 16, 32, 32, true, true>();
-}
-TEST_F(TROWEXPANDEXPDIFTest, case9)
-{
-    test_trowexpandexpdif<aclFloat16, 16, 16, 16, 16, true, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case8) { test_trowexpandexpdif<float, 16, 16, 32, 32, true, true>(); }
+TEST_F(TROWEXPANDEXPDIFTest, case9) { test_trowexpandexpdif<aclFloat16, 16, 16, 16, 16, true, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case10)
-{
-    test_trowexpandexpdif<aclFloat16, 16, 16, 32, 32, true, true>();
-}
-TEST_F(TROWEXPANDEXPDIFTest, case11)
-{
-    test_trowexpandexpdif<float, 1, 16384, 1, 16384, true, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case10) { test_trowexpandexpdif<aclFloat16, 16, 16, 32, 32, true, true>(); }
+TEST_F(TROWEXPANDEXPDIFTest, case11) { test_trowexpandexpdif<float, 1, 16384, 1, 16384, true, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case12)
-{
-    test_trowexpandexpdif<float, 2048, 1, 2048, 8, true, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case12) { test_trowexpandexpdif<float, 2048, 1, 2048, 8, true, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case13)
-{
-    test_trowexpandexpdif<float, 16, 16, 16, 16, false, false>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case13) { test_trowexpandexpdif<float, 16, 16, 16, 16, false, false>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case14)
-{
-    test_trowexpandexpdif<float, 16, 16, 16, 16, false, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case14) { test_trowexpandexpdif<float, 16, 16, 16, 16, false, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case15)
-{
-    test_trowexpandexpdif<float, 16, 16, 32, 32, true, false, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case15) { test_trowexpandexpdif<float, 16, 16, 32, 32, true, false, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case16)
-{
-    test_trowexpandexpdif<aclFloat16, 16, 16, 16, 16, true, false, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case16) { test_trowexpandexpdif<aclFloat16, 16, 16, 16, 16, true, false, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case17)
-{
-    test_trowexpandexpdif<float, 1, 16384, 1, 16384, true, false, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case17) { test_trowexpandexpdif<float, 1, 16384, 1, 16384, true, false, true>(); }
 
-TEST_F(TROWEXPANDEXPDIFTest, case18)
-{
-    test_trowexpandexpdif<float, 2048, 1, 2048, 8, true, false, true>();
-}
+TEST_F(TROWEXPANDEXPDIFTest, case18) { test_trowexpandexpdif<float, 2048, 1, 2048, 8, true, false, true>(); }

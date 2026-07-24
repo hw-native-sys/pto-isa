@@ -78,4 +78,3 @@ __global__ __aicore__ void KernelMPMD(__gm__ float* out,
 
 - `task_id` 的获取机制依赖平台/运行时；抽象模型只要求 Device Machine 能将不同 tile block 调度到可用核心。
 - 也可以用**多个入口点**（多个 kernel）替代单个入口点 + `switch` 的形式。
-

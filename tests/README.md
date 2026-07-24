@@ -40,7 +40,7 @@ Common test entry points:
 - `common/`: Shared test resources
 - `run_cpu.py`: CPU simulator full run entry point
 - `run_cpu_tests.sh`: CPU ST one-click script
-- `run_st.sh`: NPU ST one-click script (requires `--<platform>` and, for a3/a5, `--simple`/`--all`; run with no args for usage)
+- `run_st.sh`: NPU ST one-click script
 - `run_comm_test.sh`: Communication ST one-click script (see below)
 - `run_costmodel.py`: Cost model run script
 - `run_costmodel_tests.sh`: Cost model one-click script

@@ -102,8 +102,16 @@ if __name__ == "__main__":
         TRowExpandOpParams(np.int32, np.float16, 16, 256),
         TRowExpandOpParams(np.uint32, np.float32, 16, 16, 32, 32, 64, 64, 32, 32),
     ]
-    operations_list = ["row_min", "row_max", "row_val_min", "row_val_max", "col_min", "col_max", "col_val_min",
-                       "col_val_max"]
+    operations_list = [
+        "row_min",
+        "row_max",
+        "row_val_min",
+        "row_val_max",
+        "col_min",
+        "col_max",
+        "col_val_min",
+        "col_val_max",
+    ]
 
     combinations = [(param, element_op) for param in case_params_list for element_op in operations_list]
 

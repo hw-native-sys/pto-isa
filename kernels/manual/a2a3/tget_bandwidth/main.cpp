@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "tget_bandwidth_kernel.h"
 #include "comm_mpi.h"
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);
     bool ok = RunTGetBandwidthSweep(2, 2, 0, 0);

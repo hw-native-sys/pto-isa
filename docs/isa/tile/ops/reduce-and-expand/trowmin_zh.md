@@ -1,31 +1,27 @@
-# pto.trowmin
+# TROWMIN
 
-`pto.trowmin` 属于[归约与扩展](../../reduce-and-expand_zh.md)指令集。
+## 指令示意图
 
-## 概述
+![TROWMIN tile operation](../../../../figures/isa/TROWMIN.svg)
 
-对每一行按列取最小值。
+## 简介
 
-## 机制
+通过取列间最小值来归约每一行。
 
-设：
+## 数学语义
 
-- `R = src.GetValidRow()`
-- `C = src.GetValidCol()`
-
-则对 `0 <= i < R`：
+设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= i < R`：
 
 $$ \mathrm{dst}_{i,0} = \min_{0 \le j < C} \mathrm{src}_{i,j} $$
 
-它与 `trowmax` 对应，都是“保留行、折叠列”的行归约。
-
-## 语法
+## 汇编语法
 
 同步形式：
 
 ```text
 %dst = trowmin %src : !pto.tile<...> -> !pto.tile<...>
 ```
+降低时可能引入内部临时Tile；C++内建接口需要显式传入 `tmp` 操作数。
 
 ### AS Level 1（SSA）
 
@@ -39,58 +35,63 @@ $$ \mathrm{dst}_{i,0} = \min_{0 \le j < C} \mathrm{src}_{i,j} $$
 pto.trowmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## C++ 内建接口
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
 PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## 输入
-
-- `src`：源 tile
-- `tmp`：临时 tile
-- `dst`：目标 tile
-
-## 预期输出
-
-- `dst[i,0]`：第 `i` 行所有列元素中的最小值
-
-## 副作用
-
-除产生目标 tile 外，没有额外架构副作用。
-
 ## 约束
 
-!!! warning "约束"
-    - `dst` 与 `src` 必须都为 `TileType::Vec`
-    - `src` 必须使用标准 ND 布局：行主且非分形
-    - `dst` 可以是 ND，或 `Cols == 1` 的 DN 布局
-    - `dst` 与 `src` 元素类型必须一致
-    - 运行时要求：
-      - `src.GetValidRow() != 0`
-      - `src.GetValidCol() != 0`
-      - `src.GetValidRow() == dst.GetValidRow()`
+### 通用约束或检查
 
-    ### A2A3
+- `dst` 和 `src` 必须均为 `TileType::Vec`。
+- `src` 必须使用标准ND布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `dst` 必须使用以下两种非分形布局之一：
+    - ND布局（`BLayout::RowMajor`、`SLayout::NoneBox`），或
+    - 列数严格为1的DN布局（`BLayout::ColMajor`、`SLayout::NoneBox`、`Cols == 1`）。
+- `dst` 和 `src` 的元素类型必须一致。
+- 运行时有效区域检查：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- 内建接口签名要求显式传入 `tmp` 操作数。
 
-    - 支持类型：`half`、`float`、`int32_t`、`int16_t`
-    - 实现同时接受 ND 输出和 `Cols == 1` 的 DN 输出
-    - 当前实现路径会把 `tmp` 传入后端调用，但文档不额外引入 checked implementation 没声明的 `tmp` 限制
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
-## 异常与非法情形
+- 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
+- 实现同时接受ND输出和 `Cols == 1` 的DN输出。
+- 运行时检查遵循共享的行归约检查路径：
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
 
-!!! danger "异常与非法情形"
-    - 非法操作数组合、不支持的数据类型、不合法布局或不支持的 target-profile 模式，会被 verifier 或后端实现拒绝。
+## 临时空间
 
-## 性能
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品
 
-当前仓内没有把 `trowmin` 单列成公开 cost table。它应视为行归约类路径，而不是普通二元逐元素算术。
+`tmp` **被使用**作为行最小值归约的暂存存储。
+
+- 对于**整数**类型（`int32_t`、`int16_t`）：`tmp` 用作逐行累加器缓冲区（1个块）。对于每一行，`tmp` 初始化为最大可表示值，然后通过 `vmin` 累加 `src` 的各个块。最终最小值在标量模式下从 `tmp` 读取。
+  - `tmp` 大小：至少1行和 `BLOCK_BYTE_SIZE / sizeof(T)` 列（`int32_t` 为8，`int16_t` 为16）。
+- 对于**浮点**类型（`float`、`half`）：`tmp` 用于通过 `vcmin`/`vcgmin` 的二叉树归约。
+  - 安全的默认设置：将 `tmp` 设为与 `src` 相同的形状。
+
+### Ascend 950PR/Ascend 950DT
+
+`tmp` 被接口接受但Ascend 950PR/Ascend 950DT实现**不使用**。Ascend 950PR/Ascend 950DT后端使用基于向量寄存器的归约（`vcmin` 指令），不需要暂存Tile存储。`tmp` 仅为了与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品的API兼容性而保留在C++内建接口签名中。
 
 ## 示例
 
+### 自动（Auto）
+
 ```cpp
 #include <pto/pto-inst.hpp>
+
 using namespace pto;
 
 void example_auto() {
@@ -104,8 +105,50 @@ void example_auto() {
 }
 ```
 
-## 相关页面
+### 手动（Manual）
 
-- 指令集总览：[归约与扩展](../../reduce-and-expand_zh.md)
-- 上一条指令：[pto.trowmax](./trowmax_zh.md)
-- 下一条指令：[pto.trowargmax](./trowargmax_zh.md)
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TmpT tmp;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TASSIGN(tmp, 0x3000);
+  TROWMIN(dst, src, tmp);
+}
+```
+
+## 汇编示例（ASM）
+
+### 自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dst = pto.trowmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### 手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# 可选（当该指令包含 tile 操作数时）：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.trowmin %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### PTO汇编形式
+
+```text
+%dst = trowmin %src : !pto.tile<...> -> !pto.tile<...>
+# AS Level 2 (DPS)
+pto.trowmin ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```

@@ -18,13 +18,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename T, typename TileDataOut, typename TileDataIn, typename TileDataTmp>
-__tf__ PTO_INTERNAL void TRowProd(typename TileDataOut::TileDType __out__ dst,
-                                  typename TileDataIn::TileDType __in__ src, typename TileDataTmp::TileDType __in__ tmp,
-                                  int validRow, int validCol)
+__tf__ PTO_INTERNAL void TRowProd(
+    typename TileDataOut::TileDType __out__ dst, typename TileDataIn::TileDType __in__ src,
+    typename TileDataTmp::TileDType __in__ tmp, int validRow, int validCol)
 {
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *srcPtr = (__ubuf__ T *)__cce_get_tile_ptr(src);
-    __ubuf__ T *tmpPtr = (__ubuf__ T *)__cce_get_tile_ptr(tmp);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    __ubuf__ T* tmpPtr = (__ubuf__ T*)__cce_get_tile_ptr(tmp);
 
     constexpr unsigned dstRowStride = TileDataOut::RowStride;
     constexpr unsigned srcRowStride = TileDataIn::RowStride;
@@ -77,7 +77,7 @@ __tf__ PTO_INTERNAL void TRowProd(typename TileDataOut::TileDType __out__ dst,
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
-PTO_INTERNAL void TROWPROD_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp)
+PTO_INTERNAL void TROWPROD_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp)
 {
     using T = typename TileDataIn::DType;
     int validCol = src.GetValidCol();

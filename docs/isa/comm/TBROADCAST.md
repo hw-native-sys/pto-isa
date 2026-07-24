@@ -1,4 +1,4 @@
-# pto.tbroadcast
+﻿# TBROADCAST
 
 ## Introduction
 
@@ -18,12 +18,10 @@ where $N$ is the number of ranks and `root` is the calling NPU.
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
-
 Synchronous form:
 
 ```text
-pto.tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
+tbroadcast %group, %src : (!pto.group<...>, !pto.memref<...>)
 ```
 Lowering introduces UB staging tile(s) for the GM→UB→GM data path; the C++ intrinsic requires explicit `stagingTileData` (or `pingTile` / `pongTile`) operand(s).
 

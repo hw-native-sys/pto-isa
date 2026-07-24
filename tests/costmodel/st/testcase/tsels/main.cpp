@@ -20,8 +20,9 @@ using namespace pto;
 
 namespace {
 
-template <typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH,
-          int srcTileW, int vRows, int vCols, float profiling, float accuracy>
+template <
+    typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH, int srcTileW,
+    int vRows, int vCols, float profiling, float accuracy>
 void runTSels(T scalar)
 {
     using DstTile = Tile<TileType::Vec, T, dstTileH, dstTileW, BLayout::RowMajor, -1, -1>;
@@ -64,20 +65,14 @@ TEST(TSels, case_uint16_uint32_2x16_2x8_2x16_2x16)
     runTSels<uint16_t, uint32_t, 2, 16, 2, 8, 2, 16, 2, 16, 0.0f, 0.0f>(1);
 }
 
-TEST(TSels, case_uint32_uint8_2x8_2x32_2x8_2x8)
-{
-    runTSels<uint32_t, uint8_t, 2, 8, 2, 32, 2, 8, 2, 8, 0.0f, 0.0f>(1);
-}
+TEST(TSels, case_uint32_uint8_2x8_2x32_2x8_2x8) { runTSels<uint32_t, uint8_t, 2, 8, 2, 32, 2, 8, 2, 8, 0.0f, 0.0f>(1); }
 
 TEST(TSels, case_uint32_uint16_2x8_2x16_2x8_2x8)
 {
     runTSels<uint32_t, uint16_t, 2, 8, 2, 16, 2, 8, 2, 8, 0.0f, 0.0f>(1);
 }
 
-TEST(TSels, case_uint32_uint32_2x8_2x8_2x8_2x8)
-{
-    runTSels<uint32_t, uint32_t, 2, 8, 2, 8, 2, 8, 2, 8, 0.0f, 0.0f>(1);
-}
+TEST(TSels, case_uint32_uint32_2x8_2x8_2x8_2x8) { runTSels<uint32_t, uint32_t, 2, 8, 2, 8, 2, 8, 2, 8, 0.0f, 0.0f>(1); }
 
 TEST(TSels, case_half_uint8_2x16_2x32_2x16_2x16)
 {
@@ -94,20 +89,14 @@ TEST(TSels, case_half_uint32_2x16_2x8_2x16_2x16)
     runTSels<half, uint32_t, 2, 16, 2, 8, 2, 16, 2, 16, 0.0f, 0.0f>((half)1.0f);
 }
 
-TEST(TSels, case_float_uint8_2x8_2x32_2x8_2x8)
-{
-    runTSels<float, uint8_t, 2, 8, 2, 32, 2, 8, 2, 8, 0.0f, 0.0f>(1.0f);
-}
+TEST(TSels, case_float_uint8_2x8_2x32_2x8_2x8) { runTSels<float, uint8_t, 2, 8, 2, 32, 2, 8, 2, 8, 0.0f, 0.0f>(1.0f); }
 
 TEST(TSels, case_float_uint16_2x8_2x16_2x8_2x8)
 {
     runTSels<float, uint16_t, 2, 8, 2, 16, 2, 8, 2, 8, 0.0f, 0.0f>(1.0f);
 }
 
-TEST(TSels, case_float_uint32_2x8_2x8_2x8_2x8)
-{
-    runTSels<float, uint32_t, 2, 8, 2, 8, 2, 8, 2, 8, 0.0f, 0.0f>(1.0f);
-}
+TEST(TSels, case_float_uint32_2x8_2x8_2x8_2x8) { runTSels<float, uint32_t, 2, 8, 2, 8, 2, 8, 2, 8, 0.0f, 0.0f>(1.0f); }
 
 TEST(TSels, case_uint16_uint8_2x32_2x64_2x128_2x31)
 {

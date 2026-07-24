@@ -36,12 +36,9 @@ namespace urma {
 // ============================================================================
 class UrmaChannelHelper {
 public:
-    static bool IsLikelyDevicePtr(const void *ptr)
-    {
-        return reinterpret_cast<uintptr_t>(ptr) >= kDeviceVaThreshold;
-    }
+    static bool IsLikelyDevicePtr(const void* ptr) { return reinterpret_cast<uintptr_t>(ptr) >= kDeviceVaThreshold; }
 
-    static bool IsValidChannelEntityHeader(const ChannelEntity &entity)
+    static bool IsValidChannelEntityHeader(const ChannelEntity& entity)
     {
         const uint32_t magic = entity.abiHeader.magicWord;
         if (magic != kHcclChannelEntityMagic && magic != kHcommChannelEntityMagic) {
@@ -50,7 +47,7 @@ public:
         return entity.engine == COMM_ENGINE_AIV;
     }
 
-    static bool CopyChannelSubStruct(const void *srcPtr, void *dst, size_t size, uint32_t peer, const char *name)
+    static bool CopyChannelSubStruct(const void* srcPtr, void* dst, size_t size, uint32_t peer, const char* name)
     {
         if (srcPtr == nullptr) {
             return false;
@@ -67,8 +64,9 @@ public:
         return rc == EOK;
     }
 
-    static bool FillChannelSubStructs(uint32_t peer, const ChannelEntity &hostEntity, SqContext &sq, CqContext &cq,
-                                      RegedBufferEntity &remoteBuf, RegedBufferEntity &localBuf)
+    static bool FillChannelSubStructs(
+        uint32_t peer, const ChannelEntity& hostEntity, SqContext& sq, CqContext& cq, RegedBufferEntity& remoteBuf,
+        RegedBufferEntity& localBuf)
     {
         if (hostEntity.sqContextAddr != nullptr && hostEntity.sqNum > 0) {
             if (!CopyChannelSubStruct(hostEntity.sqContextAddr, &sq, sizeof(SqContext), peer, "SqContext")) {
@@ -83,27 +81,28 @@ public:
         }
 
         if (hostEntity.remoteBufferAddr != nullptr && hostEntity.remoteBufferNum > 0) {
-            if (!CopyChannelSubStruct(hostEntity.remoteBufferAddr, &remoteBuf, sizeof(RegedBufferEntity), peer,
-                                      "RemoteBuffer")) {
+            if (!CopyChannelSubStruct(
+                    hostEntity.remoteBufferAddr, &remoteBuf, sizeof(RegedBufferEntity), peer, "RemoteBuffer")) {
                 return false;
             }
         }
 
         if (hostEntity.localBufferAddr != nullptr && hostEntity.localBufferNum > 0) {
-            if (!CopyChannelSubStruct(hostEntity.localBufferAddr, &localBuf, sizeof(RegedBufferEntity), peer,
-                                      "LocalBuffer")) {
+            if (!CopyChannelSubStruct(
+                    hostEntity.localBufferAddr, &localBuf, sizeof(RegedBufferEntity), peer, "LocalBuffer")) {
                 return false;
             }
         }
         return true;
     }
 
-    static bool TryReadChannelEntity(ChannelHandle handle, uint32_t peer, ChannelEntity &hostEntity, SqContext &sq,
-                                     CqContext &cq, RegedBufferEntity &remoteBuf, RegedBufferEntity &localBuf)
+    static bool TryReadChannelEntity(
+        ChannelHandle handle, uint32_t peer, ChannelEntity& hostEntity, SqContext& sq, CqContext& cq,
+        RegedBufferEntity& remoteBuf, RegedBufferEntity& localBuf)
     {
-        void *devEntityPtr = reinterpret_cast<void *>(static_cast<uintptr_t>(handle));
-        aclError err = aclrtMemcpy(&hostEntity, sizeof(ChannelEntity), devEntityPtr, sizeof(ChannelEntity),
-                                   ACL_MEMCPY_DEVICE_TO_HOST);
+        void* devEntityPtr = reinterpret_cast<void*>(static_cast<uintptr_t>(handle));
+        aclError err = aclrtMemcpy(
+            &hostEntity, sizeof(ChannelEntity), devEntityPtr, sizeof(ChannelEntity), ACL_MEMCPY_DEVICE_TO_HOST);
         if (err != ACL_SUCCESS) {
             std::cerr << "[URMA] aclrtMemcpy(ChannelEntity) peer=" << peer << " err=" << err << std::endl;
             return false;
@@ -119,22 +118,22 @@ public:
         return FillChannelSubStructs(peer, hostEntity, sq, cq, remoteBuf, localBuf);
     }
 
-    static bool ReadRegedBufferEntityAt(RegedBufferEntity *array, uint32_t count, uint32_t index, uint32_t peer,
-                                        RegedBufferEntity &out)
+    static bool ReadRegedBufferEntityAt(
+        RegedBufferEntity* array, uint32_t count, uint32_t index, uint32_t peer, RegedBufferEntity& out)
     {
         if (array == nullptr || index >= count) {
             return false;
         }
-        const void *ptr = reinterpret_cast<const void *>(reinterpret_cast<uintptr_t>(array) +
-                                                         static_cast<uintptr_t>(index) * sizeof(RegedBufferEntity));
+        const void* ptr = reinterpret_cast<const void*>(
+            reinterpret_cast<uintptr_t>(array) + static_cast<uintptr_t>(index) * sizeof(RegedBufferEntity));
         return CopyChannelSubStruct(ptr, &out, sizeof(RegedBufferEntity), peer, "RegedBufferEntity");
     }
 
-    static bool SelectSymmetricRemoteBuffer(HcclComm comm, const char *symMemTag, uint64_t symmetricSize,
-                                            ChannelHandle handle, uint32_t peer, const ChannelEntity &entity,
-                                            RegedBufferEntity &selected, uint64_t &rmaAddr, uint32_t &rmaSize)
+    static bool SelectSymmetricRemoteBuffer(
+        HcclComm comm, const char* symMemTag, uint64_t symmetricSize, ChannelHandle handle, uint32_t peer,
+        const ChannelEntity& entity, RegedBufferEntity& selected, uint64_t& rmaAddr, uint32_t& rmaSize)
     {
-        void *symAddr = nullptr;
+        void* symAddr = nullptr;
         uint64_t symSize = 0;
         if (!GetRemoteMemByTag(comm, symMemTag, handle, peer, &symAddr, &symSize)) {
             return false;
@@ -169,8 +168,8 @@ public:
         return true;
     }
 
-    static bool SelectSymmetricLocalBuffer(uint64_t symmetricSize, const ChannelEntity &entity, uint32_t peer,
-                                           RegedBufferEntity &selected)
+    static bool SelectSymmetricLocalBuffer(
+        uint64_t symmetricSize, const ChannelEntity& entity, uint32_t peer, RegedBufferEntity& selected)
     {
         if (entity.localBufferAddr == nullptr || entity.localBufferNum == 0) {
             return false;
@@ -199,12 +198,12 @@ public:
     }
 
 private:
-    static bool GetRemoteMemByTag(HcclComm comm, const char *symMemTag, ChannelHandle handle, uint32_t peer,
-                                  void **outAddr, uint64_t *outSize)
+    static bool GetRemoteMemByTag(
+        HcclComm comm, const char* symMemTag, ChannelHandle handle, uint32_t peer, void** outAddr, uint64_t* outSize)
     {
         uint32_t memNum = 0;
-        CommMem *remoteMems = nullptr;
-        char **memTags = nullptr;
+        CommMem* remoteMems = nullptr;
+        char** memTags = nullptr;
         HcclResult rc = HcclChannelGetRemoteMems(comm, handle, &memNum, &remoteMems, &memTags);
         if (rc != HCCL_SUCCESS) {
             std::cerr << "[URMA] HcclChannelGetRemoteMems peer=" << peer << " ret=" << static_cast<int>(rc)
@@ -212,7 +211,7 @@ private:
             return false;
         }
         for (uint32_t i = 0; i < memNum; ++i) {
-            const char *tag = memTags[i] ? memTags[i] : "";
+            const char* tag = memTags[i] ? memTags[i] : "";
             if (strcmp(tag, symMemTag) == 0) {
                 *outAddr = remoteMems[i].addr;
                 *outSize = remoteMems[i].size;

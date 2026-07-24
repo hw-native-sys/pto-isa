@@ -69,12 +69,12 @@ struct RouteRef {
     uint32_t packedRow = 0;
 };
 
-inline std::string RankFile(const MoeCombineArgs &args, uint32_t rank, const char *name)
+inline std::string RankFile(const MoeCombineArgs& args, uint32_t rank, const char* name)
 {
     return args.dataDir + "/rank_" + std::to_string(rank) + "_" + name + ".bin";
 }
 
-inline void EnsureDataDir(const std::string &path)
+inline void EnsureDataDir(const std::string& path)
 {
     if (path.empty()) {
         return;
@@ -85,27 +85,27 @@ inline void EnsureDataDir(const std::string &path)
 }
 
 template <typename T>
-inline void WriteBinary(const std::string &path, const std::vector<T> &data)
+inline void WriteBinary(const std::string& path, const std::vector<T>& data)
 {
     std::ofstream os(path, std::ios::binary);
     if (!os.is_open()) {
         throw std::runtime_error("failed to open output file: " + path);
     }
-    os.write(reinterpret_cast<const char *>(data.data()), static_cast<std::streamsize>(data.size() * sizeof(T)));
+    os.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size() * sizeof(T)));
     if (!os.good()) {
         throw std::runtime_error("failed to write output file: " + path);
     }
 }
 
 template <typename T>
-inline std::vector<T> ReadBinary(const std::string &path, size_t elementCount)
+inline std::vector<T> ReadBinary(const std::string& path, size_t elementCount)
 {
     std::vector<T> data(elementCount);
     std::ifstream is(path, std::ios::binary);
     if (!is.is_open()) {
         throw std::runtime_error("failed to open input file: " + path);
     }
-    is.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(data.size() * sizeof(T)));
+    is.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size() * sizeof(T)));
     if (is.gcount() != static_cast<std::streamsize>(data.size() * sizeof(T))) {
         throw std::runtime_error("input file size mismatch: " + path);
     }
@@ -151,7 +151,7 @@ inline float HalfToFloat(uint16_t value)
     return bits.f;
 }
 
-inline std::vector<uint16_t> FloatVectorToHalf(const std::vector<float> &src)
+inline std::vector<uint16_t> FloatVectorToHalf(const std::vector<float>& src)
 {
     std::vector<uint16_t> dst(src.size());
     for (size_t i = 0; i < src.size(); ++i) {
@@ -160,7 +160,7 @@ inline std::vector<uint16_t> FloatVectorToHalf(const std::vector<float> &src)
     return dst;
 }
 
-inline std::vector<float> HalfVectorToFloat(const std::vector<uint16_t> &src)
+inline std::vector<float> HalfVectorToFloat(const std::vector<uint16_t>& src)
 {
     std::vector<float> dst(src.size());
     for (size_t i = 0; i < src.size(); ++i) {
@@ -169,9 +169,9 @@ inline std::vector<float> HalfVectorToFloat(const std::vector<uint16_t> &src)
     return dst;
 }
 
-inline HostInputData GenerateDeterministicInputs(const MoeCombineArgs &args, uint32_t rank)
+inline HostInputData GenerateDeterministicInputs(const MoeCombineArgs& args, uint32_t rank)
 {
-    const MoeCombineShape &shape = args.shape;
+    const MoeCombineShape& shape = args.shape;
     HostInputData data;
     data.inputA.resize(static_cast<size_t>(shape.m) * shape.k);
     data.expertIdx.resize(static_cast<size_t>(shape.m) * shape.topK);
@@ -198,9 +198,9 @@ inline HostInputData GenerateDeterministicInputs(const MoeCombineArgs &args, uin
     return data;
 }
 
-inline HostInputData LoadInputs(const MoeCombineArgs &args, uint32_t rank)
+inline HostInputData LoadInputs(const MoeCombineArgs& args, uint32_t rank)
 {
-    const MoeCombineShape &shape = args.shape;
+    const MoeCombineShape& shape = args.shape;
     size_t inputElems = static_cast<size_t>(shape.m) * shape.k;
     size_t routeElems = static_cast<size_t>(shape.m) * shape.topK;
     HostInputData data;
@@ -210,7 +210,7 @@ inline HostInputData LoadInputs(const MoeCombineArgs &args, uint32_t rank)
     return data;
 }
 
-inline void WriteInputs(const MoeCombineArgs &args, uint32_t rank, const HostInputData &data)
+inline void WriteInputs(const MoeCombineArgs& args, uint32_t rank, const HostInputData& data)
 {
     EnsureDataDir(args.dataDir);
     WriteBinary(RankFile(args, rank, "inputA"), FloatVectorToHalf(data.inputA));
@@ -218,7 +218,7 @@ inline void WriteInputs(const MoeCombineArgs &args, uint32_t rank, const HostInp
     WriteBinary(RankFile(args, rank, "probs"), data.probs);
 }
 
-inline std::vector<HostInputData> LoadOrGenerateWorldInputs(const MoeCombineArgs &args)
+inline std::vector<HostInputData> LoadOrGenerateWorldInputs(const MoeCombineArgs& args)
 {
     std::vector<HostInputData> world(args.shape.ep);
     for (uint32_t rank = 0; rank < args.shape.ep; ++rank) {
@@ -227,7 +227,7 @@ inline std::vector<HostInputData> LoadOrGenerateWorldInputs(const MoeCombineArgs
     return world;
 }
 
-inline void WriteDebugFiles(const MoeCombineArgs &args, uint32_t rank, const CpuGoldenData &golden)
+inline void WriteDebugFiles(const MoeCombineArgs& args, uint32_t rank, const CpuGoldenData& golden)
 {
     if (args.runtime.debug == 0) {
         return;
@@ -247,9 +247,10 @@ inline bool IsValidExpert(int32_t expert, uint32_t expertNum)
     return expert >= 0 && static_cast<uint32_t>(expert) < expertNum;
 }
 
-inline void CountSourceRoutes(const MoeCombineShape &shape, const HostInputData &input, uint32_t src,
-                              uint32_t expertNumPadded, std::vector<uint32_t> *localTokenPerExpert,
-                              std::vector<int32_t> *peerTokenPerExpert, uint64_t *totalRoutes, uint64_t *invalidRoutes)
+inline void CountSourceRoutes(
+    const MoeCombineShape& shape, const HostInputData& input, uint32_t src, uint32_t expertNumPadded,
+    std::vector<uint32_t>* localTokenPerExpert, std::vector<int32_t>* peerTokenPerExpert, uint64_t* totalRoutes,
+    uint64_t* invalidRoutes)
 {
     localTokenPerExpert->assign(shape.expertNum, 0);
     for (uint32_t token = 0; token < shape.m; ++token) {
@@ -270,8 +271,8 @@ inline void CountSourceRoutes(const MoeCombineShape &shape, const HostInputData 
     }
 }
 
-inline std::vector<uint32_t> BuildExpertBase(const MoeCombineShape &shape,
-                                             const std::vector<uint32_t> &localTokenPerExpert)
+inline std::vector<uint32_t> BuildExpertBase(
+    const MoeCombineShape& shape, const std::vector<uint32_t>& localTokenPerExpert)
 {
     std::vector<uint32_t> expertBase(shape.expertNum, 0);
     uint32_t running = 0;
@@ -282,8 +283,9 @@ inline std::vector<uint32_t> BuildExpertBase(const MoeCombineShape &shape,
     return expertBase;
 }
 
-inline void CopyPackedTokenRow(const MoeCombineShape &shape, const HostInputData &input, uint32_t token,
-                               uint32_t packedRow, std::vector<float> *packed)
+inline void CopyPackedTokenRow(
+    const MoeCombineShape& shape, const HostInputData& input, uint32_t token, uint32_t packedRow,
+    std::vector<float>* packed)
 {
     for (uint32_t col = 0; col < shape.k; ++col) {
         (*packed)[static_cast<size_t>(packedRow) * shape.k + col] =
@@ -291,10 +293,9 @@ inline void CopyPackedTokenRow(const MoeCombineShape &shape, const HostInputData
     }
 }
 
-inline void FillSourceRoutes(const MoeCombineShape &shape, const HostInputData &input, uint32_t src,
-                             const std::vector<uint32_t> &expertBase,
-                             std::vector<std::vector<RouteRef>> *routesByExpert, std::vector<float> *packed,
-                             std::vector<int32_t> *expanded)
+inline void FillSourceRoutes(
+    const MoeCombineShape& shape, const HostInputData& input, uint32_t src, const std::vector<uint32_t>& expertBase,
+    std::vector<std::vector<RouteRef>>* routesByExpert, std::vector<float>* packed, std::vector<int32_t>* expanded)
 {
     std::vector<uint32_t> cursor(shape.expertNum, 0);
     for (uint32_t token = 0; token < shape.m; ++token) {
@@ -313,12 +314,13 @@ inline void FillSourceRoutes(const MoeCombineShape &shape, const HostInputData &
     }
 }
 
-inline void BuildRoutes(const MoeCombineArgs &args, const std::vector<HostInputData> &worldInputs,
-                        std::vector<std::vector<std::vector<RouteRef>>> *routesBySrcExpert,
-                        std::vector<std::vector<float>> *packedBySrc, std::vector<std::vector<int32_t>> *expandedBySrc,
-                        std::vector<int32_t> *peerTokenPerExpert, uint64_t *totalRoutes, uint64_t *invalidRoutes)
+inline void BuildRoutes(
+    const MoeCombineArgs& args, const std::vector<HostInputData>& worldInputs,
+    std::vector<std::vector<std::vector<RouteRef>>>* routesBySrcExpert, std::vector<std::vector<float>>* packedBySrc,
+    std::vector<std::vector<int32_t>>* expandedBySrc, std::vector<int32_t>* peerTokenPerExpert, uint64_t* totalRoutes,
+    uint64_t* invalidRoutes)
 {
-    const MoeCombineShape &shape = args.shape;
+    const MoeCombineShape& shape = args.shape;
     uint32_t expertNumPadded = static_cast<uint32_t>(ExpertNumPadded(shape));
     uint32_t expandedRows = shape.m * shape.topK;
     routesBySrcExpert->assign(shape.ep, std::vector<std::vector<RouteRef>>(shape.expertNum));
@@ -330,17 +332,19 @@ inline void BuildRoutes(const MoeCombineArgs &args, const std::vector<HostInputD
 
     for (uint32_t src = 0; src < shape.ep; ++src) {
         std::vector<uint32_t> localTokenPerExpert;
-        CountSourceRoutes(shape, worldInputs[src], src, expertNumPadded, &localTokenPerExpert, peerTokenPerExpert,
-                          totalRoutes, invalidRoutes);
+        CountSourceRoutes(
+            shape, worldInputs[src], src, expertNumPadded, &localTokenPerExpert, peerTokenPerExpert, totalRoutes,
+            invalidRoutes);
         std::vector<uint32_t> expertBase = BuildExpertBase(shape, localTokenPerExpert);
-        FillSourceRoutes(shape, worldInputs[src], src, expertBase, &(*routesBySrcExpert)[src], &(*packedBySrc)[src],
-                         &(*expandedBySrc)[src]);
+        FillSourceRoutes(
+            shape, worldInputs[src], src, expertBase, &(*routesBySrcExpert)[src], &(*packedBySrc)[src],
+            &(*expandedBySrc)[src]);
     }
 }
 
 } // namespace golden_detail
 
-inline HostInputData GenerateOrLoadInputs(const MoeCombineArgs &args, uint32_t myRank)
+inline HostInputData GenerateOrLoadInputs(const MoeCombineArgs& args, uint32_t myRank)
 {
     HostInputData inputs = args.runtime.genData != 0 ? golden_detail::GenerateDeterministicInputs(args, myRank) :
                                                        golden_detail::LoadInputs(args, myRank);
@@ -350,39 +354,40 @@ inline HostInputData GenerateOrLoadInputs(const MoeCombineArgs &args, uint32_t m
     return inputs;
 }
 
-inline void GenerateAllInputFiles(const MoeCombineArgs &args)
+inline void GenerateAllInputFiles(const MoeCombineArgs& args)
 {
     for (uint32_t rank = 0; rank < args.shape.ep; ++rank) {
         golden_detail::WriteInputs(args, rank, golden_detail::GenerateDeterministicInputs(args, rank));
     }
 }
 
-inline std::string RankBinaryFile(const MoeCombineArgs &args, uint32_t rank, const char *name)
+inline std::string RankBinaryFile(const MoeCombineArgs& args, uint32_t rank, const char* name)
 {
     return golden_detail::RankFile(args, rank, name);
 }
 
 template <typename T>
-inline void WriteBinaryFile(const std::string &path, const std::vector<T> &data)
+inline void WriteBinaryFile(const std::string& path, const std::vector<T>& data)
 {
     golden_detail::WriteBinary(path, data);
 }
 
-inline std::vector<uint16_t> FloatVectorToHalfBits(const std::vector<float> &src)
+inline std::vector<uint16_t> FloatVectorToHalfBits(const std::vector<float>& src)
 {
     return golden_detail::FloatVectorToHalf(src);
 }
 
-inline std::vector<float> HalfBitsToFloatVector(const std::vector<uint16_t> &src)
+inline std::vector<float> HalfBitsToFloatVector(const std::vector<uint16_t>& src)
 {
     return golden_detail::HalfVectorToFloat(src);
 }
 
 using RouteTable = std::vector<std::vector<std::vector<golden_detail::RouteRef>>>;
 
-inline void InitGoldenLocalData(const MoeCombineShape &shape, uint32_t myRank, uint32_t expertNumPadded,
-                                const std::vector<std::vector<float>> &packedBySrc,
-                                const std::vector<std::vector<int32_t>> &expandedBySrc, CpuGoldenData *golden)
+inline void InitGoldenLocalData(
+    const MoeCombineShape& shape, uint32_t myRank, uint32_t expertNumPadded,
+    const std::vector<std::vector<float>>& packedBySrc, const std::vector<std::vector<int32_t>>& expandedBySrc,
+    CpuGoldenData* golden)
 {
     golden->localTokenPerExpert.assign(expertNumPadded, 0);
     for (uint32_t expert = 0; expert < shape.expertNum; ++expert) {
@@ -393,7 +398,7 @@ inline void InitGoldenLocalData(const MoeCombineShape &shape, uint32_t myRank, u
     golden->packedA = packedBySrc[myRank];
 }
 
-inline void BuildCumsumPerExpert(const MoeCombineShape &shape, uint32_t expertNumPadded, CpuGoldenData *golden)
+inline void BuildCumsumPerExpert(const MoeCombineShape& shape, uint32_t expertNumPadded, CpuGoldenData* golden)
 {
     golden->cumsumPerExpert.assign(static_cast<size_t>(shape.ep) * expertNumPadded, 0);
     for (uint32_t src = 0; src < shape.ep; ++src) {
@@ -405,7 +410,7 @@ inline void BuildCumsumPerExpert(const MoeCombineShape &shape, uint32_t expertNu
     }
 }
 
-inline void BuildOwnerRows(const MoeCombineShape &shape, const RouteTable &routesBySrcExpert, CpuGoldenData *golden)
+inline void BuildOwnerRows(const MoeCombineShape& shape, const RouteTable& routesBySrcExpert, CpuGoldenData* golden)
 {
     golden->ownerRows.assign(shape.ep, 0);
     for (uint32_t owner = 0; owner < shape.ep; ++owner) {
@@ -418,8 +423,8 @@ inline void BuildOwnerRows(const MoeCombineShape &shape, const RouteTable &route
     }
 }
 
-inline void BuildDispatchPlan(const MoeCombineShape &shape, uint32_t myRank, const RouteTable &routesBySrcExpert,
-                              CpuGoldenData *golden)
+inline void BuildDispatchPlan(
+    const MoeCombineShape& shape, uint32_t myRank, const RouteTable& routesBySrcExpert, CpuGoldenData* golden)
 {
     golden->dispatchOffset.assign(shape.expertPerRank, 0);
     golden->prevSumBeforeRank.assign(static_cast<size_t>(shape.ep) * shape.expertPerRank, 0);
@@ -441,8 +446,9 @@ inline void BuildDispatchPlan(const MoeCombineShape &shape, uint32_t myRank, con
     }
 }
 
-inline void CopyPackedToDispatchedRow(const MoeCombineShape &shape, uint32_t outRow, uint32_t packedRow,
-                                      const std::vector<float> &packed, CpuGoldenData *golden)
+inline void CopyPackedToDispatchedRow(
+    const MoeCombineShape& shape, uint32_t outRow, uint32_t packedRow, const std::vector<float>& packed,
+    CpuGoldenData* golden)
 {
     for (uint32_t col = 0; col < shape.k; ++col) {
         golden->dispatchedA[static_cast<size_t>(outRow) * shape.k + col] =
@@ -450,8 +456,9 @@ inline void CopyPackedToDispatchedRow(const MoeCombineShape &shape, uint32_t out
     }
 }
 
-inline void FillDispatchedA(const MoeCombineShape &shape, uint32_t myRank, const RouteTable &routesBySrcExpert,
-                            const std::vector<std::vector<float>> &packedBySrc, CpuGoldenData *golden)
+inline void FillDispatchedA(
+    const MoeCombineShape& shape, uint32_t myRank, const RouteTable& routesBySrcExpert,
+    const std::vector<std::vector<float>>& packedBySrc, CpuGoldenData* golden)
 {
     golden->dispatchedA.assign(static_cast<size_t>(shape.maxOutputSize) * shape.k, 0.0f);
     for (uint32_t localExpert = 0; localExpert < shape.expertPerRank; ++localExpert) {
@@ -461,7 +468,7 @@ inline void FillDispatchedA(const MoeCombineShape &shape, uint32_t myRank, const
                 static_cast<uint32_t>(golden->dispatchOffset[localExpert]) +
                 static_cast<uint32_t>(
                     golden->prevSumBeforeRank[static_cast<size_t>(src) * shape.expertPerRank + localExpert]);
-            const auto &routes = routesBySrcExpert[src][globalExpert];
+            const auto& routes = routesBySrcExpert[src][globalExpert];
             for (uint32_t row = 0; row < routes.size(); ++row) {
                 CopyPackedToDispatchedRow(shape, dstStart + row, routes[row].packedRow, packedBySrc[src], golden);
             }
@@ -470,11 +477,11 @@ inline void FillDispatchedA(const MoeCombineShape &shape, uint32_t myRank, const
     golden->expertOutput = golden->dispatchedA;
 }
 
-inline void WritePtrDRouteRow(const MoeCombineShape &shape, uint32_t myRank, uint32_t dst, uint32_t src,
-                              uint32_t expertOutputRow, const golden_detail::RouteRef &route,
-                              const std::vector<std::vector<int32_t>> &expandedBySrc,
-                              const std::vector<std::vector<float>> &packedBySrc, const CpuGoldenData &golden,
-                              std::vector<std::vector<float>> *ptrDBySrc)
+inline void WritePtrDRouteRow(
+    const MoeCombineShape& shape, uint32_t myRank, uint32_t dst, uint32_t src, uint32_t expertOutputRow,
+    const golden_detail::RouteRef& route, const std::vector<std::vector<int32_t>>& expandedBySrc,
+    const std::vector<std::vector<float>>& packedBySrc, const CpuGoldenData& golden,
+    std::vector<std::vector<float>>* ptrDBySrc)
 {
     int32_t dstPackedRow = expandedBySrc[src][static_cast<size_t>(route.token) * shape.topK + route.slot];
     if (dstPackedRow < 0) {
@@ -487,40 +494,41 @@ inline void WritePtrDRouteRow(const MoeCombineShape &shape, uint32_t myRank, uin
     }
 }
 
-inline void FillPtrDForDestination(const MoeCombineShape &shape, uint32_t myRank, uint32_t dst,
-                                   const RouteTable &routesBySrcExpert,
-                                   const std::vector<std::vector<int32_t>> &expandedBySrc,
-                                   const std::vector<std::vector<float>> &packedBySrc, const CpuGoldenData &golden,
-                                   std::vector<std::vector<float>> *ptrDBySrc)
+inline void FillPtrDForDestination(
+    const MoeCombineShape& shape, uint32_t myRank, uint32_t dst, const RouteTable& routesBySrcExpert,
+    const std::vector<std::vector<int32_t>>& expandedBySrc, const std::vector<std::vector<float>>& packedBySrc,
+    const CpuGoldenData& golden, std::vector<std::vector<float>>* ptrDBySrc)
 {
     uint32_t dstDispatchCursor = 0;
     for (uint32_t localExpert = 0; localExpert < shape.expertPerRank; ++localExpert) {
         uint32_t globalExpert = dst * shape.expertPerRank + localExpert;
         for (uint32_t src = 0; src < shape.ep; ++src) {
-            const auto &routes = routesBySrcExpert[src][globalExpert];
+            const auto& routes = routesBySrcExpert[src][globalExpert];
             for (uint32_t row = 0; row < routes.size(); ++row) {
-                WritePtrDRouteRow(shape, myRank, dst, src, dstDispatchCursor + row, routes[row], expandedBySrc,
-                                  packedBySrc, golden, ptrDBySrc);
+                WritePtrDRouteRow(
+                    shape, myRank, dst, src, dstDispatchCursor + row, routes[row], expandedBySrc, packedBySrc, golden,
+                    ptrDBySrc);
             }
             dstDispatchCursor += routes.size();
         }
     }
 }
 
-inline void BuildPtrD(const MoeCombineShape &shape, uint32_t myRank, const RouteTable &routesBySrcExpert,
-                      const std::vector<std::vector<int32_t>> &expandedBySrc,
-                      const std::vector<std::vector<float>> &packedBySrc, CpuGoldenData *golden)
+inline void BuildPtrD(
+    const MoeCombineShape& shape, uint32_t myRank, const RouteTable& routesBySrcExpert,
+    const std::vector<std::vector<int32_t>>& expandedBySrc, const std::vector<std::vector<float>>& packedBySrc,
+    CpuGoldenData* golden)
 {
     uint32_t expandedRows = shape.m * shape.topK;
-    std::vector<std::vector<float>> ptrDBySrc(shape.ep,
-                                              std::vector<float>(static_cast<size_t>(expandedRows) * shape.k, 0.0f));
+    std::vector<std::vector<float>> ptrDBySrc(
+        shape.ep, std::vector<float>(static_cast<size_t>(expandedRows) * shape.k, 0.0f));
     for (uint32_t dst = 0; dst < shape.ep; ++dst) {
         FillPtrDForDestination(shape, myRank, dst, routesBySrcExpert, expandedBySrc, packedBySrc, *golden, &ptrDBySrc);
     }
     golden->ptrD = ptrDBySrc[myRank];
 }
 
-inline void RestoreOutputC(const MoeCombineShape &shape, const HostInputData &localInput, CpuGoldenData *golden)
+inline void RestoreOutputC(const MoeCombineShape& shape, const HostInputData& localInput, CpuGoldenData* golden)
 {
     golden->outputC.assign(static_cast<size_t>(shape.m) * shape.k, 0.0f);
     for (uint32_t token = 0; token < shape.m; ++token) {
@@ -539,18 +547,18 @@ inline void RestoreOutputC(const MoeCombineShape &shape, const HostInputData &lo
     }
 }
 
-inline void WriteGoldenOutputFiles(const MoeCombineArgs &args, uint32_t myRank, const CpuGoldenData &golden)
+inline void WriteGoldenOutputFiles(const MoeCombineArgs& args, uint32_t myRank, const CpuGoldenData& golden)
 {
     golden_detail::EnsureDataDir(args.dataDir);
-    golden_detail::WriteBinary(golden_detail::RankFile(args, myRank, "golden_outputC"),
-                               golden_detail::FloatVectorToHalf(golden.outputC));
+    golden_detail::WriteBinary(
+        golden_detail::RankFile(args, myRank, "golden_outputC"), golden_detail::FloatVectorToHalf(golden.outputC));
     golden_detail::WriteDebugFiles(args, myRank, golden);
 }
 
-CpuGoldenData ComputeCpuGolden(const MoeCombineArgs &args, const HostInputData &inputs, uint32_t myRank);
+CpuGoldenData ComputeCpuGolden(const MoeCombineArgs& args, const HostInputData& inputs, uint32_t myRank);
 
-CompareResult CompareOutputs(const MoeCombineArgs &args, const CpuGoldenData &golden,
-                             const std::vector<float> &actualOutputC, uint32_t myRank);
+CompareResult CompareOutputs(
+    const MoeCombineArgs& args, const CpuGoldenData& golden, const std::vector<float>& actualOutputC, uint32_t myRank);
 
 } // namespace moe_combine
 

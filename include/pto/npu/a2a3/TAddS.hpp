@@ -17,24 +17,24 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 template <typename T>
 struct AddSOp {
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats)
+    PTO_INTERNAL static void BinSInstr(__ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats)
     {
         vadds(dst, src0, src1, repeats, 1, 1, 8, 8);
     }
-    PTO_INTERNAL static void BinSInstr(__ubuf__ T *dst, __ubuf__ T *src0, T src1, uint8_t repeats,
-                                       uint8_t dstRepeatStride, uint8_t srcRepeatStride)
+    PTO_INTERNAL static void BinSInstr(
+        __ubuf__ T* dst, __ubuf__ T* src0, T src1, uint8_t repeats, uint8_t dstRepeatStride, uint8_t srcRepeatStride)
     {
         vadds(dst, src0, src1, repeats, 1, 1, dstRepeatStride, srcRepeatStride);
     }
 };
 
 template <typename T, typename TileDataDst, typename TileDataSrc>
-__tf__ PTO_INTERNAL void TAddS(typename TileDataDst::TileDType __out__ dstData,
-                               typename TileDataSrc::TileDType __in__ srcData, T scalar, unsigned validRow,
-                               unsigned validCol)
+__tf__ PTO_INTERNAL void TAddS(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc::TileDType __in__ srcData, T scalar,
+    unsigned validRow, unsigned validCol)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
     constexpr unsigned elementsPerRepeat = pto::REPEAT_BYTE / sizeof(T);
     constexpr unsigned blockSizeElem = pto::BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned dstStride = TileDataDst::RowStride;
@@ -44,15 +44,16 @@ __tf__ PTO_INTERNAL void TAddS(typename TileDataDst::TileDType __out__ dstData,
 }
 
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TADDS_IMPL(TileDataDst &dst, TileDataSrc &src, typename TileDataSrc::DType scalar)
+PTO_INTERNAL void TADDS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDataSrc::DType scalar)
 {
     using T = typename TileDataSrc::DType;
-    static_assert(std::is_same_v<T, typename TileDataDst::DType>,
-                  "TADDS: The data type of dst must be consistent with src.");
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, float16_t>::value ||
-                      std::is_same<T, float>::value || std::is_same<T, float32_t>::value,
-                  "TADDS: Invalid data type");
+    static_assert(
+        std::is_same_v<T, typename TileDataDst::DType>, "TADDS: The data type of dst must be consistent with src.");
+    static_assert(
+        std::is_same<T, int32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, half>::value || std::is_same<T, float16_t>::value || std::is_same<T, float>::value ||
+            std::is_same<T, float32_t>::value,
+        "TADDS: Invalid data type");
 
     static_assert(TileDataSrc::Loc == TileType::Vec, "TileType of src and dst tiles must be TileType::Vec.");
 

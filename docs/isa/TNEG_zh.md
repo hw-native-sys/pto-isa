@@ -1,0 +1,90 @@
+﻿# TNEG
+
+## 指令示意图
+
+![TNEG tile operation](../figures/isa/TNEG.svg)
+
+## 简介
+
+Tile的逐元素取负。
+
+## 数学语义
+
+对每个元素 `(i, j)` 在有效区域内：
+
+$$ \mathrm{dst}_{i,j} = -\mathrm{src}_{i,j} $$
+
+## 汇编语法
+
+同步形式：
+
+```text
+%dst = tneg %src : !pto.tile<...>
+```
+
+### AS Level 1（SSA）
+
+```text
+%dst = pto.tneg %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+### AS Level 2（DPS）
+
+```text
+pto.tneg ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+```cpp
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent TNEG(TileDataDst &dst, TileDataSrc &src, WaitEvents &... events);
+```
+
+## 约束
+
+- 该操作在 `dst.GetValidRow()` / `dst.GetValidCol()` 上迭代。
+
+## 示例
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT x, out;
+  TNEG(out, x);
+}
+```
+
+## 汇编示例（ASM）
+
+### 自动模式
+
+```text
+# 自动模式：由编译器/运行时负责资源放置与调度。
+%dst = pto.tneg %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+### 手动模式
+
+```text
+# 手动模式：先显式绑定资源，再发射指令。
+# 可选（当该指令包含 tile 操作数时）：
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.tneg %src : !pto.tile<...> -> !pto.tile<...>
+```
+
+### PTO汇编形式
+
+```text
+%dst = tneg %src : !pto.tile<...>
+# AS Level 2 (DPS)
+pto.tneg ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```

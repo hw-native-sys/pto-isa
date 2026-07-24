@@ -15,35 +15,36 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool highPrecision = false>
-void LaunchTDivS(T *out, T *src, T scalar, void *stream);
+template <
+    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool highPrecision = false>
+void LaunchTDivS(T* out, T* src, T scalar, void* stream);
 
-template <int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool highPrecision = false>
-void LaunchTDivSHalf(aclFloat16 *out, aclFloat16 *src, aclFloat16 scalar, void *stream);
+template <
+    int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool highPrecision = false>
+void LaunchTDivSHalf(aclFloat16* out, aclFloat16* src, aclFloat16 scalar, void* stream);
 
 class TDIVSTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int vaildRow, int vaildCol,
-          bool isHalf = false, bool highPrecision = false>
+template <
+    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool isHalf = false, bool highPrecision = false>
 void TDivSTestFramework()
 {
     aclInit(nullptr);
@@ -55,26 +56,26 @@ void TDivSTestFramework()
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
     size_t srcByteSize = srcTileRow * srcTileCol * sizeof(T);
     size_t scalarByteSize = sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     T scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
-    ReadFile(GetGoldenDir() + "/divider.bin", scalarByteSize, (void *)&scalar, sizeof(T));
+    ReadFile(GetGoldenDir() + "/divider.bin", scalarByteSize, (void*)&scalar, sizeof(T));
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     if constexpr (isHalf) {
-        LaunchTDivSHalf<dstTileRow, dstTileCol, srcTileRow, srcTileCol, vaildRow, vaildCol, highPrecision>(
+        LaunchTDivSHalf<dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
             dstDevice, srcDevice, scalar, stream);
     } else {
-        LaunchTDivS<T, dstTileRow, dstTileCol, srcTileRow, srcTileCol, vaildRow, vaildCol, highPrecision>(
+        LaunchTDivS<T, dstTileRow, dstTileCol, srcTileRow, srcTileCol, validRow, validCol, highPrecision>(
             dstDevice, srcDevice, scalar, stream);
     }
     aclrtSynchronizeStream(stream);
@@ -102,35 +103,11 @@ void TDivSTestFramework()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TDIVSTest, case1)
-{
-    TDivSTestFramework<float, 32, 128, 32, 64, 32, 64>();
-}
-TEST_F(TDIVSTest, case2)
-{
-    TDivSTestFramework<aclFloat16, 63, 128, 63, 64, 63, 64, true>();
-}
-TEST_F(TDIVSTest, case4)
-{
-    TDivSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>();
-}
-TEST_F(TDIVSTest, case5)
-{
-    TDivSTestFramework<float, 7, 512, 7, 448, 7, 448>();
-}
-TEST_F(TDIVSTest, case6)
-{
-    TDivSTestFramework<float, 256, 32, 256, 16, 256, 16>();
-}
-TEST_F(TDIVSTest, case7)
-{
-    TDivSTestFramework<float, 1, 32, 1, 16, 1, 16>();
-}
-TEST_F(TDIVSTest, caseHP1)
-{
-    TDivSTestFramework<float, 2, 16, 2, 16, 2, 16, false, true>();
-}
-TEST_F(TDIVSTest, caseHP2)
-{
-    TDivSTestFramework<aclFloat16, 2, 32, 2, 32, 2, 32, true, true>();
-}
+TEST_F(TDIVSTest, case1) { TDivSTestFramework<float, 32, 128, 32, 64, 32, 64>(); }
+TEST_F(TDIVSTest, case2) { TDivSTestFramework<aclFloat16, 63, 128, 63, 64, 63, 64, true>(); }
+TEST_F(TDIVSTest, case4) { TDivSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>(); }
+TEST_F(TDIVSTest, case5) { TDivSTestFramework<float, 7, 512, 7, 448, 7, 448>(); }
+TEST_F(TDIVSTest, case6) { TDivSTestFramework<float, 256, 32, 256, 16, 256, 16>(); }
+TEST_F(TDIVSTest, case7) { TDivSTestFramework<float, 1, 32, 1, 16, 1, 16>(); }
+TEST_F(TDIVSTest, caseHP1) { TDivSTestFramework<float, 2, 16, 2, 16, 2, 16, false, true>(); }
+TEST_F(TDIVSTest, caseHP2) { TDivSTestFramework<aclFloat16, 2, 32, 2, 32, 2, 32, true, true>(); }

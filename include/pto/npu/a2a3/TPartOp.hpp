@@ -16,8 +16,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename T, int dstCols, int srcCols, unsigned dstStride, unsigned srcStride>
-PTO_INTERNAL void TPartCopyInstr(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, uint64_t validRow, uint64_t validCol,
-                                 uint64_t startRow)
+PTO_INTERNAL void TPartCopyInstr(
+    __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, uint64_t validRow, uint64_t validCol, uint64_t startRow)
 {
     validRow -= startRow;
     srcPtr += startRow * srcStride;
@@ -41,8 +41,8 @@ PTO_INTERNAL void TPartCopyInstr(__ubuf__ T *dstPtr, __ubuf__ T *srcPtr, uint64_
 }
 
 template <typename Op, typename T, unsigned dstStride, unsigned src0Stride, unsigned src1Stride>
-PTO_INTERNAL void PartCountMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, unsigned validRow,
-                                unsigned validCol)
+PTO_INTERNAL void PartCountMode(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     set_mask_count();
     SetVectorCount(validCol);
@@ -53,10 +53,11 @@ PTO_INTERNAL void PartCountMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf_
     SetFullVecMaskByDType<T>();
 }
 
-template <typename Op, typename T, int dstRow, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstStride,
-          unsigned src0Stride, unsigned src1Stride>
-PTO_INTERNAL void PartNormModeTail(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, unsigned validRow,
-                                   unsigned validCol)
+template <
+    typename Op, typename T, int dstRow, unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstStride,
+    unsigned src0Stride, unsigned src1Stride>
+PTO_INTERNAL void PartNormModeTail(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     unsigned numRepeatPerCol = validRow / REPEAT_MAX;
     unsigned numRemainPerCol = validRow % REPEAT_MAX;
@@ -70,23 +71,25 @@ PTO_INTERNAL void PartNormModeTail(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ub
     SetContMaskByDType<T>(numRemainPerLine);
     if constexpr (dstRow >= REPEAT_MAX) {
         for (unsigned j = 0; j < numRepeatPerCol; j++) {
-            Op::PartInstr(dstPtr + j * dstRepeatMaxStride, src0Ptr + j * src0RepeatMaxStride,
-                          src1Ptr + j * src1RepeatMaxStride, REPEAT_MAX, dstRepeatStride, src0RepeatStride,
-                          src1RepeatStride);
+            Op::PartInstr(
+                dstPtr + j * dstRepeatMaxStride, src0Ptr + j * src0RepeatMaxStride, src1Ptr + j * src1RepeatMaxStride,
+                REPEAT_MAX, dstRepeatStride, src0RepeatStride, src1RepeatStride);
         }
     }
     if (numRemainPerCol) {
-        Op::PartInstr(dstPtr + numRepeatPerCol * dstRepeatMaxStride, src0Ptr + numRepeatPerCol * src0RepeatMaxStride,
-                      src1Ptr + numRepeatPerCol * src1RepeatMaxStride, numRemainPerCol, dstRepeatStride,
-                      src0RepeatStride, src1RepeatStride);
+        Op::PartInstr(
+            dstPtr + numRepeatPerCol * dstRepeatMaxStride, src0Ptr + numRepeatPerCol * src0RepeatMaxStride,
+            src1Ptr + numRepeatPerCol * src1RepeatMaxStride, numRemainPerCol, dstRepeatStride, src0RepeatStride,
+            src1RepeatStride);
     }
     SetFullVecMaskByDType<T>();
 }
 
-template <typename Op, typename T, int dstRow, int dstCol, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned dstStride, unsigned src0Stride, unsigned src1Stride>
-PTO_INTERNAL void PartNormMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, unsigned validRow,
-                               unsigned validCol)
+template <
+    typename Op, typename T, int dstRow, int dstCol, unsigned elementsPerRepeat, unsigned blockSizeElem,
+    unsigned dstStride, unsigned src0Stride, unsigned src1Stride>
+PTO_INTERNAL void PartNormMode(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     unsigned numRepeatPerLine = validCol / elementsPerRepeat;
     unsigned numRemainPerLine = validCol % elementsPerRepeat;
@@ -102,17 +105,19 @@ PTO_INTERNAL void PartNormMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__
         for (unsigned i = 0; i < numRepeatPerLine; i++) {
             if constexpr (dstRow >= REPEAT_MAX) {
                 for (unsigned j = 0; j < numRepeatPerCol; j++) {
-                    Op::PartInstr(dstPtr + j * dstRepeatMaxStride + i * elementsPerRepeat,
-                                  src0Ptr + j * src0RepeatMaxStride + i * elementsPerRepeat,
-                                  src1Ptr + j * src1RepeatMaxStride + i * elementsPerRepeat, REPEAT_MAX,
-                                  dstRepeatStride, src0RepeatStride, src1RepeatStride);
+                    Op::PartInstr(
+                        dstPtr + j * dstRepeatMaxStride + i * elementsPerRepeat,
+                        src0Ptr + j * src0RepeatMaxStride + i * elementsPerRepeat,
+                        src1Ptr + j * src1RepeatMaxStride + i * elementsPerRepeat, REPEAT_MAX, dstRepeatStride,
+                        src0RepeatStride, src1RepeatStride);
                 }
             }
             if (numRemainPerCol) {
-                Op::PartInstr(dstPtr + numRepeatPerCol * dstRepeatMaxStride + i * elementsPerRepeat,
-                              src0Ptr + numRepeatPerCol * src0RepeatMaxStride + i * elementsPerRepeat,
-                              src1Ptr + numRepeatPerCol * src1RepeatMaxStride + i * elementsPerRepeat, numRemainPerCol,
-                              dstRepeatStride, src0RepeatStride, src1RepeatStride);
+                Op::PartInstr(
+                    dstPtr + numRepeatPerCol * dstRepeatMaxStride + i * elementsPerRepeat,
+                    src0Ptr + numRepeatPerCol * src0RepeatMaxStride + i * elementsPerRepeat,
+                    src1Ptr + numRepeatPerCol * src1RepeatMaxStride + i * elementsPerRepeat, numRemainPerCol,
+                    dstRepeatStride, src0RepeatStride, src1RepeatStride);
             }
         }
         unsigned offset = numRepeatPerLine * elementsPerRepeat;
@@ -126,10 +131,11 @@ PTO_INTERNAL void PartNormMode(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__
     }
 }
 
-template <typename Op, typename T, int dstRow, int dstCol, unsigned elementsPerRepeat, unsigned blockSizeElem,
-          unsigned dstStride, unsigned src0Stride, unsigned src1Stride>
-PTO_INTERNAL void TPartOps(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, unsigned validRow,
-                           unsigned validCol)
+template <
+    typename Op, typename T, int dstRow, int dstCol, unsigned elementsPerRepeat, unsigned blockSizeElem,
+    unsigned dstStride, unsigned src0Stride, unsigned src1Stride>
+PTO_INTERNAL void TPartOps(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned validRow, unsigned validCol)
 {
     bool constexpr strideOverFlag =
         ((src0Stride / blockSizeElem > REPEAT_STRIDE_MAX) || (src1Stride / blockSizeElem > REPEAT_STRIDE_MAX) ||
@@ -146,11 +152,12 @@ PTO_INTERNAL void TPartOps(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *
     }
 }
 
-template <typename Op, typename T, int dstCol, int src0Col, int dstRow, unsigned elementsPerRepeat,
-          unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride, unsigned src1RowStride>
-PTO_INTERNAL void TPartInstr(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T *src1Ptr, unsigned src0ValidRow,
-                             unsigned src0ValidCol, unsigned src1ValidRow, unsigned src1ValidCol, unsigned dstValidRow,
-                             unsigned dstValidCol)
+template <
+    typename Op, typename T, int dstCol, int src0Col, int dstRow, unsigned elementsPerRepeat, unsigned blockSizeElem,
+    unsigned dstRowStride, unsigned src0RowStride, unsigned src1RowStride>
+PTO_INTERNAL void TPartInstr(
+    __ubuf__ T* dstPtr, __ubuf__ T* src0Ptr, __ubuf__ T* src1Ptr, unsigned src0ValidRow, unsigned src0ValidCol,
+    unsigned src1ValidRow, unsigned src1ValidCol, unsigned dstValidRow, unsigned dstValidCol)
 {
     bool condSrc1EqDst = (src1ValidRow == dstValidRow && src1ValidCol == dstValidCol);
     bool condSrc1RowLtDst = (src1ValidRow < dstValidRow && src1ValidCol == dstValidCol);
@@ -158,23 +165,25 @@ PTO_INTERNAL void TPartInstr(__ubuf__ T *dstPtr, __ubuf__ T *src0Ptr, __ubuf__ T
 
     if (condSrc1RowLtDst) { // src1Row < dstRow
         if (src1ValidRow != 0) {
-            TPartOps<Op, T, dstRow, dstCol, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
-                     src1RowStride>(dstPtr, src0Ptr, src1Ptr, src1ValidRow, src1ValidCol);
+            TPartOps<
+                Op, T, dstRow, dstCol, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride, src1RowStride>(
+                dstPtr, src0Ptr, src1Ptr, src1ValidRow, src1ValidCol);
         }
-        TPartCopyInstr<T, dstCol, src0Col, dstRowStride, src0RowStride>(dstPtr, src0Ptr, src0ValidRow, dstValidCol,
-                                                                        src1ValidRow);
+        TPartCopyInstr<T, dstCol, src0Col, dstRowStride, src0RowStride>(
+            dstPtr, src0Ptr, src0ValidRow, dstValidCol, src1ValidRow);
     } else if (condSrc1ColLtDst) { // src1Col < dstCol
         TPartCopyInstr<T, dstCol, src0Col, dstRowStride, src0RowStride>(dstPtr, src0Ptr, src0ValidRow, dstValidCol, 0);
         if (src1ValidCol != 0) {
             pipe_barrier(PIPE_V);
-            TPartOps<Op, T, dstRow, dstCol, elementsPerRepeat, blockSizeElem, dstRowStride, src1RowStride,
-                     dstRowStride>(dstPtr, src1Ptr, dstPtr, src1ValidRow, src1ValidCol);
+            TPartOps<
+                Op, T, dstRow, dstCol, elementsPerRepeat, blockSizeElem, dstRowStride, src1RowStride, dstRowStride>(
+                dstPtr, src1Ptr, dstPtr, src1ValidRow, src1ValidCol);
         }
     } else if (condSrc1EqDst) { // src0 == src1 == dst
         TPartOps<Op, T, dstRow, dstCol, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride, src1RowStride>(
             dstPtr, src0Ptr, src1Ptr, dstValidRow, dstValidCol);
     } else {
-        // unsupport other conditions
+        // unsupported other conditions
         PTO_ASSERT(
             condSrc1EqDst || condSrc1RowLtDst || condSrc1ColLtDst,
             "TPARTOPS: At most one entry in the valid-rows and valid-cols of src0 and src1 is smaller than dst.");

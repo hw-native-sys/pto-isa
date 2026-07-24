@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TPUT_ASYNC_Test : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_>
-void LaunchTPutAsync(T *out, T *src, void *stream);
+void LaunchTPutAsync(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_>
 void test_tput_async()
@@ -48,11 +46,11 @@ void test_tput_async()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&srcHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&srcHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", fileSize, srcHost, fileSize));
 
@@ -83,19 +81,7 @@ void test_tput_async()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TPUT_ASYNC_Test, case_float_64x64)
-{
-    test_tput_async<float, 64, 64>();
-}
-TEST_F(TPUT_ASYNC_Test, case_int32_64x64)
-{
-    test_tput_async<int32_t, 64, 64>();
-}
-TEST_F(TPUT_ASYNC_Test, case_int16_64x64)
-{
-    test_tput_async<int16_t, 64, 64>();
-}
-TEST_F(TPUT_ASYNC_Test, case_half_16x256)
-{
-    test_tput_async<aclFloat16, 16, 256>();
-}
+TEST_F(TPUT_ASYNC_Test, case_float_64x64) { test_tput_async<float, 64, 64>(); }
+TEST_F(TPUT_ASYNC_Test, case_int32_64x64) { test_tput_async<int32_t, 64, 64>(); }
+TEST_F(TPUT_ASYNC_Test, case_int16_64x64) { test_tput_async<int16_t, 64, 64>(); }
+TEST_F(TPUT_ASYNC_Test, case_half_16x256) { test_tput_async<aclFloat16, 16, 256>(); }

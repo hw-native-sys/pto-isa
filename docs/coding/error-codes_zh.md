@@ -1,16 +1,6 @@
 # 常见错误码说明
 
-本文档详细列出 PTO 开发中常见的错误码、错误信息及其解决方案，帮助开发者快速定位和解决问题。
-
-## 目录
-
-- [1. 编译错误 (E001-E099)](#1-%E7%BC%96%E8%AF%91%E9%94%99%E8%AF%AF-e001-e099)
-- [2. 链接错误 (L001-L099)](#2-%E9%93%BE%E6%8E%A5%E9%94%99%E8%AF%AF-l001-l099)
-- [3. 运行时错误 (R001-R099)](#3-%E8%BF%90%E8%A1%8C%E6%97%B6%E9%94%99%E8%AF%AF-r001-r099)
-- [4. 内存错误 (M001-M099)](#4-%E5%86%85%E5%AD%98%E9%94%99%E8%AF%AF-m001-m099)
-- [5. 数值错误 (N001-N099)](#5-%E6%95%B0%E5%80%BC%E9%94%99%E8%AF%AF-n001-n099)
-- [6. 性能问题 (P001-P099)](#6-%E6%80%A7%E8%83%BD%E9%97%AE%E9%A2%98-p001-p099)
-- [7. 框架集成错误 (F001-F099)](#7-%E6%A1%86%E6%9E%B6%E9%9B%86%E6%88%90%E9%94%99%E8%AF%AF-f001-f099)
+本文档汇总 PTO 开发中常见的失败现象及排查建议。示例中的报错信息仅用于说明问题类型，实际诊断信息会随编译工具链、运行时环境和宿主系统而变化。
 
 ______________________________________________________________________
 
@@ -73,7 +63,7 @@ using TileT = Tile<TileType::Vec, float, 16, 256>;
 error: no matching function for call to 'TADD(Tile<float>&, Tile<half>&)'
 ```
 
-**原因**：Tile 类型不一致
+**原因**：Tile 的元素类型或形状不一致。
 
 **解决方案**：
 
@@ -86,11 +76,9 @@ TADD(tile_a, tile_a, tile_b);  // 错误！
 // ✅ 正确：类型一致
 Tile<TileType::Vec, float, 16, 256> tile_a, tile_b, tile_c;
 TADD(tile_c, tile_a, tile_b);  // 正确
-
-// 或使用类型转换
-TCAST(tile_b_float, tile_b);  // half → float
-TADD(tile_c, tile_a, tile_b_float);
 ```
+
+若确实需要显式类型转换，请使用当前目标分支和指令集实际提供的转换指令，具体 API 以对应版本文档为准。
 
 ### E004: C++ 标准版本不支持
 
@@ -376,7 +364,7 @@ Required: 600 KB, Available: 512 KB
 
 ```cpp
 // 方法1：减小 Tile 尺寸
-// ❌ 错误：16 × 512 × 4 bytes = 32 KB，多个 Tile 超出 L1
+// ❌ 错误：16 × 512 × 4 Byte = 32 KB，多个 Tile 超出 L1
 using TileT = Tile<TileType::Vec, float, 16, 512>;
 
 // ✅ 正确：减小到 256
@@ -422,9 +410,8 @@ for (int offset = 0; offset < total_size; offset += CHUNK_SIZE) {
 ### M003: 内存泄漏
 
 **错误信息**：
-
-```text
-Memory leak detected: 1024 KB not freed
+```
+Memory leak detected: 1 MB not freed
 ```
 
 **原因**：动态分配的内存未释放

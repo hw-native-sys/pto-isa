@@ -40,7 +40,7 @@ PTO Tile Lib 的测试与示例，覆盖 CPU 仿真与 NPU（`sim` 和板上 `np
 - `common/`：共享测试资源
 - `run_cpu.py`：CPU 仿真器全量运行入口
 - `run_cpu_tests.sh`：CPU ST 一键脚本
-- `run_st.sh`：NPU ST 一键脚本（需指定 `--<平台>`，a3/a5 还需 `--simple`/`--all`；不带参数运行可查看用法）
+- `run_st.sh`：NPU ST 一键脚本
 - `run_comm_test.sh`：通信 ST 一键脚本（详见下方说明）
 - `run_costmodel.py`：代价模型运行脚本
 - `run_costmodel_tests.sh`：代价模型一键脚本

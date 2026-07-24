@@ -25,16 +25,15 @@ struct MinCompareOp {
 template <typename ValType, typename IdxType>
 using MinWithIndexOp = PartArgSelectOp<MinCompareOp, ValType, IdxType>;
 
-template <typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val, typename TileDataDstIdx,
-          typename TileDataSrc0Idx, typename TileDataSrc1Idx>
+template <
+    typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val, typename TileDataDstIdx,
+    typename TileDataSrc0Idx, typename TileDataSrc1Idx>
 struct PartArgMinOp {
-    PTO_INTERNAL static void PartInstr(typename TileDataDstVal::TileDType dstVal,
-                                       typename TileDataSrc0Val::TileDType src0Val,
-                                       typename TileDataSrc1Val::TileDType src1Val,
-                                       typename TileDataDstIdx::TileDType dstIdx,
-                                       typename TileDataSrc0Idx::TileDType src0Idx,
-                                       typename TileDataSrc1Idx::TileDType src1Idx, int DstOffset, int Src0Offset,
-                                       int Src1Offset)
+    PTO_INTERNAL static void PartInstr(
+        typename TileDataDstVal::TileDType dstVal, typename TileDataSrc0Val::TileDType src0Val,
+        typename TileDataSrc1Val::TileDType src1Val, typename TileDataDstIdx::TileDType dstIdx,
+        typename TileDataSrc0Idx::TileDType src0Idx, typename TileDataSrc1Idx::TileDType src1Idx, int DstOffset,
+        int Src0Offset, int Src1Offset)
     {
         MinWithIndexOp<typename TileDataSrc0Val::DType, typename TileDataSrc0Idx::DType>::apply(
             dstVal[DstOffset], src0Val[Src0Offset], src1Val[Src1Offset], dstIdx[DstOffset], src0Idx[Src0Offset],
@@ -42,17 +41,20 @@ struct PartArgMinOp {
     }
 };
 
-template <typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val, typename TileDataDstIdx,
-          typename TileDataSrc0Idx, typename TileDataSrc1Idx>
-PTO_INTERNAL void TPARTARGMIN_IMPL(TileDataDstVal &dstVal, TileDataSrc0Val &src0Val, TileDataSrc1Val &src1Val,
-                                   TileDataDstIdx &dstIdx, TileDataSrc0Idx &src0Idx, TileDataSrc1Idx &src1Idx)
+template <
+    typename TileDataDstVal, typename TileDataSrc0Val, typename TileDataSrc1Val, typename TileDataDstIdx,
+    typename TileDataSrc0Idx, typename TileDataSrc1Idx>
+PTO_INTERNAL void TPARTARGMIN_IMPL(
+    TileDataDstVal& dstVal, TileDataSrc0Val& src0Val, TileDataSrc1Val& src1Val, TileDataDstIdx& dstIdx,
+    TileDataSrc0Idx& src0Idx, TileDataSrc1Idx& src1Idx)
 {
     int dstRow, dstCol, src0Row, src0Col, src1Row, src1Col;
     CheckAndGetValidRegions(dstVal, src0Val, src1Val, dstRow, dstCol, src0Row, src0Col, src1Row, src1Col);
 
-    TPartInstr2<PartArgMinOp<TileDataDstVal, TileDataSrc0Val, TileDataSrc1Val, TileDataDstIdx, TileDataSrc0Idx,
-                             TileDataSrc1Idx>,
-                TileDataDstVal, TileDataSrc0Val, TileDataSrc1Val, TileDataDstIdx, TileDataSrc0Idx, TileDataSrc1Idx>(
+    TPartInstr2<
+        PartArgMinOp<
+            TileDataDstVal, TileDataSrc0Val, TileDataSrc1Val, TileDataDstIdx, TileDataSrc0Idx, TileDataSrc1Idx>,
+        TileDataDstVal, TileDataSrc0Val, TileDataSrc1Val, TileDataDstIdx, TileDataSrc0Idx, TileDataSrc1Idx>(
         dstVal.data(), src0Val.data(), src1Val.data(), dstIdx.data(), src0Idx.data(), src1Idx.data(), dstRow, dstCol,
         src0Row, src0Col, src1Row, src1Col);
 }

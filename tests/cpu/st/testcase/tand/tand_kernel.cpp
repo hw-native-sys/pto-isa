@@ -8,12 +8,13 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTAnd(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+AICORE void runTAnd(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -39,17 +40,29 @@ AICORE void runTAnd(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTAnd(T *out, T *src0, T *src1, void *stream)
+void LaunchTAnd(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTAnd<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src0), (half *)(src1));
+        runTAnd<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src0), (half*)(src1));
     else
         runTAnd<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-template void LaunchTAnd<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                  void *stream);
-template void LaunchTAnd<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                    void *stream);
+
+template void LaunchTAnd<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTAnd<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTAnd<int32_t, NUM_32, NUM_32, NUM_32, NUM_32>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTAnd<int32_t, NUM_77, NUM_96, NUM_77, NUM_96>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTAnd<int32_t, NUM_8, NUM_64, NUM_8, NUM_64>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTAnd<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTAnd<uint32_t, NUM_16, NUM_32, NUM_16, NUM_32>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTAnd<uint32_t, NUM_12, NUM_128, NUM_12, NUM_128>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTAnd<uint32_t, NUM_4, NUM_64, NUM_4, NUM_64>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);

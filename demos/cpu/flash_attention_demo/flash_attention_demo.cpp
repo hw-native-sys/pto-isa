@@ -47,7 +47,7 @@ inline std::size_t idx4(int b, int h, int s, int d, int heads, int seq_len, int 
            static_cast<std::size_t>(s) * static_cast<std::size_t>(head_dim) + static_cast<std::size_t>(d);
 }
 
-inline float dot_qk(const float *q, const float *k, int d)
+inline float dot_qk(const float* q, const float* k, int d)
 {
     float acc = 0.0f;
     for (int i = 0; i < d; ++i) {
@@ -56,7 +56,7 @@ inline float dot_qk(const float *q, const float *k, int d)
     return acc;
 }
 
-float max_abs_diff(const std::vector<float> &a, const std::vector<float> &b)
+float max_abs_diff(const std::vector<float>& a, const std::vector<float>& b)
 {
     float m = 0.0f;
     for (std::size_t i = 0; i < a.size(); ++i) {
@@ -76,8 +76,8 @@ struct VerifyStats {
     bool has_nan_or_inf = false;
 };
 
-VerifyStats verify_allclose(const std::vector<float> &actual, const std::vector<float> &ref, float abs_tol,
-                            float rel_tol, float denom_eps)
+VerifyStats verify_allclose(
+    const std::vector<float>& actual, const std::vector<float>& ref, float abs_tol, float rel_tol, float denom_eps)
 {
     VerifyStats stats;
     if (actual.size() != ref.size() || actual.empty()) {
@@ -124,21 +124,22 @@ VerifyStats verify_allclose(const std::vector<float> &actual, const std::vector<
     return stats;
 }
 
-void flash_attention_reference(const std::vector<float> &q, const std::vector<float> &k, const std::vector<float> &v,
-                               std::vector<float> &out, int batch, int heads, int seq_len, int head_dim, bool causal)
+void flash_attention_reference(
+    const std::vector<float>& q, const std::vector<float>& k, const std::vector<float>& v, std::vector<float>& out,
+    int batch, int heads, int seq_len, int head_dim, bool causal)
 {
     const float scale = 1.0f / std::sqrt(static_cast<float>(head_dim));
 
     for (int b = 0; b < batch; ++b) {
         for (int h = 0; h < heads; ++h) {
             for (int i = 0; i < seq_len; ++i) {
-                const float *q_row = &q[idx4(b, h, i, 0, heads, seq_len, head_dim)];
+                const float* q_row = &q[idx4(b, h, i, 0, heads, seq_len, head_dim)];
 
                 const int j_limit = causal ? (i + 1) : seq_len;
                 std::vector<float> scores(static_cast<std::size_t>(j_limit), 0.0f);
                 float max_score = -std::numeric_limits<float>::infinity();
                 for (int j = 0; j < j_limit; ++j) {
-                    const float *k_row = &k[idx4(b, h, j, 0, heads, seq_len, head_dim)];
+                    const float* k_row = &k[idx4(b, h, j, 0, heads, seq_len, head_dim)];
                     const float score = dot_qk(q_row, k_row, head_dim) * scale;
                     scores[static_cast<std::size_t>(j)] = score;
                     max_score = std::max(max_score, score);
@@ -151,13 +152,13 @@ void flash_attention_reference(const std::vector<float> &q, const std::vector<fl
                 }
                 const float inv_denom = (denom > 0.0f) ? (1.0f / denom) : 0.0f;
 
-                float *o_row = &out[idx4(b, h, i, 0, heads, seq_len, head_dim)];
+                float* o_row = &out[idx4(b, h, i, 0, heads, seq_len, head_dim)];
                 for (int d = 0; d < head_dim; ++d) {
                     o_row[d] = 0.0f;
                 }
                 for (int j = 0; j < j_limit; ++j) {
                     const float w = scores[static_cast<std::size_t>(j)] * inv_denom;
-                    const float *v_row = &v[idx4(b, h, j, 0, heads, seq_len, head_dim)];
+                    const float* v_row = &v[idx4(b, h, j, 0, heads, seq_len, head_dim)];
                     for (int d = 0; d < head_dim; ++d) {
                         o_row[d] += w * v_row[d];
                     }
@@ -167,8 +168,8 @@ void flash_attention_reference(const std::vector<float> &q, const std::vector<fl
     }
 }
 
-void flash_attention_pto(const std::vector<float> &q, const std::vector<float> &k, const std::vector<float> &v,
-                         std::vector<float> &out)
+void flash_attention_pto(
+    const std::vector<float>& q, const std::vector<float>& k, const std::vector<float>& v, std::vector<float>& out)
 {
     constexpr int kB = kBatch;
     constexpr int kH = kHeads;
@@ -200,14 +201,14 @@ void flash_attention_pto(const std::vector<float> &q, const std::vector<float> &
 
     for (int b = 0; b < kB; ++b) {
         for (int h = 0; h < kH; ++h) {
-            const float *q_ptr = &q[idx4(b, h, 0, 0, kH, kS, kD)];
-            const float *k_ptr = &k[idx4(b, h, 0, 0, kH, kS, kD)];
-            const float *v_ptr = &v[idx4(b, h, 0, 0, kH, kS, kD)];
-            float *o_ptr = &out[idx4(b, h, 0, 0, kH, kS, kD)];
+            const float* q_ptr = &q[idx4(b, h, 0, 0, kH, kS, kD)];
+            const float* k_ptr = &k[idx4(b, h, 0, 0, kH, kS, kD)];
+            const float* v_ptr = &v[idx4(b, h, 0, 0, kH, kS, kD)];
+            float* o_ptr = &out[idx4(b, h, 0, 0, kH, kS, kD)];
 
-            GlobalQ qGlobal(const_cast<float *>(q_ptr));
-            GlobalK kGlobal(const_cast<float *>(k_ptr));
-            GlobalV vGlobal(const_cast<float *>(v_ptr));
+            GlobalQ qGlobal(const_cast<float*>(q_ptr));
+            GlobalK kGlobal(const_cast<float*>(k_ptr));
+            GlobalV vGlobal(const_cast<float*>(v_ptr));
             GlobalO oGlobal(o_ptr);
 
             QPlain qTile;
@@ -259,7 +260,7 @@ void flash_attention_pto(const std::vector<float> &q, const std::vector<float> &
 
 } // namespace
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     const bool causal_requested = (argc >= 2) && (std::string(argv[1]) == "--causal");
     const bool causal = false;
@@ -325,8 +326,8 @@ int main(int argc, char **argv)
     std::cout << "checksum(out) = " << checksum << "\n";
     std::cout << "perf: avg_ms=" << (elapsed_s * 1e3) << " approx_matmul_flops=" << matmul_flops
               << " gflops=" << gflops;
-    if (const char *peak_env = std::getenv("PTO_CPU_PEAK_GFLOPS")) {
-        char *end = nullptr;
+    if (const char* peak_env = std::getenv("PTO_CPU_PEAK_GFLOPS")) {
+        char* end = nullptr;
         const double peak = std::strtod(peak_env, &end);
         if (end != peak_env && peak > 0.0) {
             std::cout << " peak_gflops=" << peak << " mfu=" << (gflops / peak);

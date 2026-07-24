@@ -65,7 +65,8 @@ def docs_instructions(isa_dir: Path) -> set[str]:
     return {
         p.stem
         for p in isa_dir.glob("*.md")
-        if p.name not in {"README.md", "README_zh.md", "conventions.md", "conventions_zh.md"} and not p.stem.endswith("_zh")
+        if p.name not in {"README.md", "README_zh.md", "conventions.md", "conventions_zh.md"}
+        and not p.stem.endswith("_zh")
     }
 
 

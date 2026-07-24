@@ -16,27 +16,25 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <uint32_t caseId>
-void launchTREMSTestCase(void *out, void *src, float scalar, aclrtStream stream);
+void launchTREMSTestCase(void* out, void* src, float scalar, aclrtStream stream);
 
 class TREMSTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int vaildRow, int col, int srcVaildCol>
+template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int srcValidCol>
 void TREMSTestFramework()
 {
     aclInit(nullptr);
@@ -47,23 +45,23 @@ void TREMSTestFramework()
 
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
     size_t srcByteSize = row * col * sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     float scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
     std::string scalar_file = GetGoldenDir() + "/scalar.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
-    file.read(reinterpret_cast<char *>(&scalar), 4);
+    file.read(reinterpret_cast<char*>(&scalar), 4);
     file.close();
     aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
     launchTREMSTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
@@ -91,52 +89,22 @@ void TREMSTestFramework()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TREMSTest, case1)
-{
-    TREMSTestFramework<1, float, 32, 64, 32, 32, 64, 64>();
-}
+TEST_F(TREMSTest, case1) { TREMSTestFramework<1, float, 32, 64, 32, 32, 64, 64>(); }
 
-TEST_F(TREMSTest, case3)
-{
-    TREMSTestFramework<3, int32_t, 31, 128, 31, 31, 128, 128>();
-}
+TEST_F(TREMSTest, case3) { TREMSTestFramework<3, int32_t, 31, 128, 31, 31, 128, 128>(); }
 
-TEST_F(TREMSTest, case5)
-{
-    TREMSTestFramework<5, float, 7, 448, 7, 7, 448, 448>();
-}
+TEST_F(TREMSTest, case5) { TREMSTestFramework<5, float, 7, 448, 7, 7, 448, 448>(); }
 
-TEST_F(TREMSTest, case6)
-{
-    TREMSTestFramework<6, float, 256, 16, 256, 256, 16, 16>();
-}
+TEST_F(TREMSTest, case6) { TREMSTestFramework<6, float, 256, 16, 256, 256, 16, 16>(); }
 
-TEST_F(TREMSTest, case7)
-{
-    TREMSTestFramework<7, float, 32, 128, 32, 32, 64, 64>();
-}
+TEST_F(TREMSTest, case7) { TREMSTestFramework<7, float, 32, 128, 32, 32, 64, 64>(); }
 
-TEST_F(TREMSTest, case9)
-{
-    TREMSTestFramework<9, int32_t, 31, 256, 31, 31, 128, 128>();
-}
+TEST_F(TREMSTest, case9) { TREMSTestFramework<9, int32_t, 31, 256, 31, 31, 128, 128>(); }
 
-TEST_F(TREMSTest, case11)
-{
-    TREMSTestFramework<11, float, 7, 512, 7, 7, 448, 448>();
-}
+TEST_F(TREMSTest, case11) { TREMSTestFramework<11, float, 7, 512, 7, 7, 448, 448>(); }
 
-TEST_F(TREMSTest, case12)
-{
-    TREMSTestFramework<12, float, 256, 32, 256, 256, 16, 16>();
-}
+TEST_F(TREMSTest, case12) { TREMSTestFramework<12, float, 256, 32, 256, 256, 16, 16>(); }
 
-TEST_F(TREMSTest, case15)
-{
-    TREMSTestFramework<15, int32_t, 1, 8192, 1, 1, 8192, 8192>();
-}
+TEST_F(TREMSTest, case15) { TREMSTestFramework<15, int32_t, 1, 8192, 1, 1, 8192, 8192>(); }
 
-TEST_F(TREMSTest, case16)
-{
-    TREMSTestFramework<16, float, 1, 8192, 1, 1, 8192, 8192>();
-}
+TEST_F(TREMSTest, case16) { TREMSTestFramework<16, float, 1, 8192, 1, 1, 8192, 8192>(); }

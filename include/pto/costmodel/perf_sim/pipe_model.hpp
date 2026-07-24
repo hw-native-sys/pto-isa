@@ -28,13 +28,7 @@ namespace pto::perf_sim {
 // ── PipeEntry: one operation queued on a pipe ──
 
 struct PipeEntry {
-    enum State
-    {
-        IDLE,
-        RUNNING,
-        WAITING,
-        DONE
-    };
+    enum State { IDLE, RUNNING, WAITING, DONE };
     State state = IDLE;
     std::string name;
     uint64_t duration = 0;
@@ -59,21 +53,12 @@ struct PipeEntry {
 struct PipeQueue {
     std::string label;
     std::list<PipeEntry> entries;
-    PipeEntry *current = nullptr;
+    PipeEntry* current = nullptr;
     uint64_t next_free_cycle = 0;
 
-    bool Empty() const
-    {
-        return entries.empty() && current == nullptr;
-    }
-    bool CanAccept() const
-    {
-        return current == nullptr;
-    }
-    void Push(PipeEntry &&e)
-    {
-        entries.push_back(std::move(e));
-    }
+    bool Empty() const { return entries.empty() && current == nullptr; }
+    bool CanAccept() const { return current == nullptr; }
+    void Push(PipeEntry&& e) { entries.push_back(std::move(e)); }
 };
 
 // ── EventChannel: cross-pipe synchronization (counter-based) ──
@@ -83,10 +68,7 @@ struct PipeQueue {
 struct EventChannel {
     int count = 0; // number of pending signals
     uint64_t signal_cycle = 0;
-    bool signaled() const
-    {
-        return count > 0;
-    }
+    bool signaled() const { return count > 0; }
 };
 
 // ── Channel layout ──
@@ -112,10 +94,7 @@ inline int SyncChannelBase()
     return std::max(MIN_SYNC_CHANNEL_BASE, TileDepTracker::MaxEventsPerCore());
 }
 
-inline int TotalChannels()
-{
-    return SyncChannelBase() + HW_PIPE_COUNT * EVENTS_PER_PIPE * VEC_SYNC_CHANNEL_SPACES;
-}
+inline int TotalChannels() { return SyncChannelBase() + HW_PIPE_COUNT * EVENTS_PER_PIPE * VEC_SYNC_CHANNEL_SPACES; }
 
 // Encode a sync channel key using hardware pipe ID (not PipeStage)
 inline event_t EncodeSyncKey(int hw_dst_pipe, event_t event_id, uint32_t subblock_id = 0)

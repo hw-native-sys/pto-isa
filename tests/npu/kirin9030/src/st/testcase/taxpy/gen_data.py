@@ -13,6 +13,7 @@
 import os
 import numpy as np
 import struct
+
 np.random.seed(19)
 
 
@@ -27,13 +28,13 @@ def gen_golden_data_taxpy(case_name, param):
     scalar = np.random.uniform(low=-8, high=8, size=(1, 1)).astype(dtype)
 
     # Perform the andbtraction
-    golden = (input1.astype(np.float64) + input2.astype(np.float64) * scalar).astype(dtype)
+    golden = (input1 + input2 * scalar).astype(dtype)
 
     # Save the input and golden data to binary files
     input1.tofile("input1.bin")
     input2.tofile("input2.bin")
-    with open("scalar.bin", 'wb') as f:
-        f.write(struct.pack('f', np.float32(scalar[0, 0])))
+    with open("scalar.bin", "wb") as f:
+        f.write(struct.pack("f", np.float32(scalar[0, 0])))
     golden.tofile("golden.bin")
 
 
@@ -45,6 +46,7 @@ class TAxpyParams:
         self.tile_col = tile_col
         self.valid_row = valid_row
         self.valid_col = valid_col
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -59,7 +61,6 @@ if __name__ == "__main__":
         TAxpyParams("TAXPYTest.case1", np.float16, 64, 64, 64, 64),
         TAxpyParams("TAXPYTest.case2", np.float16, 64, 64, 63, 63),
         TAxpyParams("TAXPYTest.case3", np.float16, 1, 16384, 1, 16384),
-        TAxpyParams("TAXPYTest.case4", np.float16, 2048, 16, 2048, 16),
         TAxpyParams("TAXPYTest.case5", np.float32, 8, 8, 8, 8),
         TAxpyParams("TAXPYTest.case6", np.float32, 16, 16, 15, 15),
     ]

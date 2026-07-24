@@ -22,29 +22,22 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
-PTO_INTERNAL bool AsyncEvent::Wait(const AsyncSession & /*session*/) const
-{
-    return true;
-}
+PTO_INTERNAL bool AsyncEvent::Wait(const AsyncSession& /*session*/) const { return true; }
 
-PTO_INTERNAL bool AsyncEvent::Test(const AsyncSession & /*session*/) const
-{
-    return true;
-}
+PTO_INTERNAL bool AsyncEvent::Test(const AsyncSession& /*session*/) const { return true; }
 
 } // namespace comm
 
 struct PrefetchAsyncContext {
-    __gm__ uint8_t *workspace{nullptr};
+    __gm__ uint8_t* workspace{nullptr};
     comm::AsyncSession session;
 
     constexpr PrefetchAsyncContext() = default;
-    constexpr explicit PrefetchAsyncContext(__gm__ uint8_t *workspace_) : workspace(workspace_)
-    {}
+    constexpr explicit PrefetchAsyncContext(__gm__ uint8_t* workspace_) : workspace(workspace_) {}
 };
 
 template <typename GlobalData>
-PTO_INTERNAL comm::AsyncEvent TPREFETCH_ASYNC_IMPL(GlobalData & /*src*/, PrefetchAsyncContext & /*ctx*/)
+PTO_INTERNAL comm::AsyncEvent TPREFETCH_ASYNC_IMPL(GlobalData& /*src*/, PrefetchAsyncContext& /*ctx*/)
 {
     return comm::AsyncEvent(0, comm::DmaEngine::SDMA);
 }

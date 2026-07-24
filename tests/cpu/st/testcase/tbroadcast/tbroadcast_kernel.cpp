@@ -19,7 +19,7 @@ using namespace pto;
  * @tparam KN Number of copies (Group size)
  */
 template <typename T, int D0, int D1, int D2, int D3, int D4, int KN>
-AICORE void runTBroadcast(__gm__ T __out__ *out, __gm__ T __in__ *src)
+AICORE void runTBroadcast(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using FullShape = Shape<D0, D1, D2, D3, D4>;
     using FullStride = Stride<D1 * D2 * D3 * D4, D2 * D3 * D4, D3 * D4, D4, 1>;
@@ -41,18 +41,18 @@ AICORE void runTBroadcast(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int D0, int D1, int D2, int D3, int D4, int KN>
-void LaunchTBroadcast(T *out, T *src, void *stream)
+void LaunchTBroadcast(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTBroadcast<T, D0, D1, D2, D3, D4, KN>((half *)(out), (half *)(src));
+        runTBroadcast<T, D0, D1, D2, D3, D4, KN>((half*)(out), (half*)(src));
     else
         runTBroadcast<T, D0, D1, D2, D3, D4, KN>(out, src);
 }
 
-template void LaunchTBroadcast<float, 1, 2, 4, 64, 64, 5>(float *, float *, void *);
-template void LaunchTBroadcast<int32_t, 1, 2, 4, 64, 64, 3>(int32_t *, int32_t *, void *);
-template void LaunchTBroadcast<int16_t, 2, 2, 3, 64, 64, 2>(int16_t *, int16_t *, void *);
-template void LaunchTBroadcast<aclFloat16, 1, 2, 1, 16, 256, 1>(aclFloat16 *, aclFloat16 *, void *);
+template void LaunchTBroadcast<float, 1, 2, 4, 64, 64, 5>(float*, float*, void*);
+template void LaunchTBroadcast<int32_t, 1, 2, 4, 64, 64, 3>(int32_t*, int32_t*, void*);
+template void LaunchTBroadcast<int16_t, 2, 2, 3, 64, 64, 2>(int16_t*, int16_t*, void*);
+template void LaunchTBroadcast<aclFloat16, 1, 2, 1, 16, 256, 1>(aclFloat16*, aclFloat16*, void*);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTBroadcast<bfloat16_t, 1, 2, 1, 16, 256, 1>(bfloat16_t *, bfloat16_t *, void *);
+template void LaunchTBroadcast<bfloat16_t, 1, 2, 1, 16, 256, 1>(bfloat16_t*, bfloat16_t*, void*);
 #endif

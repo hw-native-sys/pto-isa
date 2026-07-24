@@ -15,9 +15,13 @@ import os
 import copy
 import struct
 import numpy as np
-import ml_dtypes
 
-bfloat16 = ml_dtypes.bfloat16
+try:
+    import ml_dtypes
+
+    bfloat16 = ml_dtypes.bfloat16
+except ModuleNotFoundError:
+    bfloat16 = np.float16
 np.random.seed(19)
 
 
@@ -84,7 +88,7 @@ def get_quant_golden(dst_data_type, m, n, quant_type, golden):
         temp_quant_tensor_api[i] = struct.unpack('!I', struct.pack('!f', temp_quant_tensor[i]))[0]
         if dst_data_type == np.int8:
             temp_quant_tensor_api[i] = temp_quant_tensor_api[i] | np.uint64(0x400000000000)
-
+    
     quant_tensor = np.frombuffer(temp_quant_tensor_api, np.uint64)
     quant_tensor = quant_tensor.astype(quant_type)
     quant_tensor.tofile("./quant_vector_gm.bin")
@@ -101,7 +105,7 @@ def get_quant_golden(dst_data_type, m, n, quant_type, golden):
                 quant_golden[i, j] = golden[i, j] * quant_tensor[j]
     return quant_golden
 
-
+   
 def gen_x1_x2_golden(g_info):
     src_data_type = g_info.src_data_type
     dst_data_type = g_info.dst_data_type
@@ -162,15 +166,15 @@ def gen_golden_data(case_name, g_info):
     elif dst_format == 3:
         c0_size = 8
         golden = golden.reshape(int(m / 16), 16, int(n / c0_size), c0_size).transpose(2, 0, 1, 3).astype(dst_data_type)
-    elif dst_format == 4:
+    elif dst_format == 4: 
         # NHWC
         shape = g_info.shape
         golden = golden.reshape(shape[0], shape[1], shape[2], shape[3]).astype(dst_data_type)
-    elif dst_format == 5:
+    elif dst_format == 5: 
         # NCHW
         shape = g_info.shape
         golden = golden.reshape(shape[0], shape[1], shape[2], shape[3]).transpose(0, 3, 1, 2).astype(dst_data_type)
-    elif dst_format == 6:
+    elif dst_format == 6: 
         # NCDHW:
         shape_ncdhw = g_info.ncdhw_shape
         golden_ncdhw = np.zeros(shape_ncdhw, dtype=dst_data_type)
@@ -182,7 +186,7 @@ def gen_golden_data(case_name, g_info):
         golden = golden_ncdhw
     if relu_mode == 1:
         golden = np.maximum(golden, 0)
-
+    
     golden = golden.astype(dst_data_type)
 
     x1_gm.tofile("./x1_gm.bin")
@@ -207,6 +211,7 @@ class TStoreAcc2gmParams:
 
 if __name__ == "__main__":
     case_name_list = [
+        "TStoreAcc2gmTest.case0",
         "TStoreAcc2gmTest.case1",
         "TStoreAcc2gmTest.case2",
         "TStoreAcc2gmTest.case3",
@@ -226,6 +231,7 @@ if __name__ == "__main__":
     ]
 
     case_params_list = [
+        TStoreAcc2gmParams(np.float32, np.float32, 1, 128, 128, 32),
         TStoreAcc2gmParams(np.float32, np.float32, 1, 128, 128, 16),
         TStoreAcc2gmParams(np.float32, np.float32, 1, 31, 32, 15),
         TStoreAcc2gmParams(np.float32, np.float16, 1, 65, 128, 96),

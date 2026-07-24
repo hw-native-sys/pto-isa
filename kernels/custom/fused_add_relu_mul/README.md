@@ -207,4 +207,3 @@ Refer to `demos/baseline/add` example to integrate this operator into PyTorch.
 ## License
 
 This project is licensed under CANN Open Software License Agreement Version 2.0.
-

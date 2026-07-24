@@ -20,34 +20,33 @@ using namespace std;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void LaunchTMOVAcc2VecNZ2ND(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+void LaunchTMOVAcc2VecNZ2ND(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
 
 template <int32_t tilingKey>
-void LaunchTMOVAcc2VecFBQuantNZ2ND(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                   void *stream);
+void LaunchTMOVAcc2VecFBQuantNZ2ND(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
 
 template <int32_t tilingKey>
-void LaunchTMOVAcc2VecSCQuantNZ2ND(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, void *stream);
+void LaunchTMOVAcc2VecSCQuantNZ2ND(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream);
 
 class TMOVTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <int32_t funcKey, typename CType, typename AType, typename BType, int32_t key, uint32_t IdxRow = 0,
-          uint32_t IdxCol = 0, bool isInsert = false, uint32_t DstRow = 0, uint32_t DstCol = 0>
+template <
+    int32_t funcKey, typename CType, typename AType, typename BType, int32_t key, uint32_t IdxRow = 0,
+    uint32_t IdxCol = 0, bool isInsert = false, uint32_t DstRow = 0, uint32_t DstCol = 0>
 void tmov_acc2vec_test(uint32_t M, uint32_t K, uint32_t N)
 {
     size_t aFileSize = M * K * sizeof(AType);
@@ -62,15 +61,15 @@ void tmov_acc2vec_test(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *src0Host, *src1Host, *src2Host;
     uint8_t *dstDevice, *src0Device, *src1Device, *src2Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&src2Host), cFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&src2Host), cFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -114,8 +113,9 @@ void tmov_acc2vec_test(uint32_t M, uint32_t K, uint32_t N)
     EXPECT_TRUE(ret);
 }
 
-template <int32_t funcKey, typename CType, typename AType, typename BType, typename QuantType, int32_t key,
-          uint32_t IdxRow = 0, uint32_t IdxCol = 0, bool isInsert = false, uint32_t DstRow = 0, uint32_t DstCol = 0>
+template <
+    int32_t funcKey, typename CType, typename AType, typename BType, typename QuantType, int32_t key,
+    uint32_t IdxRow = 0, uint32_t IdxCol = 0, bool isInsert = false, uint32_t DstRow = 0, uint32_t DstCol = 0>
 void tmov_acc2vec_fb_quant_test(uint32_t M, uint32_t K, uint32_t N)
 {
     size_t aFileSize = M * K * sizeof(AType);
@@ -131,17 +131,17 @@ void tmov_acc2vec_fb_quant_test(uint32_t M, uint32_t K, uint32_t N)
     uint8_t *dstHost, *src0Host, *src1Host, *src2Host, *src3Host;
     uint8_t *dstDevice, *src0Device, *src1Device, *src2Device, *src3Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
-    aclrtMallocHost((void **)(&src2Host), FBQuantFileSize);
-    aclrtMallocHost((void **)(&src3Host), cFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&src2Host), FBQuantFileSize);
+    aclrtMallocHost((void**)(&src3Host), cFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src2Device, FBQuantFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src3Device, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src2Device, FBQuantFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src3Device, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
@@ -187,20 +187,11 @@ void tmov_acc2vec_fb_quant_test(uint32_t M, uint32_t K, uint32_t N)
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TMOVTest, case_nz2nd_1)
-{
-    tmov_acc2vec_test<1, half, half, half, 1, 0, 16, false, 64, 128>(60, 127, 120);
-}
+TEST_F(TMOVTest, case_nz2nd_1) { tmov_acc2vec_test<1, half, half, half, 1, 0, 16, false, 64, 128>(60, 127, 120); }
 
-TEST_F(TMOVTest, case_nz2nd_2)
-{
-    tmov_acc2vec_test<1, half, half, half, 2, 5, 0, false, 120, 96>(110, 100, 80);
-}
+TEST_F(TMOVTest, case_nz2nd_2) { tmov_acc2vec_test<1, half, half, half, 2, 5, 0, false, 120, 96>(110, 100, 80); }
 
-TEST_F(TMOVTest, case_nz2nd_4)
-{
-    tmov_acc2vec_test<1, half, half, half, 4, 3, 32, false, 150, 160>(111, 47, 96);
-}
+TEST_F(TMOVTest, case_nz2nd_4) { tmov_acc2vec_test<1, half, half, half, 4, 3, 32, false, 150, 160>(111, 47, 96); }
 
 TEST_F(TMOVTest, case_nz2nd_fb_quant_1)
 {

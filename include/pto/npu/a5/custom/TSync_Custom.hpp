@@ -19,8 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 // Operation types for TSync - identifies the producer/consumer operation
-enum class SyncOpType : uint8_t
-{
+enum class SyncOpType : uint8_t {
     TSTORE_C2GM,  // Store (Cube core operation via PIPE_FIX) - GM path
     TSTORE_V2GM,  // Store (Vector core operation via PIPE_MTE3) - GM path
     TMOV_C2UB,    // TMOV from L0C to UB (Cube core operation via PIPE_FIX) - UB path
@@ -56,8 +55,9 @@ struct SyncTraits {
     static constexpr bool is_vec_to_cube = is_vec_to_cube_gm || is_vec_to_cube_ub;
 
     static_assert(ConsumerOp == SyncOpType::TLOAD, "Consumer operation must be TLOAD");
-    static_assert(is_cube_to_vec || is_vec_to_cube,
-                  "Producer must be TSTORE_C2GM, TMOV_C2UB (Cube) or TSTORE_V2GM, TINSERT_V2L1 (Vector)");
+    static_assert(
+        is_cube_to_vec || is_vec_to_cube,
+        "Producer must be TSTORE_C2GM, TMOV_C2UB (Cube) or TSTORE_V2GM, TINSERT_V2L1 (Vector)");
 };
 
 namespace detail {

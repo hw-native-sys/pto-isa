@@ -1,14 +1,15 @@
-# pto.tcolsum
+# TCOLSUM
 
-`pto.tcolsum` is part of the [Reduce And Expand](../../reduce-and-expand.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
+
+![TCOLSUM tile operation](../../../../figures/isa/TCOLSUM.svg)
+
+## Introduction
 
 Reduce each column by summing across rows.
 
-## Mechanism
-
-Reduce each column by summing across rows.
+## Math Interpretation
 
 Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= j < C`:
 
@@ -16,16 +17,13 @@ $$ \mathrm{dst}_{0,j} = \sum_{i=0}^{R-1} \mathrm{src}_{i,j} $$
 
 `isBinary` selects the implementation path (binary-tree accumulation vs. sequential accumulation).
 
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
 ```text
 %dst = tcolsum %src {isBinary = false} : !pto.tile<...> -> !pto.tile<...>
 ```
-
 Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### AS Level 1 (SSA)
@@ -41,7 +39,6 @@ Lowering may introduce internal scratch tiles; the C++ intrinsic requires an exp
 pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 pto.tcolsum ins(%src, %tmp {isBinary = false} : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -54,63 +51,58 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typen
 PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, bool isBinary, WaitEvents &... events);
 ```
 
-## Inputs
-
-- `src` is the source tile.
-- `dst` names the destination tile. The operation iterates over dst's valid region.
-- `isBinary` (bool): selects the implementation path—binary-tree accumulation (`true`) or sequential accumulation (`false`).
-
-## Expected Outputs
-
-`dst` holds the column-wise sum: for each column `j`, `dst[0,j]` = sum of all elements in column `j` of `src`.
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
-
 ## Constraints
 
-!!! warning "Constraints"
-    ### General constraints / checks
+### General constraints / checks
 
-    - `dst` and `src` must be `TileType::Vec`.
+- `dst` and `src` must be `TileType::Vec`.
+- `dst` and `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` and `src` must use the same element type.
+- Runtime checks:
+    - `src.GetValidCol() == dst.GetValidCol()`
+    - `src.GetValidRow() != 0` (implementation silently returns early when zero, no computation performed)
+    - `src.GetValidCol() != 0` (implementation silently returns early when zero, no computation performed)
+    - `src.GetValidCol() <= tmp` row stride measured in `src` elements
+- `isBinary` selects the checked backend path:
+    - `true`: binary-tree accumulation using `tmp`
+    - `false`: sequential accumulation into `dst`
 
-    - `dst` and `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+### A2A3 implementation checks
 
-    - `dst` and `src` must use the same element type.
+- Supported element types: `half`, `float`, `int16_t`, `int32_t`.
+- `tmp` must be `TileType::Vec` and use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `tmp` must use the same element type as `src` and `dst`.
+- If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
 
-    - Runtime checks:
-      - `src.GetValidCol() == dst.GetValidCol()`
-      - `src.GetValidRow() != 0`
-      - `src.GetValidCol() != 0`
-      - `src.GetValidCol() <= tmp` row stride measured in `src` elements
+### A5 implementation checks
 
-    - Supported element types: `half`, `float`, `int16_t`, `int32_t`.
+- Shared A5 column-reduce checks allow `half`, `float`, `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `bfloat16_t`.
+- The checked A5 `TCOLSUM` path still takes `tmp` only for the binary accumulation path; no extra compile-time `tmp` type/layout assertions are explicitly enforced in `TCOLSUM_IMPL`.
 
-    - `tmp` must be `TileType::Vec` and use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+## Temporary Space
 
-    - `tmp` must use the same element type as `src` and `dst`.
+### Without `tmp` (2-argument overload: `TCOLSUM(dst, src)`)
 
-## Exceptions
+No `tmp` is required. Both A2A3 and A5 use sequential accumulation directly into `dst`.
 
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
+### With `tmp` and `isBinary` (4-argument overload: `TCOLSUM(dst, src, tmp, isBinary)`)
 
-## Target-Profile Restrictions
+#### A2A3
 
-??? info "Target-Profile Restrictions"
-    - `isBinary` selects the checked backend path:
-      - `true`: binary-tree accumulation using `tmp`
-      - `false`: sequential accumulation into `dst`
+- When `isBinary = true`: `tmp` **is used** for binary-tree accumulation. Adjacent row pairs from `src` are summed into `tmp`, then `tmp` is recursively halved until a single row remains.
+  - `tmp` must have the same element type as `src`/`dst`.
+  - `tmp` must be `TileType::Vec`, row-major, non-fractal.
+  - `tmp.GetValidCol() >= src.GetValidCol()` (in element count, accounting for `tmp` stride).
+  - `tmp` needs at least `ceil(src.GetValidRow() / 2)` rows.
+- When `isBinary = false`: `tmp` is accepted but the implementation uses sequential accumulation into `dst`; `tmp` is not actively used.
 
-    === "A2/A3"
-        - If `src.GetValidRow() == 0` or `src.GetValidCol() == 0`, the implementation returns early.
+#### A5
 
-    === "A5"
-        - Shared A5 column-reduce checks allow `half`, `float`, `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `bfloat16_t`.
-
-        - The checked A5 `TCOLSUM` path still takes `tmp` only for the binary accumulation path; no extra compile-time `tmp` type/layout assertions are explicitly enforced in `TCOLSUM_IMPL`.
+- When `isBinary = true`: `tmp` **is used** for binary-tree accumulation in vector registers with UB storage.
+  - `tmp` must have the same element type as `src`/`dst`.
+  - `tmp.GetValidCol() >= src.GetValidCol()` (in element count, accounting for `tmp` stride).
+  - `tmp` needs at least `ceil(src.GetValidRow() / 2)` rows.
+- When `isBinary = false`: `tmp` is not actively used; the implementation uses sequential reduction via `TColReduceInstr`.
 
 ## Examples
 
@@ -153,6 +145,8 @@ void example_manual() {
 }
 ```
 
+## ASM Form Examples
+
 ### Auto Mode
 
 ```text
@@ -163,7 +157,7 @@ void example_manual() {
 ### Manual Mode
 
 ```text
-# Manual mode: bind resources explicitly before issuing the instruction.
+# Manual mode: resources must be bound explicitly before issuing the instruction.
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
@@ -177,9 +171,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tcolsum ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
-
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
-- Previous op in instruction set: [pto.trowsum](./trowsum.md)
-- Next op in instruction set: [pto.tcolprod](./tcolprod.md)

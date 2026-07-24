@@ -36,10 +36,11 @@ PTO_INTERNAL uint64_t getSubAIVOffset()
 
 // allocate fifo slot entry for global data
 template <typename Pipe, typename GlobalData, TileSplitAxis Split>
-PTO_INTERNAL void TALLOC_IMPL(Pipe &pipe, GlobalData &gmTensor)
+PTO_INTERNAL void TALLOC_IMPL(Pipe& pipe, GlobalData& gmTensor)
 {
-    static_assert(Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
-                  "Fix: TALLOC with GlobalTensor is only supported by GM FIFO directions on A5.");
+    static_assert(
+        Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
+        "Fix: TALLOC with GlobalTensor is only supported by GM FIFO directions on A5.");
     static_assert(is_global_data_v<GlobalData>, "Fix: GlobalTensor must satisfy is_global_data_v<GlobalData>.");
 
     // 1. Cross-Core: Wait for space
@@ -66,7 +67,7 @@ PTO_INTERNAL void TALLOC_IMPL(Pipe &pipe, GlobalData &gmTensor)
 
     // 3. Increment tile index
     pipe.prod.tileIndex++;
-    TASSIGN_IMPL(gmTensor, reinterpret_cast<typename GlobalData::DType *>(entryBase));
+    TASSIGN_IMPL(gmTensor, reinterpret_cast<typename GlobalData::DType*>(entryBase));
 }
 
 } // namespace pto

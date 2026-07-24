@@ -55,4 +55,3 @@ __global__ AICORE void GemmOneTile(__gm__ A* a, __gm__ B* b, __gm__ Acc* c) {
 - 为重叠做同步：
   - 用 events 对内存与计算流水线建立顺序，
   - 用 ping-pong buffer 安全复用 Tile 存储。
-

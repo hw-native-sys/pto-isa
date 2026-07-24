@@ -39,18 +39,6 @@ else
     PYTHON_BIN=python
 fi
 
-# 编译器选择：优先使用系统 Apple clang。
-# 原因：run_costmodel.py 自动检测会按 "version >= 15" 挑选 homebrew clang@18，而该 clang
-# 把默认 syslibroot 写死成不存在的 MacOSX14.sdk，导致 cmake configure 阶段 "-lSystem not found"。
-# 系统 Apple clang 走 xcrun 解析正确的 SDK 与 ld64，且不受 PATH 中其它 GNU ld 污染。
-# 若用户已显式设置 CXX/CC 则保持不变；无系统 clang（如 Linux）则回退到自动检测。
-if [ -z "${CXX:-}" ] && [ -x /usr/bin/clang++ ]; then
-    export CXX=/usr/bin/clang++
-fi
-if [ -z "${CC:-}" ] && [ -x /usr/bin/clang ]; then
-    export CC=/usr/bin/clang
-fi
-
 # 函数：打印错误信息并退出
 error_exit() {
     echo -e "${RED}[ERROR] $1${NC}"

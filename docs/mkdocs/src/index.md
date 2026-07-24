@@ -42,17 +42,15 @@
       </ul>
     </article>
 
-    <article class="landing-panel">
-      <h2>Browse by Instruction Set</h2>
-      <ul>
-        <li><a href="docs/isa/tile/README.md">Tile ISA reference</a></li>
-        <li><a href="docs/isa/vector/README.md">Vector ISA reference</a></li>
-        <li><a href="docs/isa/scalar/README.md">Scalar and control reference</a></li>
-        <li><a href="docs/isa/comm/README.md">Communication reference</a></li>
-        <li><a href="docs/isa/system/README.md">System scheduling reference</a></li>
-        <li><a href="docs/isa/instruction-families/README.md">Instruction overview</a></li>
-      </ul>
-    </article>
+- [Manual entry page](docs/PTO-Virtual-ISA-Manual.md)
+- [Manual preface and reading order](manual/index.md)
+- [Instruction reference (one page per instruction)](docs/isa/README.md)
+- [Programming model (Tiles/GlobalTensor/Events)](docs/coding/ProgrammingModel.md)
+- [Abstract machine model](docs/machine/abstract-machine.md)
+- [Virtual ISA / AS chapter](manual/08-virtual-isa-and-ir.md)
+- [Bytecode / toolchain chapter](manual/09-bytecode-and-toolchain.md)
+- [Memory ordering / consistency chapter](manual/10-memory-ordering-and-consistency.md)
+- [Backend profiles / conformance chapter](manual/11-backend-profiles-and-conformance.md)
 
     <article class="landing-panel">
       <h2>Reference Notes</h2>

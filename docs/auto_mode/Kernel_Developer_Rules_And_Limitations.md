@@ -11,9 +11,9 @@ Not following these rules can lead to any of the following consequences:
 
 Complex control flow (especially inside loops) often makes it difficult to optimize the precise cross-pipe parallelization and double-buffering. Since PTO AUTO compiler is required to maintain program correctness, it may generate the sync operations more conservatively leading to performance degradation.
 
-## 1.1 - Guards for First and Last Iteraions
+## 1.1 - Guards for First and Last Iterations
 
-Any condition that guards the first and last iteraion of a loop should be expressed in a form that can be statically evaluated. That makes it possible for the PTO AUTO compiler to automatically peel peel the first and last iteration of the loop which results in simplifying the auto synchronization substantially.  Here is an example:
+Any condition that guards the first and last iteration of a loop should be expressed in a form that can be statically evaluated. That makes it possible for the PTO AUTO compiler to automatically peel peel the first and last iteration of the loop which results in simplifying the auto synchronization substantially.  Here is an example:
 
 ```cpp
 for (int tile_id = 0; tile_id < total_tiles; tile_id++) {

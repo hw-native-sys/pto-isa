@@ -21,8 +21,8 @@ namespace pto {
 
 template <typename T>
 struct RowExpandExpdifOp {
-    PTO_INTERNAL static void RowExpandBinaryInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                                  MaskReg &preg)
+    PTO_INTERNAL static void RowExpandBinaryInstr(
+        RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
     {
         if constexpr (std::is_same_v<T, float>) {
             pto_vexpdif(reg_dst, reg_src0, reg_src1, preg, PART_ODD);
@@ -35,8 +35,8 @@ struct RowExpandExpdifOp {
 
 template <typename T>
 struct RowExpandExpdifOp2 {
-    PTO_INTERNAL static void RowExpandBinaryInstr(RegTensor<T> &reg_dst, RegTensor<T> &reg_src0, RegTensor<T> &reg_src1,
-                                                  MaskReg &preg)
+    PTO_INTERNAL static void RowExpandBinaryInstr(
+        RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
     {
         if constexpr (std::is_same_v<T, float>) {
             pto_vexpdif(reg_dst, reg_src1, reg_src0, preg, PART_ODD);
@@ -47,35 +47,37 @@ struct RowExpandExpdifOp2 {
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem>
-__tf__ PTO_INTERNAL OP_NAME(TROWEXPANDEXPDIF)
-    OP_TYPE(broadcast) void TRowExpandExpdif(typename TileDataDst::TileDType __out__ dst,
-                                             typename TileDataSrc0::TileDType __in__ src0,
-                                             typename TileDataSrc1::TileDType __in__ src1, unsigned validRow,
-                                             unsigned validCol, bool src0eqdst,
-                                             unsigned version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+__tf__ PTO_INTERNAL OP_NAME(TROWEXPANDEXPDIF) OP_TYPE(broadcast) void TRowExpandExpdif(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, unsigned validRow, unsigned validCol, bool src0eqdst,
+    unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
 
     if (src0eqdst) {
-        RowExpandBinaryInstr<RowExpandExpdifOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                             blockSizeElem>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        RowExpandBinaryInstr<
+            RowExpandExpdifOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+            dstPtr, src0Ptr, src1Ptr, validRow, validCol);
     } else {
-        RowExpandBinaryInstr<RowExpandExpdifOp2<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat,
-                             blockSizeElem>(dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        RowExpandBinaryInstr<
+            RowExpandExpdifOp2<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+            dstPtr, src0Ptr, src1Ptr, validRow, validCol);
     }
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
-                  "Fix: TROWEXPANDEXPDIF src and dst data type is different!");
+    static_assert(
+        std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
+        "Fix: TROWEXPANDEXPDIF src and dst data type is different!");
     static_assert(std::is_same_v<T, half> || std::is_same_v<T, float>, "Fix: TROWEXPANDEXPDIF Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDEXPDIF Invalid tile shape.");
 
@@ -87,26 +89,29 @@ PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDataDst &dst, TileDataSrc0 &src0, Ti
     unsigned src1ValidCol = src1.GetValidCol();
     bool src0eqdst = (validRow == src0ValidRow) && (validCol == src0ValidCol);
     bool src1eqdst = (validRow == src1ValidRow) && (validCol == src1ValidCol);
-    PTO_ASSERT((src0eqdst && TileDataSrc0::isRowMajor) || (src1eqdst && TileDataSrc1::isRowMajor),
-               "TROWEXPANDEXPDIF: the validShape of src0 or src1 should be equal to dst");
+    PTO_ASSERT(
+        (src0eqdst && TileDataSrc0::isRowMajor) || (src1eqdst && TileDataSrc1::isRowMajor),
+        "TROWEXPANDEXPDIF: the validShape of src0 or src1 should be equal to dst");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(typename TileDataDst::DType);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(typename TileDataDst::DType);
 
     if (src0eqdst) {
         unsigned src1ValidCol = src1.GetValidCol();
-        PTO_ASSERT(((TileDataSrc1::isRowMajor && src1ValidCol == 32 / sizeof(T)) ||
-                    (!TileDataSrc1::isRowMajor && src1ValidCol == 1)) &&
-                       src1.GetValidRow() == validRow,
-                   "TROWEXPANDEXPDIF: invalid src1 shape.");
+        PTO_ASSERT(
+            ((TileDataSrc1::isRowMajor && src1ValidCol == 32 / sizeof(T)) ||
+             (!TileDataSrc1::isRowMajor && src1ValidCol == 1)) &&
+                src1.GetValidRow() == validRow,
+            "TROWEXPANDEXPDIF: invalid src1 shape.");
         TRowExpandExpdif<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
             dst.data(), src0.data(), src1.data(), validRow, validCol, src0eqdst);
     } else {
         unsigned src0ValidCol = src0.GetValidCol();
-        PTO_ASSERT(((TileDataSrc0::isRowMajor && src0ValidCol == 32 / sizeof(T)) ||
-                    (!TileDataSrc0::isRowMajor && src0ValidCol == 1)) &&
-                       src0.GetValidRow() == validRow,
-                   "TROWEXPANDEXPDIF: invalid src0 shape.");
+        PTO_ASSERT(
+            ((TileDataSrc0::isRowMajor && src0ValidCol == 32 / sizeof(T)) ||
+             (!TileDataSrc0::isRowMajor && src0ValidCol == 1)) &&
+                src0.GetValidRow() == validRow,
+            "TROWEXPANDEXPDIF: invalid src0 shape.");
         TRowExpandExpdif<TileDataDst, TileDataSrc1, TileDataSrc0, elementsPerRepeat, blockSizeElem>(
             dst.data(), src1.data(), src0.data(), validRow, validCol, src0eqdst);
     }
@@ -114,8 +119,8 @@ PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDataDst &dst, TileDataSrc0 &src0, Ti
 // 4-arg overload for cross-architecture portability with A2/A3.
 // A5 hardware does not require a scratch broadcast tile; the tmp tile is accepted and ignored.
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
-PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1,
-                                        [[maybe_unused]] TileDataTmp &tmp)
+PTO_INTERNAL void TROWEXPANDEXPDIF_IMPL(
+    TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, [[maybe_unused]] TileDataTmp& tmp)
 {
     TROWEXPANDEXPDIF_IMPL(dst, src0, src1);
 }

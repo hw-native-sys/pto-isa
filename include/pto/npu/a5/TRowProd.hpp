@@ -28,47 +28,50 @@ PTO_INTERNAL void TRowProdCheck(uint32_t srcValidRows, uint32_t srcValidCols, ui
         std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t>,
         "TRowProd only supports 'half', 'float', 'int32', or 'int16' data types. "
         "Fix: Define TileDataIn with DType = half, float, int32, or int16.");
-    static_assert(std::is_same_v<T, typename TileDataOut::DType>,
-                  "Input and output tile data types must match. "
-                  "Fix: Ensure TileDataOut uses the same DType as TileDataIn.");
-    static_assert(TileDataOut::Loc == pto::TileType::Vec && TileDataIn::Loc == pto::TileType::Vec,
-                  "TRowProd only works on vector tiles (TileType::Vec). "
-                  "Fix: Instantiate TileDataIn and TileDataOut with Loc_ = TileType::Vec.");
-    static_assert(TileDataIn::isRowMajor && !TileDataIn::isBoxedLayout,
-                  "TRowProd input tile must use standard ND layout (row-major, non-fractal). "
-                  "Fix: Define TileDataIn with BFractal_ = BLayout::RowMajor and SFractal_ "
-                  "= SLayout::NoneBox, e.g.,\n"
-                  "     Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ..., "
-                  "SLayout::NoneBox>");
-    static_assert((!TileDataOut::isBoxedLayout &&
-                   (TileDataOut::isRowMajor || (!TileDataOut::isRowMajor && TileDataOut::Cols == 1))),
-                  "TRowProd output tile layout must be either:\n"
-                  "  (a) ND layout: BLayout::RowMajor + SLayout::NoneBox, OR\n"
-                  "  (b) DN layout with exactly one column: BLayout::ColMajor + "
-                  "SLayout::NoneBox + Cols=1.\n"
-                  "Fix: Choose one of the following for TileDataOut:\n"
-                  "     - Tile<..., ROWS, COLS, BLayout::RowMajor, ValidRows, 1>   // ND\n"
-                  "     - Tile<..., ROWS, 1, BLayout::ColMajor, ValidRows, 1>  // DN with Cols=1");
+    static_assert(
+        std::is_same_v<T, typename TileDataOut::DType>, "Input and output tile data types must match. "
+                                                        "Fix: Ensure TileDataOut uses the same DType as TileDataIn.");
+    static_assert(
+        TileDataOut::Loc == pto::TileType::Vec && TileDataIn::Loc == pto::TileType::Vec,
+        "TRowProd only works on vector tiles (TileType::Vec). "
+        "Fix: Instantiate TileDataIn and TileDataOut with Loc_ = TileType::Vec.");
+    static_assert(
+        TileDataIn::isRowMajor && !TileDataIn::isBoxedLayout,
+        "TRowProd input tile must use standard ND layout (row-major, non-fractal). "
+        "Fix: Define TileDataIn with BFractal_ = BLayout::RowMajor and SFractal_ "
+        "= SLayout::NoneBox, e.g.,\n"
+        "     Tile<TileType::Vec, T, ROWS, COLS, BLayout::RowMajor, ..., "
+        "SLayout::NoneBox>");
+    static_assert(
+        (!TileDataOut::isBoxedLayout &&
+         (TileDataOut::isRowMajor || (!TileDataOut::isRowMajor && TileDataOut::Cols == 1))),
+        "TRowProd output tile layout must be either:\n"
+        "  (a) ND layout: BLayout::RowMajor + SLayout::NoneBox, OR\n"
+        "  (b) DN layout with exactly one column: BLayout::ColMajor + "
+        "SLayout::NoneBox + Cols=1.\n"
+        "Fix: Choose one of the following for TileDataOut:\n"
+        "     - Tile<..., ROWS, COLS, BLayout::RowMajor, ValidRows, 1>   // ND\n"
+        "     - Tile<..., ROWS, 1, BLayout::ColMajor, ValidRows, 1>  // DN with Cols=1");
     // runtime checks
-    PTO_ASSERT(srcValidRows != 0 && srcValidCols != 0,
-               "TRowProd input source valid rows or columns is zero — TRowProd requires at "
-               "least one element per row. "
-               "Fix: Ensure srcValidRows > 0 and srcValidCols > 0.");
-    PTO_ASSERT(srcValidRows == dstValidRow,
-               "TRowProd input and output valid row counts must be equal in TRowProd "
-               "(row count is preserved). "
-               "Fix: Pass dstValidRow = srcValidRows.");
+    PTO_ASSERT(
+        srcValidRows != 0 && srcValidCols != 0,
+        "TRowProd input source valid rows or columns is zero — TRowProd requires at "
+        "least one element per row. "
+        "Fix: Ensure srcValidRows > 0 and srcValidCols > 0.");
+    PTO_ASSERT(
+        srcValidRows == dstValidRow, "TRowProd input and output valid row counts must be equal in TRowProd "
+                                     "(row count is preserved). "
+                                     "Fix: Pass dstValidRow = srcValidRows.");
 }
 
 template <typename TileDataOut, typename TileDataIn>
-__tf__ PTO_INTERNAL OP_NAME(TROWPROD)
-    OP_TYPE(reduce) void TRowProd(typename TileDataOut::TileDType __out__ dstData,
-                                  typename TileDataIn::TileDType __in__ srcData, unsigned rows, unsigned cols,
-                                  unsigned version = VFImplKind::VFIMPL_DEFAULT)
+__tf__ PTO_INTERNAL OP_NAME(TROWPROD) OP_TYPE(reduce) void TRowProd(
+    typename TileDataOut::TileDType __out__ dstData, typename TileDataIn::TileDType __in__ srcData, unsigned rows,
+    unsigned cols, unsigned version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataIn::DType;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src = (__ubuf__ T *)__cce_get_tile_ptr(srcData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src = (__ubuf__ T*)__cce_get_tile_ptr(srcData);
 
     constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     uint16_t repeatTimes = CeilDivision(cols, elementsPerRepeat);
@@ -109,7 +112,7 @@ __tf__ PTO_INTERNAL OP_NAME(TROWPROD)
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
-PTO_INTERNAL void TROWPROD_IMPL(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp)
+PTO_INTERNAL void TROWPROD_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp)
 {
     unsigned rows = src.GetValidRow();
     unsigned cols = src.GetValidCol();

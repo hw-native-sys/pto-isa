@@ -15,15 +15,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils.hpp"
 
 namespace pto {
-template <typename T, typename TileT, typename MaskT, int32_t dstRowStride, int32_t maskRowStride,
-          int32_t src0RowStride, int32_t src1RowStride, unsigned nRepeatElem>
-__tf__ PTO_INTERNAL void TSel_b32(TileT __out__ dstData, MaskT __in__ maskData, TileT __in__ src0Data,
-                                  TileT __in__ src1Data, unsigned validRow, unsigned validCol)
+template <
+    typename T, typename TileT, typename MaskT, int32_t dstRowStride, int32_t maskRowStride, int32_t src0RowStride,
+    int32_t src1RowStride, unsigned nRepeatElem>
+__tf__ PTO_INTERNAL void TSel_b32(
+    TileT __out__ dstData, MaskT __in__ maskData, TileT __in__ src0Data, TileT __in__ src1Data, unsigned validRow,
+    unsigned validCol)
 {
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src0 = (__ubuf__ T *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ T *src1 = (__ubuf__ T *)__cce_get_tile_ptr(src1Data);
-    __ubuf__ uint8_t *mask = (__ubuf__ uint8_t *)__cce_get_tile_ptr(maskData);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src0 = (__ubuf__ T*)__cce_get_tile_ptr(src0Data);
+    __ubuf__ T* src1 = (__ubuf__ T*)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint8_t* mask = (__ubuf__ uint8_t*)__cce_get_tile_ptr(maskData);
     uint16_t loopTimes = CeilDivision(validCol, nRepeatElem) / 2;
     __VEC_SCOPE__
     {
@@ -39,7 +41,7 @@ __tf__ PTO_INTERNAL void TSel_b32(TileT __out__ dstData, MaskT __in__ maskData, 
             for (uint16_t j = 0; j < (uint16_t)loopTimes; ++j) {
                 colOffset0 = 2 * j * nRepeatElem;
                 colOffset1 = (2 * j + 1) * nRepeatElem;
-                plds(tmpMask, (__ubuf__ uint32_t *)mask, i * maskRowStride + 2 * 8 * j, US);
+                plds(tmpMask, (__ubuf__ uint32_t*)mask, i * maskRowStride + 2 * 8 * j, US);
                 pintlv_b16(selMask0, selMask1, tmpMask, tmpMask1);
                 vlds(vreg0, src0, (int32_t)(i * src0RowStride + colOffset0), NORM);
                 vlds(vreg1, src1, (int32_t)(i * src1RowStride + colOffset0), NORM);
@@ -59,7 +61,7 @@ __tf__ PTO_INTERNAL void TSel_b32(TileT __out__ dstData, MaskT __in__ maskData, 
             colOffset0 = 2 * loopTimes * nRepeatElem;
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
                 sReg = remain;
-                plds(tmpMask, (__ubuf__ uint32_t *)mask, i * maskRowStride + 2 * 8 * loopTimes, US);
+                plds(tmpMask, (__ubuf__ uint32_t*)mask, i * maskRowStride + 2 * 8 * loopTimes, US);
                 punpack(selMask0, tmpMask, LOWER);
                 vlds(vreg0, src0, (int32_t)(i * src0RowStride + colOffset0), NORM);
                 vlds(vreg1, src1, (int32_t)(i * src1RowStride + colOffset0), NORM);
@@ -72,16 +74,16 @@ __tf__ PTO_INTERNAL void TSel_b32(TileT __out__ dstData, MaskT __in__ maskData, 
 }
 
 template <typename DstTile, typename MaskTile, typename Src0Tile, typename Src1Tile, unsigned nRepeatElem>
-__tf__ PTO_INTERNAL void TSel_b16_8(typename DstTile::TileDType __out__ dstData,
-                                    typename MaskTile::TileDType __in__ selmask,
-                                    typename Src0Tile::TileDType __in__ src0Data,
-                                    typename Src1Tile::TileDType __in__ src1Data, unsigned validRow, unsigned validCol)
+__tf__ PTO_INTERNAL void TSel_b16_8(
+    typename DstTile::TileDType __out__ dstData, typename MaskTile::TileDType __in__ selmask,
+    typename Src0Tile::TileDType __in__ src0Data, typename Src1Tile::TileDType __in__ src1Data, unsigned validRow,
+    unsigned validCol)
 {
     using T = typename DstTile::DType;
-    __ubuf__ T *dst = (__ubuf__ T *)__cce_get_tile_ptr(dstData);
-    __ubuf__ T *src0 = (__ubuf__ T *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ T *src1 = (__ubuf__ T *)__cce_get_tile_ptr(src1Data);
-    __ubuf__ uint32_t *mask = (__ubuf__ uint32_t *)__cce_get_tile_ptr(selmask);
+    __ubuf__ T* dst = (__ubuf__ T*)__cce_get_tile_ptr(dstData);
+    __ubuf__ T* src0 = (__ubuf__ T*)__cce_get_tile_ptr(src0Data);
+    __ubuf__ T* src1 = (__ubuf__ T*)__cce_get_tile_ptr(src1Data);
+    __ubuf__ uint32_t* mask = (__ubuf__ uint32_t*)__cce_get_tile_ptr(selmask);
     constexpr unsigned dstRowStride = DstTile::RowStride;
     constexpr unsigned src0RowStride = Src0Tile::RowStride;
     constexpr unsigned src1RowStride = Src1Tile::RowStride;
@@ -112,26 +114,30 @@ __tf__ PTO_INTERNAL void TSel_b16_8(typename DstTile::TileDType __out__ dstData,
 }
 
 template <typename DstTile, typename MaskTile, typename Src0Tile, typename Src1Tile, typename TmpTile>
-PTO_INTERNAL void TSEL_IMPL(DstTile &dst, MaskTile &selMask, Src0Tile &src0, Src1Tile &src1, TmpTile &tmp)
+PTO_INTERNAL void TSEL_IMPL(DstTile& dst, MaskTile& selMask, Src0Tile& src0, Src1Tile& src1, TmpTile& tmp)
 {
-    static_assert(sizeof(typename DstTile::DType) == 4 || sizeof(typename DstTile::DType) == 2 ||
-                      sizeof(typename DstTile::DType) == 1,
-                  "Fix: TSEL only support 8B, 16B and 32B data type.");
-    static_assert(std::is_same_v<typename DstTile::DType, typename Src0Tile::DType> ||
-                      std::is_same_v<typename DstTile::DType, typename Src1Tile::DType>,
-                  "Fix: TSEL only support same data type between dst, src0, and src1.");
-    static_assert(DstTile::isRowMajor && Src0Tile::isRowMajor && Src1Tile::isRowMajor,
-                  "Fix: TSEL only support RowMajor layout type.");
+    static_assert(
+        sizeof(typename DstTile::DType) == 4 || sizeof(typename DstTile::DType) == 2 ||
+            sizeof(typename DstTile::DType) == 1,
+        "Fix: TSEL only support 8B, 16B and 32B data type.");
+    static_assert(
+        std::is_same_v<typename DstTile::DType, typename Src0Tile::DType> ||
+            std::is_same_v<typename DstTile::DType, typename Src1Tile::DType>,
+        "Fix: TSEL only support same data type between dst, src0, and src1.");
+    static_assert(
+        DstTile::isRowMajor && Src0Tile::isRowMajor && Src1Tile::isRowMajor,
+        "Fix: TSEL only support RowMajor layout type.");
     constexpr unsigned nRepeatElem = CCE_VL / sizeof(typename DstTile::DType);
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
     if constexpr (sizeof(typename DstTile::DType) == 4) {
-        TSel_b32<typename DstTile::DType, typename DstTile::TileDType, typename MaskTile::TileDType, DstTile::RowStride,
-                 MaskTile::RowStride, Src0Tile::RowStride, Src1Tile::RowStride, nRepeatElem>(
+        TSel_b32<
+            typename DstTile::DType, typename DstTile::TileDType, typename MaskTile::TileDType, DstTile::RowStride,
+            MaskTile::RowStride, Src0Tile::RowStride, Src1Tile::RowStride, nRepeatElem>(
             dst.data(), selMask.data(), src0.data(), src1.data(), validRow, validCol);
     } else {
-        TSel_b16_8<DstTile, MaskTile, Src0Tile, Src1Tile, nRepeatElem>(dst.data(), selMask.data(), src0.data(),
-                                                                       src1.data(), validRow, validCol);
+        TSel_b16_8<DstTile, MaskTile, Src0Tile, Src1Tile, nRepeatElem>(
+            dst.data(), selMask.data(), src0.data(), src1.data(), validRow, validCol);
     }
 }
 } // namespace pto

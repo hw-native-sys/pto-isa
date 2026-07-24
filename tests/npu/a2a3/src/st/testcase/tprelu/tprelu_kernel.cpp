@@ -15,11 +15,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-__global__ AICORE void runTPrelu(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+__global__ AICORE void runTPrelu(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     constexpr unsigned tmpRow = kTRows_ + 1;
     constexpr unsigned tmpCol = (((kTCols_ + 7) / 8 + 31) / 32) * 32; // 除以8后向上取整，然后向上取32B对齐
-    // tmp的vaild row/col在运算中不生效，不需要打印出来的话不用在意
+    // tmp的valid row/col在运算中不生效，不需要打印出来的话不用在意
     constexpr unsigned tmpVRow = vRows;
     constexpr unsigned tmpVCol = (vCols + 7) / 8;
 
@@ -53,25 +53,24 @@ __global__ AICORE void runTPrelu(__gm__ T __out__ *out, __gm__ T __in__ *src0, _
 }
 
 template <typename T, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTPrelu(T *out, T *src0, T *src1, void *stream)
+void LaunchTPrelu(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTPrelu<half, kTRows_, kTCols_, vRows, vCols>
-            <<<1, nullptr, stream>>>((half *)out, (half *)src0, (half *)src1);
+        runTPrelu<half, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>((half*)out, (half*)src0, (half*)src1);
     } else {
         runTPrelu<T, kTRows_, kTCols_, vRows, vCols><<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void LaunchTPrelu<aclFloat16, 64, 64, 64, 64>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                       void *stream);
-template void LaunchTPrelu<aclFloat16, 64, 64, 63, 63>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                       void *stream);
-template void LaunchTPrelu<aclFloat16, 1, 16384, 1, 16384>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                           void *stream);
-template void LaunchTPrelu<aclFloat16, 1024, 16, 1024, 16>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                           void *stream);
-template void LaunchTPrelu<float, 64, 64, 64, 64>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPrelu<float, 64, 64, 63, 63>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPrelu<float, 1, 8192, 1, 8192>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPrelu<float, 1024, 8, 1024, 8>(float *out, float *src0, float *src1, void *stream);
+template void LaunchTPrelu<aclFloat16, 64, 64, 64, 64>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTPrelu<aclFloat16, 64, 64, 63, 63>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTPrelu<aclFloat16, 1, 16384, 1, 16384>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTPrelu<aclFloat16, 1024, 16, 1024, 16>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTPrelu<float, 64, 64, 64, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPrelu<float, 64, 64, 63, 63>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPrelu<float, 1, 8192, 1, 8192>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPrelu<float, 1024, 8, 1024, 8>(float* out, float* src0, float* src1, void* stream);

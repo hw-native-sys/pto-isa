@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTCmp(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1, pto::CmpMode mode)
+AICORE void runTCmp(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1, pto::CmpMode mode)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -40,27 +40,31 @@ AICORE void runTCmp(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTCmp(T *out, T *src0, T *src1, pto::CmpMode mode, void *stream)
+void LaunchTCmp(T* out, T* src0, T* src1, pto::CmpMode mode, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTCmp<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src0), (half *)(src1), mode);
+        runTCmp<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src0), (half*)(src1), mode);
     else
         runTCmp<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1, mode);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-template void LaunchTCmp<float, NUM_64, NUM_64, NUM_64, NUM_64>(float *out, float *src0, float *src1, pto::CmpMode mode,
-                                                                void *stream);
-template void LaunchTCmp<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                  pto::CmpMode mode, void *stream);
-template void LaunchTCmp<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(aclFloat16 *out, aclFloat16 *src0,
-                                                                       aclFloat16 *src1, pto::CmpMode mode,
-                                                                       void *stream);
-template void LaunchTCmp<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                  pto::CmpMode mode, void *stream);
+
+template void LaunchTCmp<float, NUM_64, NUM_64, NUM_64, NUM_64>(
+    float* out, float* src0, float* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int32_t* out, int32_t* src0, int32_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int16_t* out, int16_t* src0, int16_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<int8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int8_t* out, int8_t* src0, int8_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<uint16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, pto::CmpMode mode, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTCmp<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(bfloat16_t *out, bfloat16_t *src0,
-                                                                       bfloat16_t *src1, pto::CmpMode mode,
-                                                                       void *stream);
+template void LaunchTCmp<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(
+    bfloat16_t* out, bfloat16_t* src0, bfloat16_t* src1, pto::CmpMode mode, void* stream);
 #endif

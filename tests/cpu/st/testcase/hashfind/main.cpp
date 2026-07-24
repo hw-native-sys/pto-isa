@@ -17,22 +17,20 @@ using namespace PtoTestCommon;
 
 class HASHFINDTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     return "../" + suiteName + "." + caseName;
 }
 
 template <int kTileRows, int kTileCols, int kCap, int kMaxProbe>
-void LaunchHashFind(int32_t *out, int32_t *table_keys, int32_t *table_vals, int32_t *queries, void *stream);
+void LaunchHashFind(int32_t* out, int32_t* table_keys, int32_t* table_vals, int32_t* queries, void* stream);
 
 template <int kTileRows, int kTileCols, int kCap, int kMaxProbe>
 void test_hashfind()
@@ -49,15 +47,15 @@ void test_hashfind()
     int32_t *keysHost, *valsHost, *qHost, *outHost;
     int32_t *keysDevice, *valsDevice, *qDevice, *outDevice;
 
-    aclrtMallocHost((void **)(&keysHost), tableBytes);
-    aclrtMallocHost((void **)(&valsHost), tableBytes);
-    aclrtMallocHost((void **)(&qHost), queryBytes);
-    aclrtMallocHost((void **)(&outHost), outBytes);
+    aclrtMallocHost((void**)(&keysHost), tableBytes);
+    aclrtMallocHost((void**)(&valsHost), tableBytes);
+    aclrtMallocHost((void**)(&qHost), queryBytes);
+    aclrtMallocHost((void**)(&outHost), outBytes);
 
-    aclrtMalloc((void **)&keysDevice, tableBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&valsDevice, tableBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&qDevice, queryBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&outDevice, outBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&keysDevice, tableBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&valsDevice, tableBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&qDevice, queryBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&outDevice, outBytes, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t size = 0;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", size, keysHost, tableBytes));
@@ -95,7 +93,4 @@ void test_hashfind()
     EXPECT_TRUE(ResultCmp<int32_t>(golden, devFinal.data(), 0.0f));
 }
 
-TEST_F(HASHFINDTest, case_int32_16x16_cap512)
-{
-    test_hashfind<16, 16, 512, 64>();
-}
+TEST_F(HASHFINDTest, case_int32_16x16_cap512) { test_hashfind<16, 16, 512, 64>(); }

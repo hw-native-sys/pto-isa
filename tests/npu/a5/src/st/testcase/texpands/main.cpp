@@ -17,27 +17,27 @@ using namespace PtoTestCommon;
 
 class TEXPANDSTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType,
-          bool isBf16>
-void LaunchTExpandS(void *out, void *scalar, void *stream);
+template <
+    typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType,
+    bool isBf16>
+void LaunchTExpandS(void* out, void* scalar, void* stream);
 
-template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType,
-          bool isBf16 = false>
+template <
+    typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_, int padValueType,
+    bool isBf16 = false>
 void test_texpands()
 {
     size_t tSize = sizeof(T);
@@ -48,21 +48,21 @@ void test_texpands()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *dstHost;
-    T *dstDevice;
-    T *scalarHost;
-    T *scalarDevice;
+    T* dstHost;
+    T* dstDevice;
+    T* scalarHost;
+    T* scalarDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&scalarHost), tSize);
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&scalarDevice, tSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&scalarHost), tSize);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&scalarDevice, tSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/scalar.bin", tSize, scalarHost, tSize);
     aclrtMemcpy(scalarDevice, tSize, scalarHost, tSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTExpandS<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType, isBf16>(dstDevice,
-                                                                                                  scalarDevice, stream);
+    LaunchTExpandS<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_, padValueType, isBf16>(
+        dstDevice, scalarDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);

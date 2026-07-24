@@ -15,31 +15,31 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <int format, typename DstT, typename SrcT, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4,
-          int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4, bool is_v_quant,
-          bool saturate_inf, bool apply_relu>
-void LaunchTStoreQuant(DstT *out, SrcT *src, uint64_t *fbQuant, void *stream);
+template <
+    int format, typename DstT, typename SrcT, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4,
+    int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4, bool is_v_quant,
+    bool saturate_inf, bool apply_relu>
+void LaunchTStoreQuant(DstT* out, SrcT* src, uint64_t* fbQuant, void* stream);
 
 class TStoreQuantTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <int format, typename SrcDataType, typename DstDataType, int gShape0, int gShape1, int gShape2, int gShape3,
-          int gShape4, int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4,
-          bool is_v_quant, bool saturate_inf, bool apply_relu>
+template <
+    int format, typename SrcDataType, typename DstDataType, int gShape0, int gShape1, int gShape2, int gShape3,
+    int gShape4, int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4,
+    bool is_v_quant, bool saturate_inf, bool apply_relu>
 void test_tstore_quant()
 {
     size_t srcDataSize = gWholeShape0 * gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4 * sizeof(SrcDataType);
@@ -52,20 +52,20 @@ void test_tstore_quant()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    DstDataType *dstHost;
-    SrcDataType *srcHost;
-    uint64_t *quantHost;
-    DstDataType *dstDevice;
-    SrcDataType *srcDevice;
-    uint64_t *quantDevice;
+    DstDataType* dstHost;
+    SrcDataType* srcHost;
+    uint64_t* quantHost;
+    DstDataType* dstDevice;
+    SrcDataType* srcDevice;
+    uint64_t* quantDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstDataSize);
-    aclrtMallocHost((void **)(&srcHost), srcDataSize);
-    aclrtMallocHost((void **)(&quantHost), vectorSize);
+    aclrtMallocHost((void**)(&dstHost), dstDataSize);
+    aclrtMallocHost((void**)(&srcHost), srcDataSize);
+    aclrtMallocHost((void**)(&quantHost), vectorSize);
 
-    aclrtMalloc((void **)&dstDevice, dstDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&quantDevice, vectorSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcDataSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&quantDevice, vectorSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     std::fill(dstDevice, dstDevice + (dstDataSize / sizeof(DstDataType)), 0);
 
@@ -75,8 +75,9 @@ void test_tstore_quant()
     aclrtMemcpy(srcDevice, srcDataSize, srcHost, srcDataSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(quantDevice, vectorSize, quantHost, vectorSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTStoreQuant<format, DstDataType, SrcDataType, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0,
-                      gWholeShape1, gWholeShape2, gWholeShape3, gWholeShape4, is_v_quant, saturate_inf, apply_relu>(
+    LaunchTStoreQuant<
+        format, DstDataType, SrcDataType, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1,
+        gWholeShape2, gWholeShape3, gWholeShape4, is_v_quant, saturate_inf, apply_relu>(
         dstDevice, srcDevice, quantDevice, stream);
 
     aclrtSynchronizeStream(stream);

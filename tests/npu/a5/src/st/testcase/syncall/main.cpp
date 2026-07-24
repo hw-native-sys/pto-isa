@@ -19,15 +19,13 @@ using namespace PtoTestCommon;
 
 class SYNCALLTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -35,11 +33,11 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-void LaunchSoftSyncAll(int32_t *out, int32_t *flags, int32_t *syncWorkspace, int32_t totalBlocks, void *stream);
-void LaunchHardSyncAll(int32_t *out, int32_t *flags, int32_t totalBlocks, void *stream);
-void LaunchSoftSyncAllMix11(int32_t *out, int32_t *flags, int32_t *syncWorkspace, void *stream);
-void LaunchSoftSyncAllMix12(int32_t *out, int32_t *flags, int32_t *syncWorkspace, void *stream);
-void LaunchHardSyncAllAIC(int32_t *out, void *stream);
+void LaunchSoftSyncAll(int32_t* out, int32_t* flags, int32_t* syncWorkspace, int32_t totalBlocks, void* stream);
+void LaunchHardSyncAll(int32_t* out, int32_t* flags, int32_t totalBlocks, void* stream);
+void LaunchSoftSyncAllMix11(int32_t* out, int32_t* flags, int32_t* syncWorkspace, void* stream);
+void LaunchSoftSyncAllMix12(int32_t* out, int32_t* flags, int32_t* syncWorkspace, void* stream);
+void LaunchHardSyncAllAIC(int32_t* out, void* stream);
 
 #define EXPECT_ACL_OK(expr)                                             \
     do {                                                                \
@@ -59,17 +57,17 @@ TEST_F(SYNCALLTest, case_soft_aiv_only_all_blocks)
     aclrtStream stream;
     EXPECT_ACL_OK(aclrtCreateStream(&stream));
 
-    int32_t *outHost = nullptr;
-    int32_t *flagsHost = nullptr;
-    int32_t *outDevice = nullptr;
-    int32_t *flagsDevice = nullptr;
-    int32_t *syncWorkspaceDevice = nullptr;
+    int32_t* outHost = nullptr;
+    int32_t* flagsHost = nullptr;
+    int32_t* outDevice = nullptr;
+    int32_t* flagsDevice = nullptr;
+    int32_t* syncWorkspaceDevice = nullptr;
 
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&outHost), byteSize));
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&flagsHost), byteSize));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&syncWorkspaceDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&outHost), byteSize));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&flagsHost), byteSize));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&syncWorkspaceDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
 
     std::fill_n(outHost, elementCount, 0);
     std::fill_n(flagsHost, elementCount, 0);
@@ -126,15 +124,15 @@ TEST_F(SYNCALLTest, case_hard_aiv_only_all_blocks)
     aclrtStream stream;
     EXPECT_ACL_OK(aclrtCreateStream(&stream));
 
-    int32_t *outHost = nullptr;
-    int32_t *flagsHost = nullptr;
-    int32_t *outDevice = nullptr;
-    int32_t *flagsDevice = nullptr;
+    int32_t* outHost = nullptr;
+    int32_t* flagsHost = nullptr;
+    int32_t* outDevice = nullptr;
+    int32_t* flagsDevice = nullptr;
 
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&outHost), byteSize));
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&flagsHost), byteSize));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&outHost), byteSize));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&flagsHost), byteSize));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
 
     std::fill_n(outHost, elementCount, 0);
     std::fill_n(flagsHost, elementCount, 0);
@@ -184,17 +182,17 @@ TEST_F(SYNCALLTest, case_soft_mix_1_2_all_blocks)
     aclrtStream stream;
     EXPECT_ACL_OK(aclrtCreateStream(&stream));
 
-    int32_t *outHost = nullptr;
-    int32_t *flagsHost = nullptr;
-    int32_t *outDevice = nullptr;
-    int32_t *flagsDevice = nullptr;
-    int32_t *syncWorkspaceDevice = nullptr;
+    int32_t* outHost = nullptr;
+    int32_t* flagsHost = nullptr;
+    int32_t* outDevice = nullptr;
+    int32_t* flagsDevice = nullptr;
+    int32_t* syncWorkspaceDevice = nullptr;
 
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&outHost), byteSize));
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&flagsHost), byteSize));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&syncWorkspaceDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&outHost), byteSize));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&flagsHost), byteSize));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&syncWorkspaceDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
 
     std::fill_n(outHost, elementCount, 0);
     std::fill_n(flagsHost, elementCount, 0);
@@ -251,17 +249,17 @@ TEST_F(SYNCALLTest, case_soft_mix_1_1_all_blocks)
     aclrtStream stream;
     EXPECT_ACL_OK(aclrtCreateStream(&stream));
 
-    int32_t *outHost = nullptr;
-    int32_t *flagsHost = nullptr;
-    int32_t *outDevice = nullptr;
-    int32_t *flagsDevice = nullptr;
-    int32_t *syncWorkspaceDevice = nullptr;
+    int32_t* outHost = nullptr;
+    int32_t* flagsHost = nullptr;
+    int32_t* outDevice = nullptr;
+    int32_t* flagsDevice = nullptr;
+    int32_t* syncWorkspaceDevice = nullptr;
 
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&outHost), byteSize));
-    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void **>(&flagsHost), byteSize));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&syncWorkspaceDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&outHost), byteSize));
+    EXPECT_ACL_OK(aclrtMallocHost(reinterpret_cast<void**>(&flagsHost), byteSize));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&flagsDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&syncWorkspaceDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
 
     std::fill_n(outHost, elementCount, 0);
     std::fill_n(flagsHost, elementCount, 0);
@@ -316,8 +314,8 @@ TEST_F(SYNCALLTest, case_hard_aic_only_all_blocks)
     aclrtStream stream;
     EXPECT_ACL_OK(aclrtCreateStream(&stream));
 
-    int32_t *outDevice = nullptr;
-    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void **>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
+    int32_t* outDevice = nullptr;
+    EXPECT_ACL_OK(aclrtMalloc(reinterpret_cast<void**>(&outDevice), byteSize, ACL_MEM_MALLOC_HUGE_FIRST));
 
     LaunchHardSyncAllAIC(outDevice, stream);
     EXPECT_ACL_OK(aclrtSynchronizeStream(stream));

@@ -15,7 +15,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
-PTO_INTERNAL void runTLRelu(__gm__ T *out, __gm__ T *src, T scalar)
+PTO_INTERNAL void runTLRelu(__gm__ T* out, __gm__ T* src, T scalar)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -39,41 +39,41 @@ PTO_INTERNAL void runTLRelu(__gm__ T *out, __gm__ T *src, T scalar)
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void launchTLRELUCase1(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTLRELUCase1(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTLRelu<float, 32, 128, 32, 32, 64, 64>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTLRELUCase2(__gm__ aclFloat16 *out, __gm__ aclFloat16 *src, float scalar)
+extern "C" __global__ AICORE void launchTLRELUCase2(__gm__ aclFloat16* out, __gm__ aclFloat16* src, float scalar)
 {
-    runTLRelu<half, 63, 128, 63, 63, 64, 64>((__gm__ half *)out, (__gm__ half *)src, (half)scalar);
+    runTLRelu<half, 63, 128, 63, 63, 64, 64>((__gm__ half*)out, (__gm__ half*)src, (half)scalar);
 }
-extern "C" __global__ AICORE void launchTLRELUCase3(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTLRELUCase3(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTLRelu<float, 7, 512, 7, 7, 448, 448>(out, src, scalar);
 }
-extern "C" __global__ AICORE void launchTLRELUCase4(__gm__ float *out, __gm__ float *src, float scalar)
+extern "C" __global__ AICORE void launchTLRELUCase4(__gm__ float* out, __gm__ float* src, float scalar)
 {
     runTLRelu<float, 256, 32, 256, 256, 16, 16>(out, src, scalar);
 }
 
 template <uint32_t caseId>
-void launchTLRELUTestCase(void *out, void *src, float scalar, aclrtStream stream)
+void launchTLRELUTestCase(void* out, void* src, float scalar, aclrtStream stream)
 {
     switch (caseId) {
         case 1: {
-            launchTLRELUCase1<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTLRELUCase1<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         case 2: {
-            launchTLRELUCase2<<<1, nullptr, stream>>>((aclFloat16 *)out, (aclFloat16 *)src, scalar);
+            launchTLRELUCase2<<<1, nullptr, stream>>>((aclFloat16*)out, (aclFloat16*)src, scalar);
             break;
         }
         case 3: {
-            launchTLRELUCase3<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTLRELUCase3<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         case 4: {
-            launchTLRELUCase4<<<1, nullptr, stream>>>((float *)out, (float *)src, scalar);
+            launchTLRELUCase4<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
         default: {
@@ -81,7 +81,7 @@ void launchTLRELUTestCase(void *out, void *src, float scalar, aclrtStream stream
     }
 }
 
-template void launchTLRELUTestCase<1>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTLRELUTestCase<2>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTLRELUTestCase<3>(void *out, void *src, float scalar, aclrtStream stream);
-template void launchTLRELUTestCase<4>(void *out, void *src, float scalar, aclrtStream stream);
+template void launchTLRELUTestCase<1>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTLRELUTestCase<2>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTLRELUTestCase<3>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTLRELUTestCase<4>(void* out, void* src, float scalar, aclrtStream stream);

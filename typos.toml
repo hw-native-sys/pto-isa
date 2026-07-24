@@ -1,0 +1,33 @@
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+
+# typos configuration for pto-isa.
+# Suppresses PTO / CANN / Ascend domain terms and intentional short identifiers
+# (false positives). Real misspellings in source were fixed; misspelled identifiers
+# were renamed. Remaining entries below are legitimate terms, not typos.
+[default.extend-words]
+nd = "nd"            # ND layout (N-dimensional), e.g. tnd / ND tensor format
+cann = "cann"        # Huawei CANN toolkit
+subtile = "subtile"  # PTO sub-tile concept
+subtiles = "subtiles"
+fo = "fo"            # FiFo
+adn = "adn"          # MX_ADN microscaling layout
+eles = "eles"        # nEles / tmpGapEles (element count)
+ands = "ands"        # TAnds instruction
+tbe = "tbe"          # TBE (Tensor Boost Engine)
+typ = "typ"          # type abbreviation
+pn = "pn"            # padded_n
+binar = "binar"      # binary abbreviation
+alog = "alog"            # ascendalog tool / algorithm-log
+mis = "mis"          # mis- prefix (mis-counts, mis-typed)
+vitaliy = "vitaliy"  # author name (Vitaliy Manushkin, in Third_Party_Open_Source_Software_Notice)
+compatiable = "compatiable"  # external cann-cmake filename version_compatiable.inc — must match dependency spelling
+
+[default.extend-identifiers]
+SUBTILE = "SUBTILE"
+SUBTILES = "SUBTILES"

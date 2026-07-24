@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_>
-AICORE void runTPow(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+AICORE void runTPow(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<kGRows_ * kGCols_, kGRows_ * kGCols_, kGRows_ * kGCols_, kGCols_, 1>;
@@ -59,21 +59,20 @@ AICORE void runTPow(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kVRows_, int kVCols_>
-void LaunchTPow(T *out, T *src0, T *src1, void *stream)
+void LaunchTPow(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTPow<half, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_>((half *)(out), (half *)(src0),
-                                                                            (half *)(src1));
+        runTPow<half, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_>((half*)(out), (half*)(src0), (half*)(src1));
     else
         runTPow<T, kGRows_, kGCols_, kTRows_, kTCols_, kVRows_, kVCols_>(out, src0, src1);
 }
 
-template void LaunchTPow<float, 64, 64, 64, 64, 63, 63>(float *out, float *src0, float *src1, void *stream);
-template void LaunchTPow<int32_t, 64, 64, 64, 64, 63, 63>(int32_t *out, int32_t *src0, int32_t *src1, void *stream);
-template void LaunchTPow<int16_t, 64, 64, 64, 64, 63, 63>(int16_t *out, int16_t *src0, int16_t *src1, void *stream);
-template void LaunchTPow<aclFloat16, 16, 256, 16, 256, 16, 256>(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1,
-                                                                void *stream);
+template void LaunchTPow<float, 64, 64, 64, 64, 63, 63>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPow<int32_t, 64, 64, 64, 64, 63, 63>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTPow<int16_t, 64, 64, 64, 64, 63, 63>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTPow<aclFloat16, 16, 256, 16, 256, 16, 256>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
-template void LaunchTPow<bfloat16_t, 16, 256, 16, 256, 16, 256>(bfloat16_t *out, bfloat16_t *src0, bfloat16_t *src1,
-                                                                void *stream);
+template void LaunchTPow<bfloat16_t, 16, 256, 16, 256, 16, 256>(
+    bfloat16_t* out, bfloat16_t* src0, bfloat16_t* src1, void* stream);
 #endif

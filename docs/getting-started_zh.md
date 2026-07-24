@@ -193,7 +193,7 @@ Windows 特定选项（如需要）：
 根目录 `README_zh.md` 仅保留最短上手路径与常用命令；如果您需要更完整的运行、测试与脚本说明，可进一步参考：
 
 - [测试说明](../tests/README_zh.md)
-- [文档构建说明](mkdocs/README_zh.md)
+- [文档构建说明](website_zh.md)
 
 ### 先决条件
 
@@ -218,7 +218,7 @@ make
 sudo make install
 ```
 
-> **注意：** Python 需要以下包：os、numpy、ctypes、struct、copy、math、enum、ml_dtypes、en_dtypes 等。
+> **注意：** Python 需要以下包：os、numpy、ctypes、struct、copy、math、enum、ml_dtypes 等。
 >
 > 如果您使用不同的标志安装了 GoogleTest（例如 `-D_GLIBCXX_USE_CXX11_ABI=0`），则必须在 `tests/npu/[a2a3|a5]/src/st/CMakeLists.txt` 中添加 `add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)` 进行相应更新。
 
@@ -375,7 +375,7 @@ ulimit -n 65536
   ./build.sh --pkg
   ```
 
-  构建完成后，`.run` 安装包生成在 `build_out/` 目录下。
+  构建完成后，`.run` 安装包生成在 `scripts/package/output/` 目录下。
 
 **安装：**
 
@@ -389,19 +389,19 @@ ulimit -n 65536
 
   ```bash
   # 完整安装到默认路径（需 root 权限）
-  ./build_out/pto_isa_*.run --full
+  ./scripts/package/output/pto_isa_*.run --full
 
   # 安装到指定路径（无需 root）
-  ./build_out/pto_isa_*.run --full --install-path=/your/install/path
+  ./scripts/package/output/pto_isa_*.run --full --install-path=/your/install/path
 
   # 静默安装，跳过交互确认（适用于 CI/CD 等非交互环境）
-  ./build_out/pto_isa_*.run --full --quiet
+  ./scripts/package/output/pto_isa_*.run --full --quiet
 
   # 仅安装运行时组件
-  ./build_out/pto_isa_*.run --run --install-path=/your/install/path
+  ./scripts/package/output/pto_isa_*.run --run --install-path=/your/install/path
 
   # 开发环境安装
-  ./build_out/pto_isa_*.run --devel --install-path=/your/install/path --quiet
+  ./scripts/package/output/pto_isa_*.run --devel --install-path=/your/install/path --quiet
   ```
 
   常用安装参数说明：
@@ -419,7 +419,7 @@ ulimit -n 65536
   更多参数可通过 `--help` 查看：
 
   ```bash
-  ./build_out/pto_isa_*.run --help
+  ./scripts/package/output/pto_isa_*.run --help
   ```
 
 ---

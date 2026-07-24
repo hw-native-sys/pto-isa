@@ -14,7 +14,7 @@ flowchart TB
     H3 --> H4[Barrier complete]
   end
   subgraph soft [Soft Mode / GM Polling]
-    S1[Write local GM slot counter] --> S2[Poll all slots reach current generation]
+    S1[Write local GM slot counter] --> S2[Poll all slots until threshold]
     S2 --> S3[Barrier complete]
   end
 ```
@@ -75,7 +75,7 @@ PTO_INST void SYNCALL(GlobalData &gmWorkspace, UbTileData &ubWorkspace, L1TileDa
 ## Parameters
 
 - `gmWorkspace`: `GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>>` (when `using namespace pto` coexists with Ascend C headers, qualify with `pto::` to avoid name collision with the compiler-intrinsic `Stride` enum). GM workspace for software mode; must be zero-initialized before the call. Each participating core occupies 8 `int32_t` values (cache-line-isolated sync counter).
-- `ubWorkspace`: `Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`. UB scratch for AIV-only and MIX software mode; capacity must be at least `usedCores * 8 * sizeof(int32_t)`.
+- `ubWorkspace`: `Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>` (template parameter is fixed at `SYNCALL_SOFT_SLOT_INT32 = 8`, one cache-line slot per core). UB scratch for AIV-only and MIX software mode; the runtime backing memory capacity must be at least `usedCores * 8 * sizeof(int32_t)` (the implementation accesses via raw pointer and does not validate the template capacity; examples declare it as compile-time max participant count × `SYNCALL_SOFT_SLOT_INT32` to guarantee sufficient backing memory).
 - `l1Workspace`: `Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32>`. L1 (cbuf) scratch for AIC-only and MIX software mode; used by `create_cbuf_matrix` to fill a sync value then DMA-transfer to GM.
 - `usedCores`: Number of cores participating in the software barrier. When 0, automatically inferred — AIV-only / AIC-only use `get_block_num()`, MIX uses `SYNCALL_GET_MIX_PARTICIPANT_COUNT()` (i.e. `AIC blocks × (1 + AIV ratio)`).
 
@@ -86,23 +86,18 @@ The following scenarios require **hand-written** `.ascend.meta` in the ELF for c
 > `kernelName` must **exactly match** the `__global__` entry symbol (stored in section `.ascend.meta.<kernelName>`).
 
 ```cpp
-// AIV-side kernel (ktype=MIX_AIV_MAIN, AIC:AIV ratio fixed 0:1)
+// AIV-side kernel (marked as MIX_AIV_MAIN, ratio fixed 0:1)
 PTO_SYNCALL_AIV_KERNEL_META(kernelName);
 
-// AIC-only kernel (ktype=AIC_ONLY, ratio fixed 1:0)
-PTO_SYNCALL_AIC_KERNEL_META(kernelName);
-
-// AIC-side MIX kernel (ktype=MIX_AIC_MAIN, specify AIC:AIV ratio)
+// AIC-side kernel (marked as MIX_AIC_MAIN, specify AIC:AIV ratio)
 PTO_SYNCALL_MIX_AIC_KERNEL_META(kernelName, aicRatio, aivRatio);
 ```
 
-**Usage examples**
-
-Hard AIV-only (single kernel, chevron launch):
+Usage example (1:2 mixed mode):
 
 ```cpp
-PTO_SYNCALL_AIV_KERNEL_META(MyKernel_mix_aiv);
-extern "C" __global__ AICORE void MyKernel_mix_aiv(...) { SYNCALL(); }
+PTO_SYNCALL_MIX_AIC_KERNEL_META(MyKernel_mix_aic, 1, 2);  // AIC kernel ELF
+PTO_SYNCALL_AIV_KERNEL_META(MyKernel_mix_aiv);             // AIV kernel ELF
 ```
 
 Soft AIC-only (single kernel, chevron launch):
@@ -224,11 +219,26 @@ Hard and soft kernels **must not share the same `.so`** in AIV-only / AIC-only c
 
 ### 2. Per-core slot must own a full cache line: avoid false-sharing lost writes
 
-- `dcci` / DMA operate at **32B cache-line** granularity; if adjacent cores' slots share one cache line, cross-core flushes overwrite / lose each other's writes.
-- Each core's slot should be 32B-aligned and **own one full cache line** (for `int32`, that means stride = 8, not 4).
+- `dcci` / DMA operate at **32Byte cache-line** granularity; if adjacent cores' slots share one cache line, cross-core flushes overwrite / lose each other's writes.
+- Each core's slot should be 32Byte-aligned and **own one full cache line** (for `int32`, that means stride = 8, not 4).
 - `SYNCALL`'s own sync slots follow this design: `SYNCALL_SOFT_SLOT_INT32 = 8` (see `include/pto/common/type.hpp`); the caller's business workspace should follow the same isolation principle.
 
 ## Examples
+
+### Auto
+
+In the **auto** build path, `SYNCALL` is consistent with existing sync strategies and **does not directly emit** cross-core hardware synchronization; it serves as a placeholder or for host/compiler-coordinated graph-level semantics. Typical operator development uses explicit `SYNCALL` in **manual** kernels.
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+// In auto mode SYNCALL is a no-op (same as TSYNC etc. under auto)
+void example_auto_noop() {
+  SYNCALL();  // Does not trigger FFTS
+}
+```
 
 ### Manual — Hardware Mode
 
@@ -242,12 +252,12 @@ void example_hard_aiv() {
   SYNCALL();
 }
 
-// AIC-only: on A2/A3 hard paths use dav-c220 MIX compile (empty AIV stub); on A5 pure cube hard mode is verified
+// AIC-only: only available when compiled for AIC (__DAV_CUBE__); verified on A5 hard mode
 void example_hard_aic() {
   SYNCALL<SyncCoreType::AICOnly>();
 }
 
-// MIX: for compile/launch details see "Kernel Meta Macros" and "Compilation and Launch Guide" above
+// MIX: paired AIC and AIV ELFs, see "Kernel Meta Macros" section above
 void example_hard_mix() {
   SYNCALL<SyncCoreType::Mix>();
 }
@@ -262,14 +272,10 @@ Software mode requires a **zero-initialized** GM workspace and a correctly-sized
 
 using namespace pto;
 
-// The AIV software barrier reads all participating cores' slots into UB,
-// so UB capacity must be >= usedCores * SYNCALL_SOFT_SLOT_INT32 (each core owns one cache line);
-// here we declare it with kMaxAivCores (the target chip's max AIV core count) as a compile-time upper bound.
-constexpr int32_t kMaxAivCores = 48;  // e.g. 48 on 910B1
 void example_soft_aiv(__gm__ int32_t *gmPtr) {
   GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>> gmWs(gmPtr);
-  Tile<TileType::Vec, int32_t, 1, kMaxAivCores * SYNCALL_SOFT_SLOT_INT32> ub;
-  SYNCALL<SyncAllMode::Soft, SyncCoreType::AIVOnly>(gmWs, ub, 0);  // usedCores=0 -> get_block_num()
+  Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> ub;
+  SYNCALL<SyncAllMode::Soft, SyncCoreType::AIVOnly>(gmWs, ub, 0);
 }
 ```
 

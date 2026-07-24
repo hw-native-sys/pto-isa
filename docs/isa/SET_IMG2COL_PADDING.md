@@ -1,14 +1,49 @@
-# SET_IMG2COL_PADDING
+﻿# SET_IMG2COL_PADDING
 
-Canonical tile-instruction reference: [SET_IMG2COL_PADDING](./tile/ops/sync-and-config/set-img2col-padding.md).
+## Tile Operation Diagram
 
-The PTO ISA manual now treats tile, vector, and scalar/control operations consistently: the canonical per-op pages live under `docs/isa/tile/ops/`, `docs/isa/vector/ops/`, and `docs/isa/scalar/ops/`.
+![SET_IMG2COL_PADDING tile operation](../figures/isa/SET_IMG2COL_PADDING.svg)
 
-## Canonical Location
+## Introduction
 
-- Instruction set overview: [Sync And Config](./tile/sync-and-config.md)
-- Canonical per-op page: [SET_IMG2COL_PADDING](./tile/ops/sync-and-config/set-img2col-padding.md)
+Set IMG2COL padding metadata from an IMG2COL configuration tile (implementation-defined).
 
-## Compatibility Note
+## Math Interpretation
 
-Root-level instruction pages remain as compatibility wrappers so existing links do not break immediately. New PTO ISA documentation should link to the grouped instruction set paths.
+No direct tensor arithmetic is produced by this instruction. It updates IMG2COL padding control state consumed by subsequent data-movement operations.
+
+## C++ Intrinsic
+
+Declared in `include/pto/common/pto_instr.hpp`:
+
+```cpp
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
+PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData &src, WaitEvents &... events);
+```
+
+This overload is provided per target backend under: `#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_KIRINX90)` and `#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(__CPU_SIM)`.
+
+## Constraints
+
+- This instruction is backend-specific and available only for backends that expose IMG2COL configuration state.
+- `src` must be a valid IMG2COL configuration tile type accepted by the backend implementation.
+- The exact padding fields updated by this instruction are implementation-defined.
+- Use this instruction before dependent `TIMG2COL` operations in the same execution stream.
+
+## Examples
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_set_img2col_padding() {
+  // IMG2COL configuration tile: a ConvTile (Mat, NC1HWC0 layout)
+  using CfgTile = ConvTile<TileType::Mat, half, 1 * 1 * 16 * 16 * 16, Layout::NC1HWC0,
+                           ConvTileShape<1, 1, 16, 16, 16>>;
+  CfgTile cfg;
+  TASSIGN(cfg, 0x0);
+  // After setting fmapH/fmapW, padList, etc., set the padding metadata:
+  SET_IMG2COL_PADDING(cfg);
+}
+```

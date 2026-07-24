@@ -25,7 +25,7 @@
 | 类型 | 开源 URL | 文件 | 公网 URL | 目的 |
 | :--: | :--: | --- | --- | --- |
 | 依赖 | N/A | cmake/fetch_cann_cmake.cmake | https://gitcode.com/cann/cmake.git | 拉取 CANN 工程公共 cmake 仓 |
-| 依赖 | N/A | cmake/third_party/json.cmake | https://gitcode.com/cann-src-third-party/json/releases/download/v3.11.3/include.zip | 下载 `json` 头文件作为构建依赖 |
+| 依赖 | N/A | cmake/third_party/json.cmake | https://gitcode.com/cann-src-third-party/json/releases/download/v3.12.0/include.zip | 下载 `json` 头文件作为构建依赖 |
 | 依赖 | N/A | cmake/third_party/gtest.cmake | https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz | 下载 GoogleTest 作为构建/测试依赖 |
 
 ## 附录
@@ -51,4 +51,3 @@
 | 密钥/私钥/证书/密文目录 | 700 (`rwx------`) |
 | 密钥/私钥/证书/密文文件 | 600 (`rw-------`) |
 | 密码学接口与脚本 | 500 (`r-x------`) |
-

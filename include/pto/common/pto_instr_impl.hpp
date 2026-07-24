@@ -68,20 +68,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TImg2col.hpp"
 #include "pto/npu/a2a3/SetFmatrix.hpp"
 #include "pto/npu/a2a3/TPairReduceSum.hpp"
-// Bitwise / axpy / leaky-relu ops: their MAP_INSTR_IMPL entries already exist in
-// pto/costmodel/pto_instr.hpp (TAND/TOR/TSHL/TSHR/TAXPY/TLRELU), but the headers
-// providing the *_IMPL were only in the real-kernel #else block. Including them
-// here wires vand/vor/vshl/vshr/vaxpy/vlrelu into the mock so their (currently
-// bare 6/2 placeholder) coefficients are actually exercised and can be calibrated.
-#include "pto/npu/a2a3/TAnd.hpp"
-#include "pto/npu/a2a3/TOr.hpp"
-#include "pto/npu/a2a3/TShl.hpp"
-#include "pto/npu/a2a3/TShr.hpp"
-#include "pto/npu/a2a3/TAxpy.hpp"
-#include "pto/npu/a2a3/TLRelu.hpp"
 #else
 #include "pto/npu/a2a3/TAssign.hpp"
-#include "pto/npu/a2a3/TAlias.hpp"
 #include "pto/npu/a2a3/TSync.hpp"
 #include "pto/npu/a2a3/SyncAll.hpp"
 #include "pto/npu/a2a3/TAdd.hpp"
@@ -134,7 +122,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TPartMul.hpp"
 #include "pto/npu/a2a3/TPartMax.hpp"
 #include "pto/npu/a2a3/TPartMin.hpp"
-#include "pto/npu/a2a3/TPartArgOp.hpp"
 #include "pto/npu/a2a3/TPow.hpp"
 #include "pto/npu/a2a3/TImg2col.hpp"
 #include "pto/npu/a2a3/SetFmatrix.hpp"
@@ -232,9 +219,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TLoad.hpp"
 #include "pto/npu/a5/TSubView.hpp"
 #include "pto/npu/a5/TGetScaleAddr.hpp"
-#ifdef __DAV_VEC__
 #include "pto/npu/a5/TCvt.hpp"
-#endif
 #include "pto/npu/a5/TStore.hpp"
 #include "pto/npu/a5/TMrgSort.hpp"
 #include "pto/npu/a5/TMatmul.hpp"
@@ -255,7 +240,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TLRelu.hpp"
 #include "pto/npu/a5/TAddReluConv.hpp"
 #include "pto/npu/a5/TSubReluConv.hpp"
-#include "pto/npu/a5/TAddDeqRelu.hpp"
 #include "pto/npu/a5/Tci.hpp"
 #include "pto/npu/a5/TSels.hpp"
 #include "pto/npu/a5/TSel.hpp"
@@ -275,10 +259,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TRowExpandExpdif.hpp"
 #include "pto/npu/a5/TPartAdd.hpp"
 #include "pto/npu/a5/TPartMul.hpp"
-#include "pto/npu/a5/TPartMax.hpp"
-#include "pto/npu/a5/TPartMin.hpp"
 #include "pto/npu/a5/TPartArgMax.hpp"
+#include "pto/npu/a5/TPartMax.hpp"
 #include "pto/npu/a5/TPartArgMin.hpp"
+#include "pto/npu/a5/TPartMin.hpp"
 #include "pto/npu/a5/TPow.hpp"
 #include "pto/npu/a5/TQuant.hpp"
 #include "pto/npu/a5/TDeQuant.hpp"
@@ -334,12 +318,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifdef PTO_NPU_ARCH_KIRINX90
 #include "pto/npu/kirinX90/header.hpp"
 #endif
+#ifdef PTO_NPU_ARCH_KIRINDEV0000
+#include "pto/npu/kirinDev0000/header.hpp"
+#endif
 
-// Async L2 cache prefetch via SDMA CMO. Dispatched per-arch like other NPU
-// instruction headers; both wrappers pull in the same arch-neutral SDMA-backed
-// implementation (the actual SQE-field differences are handled inside the SDMA
-// helpers via `#ifdef PTO_NPU_ARCH_A5`). Guarded so that costmodel and CPU sim
-// builds pick up their own variant from the blocks below.
+// Async L2 cache prefetch via SDMA CMO. Dispatch through per-architecture
+// wrappers while sharing the common SDMA implementation.
 #if defined(__CCE_AICORE__) && !(defined(__CPU_SIM) || defined(__COSTMODEL))
 #ifdef PTO_NPU_ARCH_A2A3
 #include "pto/npu/a2a3/TPrefetchAsync.hpp"
@@ -361,6 +345,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/TMatmul.hpp"
 #include "pto/cpu/TAssign.hpp"
 #include "pto/cpu/TAdd.hpp"
+#include "pto/cpu/TAddDeqRelu.hpp"
 #include "pto/cpu/TAbs.hpp"
 #include "pto/cpu/TLoad.hpp"
 #include "pto/cpu/TStore.hpp"
@@ -373,6 +358,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/TMov.hpp"
 #include "pto/cpu/TExtract.hpp"
 #include "pto/cpu/TInsert.hpp"
+#include "pto/cpu/TInterleave.hpp"
+#include "pto/cpu/TDeinterleave.hpp"
 #include "pto/cpu/TSqrt.hpp"
 #include "pto/cpu/TReshape.hpp"
 #include "pto/cpu/TRowSum.hpp"
@@ -396,6 +383,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/TPartMax.hpp"
 #include "pto/cpu/TPartArgMin.hpp"
 #include "pto/cpu/TPartMin.hpp"
+#include "pto/cpu/TPairReduceSum.hpp"
 #include "pto/cpu/TPow.hpp"
 #include "pto/cpu/TConcat.hpp"
 #include "pto/cpu/TRowExpand.hpp"
@@ -417,6 +405,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/SetFmatrix.hpp"
 #include "pto/cpu/SetImg2colRpt.hpp"
 #include "pto/cpu/SetImg2colPadding.hpp"
+#include "pto/cpu/SetQuantScalar.hpp"
+#include "pto/cpu/SetQuantVector.hpp"
+#include "pto/cpu/GetQuantScalar.hpp"
+#include "pto/cpu/GetQuantVector.hpp"
 #include "pto/cpu/TImg2col.hpp"
 #include "pto/cpu/THistogram.hpp"
 #include "pto/cpu/TQuant.hpp"

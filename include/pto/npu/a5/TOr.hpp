@@ -22,55 +22,59 @@ namespace pto {
 
 template <typename T>
 struct OrOp {
-    using U = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
-                                 std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
-    PTO_INTERNAL static void BinInstr(RegTensor<T> &dstReg, RegTensor<T> &src0Reg, RegTensor<T> &src1Reg, MaskReg &pReg)
+    using U = std::conditional_t<
+        sizeof(T) == sizeof(uint8_t), uint8_t, std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+    PTO_INTERNAL static void BinInstr(RegTensor<T>& dstReg, RegTensor<T>& src0Reg, RegTensor<T>& src1Reg, MaskReg& pReg)
     {
-        vor((RegTensor<U> &)dstReg, (RegTensor<U> &)src0Reg, (RegTensor<U> &)src1Reg, pReg);
+        vor((RegTensor<U>&)dstReg, (RegTensor<U>&)src0Reg, (RegTensor<U>&)src1Reg, pReg);
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned ElementsPerRepeat,
-          unsigned BlockSizeElem>
-__tf__ PTO_INTERNAL OP_NAME(TOR)
-    OP_TYPE(element_wise) void TOr(typename TileDataDst::TileDType __out__ dst,
-                                   typename TileDataSrc0::TileDType __in__ src0,
-                                   typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols,
-                                   VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned ElementsPerRepeat,
+    unsigned BlockSizeElem>
+__tf__ PTO_INTERNAL OP_NAME(TOR) OP_TYPE(element_wise) void TOr(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
     BinaryInstr<OrOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
         dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
     return;
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TOrCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1)
+PTO_INTERNAL void TOrCheck(const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
     static_assert(sizeof(T) == 4 || sizeof(T) == 2 || sizeof(T) == 1, "Fix: TOR has invalid data type.");
-    static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-                  "Fix: TOR only support row major layout.");
-    static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
-                  "Fix: TOR input tile src0, src1 and dst tile data type mismatch.");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
+        "Fix: TOR only support row major layout.");
+    static_assert(
+        std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
+        "Fix: TOR input tile src0, src1 and dst tile data type mismatch.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
-               "Fix: TOR input tile src0 valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(src1.GetValidRow() == validRows && src1.GetValidCol() == validCols,
-               "Fix: TOR input tile src1 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRows && src0.GetValidCol() == validCols,
+        "Fix: TOR input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src1.GetValidRow() == validRows && src1.GetValidCol() == validCols,
+        "Fix: TOR input tile src1 valid shape mismatch with output tile dst shape.");
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TOR_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TOR_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
     TOrCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
 
     TOr<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
         dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());

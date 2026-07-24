@@ -16,19 +16,19 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, AtomicType atomicType>
-PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &src1)
+PTO_INTERNAL void TPUT_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& src1)
 {
-    Copy_Data<GlobalDstData, GlobalSrcData, atomicType>(dst, src);
+    Copy_Data(src, dst);
 }
 
-template <typename GlobalDstData, typename GlobalSrcData, typename TileData, AtomicType atomicType>
-PTO_INTERNAL void TPUT_IMPL(GlobalDstData &dst, GlobalSrcData &src, TileData &ping, TileData &pong)
+template <typename GlobalDstData, typename GlobalSrcData, typename TileData>
+PTO_INTERNAL void TPUT_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& ping, TileData& pong)
 {
-    Copy_Data<GlobalDstData, GlobalSrcData, atomicType>(dst, src);
+    Copy_Data(src, dst);
 }
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>
-PTO_INTERNAL AsyncEvent TPUT_ASYNC_IMPL(GlobalDstData &dst, GlobalSrcData &src, const AsyncSession &session)
+PTO_INTERNAL AsyncEvent TPUT_ASYNC_IMPL(GlobalDstData& dst, GlobalSrcData& src, const AsyncSession& session)
 {
     Copy_Data(dst, src);
     return AsyncEvent(0, engine);

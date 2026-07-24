@@ -33,9 +33,9 @@ struct TgatherPingPongState {
 
 // Simple gather path: per-rank data fits in a single tile, loop over all ranks
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TgatherSimple(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                TileData &stagingTileData, int gShape0, int gShape1, int gShape2, int gShape3,
-                                int gShape4, int nranks, int perRankRows)
+PTO_INTERNAL void TgatherSimple(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int nranks, int perRankRows)
 {
     using GlobalSrcData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
@@ -64,9 +64,9 @@ PTO_INTERNAL void TgatherSimple(ParallelGroupType &parallelGroup, GlobalDstData 
 
 // Inner row/col 2D sliding loop for chunked gather
 template <typename TileData, typename T, Layout srcLayout, Layout dstLayout>
-PTO_INTERNAL void TgatherChunkedRowColLoop(TileData &stagingTileData, __gm__ T *srcPtr, __gm__ T *dstPtr,
-                                           int64_t srcBase, int64_t dstBase, int gShape3, int gShape4, int tileValidRow,
-                                           int tileValidCol, const int (&srcStep)[5], const int (&dstStep)[5])
+PTO_INTERNAL void TgatherChunkedRowColLoop(
+    TileData& stagingTileData, __gm__ T* srcPtr, __gm__ T* dstPtr, int64_t srcBase, int64_t dstBase, int gShape3,
+    int gShape4, int tileValidRow, int tileValidCol, const int (&srcStep)[5], const int (&dstStep)[5])
 {
     constexpr bool isDynamicRow = (TileData::ValidRow == DYNAMIC);
     constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
@@ -104,24 +104,26 @@ PTO_INTERNAL void TgatherChunkedRowColLoop(TileData &stagingTileData, __gm__ T *
 
 // 2D sliding chunked gather with single buffer
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TgatherChunkedSingle(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                       TileData &stagingTileData, int gShape0, int gShape1, int gShape2, int gShape3,
-                                       int gShape4, int tileValidRow, int tileValidCol, int nranks, int perRankRows)
+PTO_INTERNAL void TgatherChunkedSingle(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int tileValidRow, int tileValidCol, int nranks, int perRankRows)
 {
     using GlobalSrcData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
 
-    auto &refSrc = parallelGroup[0];
-    const int srcStep[5] = {static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_0)),
-                            static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_1)),
-                            static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_2)),
-                            static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_3)),
-                            static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_4))};
-    const int dstStep[5] = {static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_0)),
-                            static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_1)),
-                            static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_2)),
-                            static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_3)),
-                            static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_4))};
+    auto& refSrc = parallelGroup[0];
+    const int srcStep[5] = {
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_0)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_1)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_2)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_3)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_4))};
+    const int dstStep[5] = {
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_0)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_1)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_2)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_3)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_4))};
 
     for (int r = 0; r < nranks; ++r) {
         const int64_t rankDstBase = static_cast<int64_t>(r) * perRankRows * dstStep[3];
@@ -166,15 +168,16 @@ PTO_INTERNAL void TgatherChunkedSingle(ParallelGroupType &parallelGroup, GlobalD
 // ============================================================================
 
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                               TileData &stagingTileData)
+PTO_INTERNAL void TGATHER_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& stagingTileData)
 {
     using GlobalSrcData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
 
     static_assert(std::is_same_v<T, typename GlobalDstData::RawDType>, "TGATHER: GlobalData type mismatch!");
-    static_assert(std::is_same_v<T, typename TileData::DType>,
-                  "TGATHER: TileData element type must match GlobalData element type");
+    static_assert(
+        std::is_same_v<T, typename TileData::DType>,
+        "TGATHER: TileData element type must match GlobalData element type");
     static_assert(GlobalSrcData::layout == GlobalDstData::layout, "TGATHER: src/dst layout mismatch");
 
     const int nranks = parallelGroup.GetSize();
@@ -182,7 +185,7 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     const int rootIdx = parallelGroup.GetRootIdx();
     PTO_ASSERT(rootIdx >= 0 && rootIdx < nranks, "TGATHER: rootIdx out of range");
 
-    auto &srcRef = parallelGroup[0];
+    auto& srcRef = parallelGroup[0];
     const int gShape0 = srcRef.GetShape(GlobalTensorDim::DIM_0);
     const int gShape1 = srcRef.GetShape(GlobalTensorDim::DIM_1);
     const int gShape2 = srcRef.GetShape(GlobalTensorDim::DIM_2);
@@ -203,9 +206,9 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 
     // Simple path: per-rank data fits in UB tile
     if (totalRows <= tileValidRow && gShape4 <= tileValidCol) {
-        TgatherSimple<ParallelGroupType, GlobalDstData, TileData>(parallelGroup, dstGlobalData, stagingTileData,
-                                                                  gShape0, gShape1, gShape2, gShape3, gShape4, nranks,
-                                                                  perRankRows);
+        TgatherSimple<ParallelGroupType, GlobalDstData, TileData>(
+            parallelGroup, dstGlobalData, stagingTileData, gShape0, gShape1, gShape2, gShape3, gShape4, nranks,
+            perRankRows);
         return;
     }
 
@@ -214,28 +217,28 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     constexpr bool isDynamicCol = (TileData::ValidCol == DYNAMIC);
 
     if constexpr (!isDynamicRow) {
-        PTO_ASSERT(gShape3 % tileValidRow == 0,
-                   "TGATHER chunked: per-rank DIM_3 must be divisible by tile ValidRow when static. "
-                   "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
+        PTO_ASSERT(
+            gShape3 % tileValidRow == 0,
+            "TGATHER chunked: per-rank DIM_3 must be divisible by tile ValidRow when static. "
+            "Use a Tile with DYNAMIC ValidRow for partial row chunk support.");
     }
     if constexpr (!isDynamicCol) {
-        PTO_ASSERT(gShape4 % tileValidCol == 0,
-                   "TGATHER chunked: DIM_4 must be divisible by tile ValidCol when static. "
-                   "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
+        PTO_ASSERT(
+            gShape4 % tileValidCol == 0, "TGATHER chunked: DIM_4 must be divisible by tile ValidCol when static. "
+                                         "Use a Tile with DYNAMIC ValidCol for partial column chunk support.");
     }
 
-    TgatherChunkedSingle<ParallelGroupType, GlobalDstData, TileData>(parallelGroup, dstGlobalData, stagingTileData,
-                                                                     gShape0, gShape1, gShape2, gShape3, gShape4,
-                                                                     tileValidRow, tileValidCol, nranks, perRankRows);
+    TgatherChunkedSingle<ParallelGroupType, GlobalDstData, TileData>(
+        parallelGroup, dstGlobalData, stagingTileData, gShape0, gShape1, gShape2, gShape3, gShape4, tileValidRow,
+        tileValidCol, nranks, perRankRows);
 }
 
 // Process one chunk iteration with ping-pong double buffering for gather
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename DynStrideT>
-PTO_INTERNAL void TgatherPingPongProcessChunk(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                              TileData &pingTile, TileData &pongTile, int64_t srcOffset,
-                                              int64_t dstOffset, int currentRows, int currentCols,
-                                              const DynStrideT &srcChunkStride, const DynStrideT &dstChunkStride,
-                                              int rank, TgatherPingPongState &state)
+PTO_INTERNAL void TgatherPingPongProcessChunk(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile,
+    int64_t srcOffset, int64_t dstOffset, int currentRows, int currentCols, const DynStrideT& srcChunkStride,
+    const DynStrideT& dstChunkStride, int rank, TgatherPingPongState& state)
 {
     using SrcGlobalT = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using ElemT = typename SrcGlobalT::RawDType;
@@ -247,7 +250,7 @@ PTO_INTERNAL void TgatherPingPongProcessChunk(ParallelGroupType &parallelGroup, 
     constexpr bool hasDynRow = (TileData::ValidRow == DYNAMIC);
     constexpr bool hasDynCol = (TileData::ValidCol == DYNAMIC);
 
-    TileData &loadTile = currentIsPing ? pingTile : pongTile;
+    TileData& loadTile = currentIsPing ? pingTile : pongTile;
     event_t curEvent = currentIsPing ? EVENT_ID0 : EVENT_ID1;
 
     if constexpr (hasDynRow)
@@ -259,7 +262,7 @@ PTO_INTERNAL void TgatherPingPongProcessChunk(ParallelGroupType &parallelGroup, 
     SrcChunkView srcView(parallelGroup[rank].data() + srcOffset, chunkShape, srcChunkStride);
 
     if (state.hasPending) {
-        TileData &storeTile = currentIsPing ? pongTile : pingTile;
+        TileData& storeTile = currentIsPing ? pongTile : pingTile;
         event_t prevEvent = currentIsPing ? EVENT_ID1 : EVENT_ID0;
 
         wait_flag(PIPE_MTE2, PIPE_MTE3, prevEvent);
@@ -288,8 +291,9 @@ PTO_INTERNAL void TgatherPingPongProcessChunk(ParallelGroupType &parallelGroup, 
 
 // Drain the last pending TSTORE after the chunked ping-pong loop completes
 template <typename GlobalDstData, typename TileData, typename DynStrideT>
-PTO_INTERNAL void TgatherPingPongEpilogue(GlobalDstData &dstGlobalData, TileData &pingTile, TileData &pongTile,
-                                          const TgatherPingPongState &state, const DynStrideT &dstChunkStride)
+PTO_INTERNAL void TgatherPingPongEpilogue(
+    GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile, const TgatherPingPongState& state,
+    const DynStrideT& dstChunkStride)
 {
     if (!state.hasPending)
         return;
@@ -298,7 +302,7 @@ PTO_INTERNAL void TgatherPingPongEpilogue(GlobalDstData &dstGlobalData, TileData
     using DstChunkView = GlobalTensor<ElemT, ChunkShape, DynStrideT, GlobalDstData::layout>;
 
     const bool finalInPong = state.usePing;
-    TileData &lastTile = finalInPong ? pongTile : pingTile;
+    TileData& lastTile = finalInPong ? pongTile : pingTile;
     event_t lastEvent = finalInPong ? EVENT_ID1 : EVENT_ID0;
 
     wait_flag(PIPE_MTE2, PIPE_MTE3, lastEvent);
@@ -311,12 +315,11 @@ PTO_INTERNAL void TgatherPingPongEpilogue(GlobalDstData &dstGlobalData, TileData
 
 // Process one (rank, dim0, dim1, dim2) slice with 2D row/col sliding for chunked gather ping-pong
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData, typename DynStride>
-PTO_INTERNAL void TgatherPingPong2DSlice(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                         TileData &pingTile, TileData &pongTile, int64_t srcBase, int64_t dstBase,
-                                         int gShape3, int gShape4, int tileValidRow, int tileValidCol,
-                                         const int (&srcPitch)[5], const int (&dstPitch)[5],
-                                         const DynStride &srcChunkStride, const DynStride &dstChunkStride, int rank,
-                                         TgatherPingPongState &state)
+PTO_INTERNAL void TgatherPingPong2DSlice(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile,
+    int64_t srcBase, int64_t dstBase, int gShape3, int gShape4, int tileValidRow, int tileValidCol,
+    const int (&srcPitch)[5], const int (&dstPitch)[5], const DynStride& srcChunkStride,
+    const DynStride& dstChunkStride, int rank, TgatherPingPongState& state)
 {
     int rowCursor = 0;
     while (rowCursor < gShape3) {
@@ -339,22 +342,23 @@ PTO_INTERNAL void TgatherPingPong2DSlice(ParallelGroupType &parallelGroup, Globa
 
 // 2D sliding chunked gather with ping-pong double buffering
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TgatherChunkedPingPong(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData,
-                                         TileData &pingTile, TileData &pongTile, int gShape0, int gShape1, int gShape2,
-                                         int gShape3, int gShape4, int tileValidRow, int tileValidCol, int nranks,
-                                         int perRankRows)
+PTO_INTERNAL void TgatherChunkedPingPong(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile, int gShape0,
+    int gShape1, int gShape2, int gShape3, int gShape4, int tileValidRow, int tileValidCol, int nranks, int perRankRows)
 {
-    auto &refSrc = parallelGroup[0];
-    const int srcPitch[5] = {static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_0)),
-                             static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_1)),
-                             static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_2)),
-                             static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_3)),
-                             static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_4))};
-    const int dstPitch[5] = {static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_0)),
-                             static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_1)),
-                             static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_2)),
-                             static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_3)),
-                             static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_4))};
+    auto& refSrc = parallelGroup[0];
+    const int srcPitch[5] = {
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_0)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_1)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_2)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_3)),
+        static_cast<int>(refSrc.GetStride(GlobalTensorDim::DIM_4))};
+    const int dstPitch[5] = {
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_0)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_1)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_2)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_3)),
+        static_cast<int>(dstGlobalData.GetStride(GlobalTensorDim::DIM_4))};
     using DynStride = Stride<DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC, DYNAMIC>;
     DynStride srcChunkStride(srcPitch[0], srcPitch[1], srcPitch[2], srcPitch[3], srcPitch[4]);
     DynStride dstChunkStride(dstPitch[0], dstPitch[1], dstPitch[2], dstPitch[3], dstPitch[4]);
@@ -397,15 +401,16 @@ PTO_INTERNAL void TgatherChunkedPingPong(ParallelGroupType &parallelGroup, Globa
 // ============================================================================
 
 template <typename ParallelGroupType, typename GlobalDstData, typename TileData>
-PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &dstGlobalData, TileData &pingTile,
-                               TileData &pongTile)
+PTO_INTERNAL void TGATHER_IMPL(
+    ParallelGroupType& parallelGroup, GlobalDstData& dstGlobalData, TileData& pingTile, TileData& pongTile)
 {
     using SrcGlobalT = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using ElemT = typename SrcGlobalT::RawDType;
 
     static_assert(std::is_same_v<ElemT, typename GlobalDstData::RawDType>, "TGATHER: GlobalData type mismatch!");
-    static_assert(std::is_same_v<ElemT, typename TileData::DType>,
-                  "TGATHER: TileData element type must match GlobalData element type");
+    static_assert(
+        std::is_same_v<ElemT, typename TileData::DType>,
+        "TGATHER: TileData element type must match GlobalData element type");
     static_assert(SrcGlobalT::layout == GlobalDstData::layout, "TGATHER: src/dst layout mismatch");
 
     const int nranks = parallelGroup.GetSize();
@@ -414,12 +419,13 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     PTO_ASSERT(nranks > 0, "ParallelGroup size must be greater than 0!");
     PTO_ASSERT(rootIdx >= 0 && rootIdx < nranks, "rootIdx must be in range [0, nranks)!");
 
-    auto &refTensor = parallelGroup[0];
-    const int dims[5] = {static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_0)),
-                         static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_1)),
-                         static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_2)),
-                         static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_3)),
-                         static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_4))};
+    auto& refTensor = parallelGroup[0];
+    const int dims[5] = {
+        static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_0)),
+        static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_1)),
+        static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_2)),
+        static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_3)),
+        static_cast<int>(refTensor.GetShape(GlobalTensorDim::DIM_4))};
 
     const int perRankRows = dims[3];
     const int64_t totalRows = static_cast<int64_t>(dims[0]) * dims[1] * dims[2] * dims[3];
@@ -445,17 +451,18 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
     constexpr bool hasDynCol = (TileData::ValidCol == DYNAMIC);
 
     if constexpr (!hasDynRow) {
-        PTO_ASSERT(dims[3] % tileValidRow == 0,
-                   "TGATHER chunked: per-rank DIM_3 must be divisible by tile ValidRow when static.");
+        PTO_ASSERT(
+            dims[3] % tileValidRow == 0,
+            "TGATHER chunked: per-rank DIM_3 must be divisible by tile ValidRow when static.");
     }
     if constexpr (!hasDynCol) {
-        PTO_ASSERT(dims[4] % tileValidCol == 0,
-                   "TGATHER chunked: DIM_4 must be divisible by tile ValidCol when static.");
+        PTO_ASSERT(
+            dims[4] % tileValidCol == 0, "TGATHER chunked: DIM_4 must be divisible by tile ValidCol when static.");
     }
 
-    TgatherChunkedPingPong<ParallelGroupType, GlobalDstData, TileData>(parallelGroup, dstGlobalData, pingTile, pongTile,
-                                                                       dims[0], dims[1], dims[2], dims[3], dims[4],
-                                                                       tileValidRow, tileValidCol, nranks, perRankRows);
+    TgatherChunkedPingPong<ParallelGroupType, GlobalDstData, TileData>(
+        parallelGroup, dstGlobalData, pingTile, pongTile, dims[0], dims[1], dims[2], dims[3], dims[4], tileValidRow,
+        tileValidCol, nranks, perRankRows);
 }
 
 // CCU engine is only available on A5 hardware.  This stub mirrors the
@@ -471,11 +478,11 @@ PTO_INTERNAL void TGATHER_IMPL(ParallelGroupType &parallelGroup, GlobalDstData &
 // and could win under partial ordering on some compilers.
 #ifndef PTO_COMM_A5_TGATHER_PROVIDED
 template <CollEngine engine = CollEngine::CCU, typename... Args>
-PTO_INTERNAL void TGATHER_CCU_IMPL(Args &&...)
+PTO_INTERNAL void TGATHER_CCU_IMPL(Args&&...)
 {
-    static_assert(engine != CollEngine::CCU,
-                  "TGATHER<CollEngine::CCU> requires A5 hardware; "
-                  "CCU engine is not available on A2/A3.");
+    static_assert(
+        engine != CollEngine::CCU, "TGATHER<CollEngine::CCU> requires A5 hardware; "
+                                   "CCU engine is not available on A2/A3.");
 }
 #endif // PTO_COMM_A5_TGATHER_PROVIDED
 

@@ -17,15 +17,13 @@ using namespace PtoTestCommon;
 
 class TTRITest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -33,7 +31,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
-void LaunchTTri(T *out, void *stream);
+void LaunchTTri(T* out, void* stream);
 
 template <typename T, int isUpperOrLower, int diagonal, int kTRows_, int kTCols_, int vRows, int vCols>
 void test_ttri()
@@ -45,12 +43,12 @@ void test_ttri()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *dstHost;
-    T *dstDevice;
+    T* dstHost;
+    T* dstDevice;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     LaunchTTri<T, isUpperOrLower, diagonal, kTRows_, kTCols_, vRows, vCols>(dstDevice, stream);
 
@@ -76,91 +74,25 @@ void test_ttri()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TTRITest, case_float_4x8_4x4_1_0)
-{
-    test_ttri<float, 1, 0, 4, 8, 4, 4>();
-}
-TEST_F(TTRITest, case_float_64x64_64x64_1_0)
-{
-    test_ttri<float, 1, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_int32_64x64_64x64_1_0)
-{
-    test_ttri<int32_t, 1, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_int16_64x64_64x64_1_0)
-{
-    test_ttri<int16_t, 1, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_half_16x256_16x256_1_0)
-{
-    test_ttri<aclFloat16, 1, 0, 16, 256, 16, 256>();
-}
-TEST_F(TTRITest, case_float_128x128_128x128_1_0)
-{
-    test_ttri<float, 1, 0, 128, 128, 128, 128>();
-}
-TEST_F(TTRITest, case_float_64x64_64x64_0_0)
-{
-    test_ttri<float, 0, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_int32_64x64_64x64_0_0)
-{
-    test_ttri<int32_t, 0, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_int16_64x64_64x64_0_0)
-{
-    test_ttri<int16_t, 0, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_half_16x256_16x256_0_0)
-{
-    test_ttri<aclFloat16, 0, 0, 16, 256, 16, 256>();
-}
-TEST_F(TTRITest, case_float_128x128_128x128_0_0)
-{
-    test_ttri<float, 0, 0, 128, 128, 128, 128>();
-}
-TEST_F(TTRITest, case_float_128x128_128x125_0_0)
-{
-    test_ttri<float, 0, 0, 128, 128, 128, 125>();
-}
-TEST_F(TTRITest, case_uint32_64x64_64x64_1_0)
-{
-    test_ttri<uint32_t, 1, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_uint32_64x64_64x64_0_0)
-{
-    test_ttri<uint32_t, 0, 0, 64, 64, 64, 64>();
-}
-TEST_F(TTRITest, case_float_128x128_128x111_0_2)
-{
-    test_ttri<float, 0, 2, 128, 128, 128, 111>();
-}
-TEST_F(TTRITest, case_float_128x128_128x111_0__2)
-{
-    test_ttri<float, 0, -2, 128, 128, 128, 111>();
-}
-TEST_F(TTRITest, case_float_128x128_128x111_1_2)
-{
-    test_ttri<float, 1, 2, 128, 128, 128, 111>();
-}
-TEST_F(TTRITest, case_float_128x128_128x111_1__2)
-{
-    test_ttri<float, 1, -2, 128, 128, 128, 111>();
-}
-TEST_F(TTRITest, case_float_128x128_128x31_0_444)
-{
-    test_ttri<float, 0, 444, 128, 128, 128, 31>();
-}
-TEST_F(TTRITest, case_float_128x128_128x31_1_444)
-{
-    test_ttri<float, 1, 444, 128, 128, 128, 31>();
-}
-TEST_F(TTRITest, case_float_128x128_128x31_0__444)
-{
-    test_ttri<float, 0, -444, 128, 128, 128, 31>();
-}
-TEST_F(TTRITest, case_float_128x128_128x31_1__444)
-{
-    test_ttri<float, 1, -444, 128, 128, 128, 31>();
-}
+TEST_F(TTRITest, case_float_4x8_4x4_1_0) { test_ttri<float, 1, 0, 4, 8, 4, 4>(); }
+TEST_F(TTRITest, case_float_64x64_64x64_1_0) { test_ttri<float, 1, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_int32_64x64_64x64_1_0) { test_ttri<int32_t, 1, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_int16_64x64_64x64_1_0) { test_ttri<int16_t, 1, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_half_16x256_16x256_1_0) { test_ttri<aclFloat16, 1, 0, 16, 256, 16, 256>(); }
+TEST_F(TTRITest, case_float_128x128_128x128_1_0) { test_ttri<float, 1, 0, 128, 128, 128, 128>(); }
+TEST_F(TTRITest, case_float_64x64_64x64_0_0) { test_ttri<float, 0, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_int32_64x64_64x64_0_0) { test_ttri<int32_t, 0, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_int16_64x64_64x64_0_0) { test_ttri<int16_t, 0, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_half_16x256_16x256_0_0) { test_ttri<aclFloat16, 0, 0, 16, 256, 16, 256>(); }
+TEST_F(TTRITest, case_float_128x128_128x128_0_0) { test_ttri<float, 0, 0, 128, 128, 128, 128>(); }
+TEST_F(TTRITest, case_float_128x128_128x125_0_0) { test_ttri<float, 0, 0, 128, 128, 128, 125>(); }
+TEST_F(TTRITest, case_uint32_64x64_64x64_1_0) { test_ttri<uint32_t, 1, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_uint32_64x64_64x64_0_0) { test_ttri<uint32_t, 0, 0, 64, 64, 64, 64>(); }
+TEST_F(TTRITest, case_float_128x128_128x111_0_2) { test_ttri<float, 0, 2, 128, 128, 128, 111>(); }
+TEST_F(TTRITest, case_float_128x128_128x111_0__2) { test_ttri<float, 0, -2, 128, 128, 128, 111>(); }
+TEST_F(TTRITest, case_float_128x128_128x111_1_2) { test_ttri<float, 1, 2, 128, 128, 128, 111>(); }
+TEST_F(TTRITest, case_float_128x128_128x111_1__2) { test_ttri<float, 1, -2, 128, 128, 128, 111>(); }
+TEST_F(TTRITest, case_float_128x128_128x31_0_444) { test_ttri<float, 0, 444, 128, 128, 128, 31>(); }
+TEST_F(TTRITest, case_float_128x128_128x31_1_444) { test_ttri<float, 1, 444, 128, 128, 128, 31>(); }
+TEST_F(TTRITest, case_float_128x128_128x31_0__444) { test_ttri<float, 0, -444, 128, 128, 128, 31>(); }
+TEST_F(TTRITest, case_float_128x128_128x31_1__444) { test_ttri<float, 1, -444, 128, 128, 128, 31>(); }

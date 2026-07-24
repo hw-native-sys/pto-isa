@@ -17,8 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-enum class ChipArch : uint8_t
-{
+enum class ChipArch : uint8_t {
     A2A3 = 0,
     A5 = 1,
     KIRIN9030 = 2,
@@ -122,10 +121,7 @@ struct ArchTraits<ChipArch::UNKNOWN> : ArchTraitsBase<ChipArch::UNKNOWN> {
 using CurrArch = ArchTraits<ChipArch::UNKNOWN>;
 #endif
 
-PTO_INTERNAL constexpr ChipArch GetCurrentArch() noexcept
-{
-    return CurrArch::Id;
-}
+PTO_INTERNAL constexpr ChipArch GetCurrentArch() noexcept { return CurrArch::Id; }
 
 namespace caps {
 
@@ -308,6 +304,12 @@ PTO_INTERNAL constexpr bool IsFloatingPoint()
 }
 
 template <typename T>
+PTO_INTERNAL constexpr bool IsInteger()
+{
+    return IsInt8<T>() || IsInt16<T>() || IsInt32<T>() || IsInt64<T>() || IsInt4<T>();
+}
+
+template <typename T>
 PTO_INTERNAL constexpr bool IsSInteger()
 {
     return IsSInt8<T>() || IsSInt16<T>() || IsSInt32<T>() || IsSInt64<T>();
@@ -317,12 +319,6 @@ template <typename T>
 PTO_INTERNAL constexpr bool IsUInteger()
 {
     return IsUInt8<T>() || IsUInt16<T>() || IsUInt32<T>() || IsUInt64<T>();
-}
-
-template <typename T>
-PTO_INTERNAL constexpr bool IsInteger()
-{
-    return IsSInteger<T>() || IsUInteger<T>();
 }
 
 template <typename T>

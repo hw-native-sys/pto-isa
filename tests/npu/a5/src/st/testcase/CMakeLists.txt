@@ -157,7 +157,6 @@ set(ALL_TESTCASES
     tshrs
     tadd
     taddreluconv
-    tadddeqrelu
     tpartadd
     tpartmul
     tfillpad
@@ -271,7 +270,7 @@ tquant_dn
 if (AUTO_MODE)
   set(AUTO_MODE_WHITELIST
   # TPUSH and TPOP currently directly use TASSIGN inside their implementations,
-  # which doesn't work for auto mode. They need to be disabled for auto mode
+  # which doesn't work for auto mode. They need to be disabled for auto mode 
   # until rewritten to adapt to auto mode
     tpushpop_cv
     tpushpop_cv_nosplit
@@ -280,7 +279,7 @@ if (AUTO_MODE)
     tpushpop_vc_nosplit
     tpushpop_dir_both
     tpushpop_subtile
-  # the following case wait to be fix
+  # the following case wait to be fix 
     tcvt
     ttrans
     ttrans_conv

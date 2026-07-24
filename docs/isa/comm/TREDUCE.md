@@ -1,4 +1,4 @@
-# pto.treduce
+﻿# TREDUCE
 
 ## Introduction
 
@@ -19,13 +19,11 @@ where $N$ is the number of ranks and $\oplus$ is the reduction operation (sum, m
 
 ## Assembly Syntax
 
-PTO-AS form: see [Assembly Spelling And Operands](../syntax-and-operands/assembly-model.md).
-
 Synchronous form:
 
 ```text
-pto.treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
-pto.treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
+treduce %group, %dst {op = #pto.reduce_op<Sum>} : (!pto.group<...>, !pto.memref<...>)
+treduce %group, %dst {op = #pto.reduce_op<Max>} : (!pto.group<...>, !pto.memref<...>)
 ```
 Lowering introduces internal accumulator and receive tiles for the reduce pipeline; the C++ intrinsic requires explicit `accTileData`, `recvTileData` (or `accTileData`, `pingTileData`, `pongTileData`) operand(s).
 

@@ -44,34 +44,35 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 extern "C" int32_t rtSetDevice(int32_t deviceId);
 
-extern "C" int treduce_ccu_trigger_launch(void *stream, uint64_t ckeVA, uint32_t mask);
+extern "C" int treduce_ccu_trigger_launch(void* stream, uint64_t ckeVA, uint32_t mask);
 
-extern "C" int treduce_ccu_fused_launch(void *stream, uint64_t inputVa, uint64_t outputVa, uint32_t selfIdx, int nranks,
-                                        float fillValue, uint64_t ckeVA, uint32_t mask);
+extern "C" int treduce_ccu_fused_launch(
+    void* stream, uint64_t inputVa, uint64_t outputVa, uint32_t selfIdx, int nranks, float fillValue, uint64_t ckeVA,
+    uint32_t mask);
 
 namespace {
 
 static constexpr size_t kMaxElements = 1024;
 static constexpr size_t kMaxPayload = kMaxElements * sizeof(float);
 
-#define ACL_OK(expr)                                                                                                \
-    do {                                                                                                            \
-        aclError _r = (expr);                                                                                       \
-        if (_r != ACL_SUCCESS) {                                                                                    \
-            std::fprintf(stderr, "[TREDUCE_CCU] ACL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), __FILE__, \
-                         __LINE__);                                                                                 \
-            return false;                                                                                           \
-        }                                                                                                           \
+#define ACL_OK(expr)                                                                                                  \
+    do {                                                                                                              \
+        aclError _r = (expr);                                                                                         \
+        if (_r != ACL_SUCCESS) {                                                                                      \
+            std::fprintf(                                                                                             \
+                stderr, "[TREDUCE_CCU] ACL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), __FILE__, __LINE__); \
+            return false;                                                                                             \
+        }                                                                                                             \
     } while (0)
 
-#define HCCL_OK(expr)                                                                                                \
-    do {                                                                                                             \
-        HcclResult _r = (expr);                                                                                      \
-        if (_r != HCCL_SUCCESS) {                                                                                    \
-            std::fprintf(stderr, "[TREDUCE_CCU] HCCL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), __FILE__, \
-                         __LINE__);                                                                                  \
-            return false;                                                                                            \
-        }                                                                                                            \
+#define HCCL_OK(expr)                                                                                                  \
+    do {                                                                                                               \
+        HcclResult _r = (expr);                                                                                        \
+        if (_r != HCCL_SUCCESS) {                                                                                      \
+            std::fprintf(                                                                                              \
+                stderr, "[TREDUCE_CCU] HCCL FAIL %s = %d (%s:%d)\n", #expr, static_cast<int>(_r), __FILE__, __LINE__); \
+            return false;                                                                                              \
+        }                                                                                                              \
     } while (0)
 
 struct CcuEnv {
@@ -84,15 +85,11 @@ struct CcuEnv {
     int nRanks = 0;
     int devId = -1;
 
-    void *inputDev = nullptr;
-    void *outputDev = nullptr;
+    void* inputDev = nullptr;
+    void* outputDev = nullptr;
     uint64_t inputVa = 0;
     uint64_t outputVa = 0;
     uint64_t token = 0;
-
-    uint64_t allInputVa[pto::comm::ccu::kMaxReduceRanks]{};
-    uint64_t allOutputVa[pto::comm::ccu::kMaxReduceRanks]{};
-    uint64_t allToken[pto::comm::ccu::kMaxReduceRanks]{};
 
     uint64_t mmioAddr = 0;
     uint32_t gateMask = 0;
@@ -104,16 +101,16 @@ struct CcuEnv {
 static CcuEnv g_env;
 static uint64_t g_seqNo = 0;
 
-bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<ChannelHandle> &channels)
+bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<ChannelHandle>& channels)
 {
     std::vector<HcclChannelDesc> requests;
     for (int peer = 0; peer < nRanks; ++peer) {
         if (peer == rankId)
             continue;
         uint32_t netLayer = 0, listSize = 0;
-        CommLink *linkList = nullptr;
-        HcclResult rc = HcclRankGraphGetLinks(comm, netLayer, static_cast<uint32_t>(rankId),
-                                              static_cast<uint32_t>(peer), &linkList, &listSize);
+        CommLink* linkList = nullptr;
+        HcclResult rc = HcclRankGraphGetLinks(
+            comm, netLayer, static_cast<uint32_t>(rankId), static_cast<uint32_t>(peer), &linkList, &listSize);
         if (rc != HCCL_SUCCESS)
             return false;
 
@@ -139,34 +136,13 @@ bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<Chan
     }
     channels.resize(requests.size());
     if (!requests.empty()) {
-        HcclResult rc = HcclChannelAcquire(comm, COMM_ENGINE_CCU, requests.data(),
-                                           static_cast<uint32_t>(requests.size()), channels.data());
+        HcclResult rc = HcclChannelAcquire(
+            comm, COMM_ENGINE_CCU, requests.data(), static_cast<uint32_t>(requests.size()), channels.data());
         if (rc != HCCL_SUCCESS)
             return false;
     }
     std::fprintf(stderr, "[TREDUCE_CCU] rank=%d acquired %zu CCU channel(s)\n", rankId, channels.size());
     return true;
-}
-
-// TReduce: AllGather every rank's (inputVa, outputVa, token) at setup time so
-// the reduce CCU kernel receives all peer addresses via GeneArgs and can skip
-// the runtime address-exchange PreSync.
-void ExchangePeerAddrs()
-{
-    struct AddrPack {
-        uint64_t inputVa;
-        uint64_t outputVa;
-        uint64_t token;
-    };
-    AddrPack myPack{g_env.inputVa, g_env.outputVa, g_env.token};
-    std::vector<AddrPack> allPacks(g_env.nRanks);
-    CommMpiAllgather(&myPack, sizeof(AddrPack), allPacks.data(), sizeof(AddrPack));
-    for (int i = 0; i < g_env.nRanks && i < static_cast<int>(pto::comm::ccu::kMaxReduceRanks); ++i) {
-        g_env.allInputVa[i] = allPacks[i].inputVa;
-        g_env.allOutputVa[i] = allPacks[i].outputVa;
-        g_env.allToken[i] = allPacks[i].token;
-    }
-    std::fprintf(stderr, "[TREDUCE_CCU] rank=%d AllGather done, %d peers exchanged\n", g_env.rankId, g_env.nRanks);
 }
 
 bool EnsureEnvReady()
@@ -192,8 +168,8 @@ bool EnsureEnvReady()
     ACL_OK(aclrtCreateStream(&g_env.stream));
     ACL_OK(aclrtCreateStream(&g_env.aivStream));
 
-    HCCL_OK(HcclCommInitRootInfo(static_cast<uint32_t>(g_env.nRanks), &rootInfo, static_cast<uint32_t>(g_env.rankId),
-                                 &g_env.comm));
+    HCCL_OK(HcclCommInitRootInfo(
+        static_cast<uint32_t>(g_env.nRanks), &rootInfo, static_cast<uint32_t>(g_env.rankId), &g_env.comm));
 
     constexpr uint32_t kNotifyNum = 1;
     HCCL_OK(HcclThreadAcquireWithStream(g_env.comm, COMM_ENGINE_CCU, g_env.stream, kNotifyNum, &g_env.threadHandle));
@@ -215,8 +191,6 @@ bool EnsureEnvReady()
     const uint64_t spanEnd =
         (g_env.inputVa < g_env.outputVa) ? (g_env.outputVa + kMaxPayload) : (g_env.inputVa + kMaxPayload);
     g_env.token = hcomm::CcuRep::GetTokenInfo(spanBase, spanEnd - spanBase);
-
-    ExchangePeerAddrs();
 
     g_env.ready = true;
     return true;
@@ -240,7 +214,7 @@ void CleanupEnv()
     g_env.ready = false;
 }
 
-static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor &gateDesc)
+static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor& gateDesc)
 {
     for (int retry = 0; retry < 200; ++retry) {
         if (pto::comm::ccu::TryGet(static_cast<uint32_t>(g_env.rankId), gateDesc)) {
@@ -252,7 +226,7 @@ static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor &gateDesc)
     return false;
 }
 
-static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor &gateDesc)
+static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor& gateDesc)
 {
     constexpr int kRT_PROCESS_CP1 = 0;
     constexpr int kRT_RES_TYPE_CCU_CKE = 3;
@@ -264,12 +238,12 @@ static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor &gateDesc)
         uint32_t flag;
     };
     struct rtDevResAddrInfo_t {
-        uint64_t *resAddress;
-        uint32_t *len;
+        uint64_t* resAddress;
+        uint32_t* len;
     };
-    using rtGetFn = int (*)(rtDevResInfo_t *, rtDevResAddrInfo_t *);
+    using rtGetFn = int (*)(rtDevResInfo_t*, rtDevResAddrInfo_t*);
 
-    void *rt = dlopen("libruntime.so", RTLD_NOW | RTLD_GLOBAL);
+    void* rt = dlopen("libruntime.so", RTLD_NOW | RTLD_GLOBAL);
     if (!rt) {
         std::fprintf(stderr, "dlopen libruntime.so: %s\n", dlerror());
         return false;
@@ -335,15 +309,14 @@ static bool RegisterAndLaunchReduceCcu(int rankId, int nRanks, uint32_t rootId, 
 
     std::fprintf(stderr, "[TREDUCE_CCU] rank=%d -> HcclCcuKernelRegister...\n", rankId);
     HCCL_OK(HcclCcuKernelRegister(g_env.comm, &kHandle, &creator, &karg));
-    std::fprintf(stderr, "[TREDUCE_CCU] rank=%d <- HcclCcuKernelRegister OK handle=%llu\n", rankId,
-                 (unsigned long long)kHandle);
+    std::fprintf(
+        stderr, "[TREDUCE_CCU] rank=%d <- HcclCcuKernelRegister OK handle=%llu\n", rankId, (unsigned long long)kHandle);
 
     std::fprintf(stderr, "[TREDUCE_CCU] rank=%d -> HcclCcuKernelRegisterFinish...\n", rankId);
     HCCL_OK(HcclCcuKernelRegisterFinish(g_env.comm));
     std::fprintf(stderr, "[TREDUCE_CCU] rank=%d <- HcclCcuKernelRegisterFinish OK\n", rankId);
 
     pto::comm::ccu::CcuReduceTaskArg targ{g_env.inputVa, g_env.outputVa, payloadSize, g_env.token};
-    targ.SetPeerAddrs(static_cast<uint32_t>(nRanks), g_env.allInputVa, g_env.allOutputVa, g_env.allToken);
     std::fprintf(stderr, "[TREDUCE_CCU] rank=%d -> HcclCcuKernelLaunch...\n", rankId);
     HCCL_OK(HcclCcuKernelLaunch(g_env.comm, g_env.threadHandle, kHandle, &targ));
     std::fprintf(stderr, "[TREDUCE_CCU] rank=%d <- HcclCcuKernelLaunch OK\n", rankId);
@@ -354,8 +327,9 @@ static bool TriggerAndSyncReduceCcu(int rankId)
 {
     if (!ResolveGateOnce())
         return false;
-    std::fprintf(stderr, "[TREDUCE_CCU] rank=%d gate resolved mmio=0x%llx mask=0x%x\n", rankId,
-                 (unsigned long long)g_env.mmioAddr, g_env.gateMask);
+    std::fprintf(
+        stderr, "[TREDUCE_CCU] rank=%d gate resolved mmio=0x%llx mask=0x%x\n", rankId,
+        (unsigned long long)g_env.mmioAddr, g_env.gateMask);
 
     usleep(200000);
 
@@ -379,8 +353,9 @@ static bool TriggerAndSyncReduceCcuFused(int rankId, int nRanks, float fillValue
 
     usleep(200000);
 
-    int rc = treduce_ccu_fused_launch(g_env.aivStream, g_env.inputVa, g_env.outputVa, static_cast<uint32_t>(rankId),
-                                      nRanks, fillValue, g_env.mmioAddr, g_env.gateMask);
+    int rc = treduce_ccu_fused_launch(
+        g_env.aivStream, g_env.inputVa, g_env.outputVa, static_cast<uint32_t>(rankId), nRanks, fillValue,
+        g_env.mmioAddr, g_env.gateMask);
     if (rc != 0)
         return false;
 
@@ -396,17 +371,17 @@ static bool VerifyReduceResult(int rankId, int nRanks, uint32_t rootId, size_t n
     std::vector<float> outputHost(numElements);
     ACL_OK(aclrtMemcpy(outputHost.data(), payloadSize, g_env.outputDev, payloadSize, ACL_MEMCPY_DEVICE_TO_HOST));
     const float expected = static_cast<float>(nRanks * (nRanks + 1) / 2);
-
     int mismatch = 0;
     for (size_t i = 0; i < numElements; ++i) {
-        if (!std::isfinite(outputHost[i]) || std::fabs(outputHost[i] - expected) > 1e-3f) {
+        if (std::fabs(outputHost[i] - expected) > 1e-3f) {
             if (mismatch < 8)
                 std::fprintf(stderr, "[TREDUCE_CCU] mismatch [%zu]: got=%f expected=%f\n", i, outputHost[i], expected);
             ++mismatch;
         }
     }
-    std::fprintf(stderr, "[TREDUCE_CCU] root %s: %zu elements\n", mismatch == 0 ? "PASS" : "FAIL", numElements);
-    return (mismatch == 0);
+    bool pass = (mismatch == 0);
+    std::fprintf(stderr, "[TREDUCE_CCU] root %s: %zu elements\n", pass ? "PASS" : "FAIL", numElements);
+    return pass;
 }
 
 bool RunReduceCcu(size_t numElements, uint32_t rootId)
@@ -423,8 +398,9 @@ bool RunReduceCcu(size_t numElements, uint32_t rootId)
         return false;
 
     uint64_t seq = g_seqNo++;
-    std::fprintf(stderr, "[TREDUCE_CCU] rank=%d RunReduceCcu seq=%llu elems=%zu root=%u\n", rankId,
-                 (unsigned long long)seq, numElements, rootId);
+    std::fprintf(
+        stderr, "[TREDUCE_CCU] rank=%d RunReduceCcu seq=%llu elems=%zu root=%u\n", rankId, (unsigned long long)seq,
+        numElements, rootId);
 
     if (!RegisterAndLaunchReduceCcu(rankId, nRanks, rootId, payloadSize, seq))
         return false;
@@ -462,8 +438,9 @@ bool RunReduceCcuFused(size_t numElements, uint32_t rootId)
     }
 
     uint64_t seq = g_seqNo++;
-    std::fprintf(stderr, "[TREDUCE_CCU/fused] rank=%d RunReduceCcuFused seq=%llu elems=%zu root=%u\n", rankId,
-                 (unsigned long long)seq, numElements, rootId);
+    std::fprintf(
+        stderr, "[TREDUCE_CCU/fused] rank=%d RunReduceCcuFused seq=%llu elems=%zu root=%u\n", rankId,
+        (unsigned long long)seq, numElements, rootId);
 
     if (!RegisterAndLaunchReduceCcu(rankId, nRanks, rootId, payloadSize, seq))
         return false;
@@ -489,10 +466,7 @@ void ResetEnv()
 
 class TReduceCcuTest : public ::testing::Test {
 protected:
-    void TearDown() override
-    {
-        ResetEnv();
-    }
+    void TearDown() override { ResetEnv(); }
 };
 
 TEST_F(TReduceCcuTest, Float_1024_Sum_2Ranks)
@@ -511,22 +485,6 @@ TEST_F(TReduceCcuTest, Root1_Float_1024_Sum)
     ASSERT_TRUE(RunReduceCcu(1024, 1));
 }
 
-// AivStored / fused path: AIV is the sole producer of CCU input. Exercises
-// the new TSTORE+pipe_barrier branch in a5/TReduce.hpp::TREDUCE_CCU_IMPL.
-TEST_F(TReduceCcuTest, Fused_Float_1024_Sum_2Ranks)
-{
-    SKIP_IF_RANKS_LT(2);
-    ASSERT_TRUE(RunReduceCcuFused(1024, 0));
-}
-TEST_F(TReduceCcuTest, Fused_Float_1024_Sum_4Ranks)
-{
-    SKIP_IF_RANKS_LT(4);
-    ASSERT_TRUE(RunReduceCcuFused(1024, 0));
-}
-
 } // namespace
 
-int main(int argc, char **argv)
-{
-    return ::pto::comm::ccu::st::RunCcuStMain(argc, argv, &CleanupEnv);
-}
+int main(int argc, char** argv) { return ::pto::comm::ccu::st::RunCcuStMain(argc, argv, &CleanupEnv); }

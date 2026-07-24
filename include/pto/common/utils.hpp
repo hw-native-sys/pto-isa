@@ -23,8 +23,8 @@ inline constexpr bool isSupportType = isSupportTypeImpl<T, Types...>::value;
 
 template <typename T>
 struct LoadTypeBySize {
-    using type = std::conditional_t<sizeof(T) == sizeof(uint8_t), uint8_t,
-                                    std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+    using type = std::conditional_t<
+        sizeof(T) == sizeof(uint8_t), uint8_t, std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
 };
 template <typename T>
 using LoadTypeBySize_t = typename LoadTypeBySize<T>::type;
@@ -34,8 +34,8 @@ PTO_INTERNAL void SetContinuousMask(unsigned n)
     set_vector_mask(
         static_cast<uint64_t>(
             (n > MASK_LEN) ? (((static_cast<uint64_t>(1)) << static_cast<uint32_t>(n - MASK_LEN)) - 1) : 0),
-        static_cast<uint64_t>((n >= MASK_LEN) ? 0xffffffffffffffff :
-                                                (((static_cast<uint64_t>(1)) << static_cast<uint32_t>(n)) - 1)));
+        static_cast<uint64_t>(
+            (n >= MASK_LEN) ? 0xffffffffffffffff : (((static_cast<uint64_t>(1)) << static_cast<uint32_t>(n)) - 1)));
 }
 
 template <int index>
@@ -55,10 +55,7 @@ PTO_INTERNAL void movemask(uint64_t mask)
 #endif
 }
 
-PTO_INTERNAL void SetVectorCount(uint64_t n)
-{
-    set_vector_mask(0, n);
-}
+PTO_INTERNAL void SetVectorCount(uint64_t n) { set_vector_mask(0, n); }
 
 template <typename T>
 PTO_INTERNAL void SetFullVecMaskByDType()

@@ -10,25 +10,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTRANDOM_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTRANDOM_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TRANDOMTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,13 +36,13 @@ std::string GetGoldenDir()
 }
 
 template <typename T>
-void CheckResults(const std::string &goldenDir, size_t dstSize)
+void CheckResults(const std::string& goldenDir, size_t dstSize)
 {
     std::vector<T> output(dstSize / sizeof(T));
     ReadFile(GetGoldenDir() + "/output.bin", dstSize, output.data(), dstSize);
 
     bool allZero = true;
-    for (const auto &v : output) {
+    for (const auto& v : output) {
         if (v != 0) {
             allZero = false;
             break;
@@ -61,7 +61,7 @@ void CheckResults(const std::string &goldenDir, size_t dstSize)
 }
 
 template <typename T, int rows, int cols>
-void LaunchTRandom(T *out, uint32_t *key, uint32_t *counter, void *stream);
+void LaunchTRandom(T* out, uint32_t* key, uint32_t* counter, void* stream);
 
 template <typename T, int rows, int cols>
 void test_trandom()
@@ -75,20 +75,20 @@ void test_trandom()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    T *dstHost;
-    uint32_t *keyHost;
-    uint32_t *counterHost;
-    T *dstDevice;
-    uint32_t *keyDevice;
-    uint32_t *counterDevice;
+    T* dstHost;
+    uint32_t* keyHost;
+    uint32_t* counterHost;
+    T* dstDevice;
+    uint32_t* keyDevice;
+    uint32_t* counterDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstSize);
-    aclrtMallocHost((void **)(&keyHost), keySize);
-    aclrtMallocHost((void **)(&counterHost), counterSize);
+    aclrtMallocHost((void**)(&dstHost), dstSize);
+    aclrtMallocHost((void**)(&keyHost), keySize);
+    aclrtMallocHost((void**)(&counterHost), counterSize);
 
-    aclrtMalloc((void **)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&keyDevice, keySize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&counterDevice, counterSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&keyDevice, keySize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&counterDevice, counterSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/key.bin", keySize, keyHost, keySize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/counter.bin", counterSize, counterHost, counterSize));
@@ -117,10 +117,4 @@ void test_trandom()
     CheckResults<T>(GetGoldenDir(), dstSize);
 }
 
-const int ROWS = 4;
-const int COLS = 256;
-
-TEST_F(TRANDOMTest, case_uint32_4x256_4x256)
-{
-    test_trandom<uint32_t, ROWS, COLS>();
-}
+TEST_F(TRANDOMTest, case_uint32_4x256_4x256) { test_trandom<uint32_t, NUM_4, NUM_256>(); }

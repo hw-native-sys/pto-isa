@@ -39,10 +39,12 @@ using GlobalDataSrc3_t = std::conditional_t<
     GlobalTensor<T, TileShape2D<T, scaleK, N, Layout::ND>, BaseShape2D<T, scaleK, N, Layout::ND>, Layout::ND>,
     GlobalTensor<T, TileShape2D<T, scaleK, N, Layout::DN>, BaseShape2D<T, scaleK, N, Layout::DN>, Layout::DN>>;
 
-template <typename OutType, typename AType, typename BType, typename ScaleType, typename BiasType, int validM,
-          int validK, int validN, bool isBias, bool isFp4>
-__global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __gm__ BType *src1, __gm__ ScaleType *src2,
-                                    __gm__ ScaleType *src3, __gm__ BiasType *src4)
+template <
+    typename OutType, typename AType, typename BType, typename ScaleType, typename BiasType, int validM, int validK,
+    int validN, bool isBias, bool isFp4>
+__global__ AICORE void RunTMATMULMX(
+    __gm__ OutType* out, __gm__ AType* src0, __gm__ BType* src1, __gm__ ScaleType* src2, __gm__ ScaleType* src3,
+    __gm__ BiasType* src4)
 {
     constexpr int blockAlign = isFp4 ? 64 : 32; // need to be 32B aligned
 
@@ -51,12 +53,12 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     constexpr int N = CeilAlign<int>(validN, blockAlign);
     constexpr uint8_t kMX = CeilDiv(kAlign, 32);
 
-    using GlobalDataSrc0 =
-        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, validK>,
-                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<BType, pto::Shape<1, 1, 1, validK, validN>,
-                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        AType, pto::Shape<1, 1, 1, validM, validK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        BType, pto::Shape<1, 1, 1, validK, validN>,
+        pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
 
     constexpr auto scaleK = CeilDiv(validK, 32);
     using MxShapeA = TileShape2D<ScaleType, validM, scaleK, Layout::ND>;
@@ -67,11 +69,11 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     using MxStrideB = pto::Stride<scaleK * validN, scaleK * validN, scaleK * validN, validN, 1>;
     using GlobalDataSrc3 = GlobalTensor<ScaleType, MxShapeB, MxStrideB, Layout::ND>;
 
-    using GlobalDataSrc4 = GlobalTensor<BiasType, pto::Shape<1, 1, 1, 1, validN>,
-                                        pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>;
-    using GlobalDataOut =
-        GlobalTensor<OutType, pto::Shape<1, 1, 1, validM, validN>,
-                     pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+    using GlobalDataSrc4 = GlobalTensor<
+        BiasType, pto::Shape<1, 1, 1, 1, validN>, pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        OutType, pto::Shape<1, 1, 1, validM, validN>,
+        pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
     GlobalDataSrc0 src0Global(src0);
     GlobalDataSrc1 src1Global(src1);
     GlobalDataSrc2 src2Global(src2);
@@ -105,15 +107,15 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     TileBiasData biasDataTile;
     size_t addr = 0;
     TASSIGN(aMatTile, addr);
-    addr += TileMatAData::Numel * sizeof(typename TileMatAData::DType);
+    addr += TileMatAData::GetSizeInBytes();
     TASSIGN(bMatTile, addr);
-    addr += TileMatBData::Numel * sizeof(typename TileMatBData::DType);
+    addr += TileMatBData::GetSizeInBytes();
     TASSIGN(aScaleMatTile, addr);
-    addr += TileScaleAData::Numel * sizeof(typename TileScaleAData::DType);
+    addr += TileScaleAData::GetSizeInBytes();
     TASSIGN(bScaleMatTile, addr);
-    addr += TileScaleBData::Numel * sizeof(typename TileScaleBData::DType);
+    addr += TileScaleBData::GetSizeInBytes();
     TASSIGN(biasDataTile, addr);
-    addr += TileBiasData::Numel * sizeof(typename TileBiasData::DType);
+    addr += TileBiasData::GetSizeInBytes();
 
     LeftTile aTile;
     RightTile bTile;
@@ -126,14 +128,15 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     TASSIGN(cTile, 0x0);
 
     TASSIGN(aScaleTile, addr);
-    addr += LeftScaleTile::Numel * sizeof(typename LeftScaleTile::DType);
+    addr += LeftScaleTile::GetSizeInBytes();
     TASSIGN(bScaleTile, addr);
-    addr += RightScaleTile::Numel * sizeof(typename RightScaleTile::DType);
+    addr += RightScaleTile::GetSizeInBytes();
     TASSIGN(biasTile, addr);
 
     /*************************************TLOAD****************************************/
     TLOAD(aMatTile, src0Global);
     TLOAD(bMatTile, src1Global);
+
     // Clear L1 buffer
     // Tload will pad to 32B alignment with at most 32B padding
     if constexpr (kAlign - validK >= blockAlign) {
@@ -192,10 +195,12 @@ __global__ AICORE void RunTMATMULMX(__gm__ OutType *out, __gm__ AType *src0, __g
     out = dstGlobal.data();
 }
 
-template <typename OutType, typename AType, typename BType, typename ScaleType, typename BiasType, int validM,
-          int validK, int validN, bool isBias, bool isFp4, bool useGEMV = false>
-__global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *src0, __gm__ BType *src1,
-                                            __gm__ ScaleType *src2, __gm__ ScaleType *src3, __gm__ BiasType *src4)
+template <
+    typename OutType, typename AType, typename BType, typename ScaleType, typename BiasType, int validM, int validK,
+    int validN, bool isBias, bool isFp4, bool useGEMV = false>
+__global__ AICORE void RunTMATMULMX_SPLIT_K(
+    __gm__ OutType* out, __gm__ AType* src0, __gm__ BType* src1, __gm__ ScaleType* src2, __gm__ ScaleType* src3,
+    __gm__ BiasType* src4)
 {
     constexpr int blockAlign = isFp4 ? 64 : 32; // need to be 32B aligned
 
@@ -207,12 +212,12 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
     constexpr int BASEK = 64;
     constexpr int BASEKMX = CeilDiv(BASEK, 32);
 
-    using GlobalDataSrc0 =
-        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, BASEK>,
-                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<BType, pto::Shape<1, 1, 1, BASEK, validN>,
-                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        AType, pto::Shape<1, 1, 1, validM, BASEK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        BType, pto::Shape<1, 1, 1, BASEK, validN>,
+        pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
 
     using MxShapeA = TileShape2D<ScaleType, validM, BASEKMX, Layout::ND>;
     using MxStrideA = pto::Stride<validM * KMX, validM * KMX, validM * KMX, KMX, 1>;
@@ -222,13 +227,13 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
     using MxStrideB = pto::Stride<KMX * validN, KMX * validN, KMX * validN, validN, 1>;
     using GlobalDataSrc3 = GlobalTensor<ScaleType, MxShapeB, MxStrideB, Layout::ND>;
 
-    using GlobalDataOut =
-        GlobalTensor<OutType, pto::Shape<1, 1, 1, validM, validN>,
-                     pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        OutType, pto::Shape<1, 1, 1, validM, validN>,
+        pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
     GlobalDataOut dstGlobal(out);
 
-    using GlobalDataSrc4 = GlobalTensor<BiasType, pto::Shape<1, 1, 1, 1, validN>,
-                                        pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>;
+    using GlobalDataSrc4 = GlobalTensor<
+        BiasType, pto::Shape<1, 1, 1, 1, validN>, pto::Stride<1 * validN, 1 * validN, 1 * validN, validN, 1>>;
     GlobalDataSrc4 src4Global(src4);
 
     using TileMatAData = Tile<TileType::Mat, AType, M, BASEK, BLayout::ColMajor, validM, BASEK, SLayout::RowMajor, 512>;
@@ -256,15 +261,15 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
 
     size_t addr = 0;
     TASSIGN(aMatTile, addr);
-    addr += TileMatAData::Numel * sizeof(typename TileMatAData::DType);
+    addr += TileMatAData::GetSizeInBytes();
     TASSIGN(bMatTile, addr);
-    addr += TileMatBData::Numel * sizeof(typename TileMatBData::DType);
+    addr += TileMatBData::GetSizeInBytes();
     TASSIGN(aScaleMatTile, addr);
-    addr += TileScaleAData::Numel * sizeof(typename TileScaleAData::DType);
+    addr += TileScaleAData::GetSizeInBytes();
     TASSIGN(bScaleMatTile, addr);
-    addr += TileScaleBData::Numel * sizeof(typename TileScaleBData::DType);
+    addr += TileScaleBData::GetSizeInBytes();
     TASSIGN(biasDataTile, addr);
-    addr += TileBiasData::Numel * sizeof(typename TileBiasData::DType);
+    addr += TileBiasData::GetSizeInBytes();
 
     LeftTile aTile;
     RightTile bTile;
@@ -278,9 +283,9 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
     TASSIGN(cTile, 0x0);
 
     TASSIGN(aScaleTile, addr);
-    addr += LeftScaleTile::Numel * sizeof(typename LeftScaleTile::DType);
+    addr += LeftScaleTile::GetSizeInBytes();
     TASSIGN(bScaleTile, addr);
-    addr += RightScaleTile::Numel * sizeof(typename RightScaleTile::DType);
+    addr += RightScaleTile::GetSizeInBytes();
     TASSIGN(biasTile, addr);
 
     constexpr int iter = K / BASEK;
@@ -367,10 +372,11 @@ __global__ AICORE void RunTMATMULMX_SPLIT_K(__gm__ OutType *out, __gm__ AType *s
     out = dstGlobal.data();
 }
 
-template <int format, typename OutType, typename AType, typename BType, typename ScaleType, int validM, int validK,
-          int validN, bool isFp4>
-__global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm__ BType *src1, __gm__ ScaleType *src2,
-                                  __gm__ ScaleType *src3)
+template <
+    int format, typename OutType, typename AType, typename BType, typename ScaleType, int validM, int validK,
+    int validN, bool isFp4>
+__global__ AICORE void RunTGEMVMX(
+    __gm__ OutType* out, __gm__ AType* src0, __gm__ BType* src1, __gm__ ScaleType* src2, __gm__ ScaleType* src3)
 {
     constexpr int blockAlign = isFp4 ? 64 : 32; // need to be 32B aligned
 
@@ -381,20 +387,20 @@ __global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm_
     constexpr uint8_t kMX = CeilDiv(kAlign, 32);
     constexpr auto scaleK = CeilDiv(validK, 32);
 
-    using GlobalDataSrc0 =
-        GlobalTensor<AType, pto::Shape<1, 1, 1, validM, validK>,
-                     pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
-    using GlobalDataSrc1 =
-        GlobalTensor<BType, pto::Shape<1, 1, 1, validK, validN>,
-                     pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
+    using GlobalDataSrc0 = GlobalTensor<
+        AType, pto::Shape<1, 1, 1, validM, validK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        BType, pto::Shape<1, 1, 1, validK, validN>,
+        pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
     using GlobalDataSrc2 =
         GlobalTensor<ScaleType, pto::Shape<1, 1, 1, 1, scaleK>, pto::Stride<scaleK, scaleK, scaleK, scaleK, 1>>;
 
     using GlobalDataSrc3 = GlobalDataSrc3_t<ScaleType, format, scaleK, validN>;
 
-    using GlobalDataOut =
-        GlobalTensor<OutType, pto::Shape<1, 1, 1, validM, validN>,
-                     pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        OutType, pto::Shape<1, 1, 1, validM, validN>,
+        pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
 
     GlobalDataSrc0 src0Global(src0);
     GlobalDataSrc1 src1Global(src1);
@@ -439,8 +445,8 @@ __global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm_
     TASSIGN(aTile, 0x0);
     TASSIGN(bTile, 0x0);
 
-    TASSIGN(aScaleTile, LeftTile::Numel * sizeof(typename LeftTile::DType));
-    TASSIGN(bScaleTile, RightTile::Numel * sizeof(typename RightTile::DType));
+    TASSIGN(aScaleTile, LeftTile::GetSizeInBytes());
+    TASSIGN(bScaleTile, RightTile::GetSizeInBytes());
 
     TASSIGN(cTile, 0x0);
 
@@ -491,149 +497,149 @@ __global__ AICORE void RunTGEMVMX(__gm__ OutType *out, __gm__ AType *src0, __gm_
 }
 
 template <int32_t tilingKey>
-void LaunchTMATMUL_MX(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3, void *stream)
+void LaunchTMATMUL_MX(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream)
 {
     if constexpr (tilingKey == 1) {
         RunTMATMULMX<float, float8_e5m2_t, float8_e5m2_t, float8_e8m0_t, float, 128, 64, 64, false, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e5m2_t *>(src0),
-            reinterpret_cast<float8_e5m2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e5m2_t*>(src0),
+            reinterpret_cast<float8_e5m2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 2) {
         RunTMATMULMX<float, float8_e4m3_t, float8_e4m3_t, float8_e8m0_t, float, 127, 72, 64, false, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e4m3_t *>(src0),
-            reinterpret_cast<float8_e4m3_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e4m3_t*>(src0),
+            reinterpret_cast<float8_e4m3_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 3) {
         RunTMATMULMX<float, float8_e4m3_t, float8_e5m2_t, float8_e8m0_t, float, 128, 110, 63, false, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e4m3_t *>(src0),
-            reinterpret_cast<float8_e5m2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e4m3_t*>(src0),
+            reinterpret_cast<float8_e5m2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 4) {
         RunTMATMULMX<float, float4_e2m1x2_t, float4_e2m1x2_t, float8_e8m0_t, float, 128, 64, 64, false, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e2m1x2_t *>(src0),
-            reinterpret_cast<float4_e2m1x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e2m1x2_t*>(src0),
+            reinterpret_cast<float4_e2m1x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 5) {
         RunTMATMULMX<float, float4_e1m2x2_t, float4_e2m1x2_t, float8_e8m0_t, float, 117, 64, 60, false, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e1m2x2_t *>(src0),
-            reinterpret_cast<float4_e2m1x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e1m2x2_t*>(src0),
+            reinterpret_cast<float4_e2m1x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 6) {
         RunTMATMULMX<float, float4_e2m1x2_t, float4_e1m2x2_t, float8_e8m0_t, float, 128, 118, 64, false, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e2m1x2_t *>(src0),
-            reinterpret_cast<float4_e1m2x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e2m1x2_t*>(src0),
+            reinterpret_cast<float4_e1m2x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 7) {
         RunTMATMULMX<float, float4_e2m1x2_t, float4_e1m2x2_t, float8_e8m0_t, float, 115, 64, 30, false, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e2m1x2_t *>(src0),
-            reinterpret_cast<float4_e1m2x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e2m1x2_t*>(src0),
+            reinterpret_cast<float4_e1m2x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 8) {
         RunTMATMULMX<float, float8_e4m3_t, float8_e4m3_t, float8_e8m0_t, float, 16, 32, 16, false, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e4m3_t *>(src0),
-            reinterpret_cast<float8_e4m3_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e4m3_t*>(src0),
+            reinterpret_cast<float8_e4m3_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 9) {
         RunTMATMULMX<float, float8_e4m3_t, float8_e5m2_t, float8_e8m0_t, float, 10, 50, 54, false, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e4m3_t *>(src0),
-            reinterpret_cast<float8_e5m2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e4m3_t*>(src0),
+            reinterpret_cast<float8_e5m2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 10) {
         RunTMATMULMX<float, float4_e2m1x2_t, float4_e2m1x2_t, float8_e8m0_t, float, 4, 30, 8, false, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e2m1x2_t *>(src0),
-            reinterpret_cast<float4_e2m1x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), nullptr);
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e2m1x2_t*>(src0),
+            reinterpret_cast<float4_e2m1x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), nullptr);
     } else if constexpr (tilingKey == 11) {
         RunTGEMVMX<1, float, float4_e1m2x2_t, float4_e1m2x2_t, float8_e8m0_t, 1, 128, 62, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e1m2x2_t *>(src0),
-            reinterpret_cast<float4_e1m2x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3));
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e1m2x2_t*>(src0),
+            reinterpret_cast<float4_e1m2x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3));
     } else if constexpr (tilingKey == 12) {
         RunTGEMVMX<1, float, float8_e4m3_t, float8_e5m2_t, float8_e8m0_t, 1, 256, 20, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e4m3_t *>(src0),
-            reinterpret_cast<float8_e5m2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3));
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e4m3_t*>(src0),
+            reinterpret_cast<float8_e5m2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3));
     }
 }
 
-template void LaunchTMATMUL_MX<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<8>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<9>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                  void *stream);
-template void LaunchTMATMUL_MX<10>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                   void *stream);
-template void LaunchTMATMUL_MX<11>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                   void *stream);
-template void LaunchTMATMUL_MX<12>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                   void *stream);
+template void LaunchTMATMUL_MX<1>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<2>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<3>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<4>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<5>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<6>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<7>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<8>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<9>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<10>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<11>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
+template void LaunchTMATMUL_MX<12>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, void* stream);
 
 template <int32_t tilingKey>
-void LaunchTMATMUL_MX_BIAS(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3, uint8_t *src4,
-                           void *stream)
+void LaunchTMATMUL_MX_BIAS(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream)
 {
     if constexpr (tilingKey == 1) {
         RunTMATMULMX<float, float8_e5m2_t, float8_e4m3_t, float8_e8m0_t, float, 115, 64, 30, true, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e5m2_t *>(src0),
-            reinterpret_cast<float8_e4m3_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), reinterpret_cast<float *>(src4));
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e5m2_t*>(src0),
+            reinterpret_cast<float8_e4m3_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), reinterpret_cast<float*>(src4));
     } else if constexpr (tilingKey == 2) {
         RunTMATMULMX<float, float8_e4m3_t, float8_e4m3_t, float8_e8m0_t, float, 200, 192, 95, true, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e4m3_t *>(src0),
-            reinterpret_cast<float8_e4m3_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), reinterpret_cast<float *>(src4));
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e4m3_t*>(src0),
+            reinterpret_cast<float8_e4m3_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), reinterpret_cast<float*>(src4));
     } else if constexpr (tilingKey == 3) {
         RunTMATMULMX<float, float4_e2m1x2_t, float4_e1m2x2_t, float8_e8m0_t, float, 35, 128, 56, true, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e2m1x2_t *>(src0),
-            reinterpret_cast<float4_e1m2x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), reinterpret_cast<float *>(src4));
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e2m1x2_t*>(src0),
+            reinterpret_cast<float4_e1m2x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), reinterpret_cast<float*>(src4));
     } else if constexpr (tilingKey == 4) {
         RunTMATMULMX_SPLIT_K<float, float4_e1m2x2_t, float4_e1m2x2_t, float8_e8m0_t, float, 47, 128, 62, true, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e1m2x2_t *>(src0),
-            reinterpret_cast<float4_e1m2x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), reinterpret_cast<float *>(src4));
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e1m2x2_t*>(src0),
+            reinterpret_cast<float4_e1m2x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), reinterpret_cast<float*>(src4));
     } else if constexpr (tilingKey == 5) {
         RunTMATMULMX_SPLIT_K<float, float8_e4m3_t, float8_e5m2_t, float8_e8m0_t, float, 64, 192, 64, true, false>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float8_e4m3_t *>(src0),
-            reinterpret_cast<float8_e5m2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), reinterpret_cast<float *>(src4));
+            reinterpret_cast<float*>(out), reinterpret_cast<float8_e4m3_t*>(src0),
+            reinterpret_cast<float8_e5m2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), reinterpret_cast<float*>(src4));
     } else if constexpr (tilingKey == 6) {
         RunTMATMULMX<float, float4_e1m2x2_t, float4_e1m2x2_t, float8_e8m0_t, float, 1, 64, 62, true, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e1m2x2_t *>(src0),
-            reinterpret_cast<float4_e1m2x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), reinterpret_cast<float *>(src4));
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e1m2x2_t*>(src0),
+            reinterpret_cast<float4_e1m2x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), reinterpret_cast<float*>(src4));
     } else if constexpr (tilingKey == 7) {
         RunTMATMULMX_SPLIT_K<float, float4_e1m2x2_t, float4_e1m2x2_t, float8_e8m0_t, float, 1, 2048, 64, true, true>(
-            reinterpret_cast<float *>(out), reinterpret_cast<float4_e1m2x2_t *>(src0),
-            reinterpret_cast<float4_e1m2x2_t *>(src1), reinterpret_cast<float8_e8m0_t *>(src2),
-            reinterpret_cast<float8_e8m0_t *>(src3), reinterpret_cast<float *>(src4));
+            reinterpret_cast<float*>(out), reinterpret_cast<float4_e1m2x2_t*>(src0),
+            reinterpret_cast<float4_e1m2x2_t*>(src1), reinterpret_cast<float8_e8m0_t*>(src2),
+            reinterpret_cast<float8_e8m0_t*>(src3), reinterpret_cast<float*>(src4));
     }
 }
 
-template void LaunchTMATMUL_MX_BIAS<1>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                       uint8_t *src4, void *stream);
-template void LaunchTMATMUL_MX_BIAS<2>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                       uint8_t *src4, void *stream);
-template void LaunchTMATMUL_MX_BIAS<3>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                       uint8_t *src4, void *stream);
-template void LaunchTMATMUL_MX_BIAS<4>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                       uint8_t *src4, void *stream);
-template void LaunchTMATMUL_MX_BIAS<5>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                       uint8_t *src4, void *stream);
-template void LaunchTMATMUL_MX_BIAS<6>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                       uint8_t *src4, void *stream);
-template void LaunchTMATMUL_MX_BIAS<7>(uint8_t *out, uint8_t *src0, uint8_t *src1, uint8_t *src2, uint8_t *src3,
-                                       uint8_t *src4, void *stream);
+template void LaunchTMATMUL_MX_BIAS<1>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
+template void LaunchTMATMUL_MX_BIAS<2>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
+template void LaunchTMATMUL_MX_BIAS<3>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
+template void LaunchTMATMUL_MX_BIAS<4>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
+template void LaunchTMATMUL_MX_BIAS<5>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
+template void LaunchTMATMUL_MX_BIAS<6>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
+template void LaunchTMATMUL_MX_BIAS<7>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);

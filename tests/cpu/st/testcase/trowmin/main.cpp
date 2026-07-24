@@ -17,22 +17,20 @@ using namespace PtoTestCommon;
 
 class TROWMINTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     return "../" + suiteName + "." + caseName;
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTROWMIN(T *out, T *src, void *stream);
+void LaunchTROWMIN(T* out, T* src, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_trowmin()
@@ -48,11 +46,11 @@ void test_trowmin()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstFileSize);
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", srcFileSize, srcHost, srcFileSize));
 
@@ -82,29 +80,13 @@ void test_trowmin()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TROWMINTest, case_float_64x64_64x64_64x64)
-{
-    test_trowmin<float, 64, 64, 64, 64>();
-}
-TEST_F(TROWMINTest, case_half_64x64_64x64_64x64)
-{
-    test_trowmin<aclFloat16, 64, 64, 64, 64>();
-}
+TEST_F(TROWMINTest, case_float_64x64_64x64_64x64) { test_trowmin<float, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_half_64x64_64x64_64x64) { test_trowmin<aclFloat16, 64, 64, 64, 64>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TROWMINTest, case_bf16_64x64_64x64_64x64)
-{
-    test_trowmin<bfloat16_t, 64, 64, 64, 64>();
-}
+TEST_F(TROWMINTest, case_bf16_64x64_64x64_64x64) { test_trowmin<bfloat16_t, 64, 64, 64, 64>(); }
 #endif
-TEST_F(TROWMINTest, case_half_161x161_32x32_161x161)
-{
-    test_trowmin<aclFloat16, 161, 161, 32, 32>();
-}
-TEST_F(TROWMINTest, case_float_77x81_32x16_77x81)
-{
-    test_trowmin<float, 77, 81, 32, 16>();
-}
-TEST_F(TROWMINTest, case_float_32x32_32x16_32x32)
-{
-    test_trowmin<float, 32, 32, 32, 16>();
-}
+TEST_F(TROWMINTest, case_half_161x161_32x32_161x161) { test_trowmin<aclFloat16, 161, 161, 32, 32>(); }
+TEST_F(TROWMINTest, case_float_77x81_32x16_77x81) { test_trowmin<float, 77, 81, 32, 16>(); }
+TEST_F(TROWMINTest, case_float_32x32_32x16_32x32) { test_trowmin<float, 32, 32, 32, 16>(); }
+TEST_F(TROWMINTest, case_int8_64x64_64x64_64x64) { test_trowmin<int8_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_uint8_64x64_64x64_64x64) { test_trowmin<uint8_t, 64, 64, 64, 64>(); }

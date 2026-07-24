@@ -20,8 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 // System reserved FFTS event ids 12-15 for CV comm (control + reserved)
-enum CVCommFftsEvent : uint16_t
-{
+enum CVCommFftsEvent : uint16_t {
     CV_COMM_CTRL = 12,
     CV_COMM_RSVD_13,
     CV_COMM_RSVD_14,
@@ -36,13 +35,7 @@ constexpr int kCvMaxCores = 25;
 #define AIV_RATIO 2
 #define AIC_AIV_PER_DIE (CORE_PER_DIE * (AIV_RATIO + 1))
 
-enum CVSyncMode : uint16_t
-{
-    C_ALL_CORE_SYNC = 0,
-    V_ALL_CORE_SYNC = 0,
-    V_SUBCORES_SYNC = 1,
-    CV_CORE_SYNC = 2
-};
+enum CVSyncMode : uint16_t { C_ALL_CORE_SYNC = 0, V_ALL_CORE_SYNC = 0, V_SUBCORES_SYNC = 1, CV_CORE_SYNC = 2 };
 
 AICORE inline uint16_t _getFFTSMsg(CVSyncMode mode, uint16_t flag_id, uint16_t base_const = 0x1)
 {
@@ -54,7 +47,7 @@ AICORE inline uint16_t _getFFTSMsg(CVSyncMode mode, uint16_t flag_id, uint16_t b
 // - cv_comm_buf: global buffer sized by CV_COMM_SLOT_BYTES * block_rows.
 // Template knobs allow overriding slot size and MAX_CORES if needed.
 template <int CV_COMM_SLOT_BYTES = kCvCommSlotBytes, int CV_MAX_CORES = kCvMaxCores>
-AICORE inline int TSYNC_CVID(int blk_idx, __gm__ uint8_t *cv_comm_buf)
+AICORE inline int TSYNC_CVID(int blk_idx, __gm__ uint8_t* cv_comm_buf)
 {
     int comm_slot = blk_idx;
 #ifdef __DAV_CUBE__
@@ -69,8 +62,8 @@ AICORE inline int TSYNC_CVID(int blk_idx, __gm__ uint8_t *cv_comm_buf)
 #ifdef __DAV_CUBE__
     cce::printf("Core %d Cube Block %d, comm_slot %d\n", get_coreid(), blk_idx, comm_slot);
 #elif defined(__DAV_VEC__)
-    cce::printf("Core %d Vec Block %d, SubBlock %d, comm_slot %d\n", get_coreid(), blk_idx, int(get_subblockid()),
-                comm_slot);
+    cce::printf(
+        "Core %d Vec Block %d, SubBlock %d, comm_slot %d\n", get_coreid(), blk_idx, int(get_subblockid()), comm_slot);
 #endif
 #endif
     return comm_slot;

@@ -13,9 +13,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename TIdx, typename T, int axis, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols,
-          int oRow = kTRows, int oCol = kTCols, typename LaunchFn>
-AICORE void runTARGREDUCEOP(__gm__ TIdx __out__ *out, __gm__ T __in__ *src, LaunchFn fn)
+template <
+    typename TIdx, typename T, int axis, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols,
+    int oRow = kTRows, int oCol = kTCols, typename LaunchFn>
+AICORE void runTARGREDUCEOP(__gm__ TIdx __out__* out, __gm__ T __in__* src, LaunchFn fn)
 {
     using GlobShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using GlobStridDim5 = Stride<1, 1, -1, -1, 1>;
@@ -42,9 +43,10 @@ AICORE void runTARGREDUCEOP(__gm__ TIdx __out__ *out, __gm__ T __in__ *src, Laun
     out = dstGlobal.data();
 }
 
-template <typename TIdx, typename T, int axis, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols,
-          int oIdxRow = kTRows, int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols, typename LaunchFn>
-AICORE void runTARGREDUCEOP(__gm__ T __out__ *outVal, __gm__ TIdx __out__ *outIdx, __gm__ T __in__ *src, LaunchFn fn)
+template <
+    typename TIdx, typename T, int axis, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols,
+    int oIdxRow = kTRows, int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols, typename LaunchFn>
+AICORE void runTARGREDUCEOP(__gm__ T __out__* outVal, __gm__ TIdx __out__* outIdx, __gm__ T __in__* src, LaunchFn fn)
 {
     using GlobShapeDim5 = Shape<1, 1, 1, -1, -1>;
     using GlobStridDim5 = Stride<1, 1, -1, -1, 1>;
@@ -77,41 +79,44 @@ AICORE void runTARGREDUCEOP(__gm__ T __out__ *outVal, __gm__ TIdx __out__ *outId
     outIdx = dstIdxGlobal.data();
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
-          int oCol = kTCols>
-void LaunchTROWARGMAX(TIdx *out, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
+    int oCol = kTCols>
+void LaunchTROWARGMAX(TIdx* out, T* src, void* stream)
 {
     using TileDst = Tile<TileType::Vec, TIdx, oRow, oCol, BLayout::RowMajor, -1, -1>;
     using TileSrc = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 1, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, (half *)(src), [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TROWARGMAX(dst, src, tmp); });
+            out, (half*)(src), [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TROWARGMAX(dst, src, tmp); });
     } else {
         runTARGREDUCEOP<TIdx, T, 1, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, src, [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TROWARGMAX(dst, src, tmp); });
+            out, src, [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TROWARGMAX(dst, src, tmp); });
     }
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
-          int oCol = kTCols>
-void LaunchTROWARGMIN(TIdx *out, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
+    int oCol = kTCols>
+void LaunchTROWARGMIN(TIdx* out, T* src, void* stream)
 {
     using TileDst = Tile<TileType::Vec, TIdx, oRow, oCol, BLayout::RowMajor, -1, -1>;
     using TileSrc = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 1, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, (half *)(src), [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TROWARGMIN(dst, src, tmp); });
+            out, (half*)(src), [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TROWARGMIN(dst, src, tmp); });
     } else {
         runTARGREDUCEOP<TIdx, T, 1, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, src, [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TROWARGMIN(dst, src, tmp); });
+            out, src, [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TROWARGMIN(dst, src, tmp); });
     }
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
-          int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
-void LaunchTROWARGMAX(T *outVal, TIdx *outIdx, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
+    int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
+void LaunchTROWARGMAX(T* outVal, TIdx* outIdx, T* src, void* stream)
 {
     using TileDstVal = Tile<TileType::Vec, T, oValRow, oValCol, BLayout::RowMajor, -1, -1>;
     using TileDstIdx = Tile<TileType::Vec, TIdx, oIdxRow, oIdxCol, BLayout::RowMajor, -1, -1>;
@@ -119,21 +124,22 @@ void LaunchTROWARGMAX(T *outVal, TIdx *outIdx, T *src, void *stream)
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 1, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            (half *)(outVal), outIdx, (half *)(src),
-            [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            (half*)(outVal), outIdx, (half*)(src),
+            [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TROWARGMAX(dstVal, dstIdx, src, tmp);
             });
     } else {
         runTARGREDUCEOP<TIdx, T, 1, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            outVal, outIdx, src, [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            outVal, outIdx, src, [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TROWARGMAX(dstVal, dstIdx, src, tmp);
             });
     }
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
-          int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
-void LaunchTROWARGMIN(T *outVal, TIdx *outIdx, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
+    int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
+void LaunchTROWARGMIN(T* outVal, TIdx* outIdx, T* src, void* stream)
 {
     using TileDstVal = Tile<TileType::Vec, T, oValRow, oValCol, BLayout::RowMajor, -1, -1>;
     using TileDstIdx = Tile<TileType::Vec, TIdx, oIdxRow, oIdxCol, BLayout::RowMajor, -1, -1>;
@@ -141,53 +147,56 @@ void LaunchTROWARGMIN(T *outVal, TIdx *outIdx, T *src, void *stream)
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 1, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            (half *)(outVal), outIdx, (half *)(src),
-            [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            (half*)(outVal), outIdx, (half*)(src),
+            [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TROWARGMIN(dstVal, dstIdx, src, tmp);
             });
     } else {
         runTARGREDUCEOP<TIdx, T, 1, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            outVal, outIdx, src, [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            outVal, outIdx, src, [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TROWARGMIN(dstVal, dstIdx, src, tmp);
             });
     }
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
-          int oCol = kTCols>
-void LaunchTCOLARGMAX(TIdx *out, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
+    int oCol = kTCols>
+void LaunchTCOLARGMAX(TIdx* out, T* src, void* stream)
 {
     using TileDst = Tile<TileType::Vec, TIdx, oRow, oCol, BLayout::RowMajor, -1, -1>;
     using TileSrc = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 0, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, (half *)(src), [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TCOLARGMAX(dst, src, tmp); });
+            out, (half*)(src), [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TCOLARGMAX(dst, src, tmp); });
     } else {
         runTARGREDUCEOP<TIdx, T, 0, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, src, [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TCOLARGMAX(dst, src, tmp); });
+            out, src, [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TCOLARGMAX(dst, src, tmp); });
     }
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
-          int oCol = kTCols>
-void LaunchTCOLARGMIN(TIdx *out, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oRow = kTRows,
+    int oCol = kTCols>
+void LaunchTCOLARGMIN(TIdx* out, T* src, void* stream)
 {
     using TileDst = Tile<TileType::Vec, TIdx, oRow, oCol, BLayout::RowMajor, -1, -1>;
     using TileSrc = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 0, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, (half *)(src), [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TCOLARGMIN(dst, src, tmp); });
+            out, (half*)(src), [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TCOLARGMIN(dst, src, tmp); });
     } else {
         runTARGREDUCEOP<TIdx, T, 0, kTRows, kTCols, iRow, iCol, oRow, oCol>(
-            out, src, [](TileDst &dst, TileSrc &src, TileTmp &tmp) { TCOLARGMIN(dst, src, tmp); });
+            out, src, [](TileDst& dst, TileSrc& src, TileTmp& tmp) { TCOLARGMIN(dst, src, tmp); });
     }
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
-          int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
-void LaunchTCOLARGMAX(T *outVal, TIdx *outIdx, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
+    int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
+void LaunchTCOLARGMAX(T* outVal, TIdx* outIdx, T* src, void* stream)
 {
     using TileDstVal = Tile<TileType::Vec, T, oValRow, oValCol, BLayout::RowMajor, -1, -1>;
     using TileDstIdx = Tile<TileType::Vec, TIdx, oIdxRow, oIdxCol, BLayout::RowMajor, -1, -1>;
@@ -195,21 +204,22 @@ void LaunchTCOLARGMAX(T *outVal, TIdx *outIdx, T *src, void *stream)
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 0, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            (half *)(outVal), outIdx, (half *)(src),
-            [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            (half*)(outVal), outIdx, (half*)(src),
+            [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TCOLARGMAX(dstVal, dstIdx, src, tmp);
             });
     } else {
         runTARGREDUCEOP<TIdx, T, 0, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            outVal, outIdx, src, [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            outVal, outIdx, src, [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TCOLARGMAX(dstVal, dstIdx, src, tmp);
             });
     }
 }
 
-template <typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
-          int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
-void LaunchTCOLARGMIN(T *outVal, TIdx *outIdx, T *src, void *stream)
+template <
+    typename TIdx, typename T, int kTRows, int kTCols, int iRow = kTRows, int iCol = kTCols, int oIdxRow = kTRows,
+    int oIdxCol = kTCols, int oValRow = kTRows, int oValCol = kTCols>
+void LaunchTCOLARGMIN(T* outVal, TIdx* outIdx, T* src, void* stream)
 {
     using TileDstVal = Tile<TileType::Vec, T, oValRow, oValCol, BLayout::RowMajor, -1, -1>;
     using TileDstIdx = Tile<TileType::Vec, TIdx, oIdxRow, oIdxCol, BLayout::RowMajor, -1, -1>;
@@ -217,47 +227,47 @@ void LaunchTCOLARGMIN(T *outVal, TIdx *outIdx, T *src, void *stream)
     using TileTmp = Tile<TileType::Vec, T, iRow, iCol, BLayout::RowMajor, -1, -1>;
     if constexpr (std::is_same_v<T, aclFloat16>) {
         runTARGREDUCEOP<TIdx, half, 0, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            (half *)(outVal), outIdx, (half *)(src),
-            [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            (half*)(outVal), outIdx, (half*)(src),
+            [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TCOLARGMIN(dstVal, dstIdx, src, tmp);
             });
     } else {
         runTARGREDUCEOP<TIdx, T, 0, kTRows, kTCols, iRow, iCol, oIdxRow, oIdxCol, oValRow, oValCol>(
-            outVal, outIdx, src, [](TileDstVal &dstVal, TileDstIdx &dstIdx, TileSrc &src, TileTmp &tmp) {
+            outVal, outIdx, src, [](TileDstVal& dstVal, TileDstIdx& dstIdx, TileSrc& src, TileTmp& tmp) {
                 TCOLARGMIN(dstVal, dstIdx, src, tmp);
             });
     }
 }
 
-template void LaunchTROWARGMAX<uint32_t, float, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTROWARGMAX<int32_t, aclFloat16, 16, 256>(int32_t *out, aclFloat16 *src, void *stream);
-template void LaunchTROWARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTROWARGMAX<uint32_t, float, 64, 64>(float *outVal, uint32_t *outIdx, float *src, void *stream);
-template void LaunchTROWARGMAX<int32_t, aclFloat16, 16, 256>(aclFloat16 *outVal, int32_t *outIdx, aclFloat16 *src,
-                                                             void *stream);
-template void LaunchTROWARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(float *outVal, uint32_t *outIdx,
-                                                                                float *src, void *stream);
-template void LaunchTROWARGMIN<uint32_t, float, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTROWARGMIN<int32_t, aclFloat16, 16, 256>(int32_t *out, aclFloat16 *src, void *stream);
-template void LaunchTROWARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTROWARGMIN<uint32_t, float, 64, 64>(float *outVal, uint32_t *outIdx, float *src, void *stream);
-template void LaunchTROWARGMIN<int32_t, aclFloat16, 16, 256>(aclFloat16 *outVal, int32_t *outIdx, aclFloat16 *src,
-                                                             void *stream);
-template void LaunchTROWARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(float *outVal, uint32_t *outIdx,
-                                                                                float *src, void *stream);
-template void LaunchTCOLARGMAX<uint32_t, float, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTCOLARGMAX<int32_t, aclFloat16, 16, 256>(int32_t *out, aclFloat16 *src, void *stream);
-template void LaunchTCOLARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTCOLARGMAX<uint32_t, float, 64, 64>(float *outVal, uint32_t *outIdx, float *src, void *stream);
-template void LaunchTCOLARGMAX<int32_t, aclFloat16, 16, 256>(aclFloat16 *outVal, int32_t *outIdx, aclFloat16 *src,
-                                                             void *stream);
-template void LaunchTCOLARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(float *outVal, uint32_t *outIdx,
-                                                                                float *src, void *stream);
-template void LaunchTCOLARGMIN<uint32_t, float, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTCOLARGMIN<int32_t, aclFloat16, 16, 256>(int32_t *out, aclFloat16 *src, void *stream);
-template void LaunchTCOLARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t *out, float *src, void *stream);
-template void LaunchTCOLARGMIN<uint32_t, float, 64, 64>(float *outVal, uint32_t *outIdx, float *src, void *stream);
-template void LaunchTCOLARGMIN<int32_t, aclFloat16, 16, 256>(aclFloat16 *outVal, int32_t *outIdx, aclFloat16 *src,
-                                                             void *stream);
-template void LaunchTCOLARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(float *outVal, uint32_t *outIdx,
-                                                                                float *src, void *stream);
+template void LaunchTROWARGMAX<uint32_t, float, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTROWARGMAX<int32_t, aclFloat16, 16, 256>(int32_t* out, aclFloat16* src, void* stream);
+template void LaunchTROWARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTROWARGMAX<uint32_t, float, 64, 64>(float* outVal, uint32_t* outIdx, float* src, void* stream);
+template void LaunchTROWARGMAX<int32_t, aclFloat16, 16, 256>(
+    aclFloat16* outVal, int32_t* outIdx, aclFloat16* src, void* stream);
+template void LaunchTROWARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(
+    float* outVal, uint32_t* outIdx, float* src, void* stream);
+template void LaunchTROWARGMIN<uint32_t, float, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTROWARGMIN<int32_t, aclFloat16, 16, 256>(int32_t* out, aclFloat16* src, void* stream);
+template void LaunchTROWARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTROWARGMIN<uint32_t, float, 64, 64>(float* outVal, uint32_t* outIdx, float* src, void* stream);
+template void LaunchTROWARGMIN<int32_t, aclFloat16, 16, 256>(
+    aclFloat16* outVal, int32_t* outIdx, aclFloat16* src, void* stream);
+template void LaunchTROWARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(
+    float* outVal, uint32_t* outIdx, float* src, void* stream);
+template void LaunchTCOLARGMAX<uint32_t, float, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTCOLARGMAX<int32_t, aclFloat16, 16, 256>(int32_t* out, aclFloat16* src, void* stream);
+template void LaunchTCOLARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTCOLARGMAX<uint32_t, float, 64, 64>(float* outVal, uint32_t* outIdx, float* src, void* stream);
+template void LaunchTCOLARGMAX<int32_t, aclFloat16, 16, 256>(
+    aclFloat16* outVal, int32_t* outIdx, aclFloat16* src, void* stream);
+template void LaunchTCOLARGMAX<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(
+    float* outVal, uint32_t* outIdx, float* src, void* stream);
+template void LaunchTCOLARGMIN<uint32_t, float, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTCOLARGMIN<int32_t, aclFloat16, 16, 256>(int32_t* out, aclFloat16* src, void* stream);
+template void LaunchTCOLARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64>(uint32_t* out, float* src, void* stream);
+template void LaunchTCOLARGMIN<uint32_t, float, 64, 64>(float* outVal, uint32_t* outIdx, float* src, void* stream);
+template void LaunchTCOLARGMIN<int32_t, aclFloat16, 16, 256>(
+    aclFloat16* outVal, int32_t* outIdx, aclFloat16* src, void* stream);
+template void LaunchTCOLARGMIN<uint32_t, float, 16, 16, 32, 32, 64, 64, 32, 32>(
+    float* outVal, uint32_t* outIdx, float* src, void* stream);

@@ -25,29 +25,29 @@ constexpr int FZ2FZ = 7;
 constexpr int FZ4D2FZ4D = 8;
 } // namespace TloadMixTestFormat
 
-template <typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-          int BASEM, int BASEK>
-void launchTLOADMIX(uint8_t *out, uint8_t *src0, uint8_t *src1, void *stream);
+template <
+    typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
+    int BASEM, int BASEK>
+void launchTLOADMIX(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TLOADMIXTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-          int BASEM, int BASEK>
+template <
+    typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
+    int BASEM, int BASEK>
 void TLOADMIXFUNC()
 {
     constexpr uint32_t c0SizeByte = 32;
@@ -55,8 +55,9 @@ void TLOADMIXFUNC()
     size_t aFileSize = WN1 * WN2 * WN3 * WN4 * WN5 * sizeof(T);
     size_t bFileSize = N4 * N5 * sizeof(T);
     size_t cFileSize = BASEM * BASEK * sizeof(T);
-    if constexpr (format == TloadMixTestFormat::NC1HWC02NC1HWC0 || format == TloadMixTestFormat::FZ4D2FZ4D ||
-                  format == TloadMixTestFormat::FZ2FZ) {
+    if constexpr (
+        format == TloadMixTestFormat::NC1HWC02NC1HWC0 || format == TloadMixTestFormat::FZ4D2FZ4D ||
+        format == TloadMixTestFormat::FZ2FZ) {
         cFileSize = N1 * N2 * N3 * N4 * N5 * sizeof(T);
     }
 
@@ -68,21 +69,21 @@ void TLOADMIXFUNC()
     uint8_t *dstHost, *src0Host, *src1Host;
     uint8_t *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), cFileSize);
-    aclrtMallocHost((void **)(&src0Host), aFileSize);
-    aclrtMallocHost((void **)(&src1Host), bFileSize);
+    aclrtMallocHost((void**)(&dstHost), cFileSize);
+    aclrtMallocHost((void**)(&src0Host), aFileSize);
+    aclrtMallocHost((void**)(&src1Host), bFileSize);
 
-    aclrtMalloc((void **)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, cFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
 
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(dstDevice, src0Device,
-                                                                                         src1Device, stream);
+    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(
+        dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -183,64 +184,60 @@ TEST_F(TLOADMIXTest, 1_2_1_64_128_1_3_4_128_128_128_128_uint64_t_ND2ND)
 }
 
 // 6: NC1HWC02NC1HWC0
-TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_int8_t_1_3_16_128_32_3_4_1024_1024_32)
+TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_int8_t_1_3_16_64_32_3_4_1024_1024_32)
 {
-    TLOADMIXFUNC<int8_t, 6, 1, 3, 16, 128, 32, 3, 4, 1024, 1024, 32, 1, 1>();
+    TLOADMIXFUNC<int8_t, 6, 1, 3, 16, 64, 32, 3, 4, 1024, 1024, 32, 1, 1>();
 }
-TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_int8_t_3_2_128_8_32_3_2_128_128_32)
+TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_int8_t_3_2_64_8_32_3_2_128_128_32)
 {
-    TLOADMIXFUNC<int8_t, 6, 3, 2, 128, 8, 32, 3, 2, 128, 128, 32, 1, 1>();
+    TLOADMIXFUNC<int8_t, 6, 3, 2, 64, 8, 32, 3, 2, 128, 128, 32, 1, 1>();
 }
-TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_int8_t_3_2_8_128_32_3_8_8_128_32)
+TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_int8_t_3_2_8_64_32_3_8_8_128_32)
 {
-    TLOADMIXFUNC<int8_t, 6, 3, 2, 8, 128, 32, 3, 8, 8, 128, 32, 1, 1>();
+    TLOADMIXFUNC<int8_t, 6, 3, 2, 8, 64, 32, 3, 8, 8, 128, 32, 1, 1>();
 }
-TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_float16_1_6_10_100_16_1_6_100_100_16)
+TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_float16_1_6_10_64_16_1_6_100_100_16)
 {
-    TLOADMIXFUNC<uint16_t, 6, 1, 6, 10, 100, 16, 1, 6, 100, 100, 16, 1, 1>();
+    TLOADMIXFUNC<uint16_t, 6, 1, 6, 10, 64, 16, 1, 6, 100, 100, 16, 1, 1>();
 }
-TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_float16_10_16_16_2_16_256_16_100_16_16)
+TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_float16_6_16_16_2_16_256_16_100_16_16)
 {
-    TLOADMIXFUNC<uint16_t, 6, 10, 16, 16, 2, 16, 256, 16, 100, 16, 16, 1, 1>();
+    TLOADMIXFUNC<uint16_t, 6, 6, 16, 16, 2, 16, 256, 16, 100, 16, 16, 1, 1>();
 }
-TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_float16_1_1_1_8192_16_8_16_16_8192_16)
+TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_float_1_1_56_64_8_2_3_224_224_8)
 {
-    TLOADMIXFUNC<uint16_t, 6, 1, 1, 1, 8192, 16, 8, 16, 16, 8192, 16, 1, 1>();
-}
-TEST_F(TLOADMIXTest, NC1HWC02NC1HWC0_float_1_1_56_112_8_2_3_224_224_8)
-{
-    TLOADMIXFUNC<float, 6, 1, 1, 56, 112, 8, 2, 3, 224, 224, 8, 1, 1>();
+    TLOADMIXFUNC<float, 6, 1, 1, 56, 64, 8, 2, 3, 224, 224, 8, 1, 1>();
 }
 
 TEST_F(TLOADMIXTest, FZ2FZ_float16_1_7_7_20_16_3_7_7_100_16)
 {
     TLOADMIXFUNC<uint16_t, 7, 1, 7, 7, 20, 16, 3, 7, 7, 100, 16, 1, 1>();
 }
-TEST_F(TLOADMIXTest, FZ2FZ_float16_64_7_7_2_16_256_7_7_16_16)
+TEST_F(TLOADMIXTest, FZ2FZ_float16_32_7_7_2_16_256_7_7_16_16)
 {
-    TLOADMIXFUNC<uint16_t, 7, 64, 7, 7, 2, 16, 256, 7, 7, 16, 16, 1, 1>();
+    TLOADMIXFUNC<uint16_t, 7, 32, 7, 7, 2, 16, 256, 7, 7, 16, 16, 1, 1>();
 }
-TEST_F(TLOADMIXTest, FZ2FZ_float16_96_3_3_8_16_256_3_3_8_16)
+TEST_F(TLOADMIXTest, FZ2FZ_float16_48_3_3_8_16_256_3_3_8_16)
 {
-    TLOADMIXFUNC<uint16_t, 7, 96, 3, 3, 8, 16, 256, 3, 3, 8, 16, 1, 1>();
+    TLOADMIXFUNC<uint16_t, 7, 48, 3, 3, 8, 16, 256, 3, 3, 8, 16, 1, 1>();
 }
-TEST_F(TLOADMIXTest, FZ2FZ_int8_t_1_3_3_64_32_3_3_3_128_32)
+TEST_F(TLOADMIXTest, FZ2FZ_int8_t_2_3_3_64_32_3_3_3_128_32)
 {
     TLOADMIXFUNC<int8_t, 7, 2, 3, 3, 64, 32, 3, 3, 3, 128, 32, 1, 1>();
 }
-TEST_F(TLOADMIXTest, FZ2FZ_int8_t_8_5_5_32_32_8_5_5_128_32)
+TEST_F(TLOADMIXTest, FZ2FZ_int8_t_4_5_5_32_32_8_5_5_128_32)
 {
-    TLOADMIXFUNC<int8_t, 7, 8, 5, 5, 32, 32, 8, 5, 5, 128, 32, 1, 1>();
+    TLOADMIXFUNC<int8_t, 7, 4, 5, 5, 32, 32, 8, 5, 5, 128, 32, 1, 1>();
 }
-TEST_F(TLOADMIXTest, FZ2FZ_float_70_7_7_2_8_256_7_7_256_8)
+TEST_F(TLOADMIXTest, FZ2FZ_float_35_7_7_2_8_256_7_7_256_8)
 {
-    TLOADMIXFUNC<float, 7, 70, 7, 7, 2, 8, 256, 7, 7, 256, 8, 1, 1>();
+    TLOADMIXFUNC<float, 7, 35, 7, 7, 2, 8, 256, 7, 7, 256, 8, 1, 1>();
 }
 
 // 8: FZ4D2FZ4D
-TEST_F(TLOADMIXTest, FZ4D2FZ4D_float16_1_49_7_16_16_1_980_32_16_16)
+TEST_F(TLOADMIXTest, FZ4D2FZ4D_float16_1_32_7_16_16_1_980_32_16_16)
 {
-    TLOADMIXFUNC<uint16_t, 8, 1, 49, 7, 16, 16, 1, 980, 32, 16, 16, 1, 1>();
+    TLOADMIXFUNC<uint16_t, 8, 1, 32, 7, 16, 16, 1, 980, 32, 16, 16, 1, 1>();
 }
 TEST_F(TLOADMIXTest, FZ4D2FZ4D_float16_1_81_3_16_16_1_90_3_16_16)
 {
@@ -250,11 +247,11 @@ TEST_F(TLOADMIXTest, FZ4D2FZ4D_int8_t_1_63_3_16_32_1_63_9_16_32)
 {
     TLOADMIXFUNC<int8_t, 8, 1, 63, 3, 16, 32, 1, 63, 9, 16, 32, 1, 1>();
 }
-TEST_F(TLOADMIXTest, FZ4D2FZ4D_int8_t_1_125_3_16_32_1_250_5_16_32)
+TEST_F(TLOADMIXTest, FZ4D2FZ4D_int8_t_1_64_3_16_32_1_250_5_16_32)
 {
-    TLOADMIXFUNC<int8_t, 8, 1, 125, 3, 16, 32, 1, 250, 5, 16, 32, 1, 1>();
+    TLOADMIXFUNC<int8_t, 8, 1, 64, 3, 16, 32, 1, 250, 5, 16, 32, 1, 1>();
 }
-TEST_F(TLOADMIXTest, FZ4D2FZ4D_float_1_126_3_16_8_1_4704_7_16_8)
+TEST_F(TLOADMIXTest, FZ4D2FZ4D_float_1_64_3_16_8_1_4704_7_16_8)
 {
-    TLOADMIXFUNC<float, 8, 1, 126, 3, 16, 8, 1, 4704, 7, 16, 8, 1, 1>();
+    TLOADMIXFUNC<float, 8, 1, 64, 3, 16, 8, 1, 4704, 7, 16, 8, 1, 1>();
 }

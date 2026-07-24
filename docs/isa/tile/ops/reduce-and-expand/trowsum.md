@@ -1,28 +1,28 @@
-# pto.trowsum
+# TROWSUM
 
-`pto.trowsum` is part of the [Reduce And Expand](../../reduce-and-expand.md) instruction set.
 
-## Summary
+## Tile Operation Diagram
 
-Reduce each row of a source tile by summing all elements in that row, producing a column vector of row sums.
+![TROWSUM tile operation](../../../../figures/isa/TROWSUM.svg)
 
-## Mechanism
+## Introduction
 
-Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For each row `i` from `0` to `R-1`:
+Reduce each row by summing across columns.
+
+## Math Interpretation
+
+Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= i < R`:
 
 $$ \mathrm{dst}_{i,0} = \sum_{j=0}^{C-1} \mathrm{src}_{i,j} $$
 
-The result tile has the same number of rows as the source and one column. The `tmp` tile provides scratch storage for the reduction tree; its shape and layout are constrained by the implementation.
+## Assembly Syntax
 
-## Syntax
-
-### PTO Assembly Form
+Synchronous form:
 
 ```text
 %dst = trowsum %src : !pto.tile<...> -> !pto.tile<...>
 ```
-
-Note: Lowering may introduce internal scratch tiles. The C++ intrinsic requires an explicit `tmp` operand.
+Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
 
 ### AS Level 1 (SSA)
 
@@ -33,8 +33,7 @@ Note: Lowering may introduce internal scratch tiles. The C++ intrinsic requires 
 ### AS Level 2 (DPS)
 
 ```text
-pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>)
-          outs(%dst : !pto.tile_buf<...>)
+pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ Intrinsic
@@ -46,104 +45,57 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typen
 PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
 ```
 
-## Inputs
-
-| Operand | Description |
-|---------|-------------|
-| `src` | Source tile. Must be `TileType::Vec`. Must use standard ND layout (row-major, non-fractal). |
-| `tmp` | Temporary scratch tile. Used for intermediate reduction storage. Shape and layout constraints are enforced by the implementation. |
-| `dst` | Destination tile. Must be `TileType::Vec`. Must have `dst.GetValidRow() == src.GetValidRow()`. |
-
-## Expected Outputs
-
-| Result | Type | Description |
-|--------|------|-------------|
-| `RecordEvent` | `RecordEvent` | Token signaling completion of the reduction |
-| `dst` | tile | Row sums: `dst[i,0]` = sum of all elements in row `i` of `src` |
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated tile traffic.
-
 ## Constraints
 
-!!! warning "Constraints"
-    ### Tile Types
+### General constraints / checks
 
-    - `src` and `dst` must both be `TileType::Vec`.
+- `dst` and `src` must both be `TileType::Vec`.
+- `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` must use one of the following non-fractal layouts:
+    - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
+    - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+- `dst` and `src` must use the same element type.
+- Runtime valid-region checks:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- The intrinsic signature requires an explicit `tmp` operand.
 
-    ### Layout
+### A2A3 implementation checks
 
-    - `src` must use standard ND layout: `BLayout::RowMajor`, `SLayout::NoneBox`.
-    - `dst` must use one of:
-      - ND layout: `BLayout::RowMajor`, `SLayout::NoneBox`, `Cols == 1`, or
-      - DN layout: `BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`.
-    - `src` and `dst` must have the same element type.
+- Supported element types: `half`, `float`, `int32_t`, `int16_t`.
+- The implementation accepts both ND output and DN output with `Cols == 1`; it is not limited to DN output.
+- Runtime checks follow the shared row-reduce check path:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
 
-    ### Valid Region
+## Temporary Space
 
-    - `src.GetValidRow() > 0`
-    - `src.GetValidCol() > 0`
-    - `dst.GetValidRow() == src.GetValidRow()`
+### A2A3
 
-    ### Element Types
+`tmp` **is used** as scratch storage for row-wise reduction.
 
-    Supported: `half`, `float`, `int32_t`, `int16_t`.
+- For **integer** types (`int32_t`, `int16_t`): `tmp` is used as a per-row accumulator buffer (1 block). For each row, `tmp` is initialized to 0, then blocks of `src` are accumulated via `vadd`. The final sum is read from `tmp` in scalar mode.
+  - `tmp` size: at least 1 row and `BLOCK_BYTE_SIZE / sizeof(T)` columns (8 for `int32_t`, 16 for `int16_t`).
+- For **floating-point** types (`float`, `half`): `tmp` is used for binary-tree reduction via `vcadd`/`vcgadd`. The required size depends on the number of repeat blocks per row.
+  - A safe default: set `tmp` to the same shape as `src`.
 
-## Performance
+### A5
 
-### A2/A3 Cycle Count
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based reduction (`vcadd` instruction) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
-`TROWSUM` compiles to a multi-phase CCE instruction sequence. The `TRowReduceOp.hpp` header determines the instruction sequence based on tile geometry.
-
-**Cycle model**:
-
-```
-total = startup + Σ(completion_i) + Σ(repeats_i × per_repeat_i) + Σ((repeats_i - 1) × interval)
-```
-
-### Instruction Sequence by Shape (FP32)
-
-| Valid Shape | Instruction Sequence | Estimated Cycles |
-|-------------|---------------------|------------------|
-| 64×128 | `vcgadd`*128 → `vadd`*8 → `vcgadd`*8 → PIPE_V | ~O(1024) |
-| 32×256 | `vcgadd`*128 → `vadd`*8 → `vadd`*4 → `vcgadd`*4 → PIPE_V | ~O(2048) |
-| 16×512 | `vcgadd`*128 → `vcgadd`*16 → `vcgadd`*2 → PIPE_V | ~O(2048) |
-| 8×1024 | `vcgadd`*128 → `vcgadd`*16 → `vadd`*8 → `vcgadd`*8 → PIPE_V | ~O(2048) |
-
-### General Shape Algorithm
-
-For non-special shapes or non-FP32 types:
-
-1. **Fill phase**: `copy_ubuf_to_ubuf` to initialize tmp (if `validCol >= 2 × 8`)
-2. **Loop-fill**: For each row, apply `vadd`/`vmax`/`vmin` with per-row repeats
-3. **Merge phase**: `vadd`/`vmax`/`vmin` per row again
-4. **Final reduction**: `vcadd`/`vcmax`/`vcmin` with `PIPE_V` barrier
-
-### Layout and Shape Impact
-
-| Layout | validCol | Optimization |
-|--------|----------|-------------|
-| `RowMajor` | ≥ 16 (FP32) | Continuous fast path |
-| `RowMajor` | < 16 | General path with tail masking |
-| `ColMajor` | any | General path |
-| `Zigzag` | any | General path |
-
-Integer types (int16_t/int32_t): Use simplified path with direct `vadd`/`vmax`/`vmin` per block — no tree reduction.
-
-## Exceptions
-
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain.
 
 ## Examples
 
+### Auto
+
 ```cpp
 #include <pto/pto-inst.hpp>
+
 using namespace pto;
 
-void example() {
+void example_auto() {
   using SrcT = Tile<TileType::Vec, float, 16, 16>;
   using DstT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
   using TmpT = Tile<TileType::Vec, float, 16, 16>;
@@ -154,7 +106,50 @@ void example() {
 }
 ```
 
-## See Also
+### Manual
 
-- Instruction set overview: [Reduce And Expand](../../reduce-and-expand.md)
-- Next op in instruction set: [pto.tcolsum](./tcolsum.md)
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TmpT tmp;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TASSIGN(tmp, 0x3000);
+  TROWSUM(dst, src, tmp);
+}
+```
+
+## ASM Form Examples
+
+### Auto Mode
+
+```text
+# Auto mode: compiler/runtime-managed placement and scheduling.
+%dst = pto.trowsum %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### Manual Mode
+
+```text
+# Manual mode: resources must be bound explicitly before issuing the instruction.
+# Optional for tile operands:
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+%dst = pto.trowsum %src, %tmp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>
+```
+
+### PTO Assembly Form
+
+```text
+%dst = trowsum %src : !pto.tile<...> -> !pto.tile<...>
+# AS Level 2 (DPS)
+pto.trowsum ins(%src, %tmp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```

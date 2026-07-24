@@ -46,7 +46,7 @@ struct CommParams {
     int numChunks;
 };
 
-AICORE inline CommParams BuildCommParams(__gm__ CommDeviceContext *hcclCtx, volatile __gm__ ChunkFlagMatrix *flags)
+AICORE inline CommParams BuildCommParams(__gm__ CommDeviceContext* hcclCtx, volatile __gm__ ChunkFlagMatrix* flags)
 {
     CommParams p;
     p.myRank = static_cast<int>(hcclCtx->rankId);
@@ -64,65 +64,63 @@ AICORE inline CommParams BuildCommParams(__gm__ CommDeviceContext *hcclCtx, vola
     return p;
 }
 
-AICORE inline void SetupLocalFlags(volatile __gm__ ChunkFlagMatrix *flags, volatile __gm__ int32_t *summaryBase,
-                                   int myRank, int numChunks)
+AICORE inline void SetupLocalFlags(
+    volatile __gm__ ChunkFlagMatrix* flags, volatile __gm__ int32_t* summaryBase, int myRank, int numChunks)
 {
     for (int c = 0; c < numChunks; ++c) {
         SetChunkFlagReady(flags, myRank, c);
     }
     // Use TNOTIFY AtomicAdd (matching TWAIT) instead of direct store,
     // so that TWAIT's hardware signal mechanism is properly triggered.
-    volatile __gm__ int32_t *ptr = summaryBase + myRank;
-    pto::comm::Signal sig(reinterpret_cast<__gm__ int32_t *>(const_cast<__gm__ int32_t *>(ptr)));
+    volatile __gm__ int32_t* ptr = summaryBase + myRank;
+    pto::comm::Signal sig(reinterpret_cast<__gm__ int32_t*>(const_cast<__gm__ int32_t*>(ptr)));
     pto::comm::TNOTIFY(sig, numChunks, pto::comm::NotifyOp::AtomicAdd);
 }
 
-AICORE inline void InitTileBuffers(TileData &pingTile, TileData &pongTile)
+AICORE inline void InitTileBuffers(TileData& pingTile, TileData& pongTile)
 {
     TASSIGN(pingTile, 0x0);
     TASSIGN(pongTile, TILE_UB_BYTES);
 }
 
-AICORE inline int DestIdxToRank(int destIdx, int myRank)
-{
-    return (destIdx < myRank) ? destIdx : (destIdx + 1);
-}
+AICORE inline int DestIdxToRank(int destIdx, int myRank) { return (destIdx < myRank) ? destIdx : (destIdx + 1); }
 
 struct RemoteEndpoint {
-    __gm__ ChunkFlagMatrix *chunkFlags;
-    __gm__ int32_t *summarySrc;
+    __gm__ ChunkFlagMatrix* chunkFlags;
+    __gm__ int32_t* summarySrc;
 };
 
-AICORE inline RemoteEndpoint GetRemoteEndpoint(__gm__ CommDeviceContext *hcclCtx, __gm__ ChunkFlagMatrix *flagsMut,
-                                               volatile __gm__ ChunkFlagMatrix *flags, int destRank, int myRank)
+AICORE inline RemoteEndpoint GetRemoteEndpoint(
+    __gm__ CommDeviceContext* hcclCtx, __gm__ ChunkFlagMatrix* flagsMut, volatile __gm__ ChunkFlagMatrix* flags,
+    int destRank, int myRank)
 {
     RemoteEndpoint ep;
-    ep.chunkFlags = reinterpret_cast<__gm__ ChunkFlagMatrix *>(CommRemotePtr(hcclCtx, flagsMut, destRank));
-    ep.summarySrc = reinterpret_cast<__gm__ int32_t *>(
-                        reinterpret_cast<__gm__ uint8_t *>(CommRemotePtr(hcclCtx, flagsMut, destRank)) +
+    ep.chunkFlags = reinterpret_cast<__gm__ ChunkFlagMatrix*>(CommRemotePtr(hcclCtx, flagsMut, destRank));
+    ep.summarySrc = reinterpret_cast<__gm__ int32_t*>(
+                        reinterpret_cast<__gm__ uint8_t*>(CommRemotePtr(hcclCtx, flagsMut, destRank)) +
                         ChunkFlagMatrixBytes(flags)) +
                     myRank;
     return ep;
 }
 
 struct DispatchContext {
-    __gm__ half *shmemInput;
-    __gm__ CommDeviceContext *hcclCtx;
-    volatile __gm__ ChunkFlagMatrix *flags;
-    const ShapeDyn *tileShape;
-    const StrideDyn *tileStride;
-    TileData *pingTile;
-    TileData *pongTile;
+    __gm__ half* shmemInput;
+    __gm__ CommDeviceContext* hcclCtx;
+    volatile __gm__ ChunkFlagMatrix* flags;
+    const ShapeDyn* tileShape;
+    const StrideDyn* tileStride;
+    TileData* pingTile;
+    TileData* pongTile;
     CommParams p;
     int blockIdx;
     int numBlocks;
 };
 
 // 将一个 chunk 对应的所有 tile 通过 TPUT 传输到远端，完成后设置远端 flag
-AICORE inline void TransferChunkToRemote(__gm__ half *shmemInput, __gm__ CommDeviceContext *hcclCtx,
-                                         __gm__ ChunkFlagMatrix *remoteChunkFlags, __gm__ int32_t *remoteSummarySrc,
-                                         const ShapeDyn &tileShape, const StrideDyn &tileStride, TileData &pingTile,
-                                         TileData &pongTile, const CommParams &p, int destRank, int chunkIdx)
+AICORE inline void TransferChunkToRemote(
+    __gm__ half* shmemInput, __gm__ CommDeviceContext* hcclCtx, __gm__ ChunkFlagMatrix* remoteChunkFlags,
+    __gm__ int32_t* remoteSummarySrc, const ShapeDyn& tileShape, const StrideDyn& tileStride, TileData& pingTile,
+    TileData& pongTile, const CommParams& p, int destRank, int chunkIdx)
 {
     int tileStart = chunkIdx * p.chunkSize;
     int tileEnd = tileStart + p.chunkSize;
@@ -130,7 +128,7 @@ AICORE inline void TransferChunkToRemote(__gm__ half *shmemInput, __gm__ CommDev
         tileEnd = p.numTilesPerSrc;
     }
 
-    __gm__ half *remoteInput = CommRemotePtr(hcclCtx, shmemInput, destRank);
+    __gm__ half* remoteInput = CommRemotePtr(hcclCtx, shmemInput, destRank);
     for (int t = tileStart; t < tileEnd; ++t) {
         int miLocal = t / p.kTiles;
         int kt = t % p.kTiles;
@@ -149,9 +147,9 @@ AICORE inline void TransferChunkToRemote(__gm__ half *shmemInput, __gm__ CommDev
 }
 
 // 硬件 block 数少于 dest 数：按 work_id 均分
-AICORE inline void DispatchFewBlocks(const DispatchContext &ctx)
+AICORE inline void DispatchFewBlocks(const DispatchContext& ctx)
 {
-    __gm__ ChunkFlagMatrix *flagsMut = const_cast<__gm__ ChunkFlagMatrix *>(ctx.flags);
+    __gm__ ChunkFlagMatrix* flagsMut = const_cast<__gm__ ChunkFlagMatrix*>(ctx.flags);
     int totalWork = ctx.p.numRemoteRanks * ctx.p.numChunks;
 
     for (int workId = ctx.blockIdx; workId < totalWork; workId += ctx.numBlocks) {
@@ -161,15 +159,16 @@ AICORE inline void DispatchFewBlocks(const DispatchContext &ctx)
 
         RemoteEndpoint ep = GetRemoteEndpoint(ctx.hcclCtx, flagsMut, ctx.flags, destRank, ctx.p.myRank);
 
-        TransferChunkToRemote(ctx.shmemInput, ctx.hcclCtx, ep.chunkFlags, ep.summarySrc, *ctx.tileShape,
-                              *ctx.tileStride, *ctx.pingTile, *ctx.pongTile, ctx.p, destRank, chunkIdx);
+        TransferChunkToRemote(
+            ctx.shmemInput, ctx.hcclCtx, ep.chunkFlags, ep.summarySrc, *ctx.tileShape, *ctx.tileStride, *ctx.pingTile,
+            *ctx.pongTile, ctx.p, destRank, chunkIdx);
     }
 }
 
 // 硬件 block 数 >= dest 数：每 dest 分配连续 block 区间
-AICORE inline void DispatchManyBlocks(const DispatchContext &ctx)
+AICORE inline void DispatchManyBlocks(const DispatchContext& ctx)
 {
-    __gm__ ChunkFlagMatrix *flagsMut = const_cast<__gm__ ChunkFlagMatrix *>(ctx.flags);
+    __gm__ ChunkFlagMatrix* flagsMut = const_cast<__gm__ ChunkFlagMatrix*>(ctx.flags);
     if (ctx.p.numRemoteRanks <= 0) {
         return;
     }
@@ -194,22 +193,24 @@ AICORE inline void DispatchManyBlocks(const DispatchContext &ctx)
     }
 
     for (int chunkIdx = chunkStart; chunkIdx < chunkEnd; ++chunkIdx) {
-        TransferChunkToRemote(ctx.shmemInput, ctx.hcclCtx, ep.chunkFlags, ep.summarySrc, *ctx.tileShape,
-                              *ctx.tileStride, *ctx.pingTile, *ctx.pongTile, ctx.p, destRank, chunkIdx);
+        TransferChunkToRemote(
+            ctx.shmemInput, ctx.hcclCtx, ep.chunkFlags, ep.summarySrc, *ctx.tileShape, *ctx.tileStride, *ctx.pingTile,
+            *ctx.pongTile, ctx.p, destRank, chunkIdx);
     }
 }
 
-AICORE inline void CommAIVRoleStreamingParallel(__gm__ half *shmemInput, __gm__ ChunkFlagMatrix *chunkFlags,
-                                                __gm__ CommDeviceContext *hcclCtx, int blockIdx, int numBlocks)
+AICORE inline void CommAIVRoleStreamingParallel(
+    __gm__ half* shmemInput, __gm__ ChunkFlagMatrix* chunkFlags, __gm__ CommDeviceContext* hcclCtx, int blockIdx,
+    int numBlocks)
 {
-    volatile __gm__ ChunkFlagMatrix *flags = reinterpret_cast<volatile __gm__ ChunkFlagMatrix *>(chunkFlags);
+    volatile __gm__ ChunkFlagMatrix* flags = reinterpret_cast<volatile __gm__ ChunkFlagMatrix*>(chunkFlags);
     CommParams p = BuildCommParams(hcclCtx, flags);
 
     if (p.numRemoteRanks <= 0 || numBlocks <= 0) {
         return;
     }
 
-    volatile __gm__ int32_t *summaryBase = GetSummaryBase(flags);
+    volatile __gm__ int32_t* summaryBase = GetSummaryBase(flags);
     if (blockIdx == 0) {
         SetupLocalFlags(flags, summaryBase, p.myRank, p.numChunks);
     }
@@ -233,24 +234,25 @@ AICORE inline void CommAIVRoleStreamingParallel(__gm__ half *shmemInput, __gm__ 
 
 #endif // __CCE_AICORE__
 
-__global__ AICORE void RingCommStreamingKernel(__gm__ uint8_t *shmemInput, __gm__ uint8_t *chunkFlags,
-                                               __gm__ uint8_t *hcclCtxRaw, int blockNum)
+__global__ AICORE void RingCommStreamingKernel(
+    __gm__ uint8_t* shmemInput, __gm__ uint8_t* chunkFlags, __gm__ uint8_t* hcclCtxRaw, int blockNum)
 {
 #ifdef __CCE_AICORE__
     int blockIdx = get_block_idx();
-    __gm__ CommDeviceContext *hcclCtx = reinterpret_cast<__gm__ CommDeviceContext *>(hcclCtxRaw);
+    __gm__ CommDeviceContext* hcclCtx = reinterpret_cast<__gm__ CommDeviceContext*>(hcclCtxRaw);
     int nRanks = static_cast<int>(hcclCtx->rankNum);
 
     if (nRanks <= 1) {
         return;
     }
 
-    CommAIVRoleStreamingParallel(reinterpret_cast<__gm__ half *>(shmemInput),
-                                 reinterpret_cast<__gm__ ChunkFlagMatrix *>(chunkFlags), hcclCtx, blockIdx, blockNum);
+    CommAIVRoleStreamingParallel(
+        reinterpret_cast<__gm__ half*>(shmemInput), reinterpret_cast<__gm__ ChunkFlagMatrix*>(chunkFlags), hcclCtx,
+        blockIdx, blockNum);
 #endif
 }
 
-void launchRingCommStreaming(uint8_t *shmemInput, uint8_t *chunkFlags, uint8_t *hcclCtx, int nRanks, void *stream)
+void launchRingCommStreaming(uint8_t* shmemInput, uint8_t* chunkFlags, uint8_t* hcclCtx, int nRanks, void* stream)
 {
     int numRemoteRanks = nRanks - 1;
     if (numRemoteRanks <= 0) {

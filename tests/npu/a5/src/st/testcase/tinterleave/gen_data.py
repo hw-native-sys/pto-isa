@@ -96,6 +96,7 @@ if __name__ == "__main__":
         TInterleaveParams(np.int32, 16, 32, 16, 31),
         TInterleaveParams(np.int8, 32, 256, 32, 255),
         TInterleaveParams(np.uint8, 32, 256, 32, 255),
+        TInterleaveParams(np.float32, 2, 72, 2, 66),
     ]
 
     for param in case_params_list:

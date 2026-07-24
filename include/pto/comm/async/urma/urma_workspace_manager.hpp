@@ -52,15 +52,12 @@ namespace urma {
 class UrmaWorkspaceManager {
 public:
     UrmaWorkspaceManager() = default;
-    ~UrmaWorkspaceManager()
-    {
-        Finalize();
-    }
+    ~UrmaWorkspaceManager() { Finalize(); }
 
-    UrmaWorkspaceManager(const UrmaWorkspaceManager &) = delete;
-    UrmaWorkspaceManager &operator=(const UrmaWorkspaceManager &) = delete;
+    UrmaWorkspaceManager(const UrmaWorkspaceManager&) = delete;
+    UrmaWorkspaceManager& operator=(const UrmaWorkspaceManager&) = delete;
 
-    bool Init(HcclComm comm, uint32_t rankId, uint32_t rankCount, void *symmetricAddr, uint64_t symmetricSize)
+    bool Init(HcclComm comm, uint32_t rankId, uint32_t rankCount, void* symmetricAddr, uint64_t symmetricSize)
     {
         comm_ = comm;
         rankId_ = rankId;
@@ -93,10 +90,7 @@ public:
         initialized_ = false;
     }
 
-    void *GetWorkspaceAddr() const
-    {
-        return urmaInfoDevice_;
-    }
+    void* GetWorkspaceAddr() const { return urmaInfoDevice_; }
 
 private:
     bool RegisterMemory()
@@ -126,7 +120,7 @@ private:
 
             uint32_t netLayer = 0;
             uint32_t linkNum = 0;
-            CommLink *linkList = nullptr;
+            CommLink* linkList = nullptr;
             HcclResult rc = HcclRankGraphGetLinks(comm_, netLayer, rankId_, peer, &linkList, &linkNum);
             if (rc != HCCL_SUCCESS) {
                 std::cerr << "[URMA] HcclRankGraphGetLinks peer=" << peer << " ret=" << static_cast<int>(rc)
@@ -161,8 +155,8 @@ private:
         }
 
         channelHandles_.resize(descs.size());
-        HcclResult rc = HcclChannelAcquire(comm_, COMM_ENGINE_AIV, descs.data(), static_cast<uint32_t>(descs.size()),
-                                           channelHandles_.data());
+        HcclResult rc = HcclChannelAcquire(
+            comm_, COMM_ENGINE_AIV, descs.data(), static_cast<uint32_t>(descs.size()), channelHandles_.data());
         if (rc != HCCL_SUCCESS) {
             std::cerr << "[URMA] HcclChannelAcquire failed: " << static_cast<int>(rc) << std::endl;
             return false;
@@ -193,8 +187,9 @@ private:
         return true;
     }
 
-    bool ExtractPerPeerInfo(std::vector<UrmaWQCtx> &wqList, std::vector<UrmaCqCtx> &cqList,
-                            std::vector<UrmaMemInfo> &memList, std::vector<uint8_t> &eidTable, uint32_t &localTokenId)
+    bool ExtractPerPeerInfo(
+        std::vector<UrmaWQCtx>& wqList, std::vector<UrmaCqCtx>& cqList, std::vector<UrmaMemInfo>& memList,
+        std::vector<uint8_t>& eidTable, uint32_t& localTokenId)
     {
         uint32_t channelIdx = 0;
         for (uint32_t peer = 0; peer < rankCount_; ++peer) {
@@ -214,9 +209,9 @@ private:
         return true;
     }
 
-    bool ExtractSinglePeer(uint32_t peer, uint32_t channelIdx, std::vector<UrmaWQCtx> &wqList,
-                           std::vector<UrmaCqCtx> &cqList, std::vector<UrmaMemInfo> &memList,
-                           std::vector<uint8_t> &eidTable, uint32_t &localTokenId)
+    bool ExtractSinglePeer(
+        uint32_t peer, uint32_t channelIdx, std::vector<UrmaWQCtx>& wqList, std::vector<UrmaCqCtx>& cqList,
+        std::vector<UrmaMemInfo>& memList, std::vector<uint8_t>& eidTable, uint32_t& localTokenId)
     {
         ChannelHandle handle = channelHandles_[channelIdx];
         if (handle != 0 && static_cast<uint64_t>(handle) < kDeviceVaThreshold) {
@@ -243,8 +238,9 @@ private:
         RegedBufferEntity symRemoteBuf{};
         uint64_t symRmaAddr = 0;
         uint32_t symRmaSize = 0;
-        if (!UrmaChannelHelper::SelectSymmetricRemoteBuffer(comm_, kUrmaSymMemTag, symmetricSize_, handle, peer,
-                                                            hostEntity, symRemoteBuf, symRmaAddr, symRmaSize)) {
+        if (!UrmaChannelHelper::SelectSymmetricRemoteBuffer(
+                comm_, kUrmaSymMemTag, symmetricSize_, handle, peer, hostEntity, symRemoteBuf, symRmaAddr,
+                symRmaSize)) {
             return false;
         }
         RegedBufferEntity symLocalBuf{};
@@ -265,7 +261,7 @@ private:
         return true;
     }
 
-    static void FillWqCtx(UrmaWQCtx &wq, const SqContext &sq)
+    static void FillWqCtx(UrmaWQCtx& wq, const SqContext& sq)
     {
         wq.wqn = sq.contextInfo.ubJfs.jfsID;
         wq.bufAddr = sq.contextInfo.ubJfs.sqVa;
@@ -278,7 +274,7 @@ private:
         wq.sl = 0;
     }
 
-    static void FillCqCtx(UrmaCqCtx &cqCtx, const CqContext &cq)
+    static void FillCqCtx(UrmaCqCtx& cqCtx, const CqContext& cq)
     {
         cqCtx.cqn = cq.contextInfo.ubJfc.jfcID;
         cqCtx.bufAddr = cq.contextInfo.ubJfc.scqVa;
@@ -290,8 +286,9 @@ private:
         cqCtx.dbAddr = cq.contextInfo.ubJfc.dbVa;
     }
 
-    static void FillMemInfo(UrmaMemInfo &mem, const SqContext &sq, const RegedBufferEntity &symRemoteBuf,
-                            uint64_t symRmaAddr, uint32_t symRmaSize)
+    static void FillMemInfo(
+        UrmaMemInfo& mem, const SqContext& sq, const RegedBufferEntity& symRemoteBuf, uint64_t symRmaAddr,
+        uint32_t symRmaSize)
     {
         mem.tokenValueValid = true;
         mem.rmtJettyType = 1;
@@ -303,7 +300,7 @@ private:
         mem.addr = symRmaAddr;
     }
 
-    bool AllocAndCopyEidTable(const std::vector<uint8_t> &eidTable, std::vector<UrmaMemInfo> &memList)
+    bool AllocAndCopyEidTable(const std::vector<uint8_t>& eidTable, std::vector<UrmaMemInfo>& memList)
     {
         size_t eidDevSize = rankCount_ * kUrmaEidBytes;
         aclError err = aclrtMalloc(&eidDevice_, eidDevSize, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -318,13 +315,14 @@ private:
         }
         for (uint32_t peer = 0; peer < rankCount_; ++peer) {
             memList[peer].eidAddr =
-                reinterpret_cast<uint64_t>(static_cast<uint8_t *>(eidDevice_) + peer * kUrmaEidBytes);
+                reinterpret_cast<uint64_t>(static_cast<uint8_t*>(eidDevice_) + peer * kUrmaEidBytes);
         }
         return true;
     }
 
-    bool BuildAndCopyUrmaInfoTable(const std::vector<UrmaWQCtx> &wqList, const std::vector<UrmaCqCtx> &cqList,
-                                   const std::vector<UrmaMemInfo> &memList, uint32_t localTokenId)
+    bool BuildAndCopyUrmaInfoTable(
+        const std::vector<UrmaWQCtx>& wqList, const std::vector<UrmaCqCtx>& cqList,
+        const std::vector<UrmaMemInfo>& memList, uint32_t localTokenId)
     {
         constexpr uint32_t qpNum = 1;
         size_t totalSize =
@@ -348,17 +346,17 @@ private:
         return true;
     }
 
-    void FillUrmaInfoLayout(std::vector<uint8_t> &hostBuf, const std::vector<UrmaWQCtx> &wqList,
-                            const std::vector<UrmaCqCtx> &cqList, const std::vector<UrmaMemInfo> &memList,
-                            uint32_t localTokenId)
+    void FillUrmaInfoLayout(
+        std::vector<uint8_t>& hostBuf, const std::vector<UrmaWQCtx>& wqList, const std::vector<UrmaCqCtx>& cqList,
+        const std::vector<UrmaMemInfo>& memList, uint32_t localTokenId)
     {
         constexpr uint32_t qpNum = 1;
-        auto *info = reinterpret_cast<UrmaInfo *>(hostBuf.data());
+        auto* info = reinterpret_cast<UrmaInfo*>(hostBuf.data());
         info->qpNum = qpNum;
         info->localTokenId = localTokenId;
         info->rankCount = rankCount_;
 
-        uint8_t *devAddr = static_cast<uint8_t *>(urmaInfoDevice_) + sizeof(UrmaInfo);
+        uint8_t* devAddr = static_cast<uint8_t*>(urmaInfoDevice_) + sizeof(UrmaInfo);
         info->sqPtr = reinterpret_cast<uint64_t>(devAddr);
         devAddr += sizeof(UrmaWQCtx) * rankCount_ * qpNum;
         info->rqPtr = reinterpret_cast<uint64_t>(devAddr);
@@ -369,16 +367,16 @@ private:
         devAddr += sizeof(UrmaCqCtx) * rankCount_ * qpNum;
         info->memPtr = reinterpret_cast<uint64_t>(devAddr);
 
-        uint8_t *hostAddr = hostBuf.data() + sizeof(UrmaInfo);
-        auto *sqArr = reinterpret_cast<UrmaWQCtx *>(hostAddr);
+        uint8_t* hostAddr = hostBuf.data() + sizeof(UrmaInfo);
+        auto* sqArr = reinterpret_cast<UrmaWQCtx*>(hostAddr);
         hostAddr += sizeof(UrmaWQCtx) * rankCount_ * qpNum;
-        auto *rqArr = reinterpret_cast<UrmaWQCtx *>(hostAddr);
+        auto* rqArr = reinterpret_cast<UrmaWQCtx*>(hostAddr);
         hostAddr += sizeof(UrmaWQCtx) * rankCount_ * qpNum;
-        auto *scqArr = reinterpret_cast<UrmaCqCtx *>(hostAddr);
+        auto* scqArr = reinterpret_cast<UrmaCqCtx*>(hostAddr);
         hostAddr += sizeof(UrmaCqCtx) * rankCount_ * qpNum;
-        auto *rcqArr = reinterpret_cast<UrmaCqCtx *>(hostAddr);
+        auto* rcqArr = reinterpret_cast<UrmaCqCtx*>(hostAddr);
         hostAddr += sizeof(UrmaCqCtx) * rankCount_ * qpNum;
-        auto *memArr = reinterpret_cast<UrmaMemInfo *>(hostAddr);
+        auto* memArr = reinterpret_cast<UrmaMemInfo*>(hostAddr);
 
         for (uint32_t rank = 0; rank < rankCount_; ++rank) {
             sqArr[rank] = wqList[rank];
@@ -389,12 +387,9 @@ private:
         }
     }
 
-    static uint32_t Log2U32(uint32_t n)
-    {
-        return (n <= 1) ? 0 : __builtin_ctz(n);
-    }
+    static uint32_t Log2U32(uint32_t n) { return (n <= 1) ? 0 : __builtin_ctz(n); }
 
-    static void FreeDeviceAddr(void *&addr)
+    static void FreeDeviceAddr(void*& addr)
     {
         if (addr) {
             aclrtFree(addr);
@@ -402,7 +397,7 @@ private:
         }
     }
 
-    static constexpr const char *kUrmaSymMemTag = "pto_urma_sym";
+    static constexpr const char* kUrmaSymMemTag = "pto_urma_sym";
     static constexpr uint64_t kDeviceVaThreshold = 0x100000000000ULL;
     static constexpr CommProtocol kCommProtocolUbcCtp = static_cast<CommProtocol>(4);
     static constexpr CommProtocol kCommProtocolUbcTp = static_cast<CommProtocol>(5);
@@ -410,14 +405,14 @@ private:
     HcclComm comm_{nullptr};
     uint32_t rankId_{0};
     uint32_t rankCount_{0};
-    void *symmetricAddr_{nullptr};
+    void* symmetricAddr_{nullptr};
     uint64_t symmetricSize_{0};
     HcclMemHandle memHandle_{nullptr};
 
     std::vector<ChannelHandle> channelHandles_;
 
-    void *urmaInfoDevice_{nullptr};
-    void *eidDevice_{nullptr};
+    void* urmaInfoDevice_{nullptr};
+    void* eidDevice_{nullptr};
 
     bool initialized_{false};
 };

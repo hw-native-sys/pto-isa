@@ -14,26 +14,29 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
-          int src1TileW, int vRows, int vCols0, int vCols1>
-__global__ AICORE void runTConcat(__gm__ dataType __out__ *out, __gm__ dataType __in__ *src0,
-                                  __gm__ dataType __in__ *src1, __gm__ idxType __out__ *dstIdx,
-                                  __gm__ idxType __in__ *src0Idx, __gm__ idxType __in__ *src1Idx)
+template <
+    typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
+    int src1TileW, int vRows, int vCols0, int vCols1>
+__global__ AICORE void runTConcat(
+    __gm__ dataType __out__* out, __gm__ dataType __in__* src0, __gm__ dataType __in__* src1,
+    __gm__ idxType __out__* dstIdx, __gm__ idxType __in__* src0Idx, __gm__ idxType __in__* src1Idx)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
     using GlobalData = GlobalTensor<dataType, DynShape, DynStride>;
     using GlobalDataIdx = GlobalTensor<idxType, DynShape, DynStride>;
-    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, dstTileW),
-                         pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
+    GlobalData dstGlobal(
+        out, pto::Shape(1, 1, 1, vRows, dstTileW),
+        pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
     GlobalData src0Global(
         src0, pto::Shape(1, 1, 1, vRows, vCols0),
         pto::Stride(src0TileH * src0TileW, src0TileH * src0TileW, src0TileH * src0TileW, src0TileW, 1));
     GlobalData src1Global(
         src1, pto::Shape(1, 1, 1, vRows, vCols1),
         pto::Stride(src1TileH * src1TileW, src1TileH * src1TileW, src1TileH * src1TileW, src1TileW, 1));
-    GlobalDataIdx dstIdxGlobal(dstIdx, pto::Shape(1, 1, 1, vRows, 1),
-                               pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
+    GlobalDataIdx dstIdxGlobal(
+        dstIdx, pto::Shape(1, 1, 1, vRows, 1),
+        pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
     GlobalDataIdx src0IdxGlobal(
         src0Idx, pto::Shape(1, 1, 1, vRows, vCols0),
         pto::Stride(src0TileH * src0TileW, src0TileH * src0TileW, src0TileH * src0TileW, src0TileW, 1));
@@ -57,10 +60,12 @@ __global__ AICORE void runTConcat(__gm__ dataType __out__ *out, __gm__ dataType 
     TASSIGN(src1Tile, src0TileH * src0TileW * sizeof(dataType));
     TASSIGN(dstTile, (src0TileH * src0TileW + src1TileH * src1TileW) * sizeof(dataType));
     TASSIGN(src0IdxTile, (src0TileH * src0TileW + src1TileH * src1TileW + dstTileH * dstTileW) * sizeof(dataType));
-    TASSIGN(src1IdxTile, (src0TileH * src0TileW + src1TileH * src1TileW + dstTileH * dstTileW) * sizeof(dataType) +
-                             src0TileH * src0TileW * sizeof(idxType));
-    TASSIGN(dstIdxTile, (src0TileH * src0TileW + src1TileH * src1TileW + dstTileH * dstTileW) * sizeof(dataType) +
-                            (src0TileH * src0TileW + src1TileH * src1TileW) * sizeof(idxType));
+    TASSIGN(
+        src1IdxTile, (src0TileH * src0TileW + src1TileH * src1TileW + dstTileH * dstTileW) * sizeof(dataType) +
+                         src0TileH * src0TileW * sizeof(idxType));
+    TASSIGN(
+        dstIdxTile, (src0TileH * src0TileW + src1TileH * src1TileW + dstTileH * dstTileW) * sizeof(dataType) +
+                        (src0TileH * src0TileW + src1TileH * src1TileW) * sizeof(idxType));
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
@@ -77,40 +82,35 @@ __global__ AICORE void runTConcat(__gm__ dataType __out__ *out, __gm__ dataType 
     TSTORE(dstIdxGlobal, dstIdxTile);
 }
 
-template <typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
-          int src1TileW, int vRows, int vCols0, int vCols1>
-void LaunchTConcat(dataType *out, dataType *src0, dataType *src1, idxType *dstIdx, idxType *src0Idx, idxType *src1Idx,
-                   void *stream)
+template <
+    typename dataType, typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH,
+    int src1TileW, int vRows, int vCols0, int vCols1>
+void LaunchTConcat(
+    dataType* out, dataType* src0, dataType* src1, idxType* dstIdx, idxType* src0Idx, idxType* src1Idx, void* stream)
 {
     runTConcat<dataType, idxType, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols0, vCols1>
         <<<1, nullptr, stream>>>(out, src0, src1, dstIdx, src0Idx, src1Idx);
 }
 
-template <typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW,
-          int vRows, int vCols0, int vCols1>
-void LaunchTConcatHalf(aclFloat16 *out, aclFloat16 *src0, aclFloat16 *src1, idxType *dstIdx, idxType *src0Idx,
-                       idxType *src1Idx, void *stream)
+template <
+    typename idxType, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols0, int vCols1>
+void LaunchTConcatHalf(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, idxType* dstIdx, idxType* src0Idx, idxType* src1Idx,
+    void* stream)
 {
     runTConcat<half, idxType, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols0, vCols1>
-        <<<1, nullptr, stream>>>((half *)(out), (half *)(src0), (half *)(src1), dstIdx, src0Idx, src1Idx);
+        <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(src1), dstIdx, src0Idx, src1Idx);
 }
 
-template void LaunchTConcat<int16_t, int16_t, 16, 32, 16, 16, 16, 16, 8, 16, 16>(int16_t *out, int16_t *src0,
-                                                                                 int16_t *src1, int16_t *dstIdx,
-                                                                                 int16_t *src0Idx, int16_t *src1Idx,
-                                                                                 void *stream);
-template void LaunchTConcat<int32_t, int16_t, 64, 128, 64, 64, 64, 64, 64, 64, 64>(int32_t *out, int32_t *src0,
-                                                                                   int32_t *src1, int16_t *dstIdx,
-                                                                                   int16_t *src0Idx, int16_t *src1Idx,
-                                                                                   void *stream);
-template void LaunchTConcatHalf<int32_t, 16, 256, 16, 128, 16, 128, 16, 128, 128>(aclFloat16 *out, aclFloat16 *src0,
-                                                                                  aclFloat16 *src1, int32_t *dstIdx,
-                                                                                  int32_t *src0Idx, int32_t *src1Idx,
-                                                                                  void *stream);
-template void LaunchTConcat<float, int16_t, 16, 64, 16, 32, 16, 32, 16, 32, 32>(float *out, float *src0, float *src1,
-                                                                                int16_t *dstIdx, int16_t *src0Idx,
-                                                                                int16_t *src1Idx, void *stream);
-template void LaunchTConcat<int16_t, int16_t, 32, 256, 32, 128, 32, 128, 32, 128, 128>(int16_t *out, int16_t *src0,
-                                                                                       int16_t *src1, int16_t *dstIdx,
-                                                                                       int16_t *src0Idx,
-                                                                                       int16_t *src1Idx, void *stream);
+template void LaunchTConcat<int16_t, int16_t, 16, 32, 16, 16, 16, 16, 8, 16, 16>(
+    int16_t* out, int16_t* src0, int16_t* src1, int16_t* dstIdx, int16_t* src0Idx, int16_t* src1Idx, void* stream);
+template void LaunchTConcat<int32_t, int16_t, 64, 128, 64, 64, 64, 64, 64, 64, 64>(
+    int32_t* out, int32_t* src0, int32_t* src1, int16_t* dstIdx, int16_t* src0Idx, int16_t* src1Idx, void* stream);
+template void LaunchTConcatHalf<int32_t, 16, 256, 16, 128, 16, 128, 16, 128, 128>(
+    aclFloat16* out, aclFloat16* src0, aclFloat16* src1, int32_t* dstIdx, int32_t* src0Idx, int32_t* src1Idx,
+    void* stream);
+template void LaunchTConcat<float, int16_t, 16, 64, 16, 32, 16, 32, 16, 32, 32>(
+    float* out, float* src0, float* src1, int16_t* dstIdx, int16_t* src0Idx, int16_t* src1Idx, void* stream);
+template void LaunchTConcat<int16_t, int16_t, 32, 256, 32, 128, 32, 128, 32, 128, 128>(
+    int16_t* out, int16_t* src0, int16_t* src1, int16_t* dstIdx, int16_t* src0Idx, int16_t* src1Idx, void* stream);

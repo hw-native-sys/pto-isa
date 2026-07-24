@@ -17,7 +17,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int cols, int src_row, int src_validRow>
-__global__ AICORE void runTCOLMAX(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTCOLMAX(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -57,7 +57,7 @@ __global__ AICORE void runTCOLMAX(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int cols, int src_row, int src_validRow>
-void launchTCOLMAX(T *out, T *src, void *stream)
+void launchTCOLMAX(T* out, T* src, void* stream)
 {
     cout << "launchTCOLMAX start!" << endl;
 
@@ -66,16 +66,16 @@ void launchTCOLMAX(T *out, T *src, void *stream)
     cout << "launchTCOLMAX end!" << endl;
 }
 
-template void launchTCOLMAX<int16_t, 16, 16, 8>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLMAX<int32_t, 16, 16, 8>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLMAX<float, 16, 16, 8>(float *out, float *src, void *stream);
-template void launchTCOLMAX<int16_t, 128, 16, 8>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLMAX<int32_t, 64, 16, 8>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLMAX<float, 64, 16, 8>(float *out, float *src, void *stream);
-template void launchTCOLMAX<int16_t, 512, 16, 8>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLMAX<int32_t, 256, 16, 8>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLMAX<float, 256, 16, 8>(float *out, float *src, void *stream);
-template void launchTCOLMAX<int16_t, 512, 16, 7>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLMAX<int32_t, 256, 32, 31>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLMAX<float, 256, 32, 31>(float *out, float *src, void *stream);
-template void launchTCOLMAX<float, 256, 16, 1>(float *out, float *src, void *stream);
+template void launchTCOLMAX<int16_t, 16, 16, 8>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLMAX<int32_t, 16, 16, 8>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLMAX<float, 16, 16, 8>(float* out, float* src, void* stream);
+template void launchTCOLMAX<int16_t, 128, 16, 8>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLMAX<int32_t, 64, 16, 8>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLMAX<float, 64, 16, 8>(float* out, float* src, void* stream);
+template void launchTCOLMAX<int16_t, 512, 16, 8>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLMAX<int32_t, 256, 16, 8>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLMAX<float, 256, 16, 8>(float* out, float* src, void* stream);
+template void launchTCOLMAX<int16_t, 512, 16, 7>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLMAX<int32_t, 256, 32, 31>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLMAX<float, 256, 32, 31>(float* out, float* src, void* stream);
+template void launchTCOLMAX<float, 256, 16, 1>(float* out, float* src, void* stream);

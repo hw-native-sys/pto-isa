@@ -8,12 +8,13 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-AICORE void runTSHR(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+AICORE void runTSHR(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = Stride<1, 1, 1, kGCols_, 1>;
@@ -39,17 +40,15 @@ AICORE void runTSHR(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in_
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTSHR(T *out, T *src0, T *src1, void *stream)
+void LaunchTSHR(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTSHR<half, kGRows_, kGCols_, kTRows_, kTCols_>((half *)(out), (half *)(src0), (half *)(src1));
+        runTSHR<half, kGRows_, kGCols_, kTRows_, kTCols_>((half*)(out), (half*)(src0), (half*)(src1));
     else
         runTSHR<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-template void LaunchTSHR<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                  void *stream);
-template void LaunchTSHR<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                    void *stream);
+
+template void LaunchTSHR<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTSHR<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);

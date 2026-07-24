@@ -18,42 +18,40 @@ using namespace PtoTestCommon;
 namespace TQuantDNTest {
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN(uint16_t *src, int8_t *fp8_nd, uint8_t *e8_dn, int8_t *fp8_nz, uint8_t *e8_zz, uint16_t *max_dn,
-                    void *stream);
+void LaunchTQuantDN(
+    uint16_t* src, int8_t* fp8_nd, uint8_t* e8_dn, int8_t* fp8_nz, uint8_t* e8_zz, uint16_t* max_dn, void* stream);
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN_fp32(uint32_t *src, int8_t *fp8_nd, uint8_t *e8_dn, int8_t *fp8_nz, uint8_t *e8_zz,
-                         uint32_t *max_dn, void *stream);
+void LaunchTQuantDN_fp32(
+    uint32_t* src, int8_t* fp8_nd, uint8_t* e8_dn, int8_t* fp8_nz, uint8_t* e8_zz, uint32_t* max_dn, void* stream);
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN_MXFP4_bf16(uint16_t *src, uint8_t *fp4_nd, uint8_t *e8_dn, uint8_t *fp4_nz, uint16_t *max_dn,
-                               void *stream);
+void LaunchTQuantDN_MXFP4_bf16(
+    uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream);
 
 template <int M, int N, int N_pad>
-void LaunchTQuantDN_MXFP4_fp16(uint16_t *src, uint8_t *fp4_nd, uint8_t *e8_dn, uint8_t *fp4_nz, uint16_t *max_dn,
-                               void *stream);
+void LaunchTQuantDN_MXFP4_fp16(
+    uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream);
 
 } // namespace TQuantDNTest
 
 class TQUANTDNTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     const std::string suiteName = testInfo->test_suite_name();
     return "../" + suiteName + "." + caseName;
 }
 
 template <typename T>
-void ExpectGoldenMatch(const char *stageName, const char *tensorName, const std::vector<T> &golden,
-                       const std::vector<T> &output)
+void ExpectGoldenMatch(
+    const char* stageName, const char* tensorName, const std::vector<T>& golden, const std::vector<T>& output)
 {
     SCOPED_TRACE(stageName);
     ASSERT_EQ(golden.size(), output.size()) << tensorName << " size mismatch";
@@ -83,41 +81,41 @@ void test_tquant_dn_bf16()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *srcHost;
-    uint8_t *fp8NDHost;
-    uint8_t *e8DNHost;
-    uint8_t *fp8NZHost;
-    uint8_t *e8ZZHost;
-    uint16_t *maxDNHost;
-    uint16_t *srcDevice;
-    int8_t *fp8NDDevice;
-    uint8_t *e8DNDevice;
-    int8_t *fp8NZDevice;
-    uint8_t *e8ZZDevice;
-    uint16_t *maxDNDevice;
+    uint8_t* srcHost;
+    uint8_t* fp8NDHost;
+    uint8_t* e8DNHost;
+    uint8_t* fp8NZHost;
+    uint8_t* e8ZZHost;
+    uint16_t* maxDNHost;
+    uint16_t* srcDevice;
+    int8_t* fp8NDDevice;
+    uint8_t* e8DNDevice;
+    int8_t* fp8NZDevice;
+    uint8_t* e8ZZDevice;
+    uint16_t* maxDNDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&fp8NDHost), fp8NDFileSize);
-    aclrtMallocHost((void **)(&e8DNHost), e8DNFileSize);
-    aclrtMallocHost((void **)(&fp8NZHost), fp8NZFileSize);
-    aclrtMallocHost((void **)(&e8ZZHost), e8ZZFileSize);
-    aclrtMallocHost((void **)(&maxDNHost), maxDNFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&fp8NDHost), fp8NDFileSize);
+    aclrtMallocHost((void**)(&e8DNHost), e8DNFileSize);
+    aclrtMallocHost((void**)(&fp8NZHost), fp8NZFileSize);
+    aclrtMallocHost((void**)(&e8ZZHost), e8ZZFileSize);
+    aclrtMallocHost((void**)(&maxDNHost), maxDNFileSize);
 
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp8NDDevice, fp8NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp8NZDevice, fp8NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&e8ZZDevice, e8ZZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp8NDDevice, fp8NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp8NZDevice, fp8NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&e8ZZDevice, e8ZZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     const std::string goldenDir = GetGoldenDir();
 
-    // Full DN pipeline: TQuant(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
-    TQuantDNTest::LaunchTQuantDN<M, N, N_pad>(srcDevice, fp8NDDevice, e8DNDevice, fp8NZDevice, e8ZZDevice, maxDNDevice,
-                                              stream);
+    // Full DN pipeline: TQUANT(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
+    TQuantDNTest::LaunchTQuantDN<M, N, N_pad>(
+        srcDevice, fp8NDDevice, e8DNDevice, fp8NZDevice, e8ZZDevice, maxDNDevice, stream);
     aclError syncRet = aclrtSynchronizeStream(stream);
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "DN pipeline sync failed: " << aclGetRecentErrMsg();
 
@@ -175,38 +173,14 @@ void test_tquant_dn_bf16()
     aclFinalize();
 }
 
-TEST_F(TQUANTDNTest, case_bf16_64x64)
-{
-    test_tquant_dn_bf16<64, 64, 64>();
-}
-TEST_F(TQUANTDNTest, case_bf16_128x64)
-{
-    test_tquant_dn_bf16<128, 64, 64>();
-}
-TEST_F(TQUANTDNTest, case_bf16_64x128)
-{
-    test_tquant_dn_bf16<64, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_bf16_128x128)
-{
-    test_tquant_dn_bf16<128, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_bf16_64x256)
-{
-    test_tquant_dn_bf16<64, 256, 256>();
-}
-TEST_F(TQUANTDNTest, case_bf16_128x256)
-{
-    test_tquant_dn_bf16<128, 256, 256>();
-}
-TEST_F(TQUANTDNTest, case_bf16_256x64)
-{
-    test_tquant_dn_bf16<256, 64, 64>();
-}
-TEST_F(TQUANTDNTest, case_bf16_256x128)
-{
-    test_tquant_dn_bf16<256, 128, 128>();
-}
+TEST_F(TQUANTDNTest, case_bf16_64x64) { test_tquant_dn_bf16<64, 64, 64>(); }
+TEST_F(TQUANTDNTest, case_bf16_128x64) { test_tquant_dn_bf16<128, 64, 64>(); }
+TEST_F(TQUANTDNTest, case_bf16_64x128) { test_tquant_dn_bf16<64, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_bf16_128x128) { test_tquant_dn_bf16<128, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_bf16_64x256) { test_tquant_dn_bf16<64, 256, 256>(); }
+TEST_F(TQUANTDNTest, case_bf16_128x256) { test_tquant_dn_bf16<128, 256, 256>(); }
+TEST_F(TQUANTDNTest, case_bf16_256x64) { test_tquant_dn_bf16<256, 64, 64>(); }
+TEST_F(TQUANTDNTest, case_bf16_256x128) { test_tquant_dn_bf16<256, 128, 128>(); }
 
 template <int M, int N, int N_pad>
 void test_tquant_dn_fp32()
@@ -231,41 +205,41 @@ void test_tquant_dn_fp32()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *srcHost;
-    uint8_t *fp8NDHost;
-    uint8_t *e8DNHost;
-    uint8_t *fp8NZHost;
-    uint8_t *e8ZZHost;
-    uint32_t *maxDNHost;
-    uint32_t *srcDevice;
-    int8_t *fp8NDDevice;
-    uint8_t *e8DNDevice;
-    int8_t *fp8NZDevice;
-    uint8_t *e8ZZDevice;
-    uint32_t *maxDNDevice;
+    uint8_t* srcHost;
+    uint8_t* fp8NDHost;
+    uint8_t* e8DNHost;
+    uint8_t* fp8NZHost;
+    uint8_t* e8ZZHost;
+    uint32_t* maxDNHost;
+    uint32_t* srcDevice;
+    int8_t* fp8NDDevice;
+    uint8_t* e8DNDevice;
+    int8_t* fp8NZDevice;
+    uint8_t* e8ZZDevice;
+    uint32_t* maxDNDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&fp8NDHost), fp8NDFileSize);
-    aclrtMallocHost((void **)(&e8DNHost), e8DNFileSize);
-    aclrtMallocHost((void **)(&fp8NZHost), fp8NZFileSize);
-    aclrtMallocHost((void **)(&e8ZZHost), e8ZZFileSize);
-    aclrtMallocHost((void **)(&maxDNHost), maxDNFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&fp8NDHost), fp8NDFileSize);
+    aclrtMallocHost((void**)(&e8DNHost), e8DNFileSize);
+    aclrtMallocHost((void**)(&fp8NZHost), fp8NZFileSize);
+    aclrtMallocHost((void**)(&e8ZZHost), e8ZZFileSize);
+    aclrtMallocHost((void**)(&maxDNHost), maxDNFileSize);
 
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp8NDDevice, fp8NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp8NZDevice, fp8NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&e8ZZDevice, e8ZZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp8NDDevice, fp8NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp8NZDevice, fp8NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&e8ZZDevice, e8ZZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     const std::string goldenDir = GetGoldenDir();
 
-    // Full DN pipeline: TQuant(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
-    TQuantDNTest::LaunchTQuantDN_fp32<M, N, N_pad>(srcDevice, fp8NDDevice, e8DNDevice, fp8NZDevice, e8ZZDevice,
-                                                   maxDNDevice, stream);
+    // Full DN pipeline: TQUANT(DN) + TMOV(ND->NZ) + TMOV<0>(DN->ZZ).
+    TQuantDNTest::LaunchTQuantDN_fp32<M, N, N_pad>(
+        srcDevice, fp8NDDevice, e8DNDevice, fp8NZDevice, e8ZZDevice, maxDNDevice, stream);
     aclError syncRet = aclrtSynchronizeStream(stream);
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "DN pipeline fp32 sync failed: " << aclGetRecentErrMsg();
 
@@ -323,18 +297,9 @@ void test_tquant_dn_fp32()
     aclFinalize();
 }
 
-TEST_F(TQUANTDNTest, case_fp32_64x128)
-{
-    test_tquant_dn_fp32<64, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_fp32_128x128)
-{
-    test_tquant_dn_fp32<128, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_fp32_64x256)
-{
-    test_tquant_dn_fp32<64, 256, 256>();
-}
+TEST_F(TQUANTDNTest, case_fp32_64x128) { test_tquant_dn_fp32<64, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_fp32_128x128) { test_tquant_dn_fp32<128, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_fp32_64x256) { test_tquant_dn_fp32<64, 256, 256>(); }
 
 // MXFP4 (E2M1) DN tests. Both bf16 and fp16 sources share the same UB/GM shape:
 //   fp4_nd : M * packedCols bytes       (packedCols = paddedCols/2)
@@ -359,36 +324,36 @@ void test_tquant_dn_mxfp4_bf16()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *srcHost;
-    uint8_t *fp4NDHost;
-    uint8_t *fp4NZHost;
-    uint8_t *e8DNHost;
-    uint16_t *maxDNHost;
-    uint8_t *srcDevice;
-    uint8_t *fp4NDDevice;
-    uint8_t *fp4NZDevice;
-    uint8_t *e8DNDevice;
-    uint16_t *maxDNDevice;
+    uint8_t* srcHost;
+    uint8_t* fp4NDHost;
+    uint8_t* fp4NZHost;
+    uint8_t* e8DNHost;
+    uint16_t* maxDNHost;
+    uint8_t* srcDevice;
+    uint8_t* fp4NDDevice;
+    uint8_t* fp4NZDevice;
+    uint8_t* e8DNDevice;
+    uint16_t* maxDNDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&fp4NDHost), fp4NDFileSize);
-    aclrtMallocHost((void **)(&fp4NZHost), fp4NZFileSize);
-    aclrtMallocHost((void **)(&e8DNHost), e8DNFileSize);
-    aclrtMallocHost((void **)(&maxDNHost), maxDNFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&fp4NDHost), fp4NDFileSize);
+    aclrtMallocHost((void**)(&fp4NZHost), fp4NZFileSize);
+    aclrtMallocHost((void**)(&e8DNHost), e8DNFileSize);
+    aclrtMallocHost((void**)(&maxDNHost), maxDNFileSize);
 
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp4NDDevice, fp4NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp4NZDevice, fp4NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp4NDDevice, fp4NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp4NZDevice, fp4NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     const std::string goldenDir = GetGoldenDir();
 
-    TQuantDNTest::LaunchTQuantDN_MXFP4_bf16<M, N, N_pad>((uint16_t *)srcDevice, fp4NDDevice, e8DNDevice, fp4NZDevice,
-                                                         maxDNDevice, stream);
+    TQuantDNTest::LaunchTQuantDN_MXFP4_bf16<M, N, N_pad>(
+        (uint16_t*)srcDevice, fp4NDDevice, e8DNDevice, fp4NZDevice, maxDNDevice, stream);
     aclError syncRet = aclrtSynchronizeStream(stream);
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "MXFP4 bf16 DN sync failed: " << aclGetRecentErrMsg();
 
@@ -437,18 +402,9 @@ void test_tquant_dn_mxfp4_bf16()
     aclFinalize();
 }
 
-TEST_F(TQUANTDNTest, case_mxfp4_bf16_64x128)
-{
-    test_tquant_dn_mxfp4_bf16<64, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_mxfp4_bf16_128x128)
-{
-    test_tquant_dn_mxfp4_bf16<128, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_mxfp4_bf16_64x256)
-{
-    test_tquant_dn_mxfp4_bf16<64, 256, 256>();
-}
+TEST_F(TQUANTDNTest, case_mxfp4_bf16_64x128) { test_tquant_dn_mxfp4_bf16<64, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_mxfp4_bf16_128x128) { test_tquant_dn_mxfp4_bf16<128, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_mxfp4_bf16_64x256) { test_tquant_dn_mxfp4_bf16<64, 256, 256>(); }
 
 template <int M, int N, int N_pad>
 void test_tquant_dn_mxfp4_fp16()
@@ -468,36 +424,36 @@ void test_tquant_dn_mxfp4_fp16()
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    uint8_t *srcHost;
-    uint8_t *fp4NDHost;
-    uint8_t *fp4NZHost;
-    uint8_t *e8DNHost;
-    uint16_t *maxDNHost;
-    uint8_t *srcDevice;
-    uint8_t *fp4NDDevice;
-    uint8_t *fp4NZDevice;
-    uint8_t *e8DNDevice;
-    uint16_t *maxDNDevice;
+    uint8_t* srcHost;
+    uint8_t* fp4NDHost;
+    uint8_t* fp4NZHost;
+    uint8_t* e8DNHost;
+    uint16_t* maxDNHost;
+    uint8_t* srcDevice;
+    uint8_t* fp4NDDevice;
+    uint8_t* fp4NZDevice;
+    uint8_t* e8DNDevice;
+    uint16_t* maxDNDevice;
 
-    aclrtMallocHost((void **)(&srcHost), srcFileSize);
-    aclrtMallocHost((void **)(&fp4NDHost), fp4NDFileSize);
-    aclrtMallocHost((void **)(&fp4NZHost), fp4NZFileSize);
-    aclrtMallocHost((void **)(&e8DNHost), e8DNFileSize);
-    aclrtMallocHost((void **)(&maxDNHost), maxDNFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMallocHost((void**)(&fp4NDHost), fp4NDFileSize);
+    aclrtMallocHost((void**)(&fp4NZHost), fp4NZFileSize);
+    aclrtMallocHost((void**)(&e8DNHost), e8DNFileSize);
+    aclrtMallocHost((void**)(&maxDNHost), maxDNFileSize);
 
-    aclrtMalloc((void **)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp4NDDevice, fp4NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&fp4NZDevice, fp4NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp4NDDevice, fp4NDFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&fp4NZDevice, fp4NZFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&e8DNDevice, e8DNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&maxDNDevice, maxDNFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcFileSize, srcHost, srcFileSize);
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     const std::string goldenDir = GetGoldenDir();
 
-    TQuantDNTest::LaunchTQuantDN_MXFP4_fp16<M, N, N_pad>((uint16_t *)srcDevice, fp4NDDevice, e8DNDevice, fp4NZDevice,
-                                                         maxDNDevice, stream);
+    TQuantDNTest::LaunchTQuantDN_MXFP4_fp16<M, N, N_pad>(
+        (uint16_t*)srcDevice, fp4NDDevice, e8DNDevice, fp4NZDevice, maxDNDevice, stream);
     aclError syncRet = aclrtSynchronizeStream(stream);
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "MXFP4 fp16 DN sync failed: " << aclGetRecentErrMsg();
 
@@ -546,15 +502,6 @@ void test_tquant_dn_mxfp4_fp16()
     aclFinalize();
 }
 
-TEST_F(TQUANTDNTest, case_mxfp4_fp16_64x128)
-{
-    test_tquant_dn_mxfp4_fp16<64, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_mxfp4_fp16_128x128)
-{
-    test_tquant_dn_mxfp4_fp16<128, 128, 128>();
-}
-TEST_F(TQUANTDNTest, case_mxfp4_fp16_64x256)
-{
-    test_tquant_dn_mxfp4_fp16<64, 256, 256>();
-}
+TEST_F(TQUANTDNTest, case_mxfp4_fp16_64x128) { test_tquant_dn_mxfp4_fp16<64, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_mxfp4_fp16_128x128) { test_tquant_dn_mxfp4_fp16<128, 128, 128>(); }
+TEST_F(TQUANTDNTest, case_mxfp4_fp16_64x256) { test_tquant_dn_mxfp4_fp16<64, 256, 256>(); }

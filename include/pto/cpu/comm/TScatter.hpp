@@ -45,8 +45,9 @@ namespace comm {
 // ============================================================================
 
 template <typename GlobalDataDst, typename GlobalDataSrc>
-void Scatter(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *src, int64_t dstShape[],
-             int64_t dstStride[], int64_t srcStride[], int64_t srcOffset)
+void Scatter(
+    typename GlobalDataDst::DType* dst, typename GlobalDataSrc::DType* src, int64_t dstShape[], int64_t dstStride[],
+    int64_t srcStride[], int64_t srcOffset)
 {
     auto scatterInner = [&](size_t i, size_t j, size_t k) {
         for (size_t l = 0; l < dstShape[3]; l++) {
@@ -69,15 +70,16 @@ void Scatter(typename GlobalDataDst::DType *dst, typename GlobalDataSrc::DType *
 }
 
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                TileData &stagingTileData)
+PTO_INTERNAL void TSCATTER_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData)
 {
     using GlobalDstData = typename ParallelGroupTraits<ParallelGroupType>::GlobalDataType;
     using T = typename GlobalSrcData::RawDType;
 
     static_assert(std::is_same_v<T, typename GlobalDstData::RawDType>, "TSCATTER: GlobalData type mismatch!");
-    static_assert(std::is_same_v<T, typename TileData::DType>,
-                  "TSCATTER: TileData element type must match GlobalData element type");
+    static_assert(
+        std::is_same_v<T, typename TileData::DType>,
+        "TSCATTER: TileData element type must match GlobalData element type");
     static_assert(GlobalSrcData::layout == GlobalDstData::layout, "TSCATTER: src/dst layout mismatch");
 
     const int nranks = parallelGroup.GetSize();
@@ -88,28 +90,32 @@ PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData 
 
     constexpr size_t numDims = 5;
 
-    int64_t srcStride[numDims] = {srcGlobalData.GetStride(0), srcGlobalData.GetStride(1), srcGlobalData.GetStride(2),
-                                  srcGlobalData.GetStride(3), srcGlobalData.GetStride(4)};
+    int64_t srcStride[numDims] = {
+        srcGlobalData.GetStride(0), srcGlobalData.GetStride(1), srcGlobalData.GetStride(2), srcGlobalData.GetStride(3),
+        srcGlobalData.GetStride(4)};
 
-    GlobalDstData &dstTensor = parallelGroup[0];
-    int64_t dstShape[numDims] = {dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2),
-                                 dstTensor.GetShape(3), dstTensor.GetShape(4)};
-    int64_t dstStride[numDims] = {dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2),
-                                  dstTensor.GetStride(3), dstTensor.GetStride(4)};
+    GlobalDstData& dstTensor = parallelGroup[0];
+    int64_t dstShape[numDims] = {
+        dstTensor.GetShape(0), dstTensor.GetShape(1), dstTensor.GetShape(2), dstTensor.GetShape(3),
+        dstTensor.GetShape(4)};
+    int64_t dstStride[numDims] = {
+        dstTensor.GetStride(0), dstTensor.GetStride(1), dstTensor.GetStride(2), dstTensor.GetStride(3),
+        dstTensor.GetStride(4)};
     int64_t DST_DIM_3 = dstTensor.GetShape(3);
 
     PTO_ASSERT(srcGlobalData.GetShape(0) == dstTensor.GetShape(0), "TSCATTER: src DIM0 must equal dst DIM0!");
     PTO_ASSERT(srcGlobalData.GetShape(1) == dstTensor.GetShape(1), "TSCATTER: src DIM1 must equal dst DIM1!");
     PTO_ASSERT(srcGlobalData.GetShape(2) == dstTensor.GetShape(2), "TSCATTER: src DIM2 must equal dst DIM2!");
-    PTO_ASSERT(srcGlobalData.GetShape(3) == dstTensor.GetShape(3) * nranks,
-               "TSCATTER: src DIM3 must equal dst DIM3 * nranks!");
+    PTO_ASSERT(
+        srcGlobalData.GetShape(3) == dstTensor.GetShape(3) * nranks,
+        "TSCATTER: src DIM3 must equal dst DIM3 * nranks!");
     PTO_ASSERT(srcGlobalData.GetShape(4) == dstTensor.GetShape(4), "TSCATTER: src DIM4 must equal dst DIM4!");
 
     for (int r = 0; r < nranks; ++r) {
-        GlobalDstData &dstGlobalData = parallelGroup[r];
+        GlobalDstData& dstGlobalData = parallelGroup[r];
         int64_t currentSrcOffset = r * DST_DIM_3;
-        Scatter<GlobalDstData, GlobalSrcData>(dstGlobalData.data(), srcGlobalData.data(), dstShape, dstStride,
-                                              srcStride, currentSrcOffset);
+        Scatter<GlobalDstData, GlobalSrcData>(
+            dstGlobalData.data(), srcGlobalData.data(), dstShape, dstStride, srcStride, currentSrcOffset);
     }
 }
 
@@ -129,26 +135,43 @@ PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData 
 // ============================================================================
 
 template <typename ParallelGroupType, typename GlobalSrcData, typename TileData>
-PTO_INTERNAL void TSCATTER_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
-                                TileData &pongTile)
+PTO_INTERNAL void TSCATTER_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile)
 {
     pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, pingTile);
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TSCATTER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData,
-                                    TileData &stagingTileData, const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TSCATTER_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& stagingTileData,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, stagingTileData);
 }
 
-template <CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
-          typename... WaitEvents>
-PTO_INTERNAL void TSCATTER_CCU_IMPL(ParallelGroupType &parallelGroup, GlobalSrcData &srcGlobalData, TileData &pingTile,
-                                    TileData &pongTile, const CcuTriggerContext &ctx, WaitEvents &...events)
+template <
+    CollEngine = CollEngine::CCU, typename ParallelGroupType, typename GlobalSrcData, typename TileData,
+    typename... WaitEvents>
+PTO_INTERNAL void TSCATTER_CCU_IMPL(
+    ParallelGroupType& parallelGroup, GlobalSrcData& srcGlobalData, TileData& pingTile, TileData& pongTile,
+    const CcuTriggerContext& ctx, WaitEvents&... events)
 {
     pto::comm::TSCATTER_IMPL(parallelGroup, srcGlobalData, pingTile);
+}
+
+// CCU engine is only available on A5 NPU hardware.  Deferred-fail stub
+// mirroring the a2a3 pattern: the template name must exist in `pto::comm`
+// so that `::pto::comm::TSCATTER_CCU_IMPL<engine>(...)` in pto_comm_inst.hpp
+// parses on CPU simulator builds; the static_assert depends on `engine` and
+// fires only if the overload is actually instantiated.
+template <CollEngine engine = CollEngine::CCU, typename... Args>
+PTO_INTERNAL void TSCATTER_CCU_IMPL(Args &&...)
+{
+    static_assert(engine != CollEngine::CCU,
+                  "TSCATTER<CollEngine::CCU> is not supported on the CPU simulator; "
+                  "CCU engine requires A5 NPU hardware.");
 }
 
 } // namespace comm

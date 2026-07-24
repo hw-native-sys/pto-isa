@@ -19,11 +19,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataOffset>
-PTO_INTERNAL void TGatherB(typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src,
-                           typename TileDataOffset::TileDType offset, unsigned validRow, unsigned validCol)
+PTO_INTERNAL void TGatherB(
+    typename TileDataDst::TileDType dst, typename TileDataSrc::TileDType src, typename TileDataOffset::TileDType offset,
+    unsigned validRow, unsigned validCol)
 {
-    const auto *srcBytes = reinterpret_cast<const std::uint8_t *>(src);
-    auto *dstBytes = reinterpret_cast<std::uint8_t *>(dst);
+    const auto* srcBytes = reinterpret_cast<const std::uint8_t*>(src);
+    auto* dstBytes = reinterpret_cast<std::uint8_t*>(dst);
     const std::size_t srcBytesN = static_cast<std::size_t>(TileDataSrc::Rows) *
                                   static_cast<std::size_t>(TileDataSrc::Cols) * sizeof(typename TileDataSrc::DType);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileDataDst::DType);
@@ -46,7 +47,7 @@ PTO_INTERNAL void TGatherB(typename TileDataDst::TileDType dst, typename TileDat
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataOffset>
-PTO_INTERNAL void TGATHERB_IMPL(TileDataDst &dst, TileDataSrc &src, TileDataOffset &offset)
+PTO_INTERNAL void TGATHERB_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataOffset& offset)
 {
     static_assert(TileDataDst::isRowMajor, "TGATHERB: not supported Layout type.");
     unsigned validRow = dst.GetValidRow();

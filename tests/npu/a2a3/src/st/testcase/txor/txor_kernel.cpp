@@ -14,15 +14,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
-__global__ AICORE void runTXor(__gm__ T __out__ *out, __gm__ T __in__ *src0, __gm__ T __in__ *src1)
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
+__global__ AICORE void runTXor(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
     using GlobalData = GlobalTensor<T, DynShape, DynStride>;
-    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, vCols),
-                         pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
+    GlobalData dstGlobal(
+        out, pto::Shape(1, 1, 1, vRows, vCols),
+        pto::Stride(dstTileH * dstTileW, dstTileH * dstTileW, dstTileH * dstTileW, dstTileW, 1));
     GlobalData src0Global(
         src0, pto::Shape(1, 1, 1, vRows, vCols),
         pto::Stride(src0TileH * src0TileW, src0TileH * src0TileW, src0TileH * src0TileW, src0TileW, 1));
@@ -64,31 +66,32 @@ __global__ AICORE void runTXor(__gm__ T __out__ *out, __gm__ T __in__ *src0, __g
     out = dstGlobal.data();
 }
 
-template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
-          int vCols>
-void LaunchTXor(T *out, T *src0, T *src1, void *stream)
+template <
+    typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
+    int vCols>
+void LaunchTXor(T* out, T* src0, T* src1, void* stream)
 {
     runTXor<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
         <<<1, nullptr, stream>>>(out, src0, src1);
 }
 
-template void LaunchTXor<int16_t, 64, 64, 64, 64, 64, 64, 64, 64>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                  void *stream);
-template void LaunchTXor<int16_t, 32, 128, 32, 128, 32, 256, 32, 128>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                      void *stream);
-template void LaunchTXor<int16_t, 32, 128, 32, 128, 32, 256, 32, 127>(int16_t *out, int16_t *src0, int16_t *src1,
-                                                                      void *stream);
-template void LaunchTXor<uint16_t, 64, 64, 64, 64, 64, 64, 64, 64>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                   void *stream);
-template void LaunchTXor<uint16_t, 32, 128, 32, 128, 32, 256, 32, 128>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                       void *stream);
-template void LaunchTXor<uint16_t, 32, 128, 32, 128, 32, 256, 32, 127>(uint16_t *out, uint16_t *src0, uint16_t *src1,
-                                                                       void *stream);
-template void LaunchTXor<int8_t, 32, 128, 32, 128, 32, 256, 32, 127>(int8_t *out, int8_t *src0, int8_t *src1,
-                                                                     void *stream);
-template void LaunchTXor<uint8_t, 32, 128, 32, 128, 32, 256, 32, 127>(uint8_t *out, uint8_t *src0, uint8_t *src1,
-                                                                      void *stream);
-template void LaunchTXor<int32_t, 32, 128, 32, 128, 32, 256, 32, 127>(int32_t *out, int32_t *src0, int32_t *src1,
-                                                                      void *stream);
-template void LaunchTXor<uint32_t, 32, 128, 32, 128, 32, 256, 32, 127>(uint32_t *out, uint32_t *src0, uint32_t *src1,
-                                                                       void *stream);
+template void LaunchTXor<int16_t, 64, 64, 64, 64, 64, 64, 64, 64>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTXor<int16_t, 32, 128, 32, 128, 32, 256, 32, 128>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTXor<int16_t, 32, 128, 32, 128, 32, 256, 32, 127>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTXor<uint16_t, 64, 64, 64, 64, 64, 64, 64, 64>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTXor<uint16_t, 32, 128, 32, 128, 32, 256, 32, 128>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTXor<uint16_t, 32, 128, 32, 128, 32, 256, 32, 127>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTXor<int8_t, 32, 128, 32, 128, 32, 256, 32, 127>(
+    int8_t* out, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTXor<uint8_t, 32, 128, 32, 128, 32, 256, 32, 127>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTXor<int32_t, 32, 128, 32, 128, 32, 256, 32, 127>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTXor<uint32_t, 32, 128, 32, 128, 32, 256, 32, 127>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);

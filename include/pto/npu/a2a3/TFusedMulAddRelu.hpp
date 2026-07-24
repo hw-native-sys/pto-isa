@@ -19,58 +19,64 @@ namespace pto {
 
 template <typename T>
 struct FusedMulAddReluOp {
-    PTO_INTERNAL static void BinInstr(__ubuf__ T *dst, __ubuf__ T *src0, __ubuf__ T *src1, uint8_t repeats)
+    PTO_INTERNAL static void BinInstr(__ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint8_t repeats)
     {
         vmaddrelu(dst, src0, src1, repeats, 1, 1, 1, 8, 8, 8);
     }
-    PTO_INTERNAL static void BinInstr(__ubuf__ T *dst, __ubuf__ T *src0, __ubuf__ T *src1, uint8_t repeats,
-                                      uint8_t dstRepeatStride, uint8_t src0RepeatStride, uint8_t src1RepeatStride)
+    PTO_INTERNAL static void BinInstr(
+        __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint8_t repeats, uint8_t dstRepeatStride,
+        uint8_t src0RepeatStride, uint8_t src1RepeatStride)
     {
         vmaddrelu(dst, src0, src1, repeats, 1, 1, 1, dstRepeatStride, src0RepeatStride, src1RepeatStride);
     }
 };
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
-          unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride, unsigned src1RowStride>
-__tf__ PTO_INTERNAL void TFusedMulAddRelu(typename TileDataDst::TileDType __in__ __out__ dst,
-                                          typename TileDataSrc0::TileDType __in__ src0,
-                                          typename TileDataSrc1::TileDType __in__ src1, unsigned validRows,
-                                          unsigned validCols)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride, unsigned src1RowStride>
+__tf__ PTO_INTERNAL void TFusedMulAddRelu(
+    typename TileDataDst::TileDType __in__ __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    __ubuf__ T *src0Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src0);
-    __ubuf__ T *src1Ptr = (__ubuf__ T *)__cce_get_tile_ptr(src1);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
     if constexpr (dstRowStride == src0RowStride && dstRowStride == src1RowStride) {
         BinaryInstr<FusedMulAddReluOp<T>, T, TileDataDst, elementsPerRepeat, blockSizeElem, dstRowStride>(
             dstPtr, src0Ptr, src1Ptr, validRows, validCols);
     } else {
-        BinaryInstr<FusedMulAddReluOp<T>, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
-                    src1RowStride>(dstPtr, src0Ptr, src1Ptr, validRows, validCols);
+        BinaryInstr<
+            FusedMulAddReluOp<T>, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride, src1RowStride>(
+            dstPtr, src0Ptr, src1Ptr, validRows, validCols);
     }
     return;
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TFusedMulAddReluCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1)
+PTO_INTERNAL void TFusedMulAddReluCheck(const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
-    static_assert(std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
-                  "Fix: TFUSEDMULADDRELU the data type of dst must be consistent with of src0 and src1.");
-    static_assert(std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float> ||
-                      std::is_same_v<T, float32_t>,
-                  "Fix: TFUSEDMULADDRELU has invalid data type.");
-    static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-                  "Fix: TFUSEDMULADDRELU only support row major layout.");
+    static_assert(
+        std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
+        "Fix: TFUSEDMULADDRELU the data type of dst must be consistent with of src0 and src1.");
+    static_assert(
+        std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float> ||
+            std::is_same_v<T, float32_t>,
+        "Fix: TFUSEDMULADDRELU has invalid data type.");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
+        "Fix: TFUSEDMULADDRELU only support row major layout.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
-    PTO_ASSERT(src0.GetValidRow() == validRows && src0.GetValidCol() == validCols && src1.GetValidRow() == validRows &&
-                   src1.GetValidCol() == validCols,
-               "Fix: TFUSEDMULADDRELU input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRows && src0.GetValidCol() == validCols && src1.GetValidRow() == validRows &&
+            src1.GetValidCol() == validCols,
+        "Fix: TFUSEDMULADDRELU input tile src0 valid shape mismatch with output tile dst shape.");
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TFUSEDMULADDRELU_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TFUSEDMULADDRELU_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
     TFusedMulAddReluCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
@@ -80,9 +86,9 @@ PTO_INTERNAL void TFUSEDMULADDRELU_IMPL(TileDataDst &dst, TileDataSrc0 &src0, Ti
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
     constexpr unsigned src1RowStride = TileDataSrc1::RowStride;
-    TFusedMulAddRelu<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride,
-                     src0RowStride, src1RowStride>(dst.data(), src0.data(), src1.data(), dst.GetValidRow(),
-                                                   dst.GetValidCol());
+    TFusedMulAddRelu<
+        TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
+        src1RowStride>(dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto
 

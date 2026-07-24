@@ -25,8 +25,9 @@ using Gmm2Pipeline = GmmCommonPipeline;
 template <typename InputElement>
 class Gmm2 {
 public:
-    AICORE inline void Init(GM_ADDR weight2GM, GM_ADDR scale2GM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
-                            const __gm__ MegaMoeTilingData *tilingData);
+    AICORE inline void Init(
+        GM_ADDR weight2GM, GM_ADDR scale2GM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+        const __gm__ MegaMoeTilingData* tilingData);
     AICORE inline void Process();
 
 private:
@@ -38,22 +39,23 @@ private:
     {
         return GmmCommonStartLoopIdx(coreIdx_, coreNum_, startCoreIdx);
     }
-    AICORE inline void RunGmmTile(Gmm2Pipeline &gmmPipeline, uint32_t groupIdx, uint32_t groupBase, uint32_t currentM,
-                                  uint32_t loopIdx) const
+    AICORE inline void RunGmmTile(
+        Gmm2Pipeline& gmmPipeline, uint32_t groupIdx, uint32_t groupBase, uint32_t currentM, uint32_t loopIdx) const
     {
-        GmmCommonRunTile(gmmPipeline, gmPermutedTokenPtr_, weight2Ptr_, gmm2OutputPtr_, scale2Ptr_, groupIdx, groupBase,
-                         currentM, loopIdx, outputN_, inputK_, inputK_, inputK_, outputN_, outputN_,
-                         tilingData_->gmm2Tiling.l1TileM, tilingData_->gmm2Tiling.l1TileN);
+        GmmCommonRunTile(
+            gmmPipeline, gmPermutedTokenPtr_, weight2Ptr_, gmm2OutputPtr_, scale2Ptr_, groupIdx, groupBase, currentM,
+            loopIdx, outputN_, inputK_, inputK_, inputK_, outputN_, outputN_, tilingData_->gmm2Tiling.l1TileM,
+            tilingData_->gmm2Tiling.l1TileN);
     }
 
-    const __gm__ MegaMoeTilingData *tilingData_ = nullptr;
+    const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
 
-    __gm__ int8_t *gmPermutedTokenPtr_ = nullptr;
-    __gm__ half *gmm2OutputPtr_ = nullptr;
-    __gm__ int8_t *weight2Ptr_ = nullptr;
-    __gm__ uint64_t *scale2Ptr_ = nullptr;
-    __gm__ int32_t *cumsumMMPtr_ = nullptr;
-    __gm__ int32_t *expertTokenNumsPtr_ = nullptr;
+    __gm__ int8_t* gmPermutedTokenPtr_ = nullptr;
+    __gm__ half* gmm2OutputPtr_ = nullptr;
+    __gm__ int8_t* weight2Ptr_ = nullptr;
+    __gm__ uint64_t* scale2Ptr_ = nullptr;
+    __gm__ int32_t* cumsumMMPtr_ = nullptr;
+    __gm__ int32_t* expertTokenNumsPtr_ = nullptr;
 
     uint32_t inputK_ = 0;
     uint32_t outputN_ = 0;
@@ -65,8 +67,9 @@ private:
 };
 
 template <typename InputElement>
-AICORE inline void Gmm2<InputElement>::Init(GM_ADDR weight2GM, GM_ADDR scale2GM, GM_ADDR expertTokenNumsGM,
-                                            GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData *tilingData)
+AICORE inline void Gmm2<InputElement>::Init(
+    GM_ADDR weight2GM, GM_ADDR scale2GM, GM_ADDR expertTokenNumsGM, GM_ADDR workspaceGM,
+    const __gm__ MegaMoeTilingData* tilingData)
 {
     (void)sizeof(InputElement);
     tilingData_ = tilingData;
@@ -82,12 +85,12 @@ AICORE inline void Gmm2<InputElement>::Init(GM_ADDR weight2GM, GM_ADDR scale2GM,
     coreNum_ = get_block_num();
 
     gmPermutedTokenPtr_ =
-        reinterpret_cast<__gm__ int8_t *>(workspaceGM + tilingData_->swigluTiling.gmPermutedTokenOffset);
-    gmm2OutputPtr_ = reinterpret_cast<__gm__ half *>(workspaceGM + tilingData_->gmm2Tiling.gmm2OutputOffset);
-    weight2Ptr_ = reinterpret_cast<__gm__ int8_t *>(weight2GM);
-    scale2Ptr_ = reinterpret_cast<__gm__ uint64_t *>(scale2GM);
-    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t *>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
-    expertTokenNumsPtr_ = reinterpret_cast<__gm__ int32_t *>(expertTokenNumsGM);
+        reinterpret_cast<__gm__ int8_t*>(workspaceGM + tilingData_->swigluTiling.gmPermutedTokenOffset);
+    gmm2OutputPtr_ = reinterpret_cast<__gm__ half*>(workspaceGM + tilingData_->gmm2Tiling.gmm2OutputOffset);
+    weight2Ptr_ = reinterpret_cast<__gm__ int8_t*>(weight2GM);
+    scale2Ptr_ = reinterpret_cast<__gm__ uint64_t*>(scale2GM);
+    cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM + tilingData_->frontReorderTiling.cumsumMMOffset);
+    expertTokenNumsPtr_ = reinterpret_cast<__gm__ int32_t*>(expertTokenNumsGM);
 }
 
 template <typename InputElement>
@@ -110,9 +113,9 @@ AICORE inline void Gmm2<InputElement>::Process()
         uint32_t segmentRows = 0;
         uint32_t cumsumRows = 0;
         uint32_t expertTokenRows = 0;
-        MoeBuildSegmentMetadata(segmentIdx, expertPerRank_, maxOutputSize_, cumsumMMPtr_, expertTokenNumsPtr_,
-                                rankSize_, segmentStartExpert, segmentEndExpert, segmentRowBase, segmentRows,
-                                cumsumRows, expertTokenRows);
+        MoeBuildSegmentMetadata(
+            segmentIdx, expertPerRank_, maxOutputSize_, cumsumMMPtr_, expertTokenNumsPtr_, rankSize_,
+            segmentStartExpert, segmentEndExpert, segmentRowBase, segmentRows, cumsumRows, expertTokenRows);
 
         for (uint32_t groupIdx = segmentStartExpert; groupIdx < segmentEndExpert; ++groupIdx) {
             const uint32_t currentMRaw = MoeCurrentMRaw(cumsumMMPtr_, rankSize_, expertPerRank_, groupIdx);

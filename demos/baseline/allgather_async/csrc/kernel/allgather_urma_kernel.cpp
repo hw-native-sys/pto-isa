@@ -47,7 +47,7 @@ using LocalTile = pto::Tile<pto::TileType::Vec, int32_t, 1, ELEM_COUNT, pto::BLa
 // ============================================================================
 // Shared device-side helper: local copy sendBuf → recvBuf[myPeer]
 // ============================================================================
-AICORE inline void LocalCopySendToRecv(__gm__ int32_t *sendBuf, __gm__ int32_t *recvBuf, int myPeer)
+AICORE inline void LocalCopySendToRecv(__gm__ int32_t* sendBuf, __gm__ int32_t* recvBuf, int myPeer)
 {
     ShapeDyn shape(1, 1, 1, 1, ELEM_COUNT);
     StrideDyn stride(ELEM_COUNT, ELEM_COUNT, ELEM_COUNT, ELEM_COUNT, 1);
@@ -70,8 +70,8 @@ AICORE inline void LocalCopySendToRecv(__gm__ int32_t *sendBuf, __gm__ int32_t *
 //   block_idx == myPeer  -> local copy (sendBuf -> recvBuf[myPeer])
 //   block_idx != myPeer  -> TPUT_ASYNC<URMA> to remote peer block_idx
 // ============================================================================
-__global__ AICORE void AllgatherUrmaPutMulticoreKernel(__gm__ int32_t *dataBuf, int nranks, int myPeer,
-                                                       __gm__ uint8_t *urmaWorkspace)
+__global__ AICORE void AllgatherUrmaPutMulticoreKernel(
+    __gm__ int32_t* dataBuf, int nranks, int myPeer, __gm__ uint8_t* urmaWorkspace)
 {
     if (nranks < 2)
         return;
@@ -81,8 +81,8 @@ __global__ AICORE void AllgatherUrmaPutMulticoreKernel(__gm__ int32_t *dataBuf, 
     ShapeDyn shape(1, 1, 1, 1, ELEM_COUNT);
     StrideDyn stride(ELEM_COUNT, ELEM_COUNT, ELEM_COUNT, ELEM_COUNT, 1);
 
-    __gm__ int32_t *sendBuf = dataBuf;
-    __gm__ int32_t *recvBuf = dataBuf + ELEM_COUNT;
+    __gm__ int32_t* sendBuf = dataBuf;
+    __gm__ int32_t* recvBuf = dataBuf + ELEM_COUNT;
 
     if (bid == myPeer) {
         LocalCopySendToRecv(sendBuf, recvBuf, myPeer);
@@ -91,8 +91,8 @@ __global__ AICORE void AllgatherUrmaPutMulticoreKernel(__gm__ int32_t *dataBuf, 
         int target = bid;
         GlobalI32 sendG(sendBuf, shape, stride);
         uint64_t peerBase = pto::comm::urma::UrmaPeerMrBaseAddr(urmaWorkspace, static_cast<uint32_t>(target));
-        __gm__ int32_t *remoteSlot =
-            reinterpret_cast<__gm__ int32_t *>(peerBase + kDataOffset) + ELEM_COUNT + myPeer * ELEM_COUNT;
+        __gm__ int32_t* remoteSlot =
+            reinterpret_cast<__gm__ int32_t*>(peerBase + kDataOffset) + ELEM_COUNT + myPeer * ELEM_COUNT;
         GlobalI32 remoteG(remoteSlot, shape, stride);
 
         pto::comm::AsyncSession session;
@@ -112,8 +112,8 @@ __global__ AICORE void AllgatherUrmaPutMulticoreKernel(__gm__ int32_t *dataBuf, 
 //   block_idx == myPeer  -> local copy
 //   block_idx != myPeer  -> TGET_ASYNC<URMA> from remote peer block_idx
 // ============================================================================
-__global__ AICORE void AllgatherUrmaGetMulticoreKernel(__gm__ int32_t *dataBuf, int nranks, int myPeer,
-                                                       __gm__ uint8_t *urmaWorkspace)
+__global__ AICORE void AllgatherUrmaGetMulticoreKernel(
+    __gm__ int32_t* dataBuf, int nranks, int myPeer, __gm__ uint8_t* urmaWorkspace)
 {
     if (nranks < 2)
         return;
@@ -123,8 +123,8 @@ __global__ AICORE void AllgatherUrmaGetMulticoreKernel(__gm__ int32_t *dataBuf, 
     ShapeDyn shape(1, 1, 1, 1, ELEM_COUNT);
     StrideDyn stride(ELEM_COUNT, ELEM_COUNT, ELEM_COUNT, ELEM_COUNT, 1);
 
-    __gm__ int32_t *sendBuf = dataBuf;
-    __gm__ int32_t *recvBuf = dataBuf + ELEM_COUNT;
+    __gm__ int32_t* sendBuf = dataBuf;
+    __gm__ int32_t* recvBuf = dataBuf + ELEM_COUNT;
 
     if (bid == myPeer) {
         LocalCopySendToRecv(sendBuf, recvBuf, myPeer);
@@ -132,13 +132,13 @@ __global__ AICORE void AllgatherUrmaGetMulticoreKernel(__gm__ int32_t *dataBuf, 
 #ifdef PTO_URMA_SUPPORTED
         int srcPeer = bid;
         uint64_t peerBase = pto::comm::urma::UrmaPeerMrBaseAddr(urmaWorkspace, static_cast<uint32_t>(srcPeer));
-        __gm__ int32_t *remoteSend = reinterpret_cast<__gm__ int32_t *>(peerBase + kDataOffset);
+        __gm__ int32_t* remoteSend = reinterpret_cast<__gm__ int32_t*>(peerBase + kDataOffset);
         GlobalI32 remoteG(remoteSend, shape, stride);
         GlobalI32 localG(recvBuf + srcPeer * ELEM_COUNT, shape, stride);
 
         pto::comm::AsyncSession session;
-        pto::comm::BuildAsyncSession<pto::comm::DmaEngine::URMA>(urmaWorkspace, static_cast<uint32_t>(srcPeer),
-                                                                 session);
+        pto::comm::BuildAsyncSession<pto::comm::DmaEngine::URMA>(
+            urmaWorkspace, static_cast<uint32_t>(srcPeer), session);
         pto::comm::AsyncEvent event = pto::comm::TGET_ASYNC<pto::comm::DmaEngine::URMA>(localG, remoteG, session);
         (void)event.Wait(session);
 #endif
@@ -154,16 +154,16 @@ __global__ AICORE void AllgatherUrmaGetMulticoreKernel(__gm__ int32_t *dataBuf, 
 //   round 0: local copy sendBuf → recvBuf[myPeer], then TPUT sendBuf → next peer
 //   round r (r>=1): TPUT recvBuf[chunk] → next peer (forwarding received data)
 // ============================================================================
-__global__ AICORE void RingUrmaAllgatherRoundKernel(__gm__ int32_t *dataBuf, int nranks, int myPeer,
-                                                    __gm__ uint8_t *urmaWorkspace, int elemCount, int round)
+__global__ AICORE void RingUrmaAllgatherRoundKernel(
+    __gm__ int32_t* dataBuf, int nranks, int myPeer, __gm__ uint8_t* urmaWorkspace, int elemCount, int round)
 {
     if (nranks < 2)
         return;
 
     int nextPeer = (myPeer + 1) % nranks;
 
-    __gm__ int32_t *sendBuf = dataBuf;
-    __gm__ int32_t *recvBuf = dataBuf + elemCount;
+    __gm__ int32_t* sendBuf = dataBuf;
+    __gm__ int32_t* recvBuf = dataBuf + elemCount;
 
     ShapeDyn shape(1, 1, 1, 1, elemCount);
     StrideDyn stride(elemCount, elemCount, elemCount, elemCount, 1);
@@ -190,12 +190,12 @@ __global__ AICORE void RingUrmaAllgatherRoundKernel(__gm__ int32_t *dataBuf, int
     }
 
     int sendChunkIdx = (myPeer - round + nranks) % nranks;
-    __gm__ int32_t *srcPtr = (round == 0) ? sendBuf : (recvBuf + sendChunkIdx * elemCount);
+    __gm__ int32_t* srcPtr = (round == 0) ? sendBuf : (recvBuf + sendChunkIdx * elemCount);
 
 #ifdef PTO_URMA_SUPPORTED
     uint64_t nextBase = pto::comm::urma::UrmaPeerMrBaseAddr(urmaWorkspace, static_cast<uint32_t>(nextPeer));
-    __gm__ int32_t *remoteDst =
-        reinterpret_cast<__gm__ int32_t *>(nextBase + kDataOffset) + elemCount + sendChunkIdx * elemCount;
+    __gm__ int32_t* remoteDst =
+        reinterpret_cast<__gm__ int32_t*>(nextBase + kDataOffset) + elemCount + sendChunkIdx * elemCount;
 
     GlobalI32 srcG(srcPtr, shape, stride);
     GlobalI32 remoteDstG(remoteDst, shape, stride);
@@ -212,7 +212,7 @@ __global__ AICORE void RingUrmaAllgatherRoundKernel(__gm__ int32_t *dataBuf, int
 // ============================================================================
 // Host-side helpers (same logic as SDMA version)
 // ============================================================================
-static bool VerifyAllgather(const int32_t *host, int nRanks, size_t elemCount, int rankId, const char *tag)
+static bool VerifyAllgather(const int32_t* host, int nRanks, size_t elemCount, int rankId, const char* tag)
 {
     for (int r = 0; r < nRanks; ++r) {
         for (size_t i = 0; i < elemCount; ++i) {
@@ -228,7 +228,7 @@ static bool VerifyAllgather(const int32_t *host, int nRanks, size_t elemCount, i
     return true;
 }
 
-static void PrintSample(const int32_t *host, int nRanks, size_t elemCount, int rankId, const char *tag)
+static void PrintSample(const int32_t* host, int nRanks, size_t elemCount, int rankId, const char* tag)
 {
     int mpiSize = CommMpiSize();
     for (int r = 0; r < mpiSize; ++r) {
@@ -254,11 +254,11 @@ static void PrintSample(const int32_t *host, int nRanks, size_t elemCount, int r
 // ============================================================================
 struct UrmaRunnerEnv {
     UrmaTestContext ctx;
-    int32_t *sendHost = nullptr;
-    int32_t *recvHost = nullptr;
-    int32_t *dataBuf = nullptr;
-    int32_t *sendBuf = nullptr;
-    int32_t *recvBuf = nullptr;
+    int32_t* sendHost = nullptr;
+    int32_t* recvHost = nullptr;
+    int32_t* dataBuf = nullptr;
+    int32_t* sendBuf = nullptr;
+    int32_t* recvBuf = nullptr;
     int myPeer = 0;
     size_t recvElems = 0;
 
@@ -271,31 +271,31 @@ struct UrmaRunnerEnv {
         if (!ctx.Setup(rankId, nRanks, nDevices, firstDeviceId, rootRank, commBytesNeeded))
             return false;
 
-        aclrtMallocHost(reinterpret_cast<void **>(&sendHost), ELEM_COUNT * sizeof(int32_t));
-        aclrtMallocHost(reinterpret_cast<void **>(&recvHost), recvElems * sizeof(int32_t));
+        aclrtMallocHost(reinterpret_cast<void**>(&sendHost), ELEM_COUNT * sizeof(int32_t));
+        aclrtMallocHost(reinterpret_cast<void**>(&recvHost), recvElems * sizeof(int32_t));
 
         for (size_t i = 0; i < ELEM_COUNT; ++i)
             sendHost[i] = static_cast<int32_t>(myPeer) * RANK_BASE + static_cast<int32_t>(i);
         for (size_t i = 0; i < recvElems; ++i)
             recvHost[i] = -1;
 
-        dataBuf = reinterpret_cast<int32_t *>(reinterpret_cast<uint8_t *>(ctx.devBuf) + kDataOffset);
+        dataBuf = reinterpret_cast<int32_t*>(reinterpret_cast<uint8_t*>(ctx.devBuf) + kDataOffset);
         sendBuf = dataBuf;
         recvBuf = dataBuf + ELEM_COUNT;
 
-        aclrtMemcpy(sendBuf, ELEM_COUNT * sizeof(int32_t), sendHost, ELEM_COUNT * sizeof(int32_t),
-                    ACL_MEMCPY_HOST_TO_DEVICE);
-        aclrtMemcpy(recvBuf, recvElems * sizeof(int32_t), recvHost, recvElems * sizeof(int32_t),
-                    ACL_MEMCPY_HOST_TO_DEVICE);
+        aclrtMemcpy(
+            sendBuf, ELEM_COUNT * sizeof(int32_t), sendHost, ELEM_COUNT * sizeof(int32_t), ACL_MEMCPY_HOST_TO_DEVICE);
+        aclrtMemcpy(
+            recvBuf, recvElems * sizeof(int32_t), recvHost, recvElems * sizeof(int32_t), ACL_MEMCPY_HOST_TO_DEVICE);
 
         CommMpiBarrier();
         return true;
     }
 
-    bool VerifyAndReport(int nRanks, int rankId, const char *tag)
+    bool VerifyAndReport(int nRanks, int rankId, const char* tag)
     {
-        aclrtMemcpy(recvHost, recvElems * sizeof(int32_t), recvBuf, recvElems * sizeof(int32_t),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            recvHost, recvElems * sizeof(int32_t), recvBuf, recvElems * sizeof(int32_t), ACL_MEMCPY_DEVICE_TO_HOST);
         bool ok = VerifyAllgather(recvHost, nRanks, ELEM_COUNT, rankId, tag);
         if (ok)
             PrintSample(recvHost, nRanks, ELEM_COUNT, rankId, tag);
@@ -313,15 +313,15 @@ struct UrmaRunnerEnv {
 // ============================================================================
 // Host-side runners
 // ============================================================================
-static bool RunAllgatherUrmaPutMCKernel(int rankId, int nRanks, int nDevices, int firstDeviceId, int firstRankId,
-                                        int rootRank)
+static bool RunAllgatherUrmaPutMCKernel(
+    int rankId, int nRanks, int nDevices, int firstDeviceId, int firstRankId, int rootRank)
 {
     UrmaRunnerEnv env;
     if (!env.Init(rankId, nRanks, nDevices, firstDeviceId, firstRankId, rootRank))
         return false;
 
     AllgatherUrmaPutMulticoreKernel<<<nRanks, nullptr, env.ctx.stream>>>(
-        env.dataBuf, nRanks, env.myPeer, reinterpret_cast<uint8_t *>(env.ctx.urmaMgr.GetWorkspaceAddr()));
+        env.dataBuf, nRanks, env.myPeer, reinterpret_cast<uint8_t*>(env.ctx.urmaMgr.GetWorkspaceAddr()));
     aclrtSynchronizeStream(env.ctx.stream);
     CommMpiBarrier();
 
@@ -330,15 +330,15 @@ static bool RunAllgatherUrmaPutMCKernel(int rankId, int nRanks, int nDevices, in
     return ok;
 }
 
-static bool RunAllgatherUrmaGetMCKernel(int rankId, int nRanks, int nDevices, int firstDeviceId, int firstRankId,
-                                        int rootRank)
+static bool RunAllgatherUrmaGetMCKernel(
+    int rankId, int nRanks, int nDevices, int firstDeviceId, int firstRankId, int rootRank)
 {
     UrmaRunnerEnv env;
     if (!env.Init(rankId, nRanks, nDevices, firstDeviceId, firstRankId, rootRank))
         return false;
 
     AllgatherUrmaGetMulticoreKernel<<<nRanks, nullptr, env.ctx.stream>>>(
-        env.dataBuf, nRanks, env.myPeer, reinterpret_cast<uint8_t *>(env.ctx.urmaMgr.GetWorkspaceAddr()));
+        env.dataBuf, nRanks, env.myPeer, reinterpret_cast<uint8_t*>(env.ctx.urmaMgr.GetWorkspaceAddr()));
     aclrtSynchronizeStream(env.ctx.stream);
     CommMpiBarrier();
 
@@ -347,8 +347,8 @@ static bool RunAllgatherUrmaGetMCKernel(int rankId, int nRanks, int nDevices, in
     return ok;
 }
 
-static bool RunAllgatherUrmaRingKernel(int rankId, int nRanks, int nDevices, int firstDeviceId, int firstRankId,
-                                       int rootRank)
+static bool RunAllgatherUrmaRingKernel(
+    int rankId, int nRanks, int nDevices, int firstDeviceId, int firstRankId, int rootRank)
 {
     UrmaRunnerEnv env;
     if (!env.Init(rankId, nRanks, nDevices, firstDeviceId, firstRankId, rootRank))
@@ -357,7 +357,7 @@ static bool RunAllgatherUrmaRingKernel(int rankId, int nRanks, int nDevices, int
     int numRounds = nRanks - 1;
     for (int r = 0; r < numRounds; ++r) {
         RingUrmaAllgatherRoundKernel<<<1, nullptr, env.ctx.stream>>>(
-            env.dataBuf, nRanks, env.myPeer, reinterpret_cast<uint8_t *>(env.ctx.urmaMgr.GetWorkspaceAddr()),
+            env.dataBuf, nRanks, env.myPeer, reinterpret_cast<uint8_t*>(env.ctx.urmaMgr.GetWorkspaceAddr()),
             static_cast<int>(ELEM_COUNT), r);
         aclrtSynchronizeStream(env.ctx.stream);
         CommMpiBarrier();

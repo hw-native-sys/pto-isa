@@ -43,12 +43,6 @@ void runTRecip()
 
 } // namespace
 
-TEST(TRecip, case_float_64x64_64x64_64x64_inPlace_False)
-{
-    runTRecip<float, 64, 64, 64, 64, false, 0.0f, 0.0f>();
-}
+TEST(TRecip, case_float_64x64_64x64_64x64_inPlace_False) { runTRecip<float, 64, 64, 64, 64, false, 0.0f, 0.0f>(); }
 
-TEST(TRecip, case_half_64x64_64x64_64x64_inPlace_False)
-{
-    runTRecip<half, 64, 64, 64, 64, false, 0.0f, 0.0f>();
-}
+TEST(TRecip, case_half_64x64_64x64_64x64_inPlace_False) { runTRecip<half, 64, 64, 64, 64, false, 0.0f, 0.0f>(); }

@@ -18,16 +18,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-enum TSyncCVMode : uint8_t
-{
-    CUBE_ALL_CORE_SYNC = 0,
-    VEC_ALL_CORE_SYNC = 0,
-    VEC_SUBCORES_SYNC = 1,
-    CV_CORES_SYNC = 2
-};
+enum TSyncCVMode : uint8_t { CUBE_ALL_CORE_SYNC = 0, VEC_ALL_CORE_SYNC = 0, VEC_SUBCORES_SYNC = 1, CV_CORES_SYNC = 2 };
 
-template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum = 2,
-          bool IsNoSplit = false, bool EN_UNIT_FLAG = false>
+template <
+    uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum = 2,
+    bool IsNoSplit = false, bool EN_UNIT_FLAG = false>
 struct TPipe {
     static constexpr uint8_t DIR_MASK = 0x7;
     static constexpr uint8_t DIR_TYPE = DIR_MASK & DirType;
@@ -35,8 +30,9 @@ struct TPipe {
     static constexpr bool is_v2c = (DIR_TYPE == Direction::DIR_V2C);           // 2
     static constexpr bool is_both = (DIR_TYPE == Direction::DIR_BOTH);         // 3
     static constexpr bool is_v2c_ctrl = (DIR_TYPE == Direction::DIR_V2C_CTRL); // 4
-    static_assert(is_c2v || is_v2c || is_both || is_v2c_ctrl,
-                  "Fix: TPipe only supports C2V or V2C or Both or V2C_CTRL communication on A2A3.");
+    static_assert(
+        is_c2v || is_v2c || is_both || is_v2c_ctrl,
+        "Fix: TPipe only supports C2V or V2C or Both or V2C_CTRL communication on A2A3.");
     // get rid of codechecker warnings
     static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
     static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
@@ -44,8 +40,8 @@ struct TPipe {
     static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
     static_assert(SlotNum >= 1, "Fix: TPipe requires SlotNum >= 1.");
     static_assert(SyncPeriod >= 1, "Fix: TPipe requires SyncPeriod >= 1.");
-    static_assert(FlagIDPlusOne < 16,
-                  "Fix: With Both direction, FlagID + 1 must be less than 16 due to hardware limit.");
+    static_assert(
+        FlagIDPlusOne < 16, "Fix: With Both direction, FlagID + 1 must be less than 16 due to hardware limit.");
 
     using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
 
@@ -53,29 +49,21 @@ struct TPipe {
     {
         constexpr uint16_t FFTS_FLAG_ID_BIT_START = 8;
         constexpr uint16_t FFTS_MODE_BIT_START = 4;
-        return ((base_const & 0xf) + ((mode & 0x3) << FFTS_MODE_BIT_START) +
-                ((flagID & 0xf) << FFTS_FLAG_ID_BIT_START));
+        return (
+            (base_const & 0xf) + ((mode & 0x3) << FFTS_MODE_BIT_START) + ((flagID & 0xf) << FFTS_FLAG_ID_BIT_START));
     }
 
     PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex)
     {
-        if constexpr (SlotNum == 1) {
-            return tileIndex > 0;
-        } else {
-            if (tileIndex < SlotNum) {
-                return false;
-            }
-            return (tileIndex % SyncPeriod) == 0;
+        if (tileIndex < SlotNum) {
+            return false;
         }
+        return (tileIndex % SyncPeriod) == 0;
     }
 
     PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
     {
-        if constexpr (SlotNum == 1) {
-            return true;
-        } else {
-            return ((tileIndex + 1) % SyncPeriod) == 0;
-        }
+        return ((tileIndex + 1) % SyncPeriod) == 0;
     }
 
     struct Producer {
@@ -87,15 +75,9 @@ struct TPipe {
 
         PTO_INTERNAL Producer() = default;
 
-        PTO_INTERNAL void setAllocateStatus(bool allocate)
-        {
-            isAllocate = allocate;
-        }
+        PTO_INTERNAL void setAllocateStatus(bool allocate) { isAllocate = allocate; }
 
-        PTO_INTERNAL void setRecordStatus(bool record)
-        {
-            isRecord = record;
-        }
+        PTO_INTERNAL void setRecordStatus(bool record) { isRecord = record; }
 
         PTO_INTERNAL void setTileId(int tIndex, int subIndex)
         {
@@ -103,30 +85,15 @@ struct TPipe {
             subTileIndex = subIndex;
         }
 
-        PTO_INTERNAL void setEntryOffset(int offset)
-        {
-            entryOffset = offset;
-        }
+        PTO_INTERNAL void setEntryOffset(int offset) { entryOffset = offset; }
 
-        PTO_INTERNAL int getSubTileId() const
-        {
-            return subTileIndex;
-        }
+        PTO_INTERNAL int getSubTileId() const { return subTileIndex; }
 
-        PTO_INTERNAL int getTileId() const
-        {
-            return tileIndex;
-        }
+        PTO_INTERNAL int getTileId() const { return tileIndex; }
 
-        PTO_INTERNAL bool getAllocateStatus() const
-        {
-            return isAllocate;
-        }
+        PTO_INTERNAL bool getAllocateStatus() const { return isAllocate; }
 
-        PTO_INTERNAL bool getRecordStatus() const
-        {
-            return isRecord;
-        }
+        PTO_INTERNAL bool getRecordStatus() const { return isRecord; }
 
         PTO_INTERNAL void allocate() const
         {
@@ -145,8 +112,9 @@ struct TPipe {
                 wait_flag_dev(FlagIDPlusOne);
 #endif
 #ifdef __DAV_VEC__
-                static_assert((FlagIDPlusThree < 16),
-                              "Fix: With Both direction, FlagID + 3 must be less than 16 due to hardware limit.");
+                static_assert(
+                    (FlagIDPlusThree < 16),
+                    "Fix: With Both direction, FlagID + 3 must be less than 16 due to hardware limit.");
                 wait_flag_dev(FlagIDPlusThree);
 #endif
             }
@@ -175,23 +143,26 @@ struct TPipe {
         }
 
         template <typename TileProd>
-        PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo& fifo, TileProd& tile)
         {
             using T = typename TileProd::DType;
-            constexpr int ProdN = TileProd::Cols;
-            constexpr int ProdM = TileProd::Rows;
-            using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ProdM, ProdN>, pto::Stride<1, 1, 1, ProdN, 1>>;
+            int ValidR = tile.GetValidRow();
+            int ValidC = tile.GetValidCol();
+            using GlobalShape = pto::Shape<1, 1, 1, -1, -1>;
+            using GlobalStride = pto::Stride<1, 1, 1, -1, 1>;
+            using GlobalData = GlobalTensor<T, GlobalShape, GlobalStride>;
             size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
-            GlobalData gmTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
+            __gm__ T* addr = (__gm__ T*)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset);
+            GlobalData globalData(addr, GlobalShape(ValidR, ValidC), GlobalStride(ValidC));
             if constexpr (EN_UNIT_FLAG) {
-                TSTORE_IMPL<TileProd, GlobalData, AtomicType::AtomicNone, STPhase::Final>(gmTensor, tile);
+                TSTORE_IMPL<TileProd, GlobalData, AtomicType::AtomicNone, STPhase::Final>(globalData, tile);
             } else { // disable unit flag
-                TSTORE_IMPL(gmTensor, tile);
+                TSTORE_IMPL(globalData, tile);
             }
         }
 
         template <typename TileProd, TileSplitAxis Split>
-        PTO_INTERNAL void pushVec2GMFiFo(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void pushVec2GMFiFo(RingFiFo& fifo, TileProd& tile, int32_t subBlockId)
         {
             using T = typename TileProd::DType;
             int gmValidR = tile.GetValidRow();
@@ -205,25 +176,25 @@ struct TPipe {
                 subAIVOffset = 0;
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 // TILE_UP_DOWN  : Vec1 starts at the second row-block → offset = ProdM * ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * gmValidR * gmValidC * sizeof(T);
+                subAIVOffset = subBlockId * gmValidR * gmValidC * sizeof(T);
             } else { // TILE_LEFT_RIGHT
                 // TILE_LEFT_RIGHT: Vec1 starts at column ProdN within row 0 → offset = ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * gmValidC * sizeof(T);
+                subAIVOffset = subBlockId * gmValidC * sizeof(T);
             }
             using GlobalShape = pto::Shape<1, 1, 1, -1, -1>;
             using GlobalStride = pto::Stride<1, 1, 1, -1, 1>;
             using GlobalData = GlobalTensor<T, GlobalShape, GlobalStride>;
-            __gm__ T *addr = (__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + subAIVOffset + entryOffset);
+            __gm__ T* addr = (__gm__ T*)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + subAIVOffset + entryOffset);
             GlobalData globalData(addr, GlobalShape(gmValidR, gmValidC), GlobalStride(gmStrideR));
             TSTORE_IMPL(globalData, tile);
         }
 
         template <typename TileProd>
-        PTO_INTERNAL void pushVec2CtrlFiFo(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void pushVec2CtrlFiFo(RingFiFo& fifo, TileProd& tile)
         {
             size_t slotIndex = (tileIndex % RingFiFo::SLOT_NUM);
             uint64_t entryBase = slotIndex * sizeof(uint64_t);
-            __gm__ uint64_t *ctrlBuf = (__gm__ uint64_t *)(fifo.CTRL_SLOT_BUFFER + entryBase + entryOffset);
+            __gm__ uint64_t* ctrlBuf = (__gm__ uint64_t*)(fifo.CTRL_SLOT_BUFFER + entryBase + entryOffset);
             set_flag(PIPE_V, PIPE_S, EVENT_ID0);
             wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
             uint64_t ctrlSignal = *(tile.data());
@@ -231,7 +202,7 @@ struct TPipe {
         }
 
         template <typename TileProd, TileSplitAxis Split>
-        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void push(RingFiFo& fifo, TileProd& tile, int32_t subBlockId)
         {
             static_assert(
                 TileProd::Loc == TileType::Acc || TileProd::Loc == TileType::Vec || TileProd::Loc == TileType::Ctrl,
@@ -242,14 +213,14 @@ struct TPipe {
 #endif
             } else if constexpr (is_v2c) {
 #ifdef __DAV_VEC__
-                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile, subBlockId);
 #endif
             } else if constexpr (is_both) {
 #ifdef __DAV_CUBE__
                 pushAcc2GMFiFo<TileProd>(fifo, tile);
 #endif
 #ifdef __DAV_VEC__
-                pushVec2GMFiFo<TileProd, Split>(fifo, tile);
+                pushVec2GMFiFo<TileProd, Split>(fifo, tile, subBlockId);
 #endif
             } else if constexpr (is_v2c_ctrl) {
                 pushVec2CtrlFiFo<TileProd>(fifo, tile);
@@ -266,17 +237,17 @@ struct TPipe {
                                                 (LayoutMode == LayoutMode_t::NZ2DN ? Layout::DN : Layout::NZ);
 
         template <typename TileProd, typename TConfig>
-        using FixpipeGlobalData =
-            GlobalTensor<FixpipeConsType<TileProd, TConfig>, pto::Shape<1, 1, 1, TileProd::Rows, TileProd::Cols>,
-                         pto::Stride<1, 1, 1, TileProd::Cols, 1>, FixpipeGlobalLayout<TConfig::LayoutMode>>;
+        using FixpipeGlobalData = GlobalTensor<
+            FixpipeConsType<TileProd, TConfig>, pto::Shape<1, 1, 1, TileProd::Rows, TileProd::Cols>,
+            pto::Stride<1, 1, 1, TileProd::Cols, 1>, FixpipeGlobalLayout<TConfig::LayoutMode>>;
 
         template <typename TileProd, typename TConfig>
-        PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void pushAcc2GMFiFo(RingFiFo& fifo, TileProd& tile)
         {
             using T = FixpipeConsType<TileProd, TConfig>;
             using GlobalData = FixpipeGlobalData<TileProd, TConfig>;
             size_t entryBase = (tileIndex % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
-            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
+            GlobalData globalTensor((__gm__ T*)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
 
             if constexpr (TConfig::AtomicT == AtomicType::AtomicAdd) {
                 SetAtomicAdd<typename GlobalData::DType>();
@@ -295,10 +266,11 @@ struct TPipe {
 
         // cast quant, scalar quant, vector quant
         template <typename TileProd, typename TConfig>
-        PTO_INTERNAL void push(RingFiFo &fifo, TileProd &tile)
+        PTO_INTERNAL void push(RingFiFo& fifo, TileProd& tile)
         {
-            static_assert(TileProd::Loc == TileType::Acc,
-                          "Fix: the push interface with cast quant mode only suppport Acc tile type!");
+            static_assert(
+                TileProd::Loc == TileType::Acc,
+                "Fix: the push interface with cast quant mode only support Acc tile type!");
             if constexpr (is_c2v) {
 #ifdef __DAV_CUBE__
                 pushAcc2GMFiFo<TileProd, TConfig>(fifo, tile);
@@ -326,40 +298,19 @@ struct TPipe {
             subTileIndex = sub_tid;
         }
 
-        PTO_INTERNAL void setWaitStatus(bool wait)
-        {
-            isWait = wait;
-        }
+        PTO_INTERNAL void setWaitStatus(bool wait) { isWait = wait; }
 
-        PTO_INTERNAL void setFreeStatus(bool free)
-        {
-            isFree = free;
-        }
+        PTO_INTERNAL void setFreeStatus(bool free) { isFree = free; }
 
-        PTO_INTERNAL void setEntryOffset(int offset)
-        {
-            entryOffset = offset;
-        }
+        PTO_INTERNAL void setEntryOffset(int offset) { entryOffset = offset; }
 
-        PTO_INTERNAL int getTileId() const
-        {
-            return tileIndex;
-        }
+        PTO_INTERNAL int getTileId() const { return tileIndex; }
 
-        PTO_INTERNAL int getSubTileId() const
-        {
-            return subTileIndex;
-        }
+        PTO_INTERNAL int getSubTileId() const { return subTileIndex; }
 
-        PTO_INTERNAL bool getWaitStatus() const
-        {
-            return isWait;
-        }
+        PTO_INTERNAL bool getWaitStatus() const { return isWait; }
 
-        PTO_INTERNAL bool getFreeStatus() const
-        {
-            return isFree;
-        }
+        PTO_INTERNAL bool getFreeStatus() const { return isFree; }
 
         /**
          * wait: Block until data is ready
@@ -404,15 +355,16 @@ struct TPipe {
                 ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagIDPlusOne));
 #endif
 #ifdef __DAV_CUBE__
-                static_assert((FlagIDPlusThree < 16),
-                              "Fix: With Both direction, FlagID + 3 must be less than 16 due to hardware limit.");
+                static_assert(
+                    (FlagIDPlusThree < 16),
+                    "Fix: With Both direction, FlagID + 3 must be less than 16 due to hardware limit.");
                 ffts_cross_core_sync(PIPE_MTE2, getFFTSMsgCfg(TSyncCVMode::CV_CORES_SYNC, FlagIDPlusThree));
 #endif
             }
         }
 
         template <typename TileCons, TileSplitAxis Split>
-        PTO_INTERNAL void popVecTileFromGMFiFo(RingFiFo &fifo, TileCons &tile)
+        PTO_INTERNAL void popVecTileFromGMFiFo(RingFiFo& fifo, TileCons& tile, int32_t subBlockId)
         {
             using T = typename TileCons::DType;
             constexpr int splitNum = 2;
@@ -432,12 +384,12 @@ struct TPipe {
                 subAIVOffset = 0; // TILE_NO_SPLIT : single reader, no offset needed
             } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
                 // TILE_UP_DOWN  : Vec1 starts at the second row-block → offset = VEC_M * ProdN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsM * ConsN * sizeof(T);
+                subAIVOffset = subBlockId * ConsM * ConsN * sizeof(T);
             } else { // TILE_LEFT_RIGHT
                 // TILE_LEFT_RIGHT: Vec1 starts at column ConsN within row 0 → offset = ConsN * sizeof(T)
-                subAIVOffset = get_subblockid() * ConsN * sizeof(T);
+                subAIVOffset = subBlockId * ConsN * sizeof(T);
             }
-            __gm__ T *addr = (__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + subAIVOffset + entryOffset);
+            __gm__ T* addr = (__gm__ T*)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + subAIVOffset + entryOffset);
             using GlobalData =
                 GlobalTensor<T, pto::Shape<1, 1, 1, gmValidR, gmValidC>, pto::Stride<1, 1, 1, gmStrideR, 1>>;
             GlobalData globalTensor(addr);
@@ -451,7 +403,7 @@ struct TPipe {
         }
 
         template <typename TileCons, TileSplitAxis Split>
-        PTO_INTERNAL void popMatTileFromGMFiFo(RingFiFo &fifo, TileCons &tile)
+        PTO_INTERNAL void popMatTileFromGMFiFo(RingFiFo& fifo, TileCons& tile)
         {
             using T = typename TileCons::DType;
             constexpr int ConsM = TileCons::Rows;
@@ -459,7 +411,7 @@ struct TPipe {
             size_t entryBase = (static_cast<size_t>(tileIndex) % RingFiFo::SLOT_NUM) *
                                RingFiFo::SLOT_SIZE; // ConsM * ConsN * sizeof(T);
             using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
-            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
+            GlobalData globalTensor((__gm__ T*)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset));
 
             uint64_t localTileBase =
                 fifo.V2C_CONSUMER_BUF +
@@ -468,22 +420,22 @@ struct TPipe {
             TLOAD_IMPL(tile, globalTensor);
         }
 
-        PTO_INTERNAL void popCtrlFromCtrlFiFo(RingFiFo &fifo)
+        PTO_INTERNAL void popCtrlFromCtrlFiFo(RingFiFo& fifo)
         {
             uint32_t slotIndex = (tileIndex % RingFiFo::SLOT_NUM);
             size_t entryBase = slotIndex * sizeof(uint32_t);
             uint64_t ctrlTileBase = fifo.CTRL_SLOT_BUFFER + entryBase + entryOffset;
-            fifo.ctrlSignal = ((*(__gm__ uint32_t *)(ctrlTileBase)) == 1) ? true : false;
+            fifo.ctrlSignal = ((*(__gm__ uint32_t*)(ctrlTileBase)) == 1) ? true : false;
         }
 
         template <typename TileCons, TileSplitAxis Split>
-        PTO_INTERNAL void pop(RingFiFo &fifo, TileCons &tile)
+        PTO_INTERNAL void pop(RingFiFo& fifo, TileCons& tile, int32_t subBlockId)
         {
             static_assert(
                 TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat || TileCons::Loc == TileType::Ctrl,
                 "Fix: TPOP has unsupported tile type!");
             if constexpr (TileCons::Loc == TileType::Vec) {
-                popVecTileFromGMFiFo<TileCons, Split>(fifo, tile);
+                popVecTileFromGMFiFo<TileCons, Split>(fifo, tile, subBlockId);
             } else if constexpr (TileCons::Loc == TileType::Mat) {
                 popMatTileFromGMFiFo<TileCons, Split>(fifo, tile);
             } else {
@@ -496,30 +448,19 @@ struct TPipe {
     Producer prod;
     Consumer cons;
 
-    PTO_INTERNAL explicit TPipe(__gm__ void *GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
+    PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
-    {}
+    {
+        for (uint32_t i = 0; i < SyncPeriod; ++i) {
+            cons.free();
+        }
+    }
 
     // Destructor for TPipe: drain leftover free credits on FlagID+1.
     // Initial TPUSH calls skip allocate() via shouldWaitFree (tileIndex < SlotNum, or 0 for depth 1).
     PTO_INTERNAL ~TPipe()
     {
-        const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
-        uint32_t numPushWait = 0;
-        if constexpr (SlotNum == 1) {
-            numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
-        } else {
-            if (prod.tileIndex > SlotNum) {
-                constexpr uint32_t firstAligned =
-                    (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
-                const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
-                if (lastAligned >= firstAligned) {
-                    numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
-                }
-            }
-        }
-        const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
-        for (uint32_t i = 0; i < drainCount; ++i) {
+        for (uint32_t i = 0; i < SyncPeriod; ++i) {
             prod.allocate();
         }
     }
@@ -533,7 +474,7 @@ struct TPipe {
  * 3. [Commit]  Signal Consumer (Cross-Core)
  */
 template <typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileProd>, int> = 0>
-PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
+PTO_INTERNAL void TPUSH_IMPL(Pipe& pipe, TileProd& tile)
 {
     // 1. Cross-Core: Wait for space
     bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
@@ -542,7 +483,27 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
     }
 
     // 2. Address Calculation
-    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile);
+    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, get_subblockid());
+    pipe.prod.tileIndex++;
+
+    // 3. Cross-Core: Commit & Signal
+    bool isRecord = pipe.prod.getRecordStatus();
+    if (isRecord) {
+        pipe.prod.record();
+    }
+}
+
+template <typename Pipe, typename TileProd, TileSplitAxis Split>
+PTO_INTERNAL void TPUSH_IMPL(Pipe& pipe, TileProd& tile, int32_t subBlockId)
+{
+    // 1. Cross-Core: Wait for space
+    bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
+    if (isAllocate) {
+        pipe.prod.allocate();
+    }
+
+    // 2. Address Calculation
+    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, subBlockId);
     pipe.prod.tileIndex++;
 
     // 3. Cross-Core: Commit & Signal
@@ -553,9 +514,9 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 }
 
 // interfaces when push and pop data from GM FIFO
-template <typename Pipe, typename GlobalData, TileSplitAxis Split,
-          std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
-PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
+template <
+    typename Pipe, typename GlobalData, TileSplitAxis Split, std::enable_if_t<is_global_data_v<GlobalData>, int> = 0>
+PTO_INTERNAL void TPUSH_IMPL(Pipe& pipe, GlobalData& gmTensor)
 {
     (void)gmTensor;
     pipe.prod.record();
@@ -563,7 +524,7 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, GlobalData &gmTensor)
 
 // TPUSH interface when NoQuant, cast, scalar, vector
 template <typename Pipe, typename TileProd, typename TConfig>
-PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
+PTO_INTERNAL void TPUSH_IMPL(Pipe& pipe, TileProd& tile)
 {
     bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);
     if (isAllocate) {
@@ -580,9 +541,10 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe &pipe, TileProd &tile)
 }
 
 //---------------------multiple pipe----------------------
-template <uint8_t FlagID, FIFOType FiFoType, uint8_t FiFoDepth, uint8_t FiFoSyncT, typename TileDataProd,
-          typename TileDataCons, bool EN_UNIT_FLAG = false, uint8_t LocalFiFoDepth = 2,
-          VecCubeRatio VCRatio = VecCubeRatio::V2C1_VECS>
+template <
+    uint8_t FlagID, FIFOType FiFoType, uint8_t FiFoDepth, uint8_t FiFoSyncT, typename TileDataProd,
+    typename TileDataCons, bool EN_UNIT_FLAG = false, uint8_t LocalFiFoDepth = 2,
+    VecCubeRatio VCRatio = VecCubeRatio::V2C1_VECS>
 struct TMPipe {
     static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
     static constexpr bool is_c2v =
@@ -591,15 +553,15 @@ struct TMPipe {
         (FiFoType == FIFOType::GM_FIFO) && (TileDataProd::Loc == TileType::Vec) && (TileDataCons::Loc == TileType::Mat);
 
     using DataFiFo = DataFIFO<typename TileDataCons::DType, FiFoType, FiFoDepth, FiFoSyncT, LocalFiFoDepth>;
-    static_assert(FlagIDPlusOne < 16,
-                  "Fix: With single direction, FlagID + 1 must be less than 16 due to hardware limit.");
+    static_assert(
+        FlagIDPlusOne < 16, "Fix: With single direction, FlagID + 1 must be less than 16 due to hardware limit.");
 
     PTO_INTERNAL static uint64_t getFFTSMsgCfg(TSyncCVMode mode, uint16_t flagID, uint16_t base_const = 0x1)
     {
         constexpr uint16_t FFTS_MODE_BIT_START = 4;
         constexpr uint16_t FFTS_FLAG_ID_BIT_START = 8;
-        return ((base_const & 0xf) + ((mode & 0x3) << FFTS_MODE_BIT_START) +
-                ((flagID & 0xf) << FFTS_FLAG_ID_BIT_START));
+        return (
+            (base_const & 0xf) + ((mode & 0x3) << FFTS_MODE_BIT_START) + ((flagID & 0xf) << FFTS_FLAG_ID_BIT_START));
     }
 
     struct Producer {
@@ -617,40 +579,19 @@ struct TMPipe {
             sub_tile_id = sub_t_id;
         }
 
-        PTO_INTERNAL void setAllocateStatus(bool allocate)
-        {
-            isAllocate = allocate;
-        }
+        PTO_INTERNAL void setAllocateStatus(bool allocate) { isAllocate = allocate; }
 
-        PTO_INTERNAL void setRecordStatus(bool record)
-        {
-            isRecord = record;
-        }
+        PTO_INTERNAL void setRecordStatus(bool record) { isRecord = record; }
 
-        PTO_INTERNAL void setEntryOffset(int offset)
-        {
-            entryOffset = offset;
-        }
+        PTO_INTERNAL void setEntryOffset(int offset) { entryOffset = offset; }
 
-        PTO_INTERNAL int getTileId() const
-        {
-            return tile_id;
-        }
+        PTO_INTERNAL int getTileId() const { return tile_id; }
 
-        PTO_INTERNAL int getSubTileId() const
-        {
-            return sub_tile_id;
-        }
+        PTO_INTERNAL int getSubTileId() const { return sub_tile_id; }
 
-        PTO_INTERNAL bool getAllocateStatus() const
-        {
-            return isAllocate;
-        }
+        PTO_INTERNAL bool getAllocateStatus() const { return isAllocate; }
 
-        PTO_INTERNAL bool getRecordStatus() const
-        {
-            return isRecord;
-        }
+        PTO_INTERNAL bool getRecordStatus() const { return isRecord; }
 
         /**
          * alloc: Request space in FIFO
@@ -689,14 +630,14 @@ struct TMPipe {
         }
 
         template <typename T, int ProdM, int ProdN, int ConsM, int ConsN>
-        PTO_INTERNAL void pushAcc2GMFiFo(DataFiFo &fifo, TileDataProd &tile)
+        PTO_INTERNAL void pushAcc2GMFiFo(DataFiFo& fifo, TileDataProd& tile)
         {
             // calculate base address in GM FIFO for this tile
             constexpr int kTileFactor = ConsN / ProdN;
             uint32_t bufIndex = static_cast<uint32_t>(tile_id % DataFiFo::fifoDepth);
             size_t entryBase = bufIndex * kTileFactor * ProdM * ProdN * sizeof(T);
             using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ProdM, ProdN>, pto::Stride<1, 1, 1, ProdN, 1>>;
-            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.fifoBase + entryBase + entryOffset));
+            GlobalData globalTensor((__gm__ T*)((uint64_t)fifo.fifoBase + entryBase + entryOffset));
             // store tile to GM FIFO, enable unit-flag one
             if constexpr (EN_UNIT_FLAG) {
                 TSTORE_IMPL<TileDataProd, GlobalData, AtomicType::AtomicNone, STPhase::Final>(globalTensor, tile);
@@ -706,19 +647,19 @@ struct TMPipe {
         } // end of Acc->GM
 
         template <typename T, int ProdM, int ProdN, int ConsM, int ConsN>
-        PTO_INTERNAL void pushVec2GMFiFo(DataFiFo &fifo, TileDataProd &tile)
+        PTO_INTERNAL void pushVec2GMFiFo(DataFiFo& fifo, TileDataProd& tile)
         {
             static_assert(DataFiFo::fifoType == FIFOType::GM_FIFO, "Fix: TPUSH has unsupported fifoType!");
             constexpr int kTileFactor = ProdN / ConsN;
             uint32_t bufIndex = static_cast<uint32_t>(tile_id % DataFiFo::fifoDepth);
             using GlobalDataSub = GlobalTensor<T, pto::Shape<1, 1, 1, ProdM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
             size_t entryBase = bufIndex * kTileFactor * ConsM * ConsN * sizeof(T);
-            __gm__ T *addr = (__gm__ T *)((uint64_t)fifo.fifoBase + entryBase + entryOffset);
+            __gm__ T* addr = (__gm__ T*)((uint64_t)fifo.fifoBase + entryBase + entryOffset);
             // store tile to GM FIFO in sub-tiles if needed (when Tile_S1 > Cube_S1)
             Tile<TileType::Vec, T, ProdM, ProdN, BLayout::RowMajor, ProdM, ConsN> subTile;
             for (int sub_col = 0; sub_col < kTileFactor; ++sub_col) {
-                __gm__ T *addrSub = addr + sub_col * ConsM * ConsN;
-                GlobalDataSub globalDataSub((__gm__ T *)(addrSub));
+                __gm__ T* addrSub = addr + sub_col * ConsM * ConsN;
+                GlobalDataSub globalDataSub((__gm__ T*)(addrSub));
                 uint64_t col_byte_offset = static_cast<uint64_t>(sub_col * ConsN * sizeof(T));
 #ifdef __PTO_AUTO__
                 __cce_alias(subTile.data(), tile.data(), col_byte_offset);
@@ -729,19 +670,19 @@ struct TMPipe {
             }
         }
 
-        PTO_INTERNAL void pushVec2CtrlFiFo(DataFiFo &fifo, TileDataProd &tile)
+        PTO_INTERNAL void pushVec2CtrlFiFo(DataFiFo& fifo, TileDataProd& tile)
         {
             static_assert(DataFiFo::fifoType == FIFOType::CTRL_FIFO, "Fix: TPUSH has unsupported fifo type!");
             uint32_t bufIndex = static_cast<uint32_t>(tile_id % DataFiFo::fifoDepth);
             uint64_t entryBase = bufIndex * sizeof(uint32_t);
-            __gm__ uint32_t *ctrlBuf = (__gm__ uint32_t *)(fifo.fifoBase + entryBase + entryOffset);
+            __gm__ uint32_t* ctrlBuf = (__gm__ uint32_t*)(fifo.fifoBase + entryBase + entryOffset);
             set_flag(PIPE_V, PIPE_S, EVENT_ID0);
             wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
             uint32_t ctrlSignal = *(tile.data());
             *(ctrlBuf) = ctrlSignal;
         }
 
-        PTO_INTERNAL void push(DataFiFo &fifo, TileDataProd &tile)
+        PTO_INTERNAL void push(DataFiFo& fifo, TileDataProd& tile)
         {
             // get tile shape and valid shape
             using T = typename TileDataProd::DType;
@@ -750,21 +691,23 @@ struct TMPipe {
             constexpr int ConsM = TileDataCons::Rows;
             constexpr int ConsN = TileDataCons::Cols;
 
-            static_assert(TileDataProd::Loc == TileType::Acc || TileDataProd::Loc == TileType::Vec,
-                          "Fix: TPUSH has unsupported tile type!");
+            static_assert(
+                TileDataProd::Loc == TileType::Acc || TileDataProd::Loc == TileType::Vec,
+                "Fix: TPUSH has unsupported tile type!");
             if constexpr (TileDataProd::Loc == TileType::Acc) {
                 pushAcc2GMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
             } else if constexpr (TileDataProd::Loc == TileType::Vec) {
-                static_assert(DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::CTRL_FIFO,
-                              "Fix: TPUSH has unsupported fifo type!");
+                static_assert(
+                    DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::CTRL_FIFO,
+                    "Fix: TPUSH has unsupported fifo type!");
                 if constexpr (DataFiFo::fifoType == FIFOType::GM_FIFO) {
                     pushVec2GMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
                 } else if constexpr (DataFiFo::fifoType == FIFOType::CTRL_FIFO) {
                     pushVec2CtrlFiFo(fifo, tile);
                 }
             }
-        } // end of store
-    };    // end of Producer
+        }
+    };
 
     struct Consumer {
         int tile_id = 0;
@@ -781,40 +724,19 @@ struct TMPipe {
             sub_tile_id = sub_tid;
         }
 
-        PTO_INTERNAL void setEntryOffset(int offset)
-        {
-            entryOffset = offset;
-        }
+        PTO_INTERNAL void setEntryOffset(int offset) { entryOffset = offset; }
 
-        PTO_INTERNAL void setWaitStatus(bool wait)
-        {
-            isWait = wait;
-        }
+        PTO_INTERNAL void setWaitStatus(bool wait) { isWait = wait; }
 
-        PTO_INTERNAL void setFreeStatus(bool free)
-        {
-            isFree = free;
-        }
+        PTO_INTERNAL void setFreeStatus(bool free) { isFree = free; }
 
-        PTO_INTERNAL int getTileId() const
-        {
-            return tile_id;
-        }
+        PTO_INTERNAL int getTileId() const { return tile_id; }
 
-        PTO_INTERNAL int getSubTileId() const
-        {
-            return sub_tile_id;
-        }
+        PTO_INTERNAL int getSubTileId() const { return sub_tile_id; }
 
-        PTO_INTERNAL bool getWaitStatus() const
-        {
-            return isWait;
-        }
+        PTO_INTERNAL bool getWaitStatus() const { return isWait; }
 
-        PTO_INTERNAL bool getFreeStatus() const
-        {
-            return isFree;
-        }
+        PTO_INTERNAL bool getFreeStatus() const { return isFree; }
 
         // Block until data is ready
         PTO_INTERNAL void wait() const
@@ -841,12 +763,12 @@ struct TMPipe {
         }
 
         template <typename T, int ProdM, int ProdN, int ConsM, int ConsN>
-        PTO_INTERNAL void popVecTileFromGMFiFo(DataFiFo &fifo, TileDataCons &tile)
+        PTO_INTERNAL void popVecTileFromGMFiFo(DataFiFo& fifo, TileDataCons& tile)
         {
             size_t bufIndex = static_cast<size_t>(tile_id) % fifo.fifoDepth;
             constexpr int kTileFactor = ConsN / ProdN;
             size_t entryBase = static_cast<size_t>(bufIndex) * kTileFactor * ProdM * ProdN * sizeof(T);
-            __gm__ T *addr = (__gm__ T *)((uint64_t)fifo.fifoBase + entryBase + entryOffset);
+            __gm__ T* addr = (__gm__ T*)((uint64_t)fifo.fifoBase + entryBase + entryOffset);
 #ifndef __PTO_AUTO__
             if constexpr (DataFiFo::useLocalFiFo) {
                 uint64_t localTileBase = fifo.localFiFoBase + (static_cast<size_t>(tile_id) % fifo.localFiFoDepth) *
@@ -857,7 +779,7 @@ struct TMPipe {
             Tile<TileType::Vec, T, ConsM, ConsN, BLayout::RowMajor, ConsM, ProdN> tileSub;
             using GlobalDataSub = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ProdN>, pto::Stride<1, 1, 1, ProdN, 1>>;
             for (int sub_col = 0; sub_col < kTileFactor; ++sub_col) {
-                __gm__ T *addrSub = addr + sub_col * ProdM * ProdN;
+                __gm__ T* addrSub = addr + sub_col * ProdM * ProdN;
                 GlobalDataSub globalTensorSub(addrSub);
                 uint64_t col_byte_offset = sub_col * ProdN * sizeof(T);
 #ifdef __PTO_AUTO__
@@ -870,12 +792,12 @@ struct TMPipe {
         }
 
         template <typename T, int ConsM, int ConsN, int ProdN>
-        PTO_INTERNAL void popMatTileFromGMFiFo(DataFiFo &fifo, TileDataCons &tile)
+        PTO_INTERNAL void popMatTileFromGMFiFo(DataFiFo& fifo, TileDataCons& tile)
         {
             using GlobalData = GlobalTensor<T, pto::Shape<1, 1, 1, ConsM, ConsN>, pto::Stride<1, 1, 1, ConsN, 1>>;
             uint32_t bufIndex = static_cast<uint32_t>(tile_id % fifo.fifoDepth);
             size_t entryBase = bufIndex * ConsM * ProdN * sizeof(T);
-            GlobalData globalTensor((__gm__ T *)((uint64_t)fifo.fifoBase + entryBase + entryOffset));
+            GlobalData globalTensor((__gm__ T*)((uint64_t)fifo.fifoBase + entryBase + entryOffset));
 #ifndef __PTO_AUTO__
             if constexpr (DataFiFo::useLocalFiFo) {
                 uint64_t tileBase = fifo.localFiFoBase +
@@ -886,15 +808,15 @@ struct TMPipe {
             TLOAD_IMPL(tile, globalTensor);
         }
 
-        PTO_INTERNAL void popCtrlFromCtrlFiFo(DataFiFo &fifo)
+        PTO_INTERNAL void popCtrlFromCtrlFiFo(DataFiFo& fifo)
         {
             uint32_t bufIndex = static_cast<uint32_t>(tile_id % fifo.fifoDepth);
             size_t entryBase = bufIndex * sizeof(uint32_t);
             uint64_t ctrlTileBase = fifo.fifoBase + entryBase + entryOffset;
-            fifo.ctrlSignal = ((*(__gm__ uint32_t *)(ctrlTileBase)) == 1) ? true : false;
+            fifo.ctrlSignal = ((*(__gm__ uint32_t*)(ctrlTileBase)) == 1) ? true : false;
         }
 
-        PTO_INTERNAL void pop(DataFiFo &fifo, TileDataCons &tile)
+        PTO_INTERNAL void pop(DataFiFo& fifo, TileDataCons& tile)
         {
             using T = typename TileDataCons::DType;
             constexpr int ConsM = TileDataCons::Rows;
@@ -902,10 +824,12 @@ struct TMPipe {
             constexpr int ProdM = TileDataProd::Rows;
             constexpr int ProdN = TileDataProd::Cols;
             constexpr int VEC_CORES = (VCRatio == VecCubeRatio::V2C1_VECS) ? 2 : 1;
-            static_assert(DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::CTRL_FIFO,
-                          "Fix: TPOP has unsupported fifo type!");
-            static_assert(TileDataCons::Loc == TileType::Vec || TileDataCons::Loc == TileType::Mat,
-                          "Fix: TPOP has unsupported tile type!");
+            static_assert(
+                DataFiFo::fifoType == FIFOType::GM_FIFO || DataFiFo::fifoType == FIFOType::CTRL_FIFO,
+                "Fix: TPOP has unsupported fifo type!");
+            static_assert(
+                TileDataCons::Loc == TileType::Vec || TileDataCons::Loc == TileType::Mat,
+                "Fix: TPOP has unsupported tile type!");
             if constexpr (DataFiFo::fifoType == FIFOType::GM_FIFO) {
                 if constexpr (TileDataCons::Loc == TileType::Vec) {
                     popVecTileFromGMFiFo<T, ProdM, ProdN, ConsM, ConsN>(fifo, tile);
@@ -923,27 +847,24 @@ struct TMPipe {
     Consumer cons;
 
     template <FIFOType T = FiFoType, typename std::enable_if_t<T == FIFOType::GM_FIFO, int> = 0>
-    PTO_INTERNAL explicit TMPipe(__gm__ typename TileDataCons::DType *gmFiFoBase, uint32_t localFiFoBase)
+    PTO_INTERNAL explicit TMPipe(__gm__ typename TileDataCons::DType* gmFiFoBase, uint32_t localFiFoBase)
         : fifo(gmFiFoBase, localFiFoBase), prod(), cons()
     {
         cons.free();
     }
 
     template <int M = LocalFiFoDepth, typename std::enable_if<M == 0, int>::type = 0>
-    PTO_INTERNAL explicit TMPipe(__gm__ typename TileDataCons::DType *gmFiFoBase) : fifo(gmFiFoBase), prod(), cons()
+    PTO_INTERNAL explicit TMPipe(__gm__ typename TileDataCons::DType* gmFiFoBase) : fifo(gmFiFoBase), prod(), cons()
     {
         cons.free();
     }
 
     // Destructor for TPipe
-    PTO_INTERNAL ~TMPipe()
-    {
-        prod.allocate();
-    }
+    PTO_INTERNAL ~TMPipe() { prod.allocate(); }
 };
 
 template <typename TileData, typename Pipe>
-PTO_INTERNAL void TPUSH_IMPL(TileData &tile, Pipe &pipe)
+PTO_INTERNAL void TPUSH_IMPL(TileData& tile, Pipe& pipe)
 {
     bool isAllocate = pipe.prod.getAllocateStatus();
     if (isAllocate) {

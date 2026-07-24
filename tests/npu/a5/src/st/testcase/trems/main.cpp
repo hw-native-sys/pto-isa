@@ -15,35 +15,36 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool highPrecision = false>
-void LaunchTRemS(T *out, T *src, T scalar, void *stream);
+template <
+    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool highPrecision = false>
+void LaunchTRemS(T* out, T* src, T scalar, void* stream);
 
-template <int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool highPrecision = false>
-void LaunchTRemSHalf(aclFloat16 *out, aclFloat16 *src, aclFloat16 scalar, void *stream);
+template <
+    int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool highPrecision = false>
+void LaunchTRemSHalf(aclFloat16* out, aclFloat16* src, aclFloat16 scalar, void* stream);
 
 class TREMSTest : public testing::Test {
 public:
 protected:
-    void SetUp() override
-    {}
+    void SetUp() override {}
 
-    void TearDown() override
-    {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
-          bool isHalf = false, bool highPrecision = false>
+template <
+    typename T, int dstTileRow, int dstTileCol, int srcTileRow, int srcTileCol, int validRow, int validCol,
+    bool isHalf = false, bool highPrecision = false>
 inline void TRemSTestFramework()
 {
     aclInit(nullptr);
@@ -55,17 +56,17 @@ inline void TRemSTestFramework()
     size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
     size_t srcByteSize = srcTileRow * srcTileCol * sizeof(T);
     size_t scalarByteSize = sizeof(T);
-    T *dstHost;
-    T *srcHost;
-    T *dstDevice;
-    T *srcDevice;
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
     T scalar;
 
-    aclrtMallocHost((void **)(&dstHost), dstByteSize);
-    aclrtMallocHost((void **)(&srcHost), srcByteSize);
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
 
-    aclrtMalloc((void **)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
     ReadFile(GetGoldenDir() + "/divider.bin", scalarByteSize, &scalar, scalarByteSize);
@@ -101,42 +102,18 @@ inline void TRemSTestFramework()
     EXPECT_TRUE(res);
 }
 
-TEST_F(TREMSTest, case1)
-{
-    TRemSTestFramework<float, 32, 128, 32, 128, 32, 64>();
-}
+TEST_F(TREMSTest, case1) { TRemSTestFramework<float, 32, 128, 32, 128, 32, 64>(); }
 
-TEST_F(TREMSTest, case2)
-{
-    TRemSTestFramework<aclFloat16, 63, 128, 63, 128, 63, 64, true>();
-}
+TEST_F(TREMSTest, case2) { TRemSTestFramework<aclFloat16, 63, 128, 63, 128, 63, 64, true>(); }
 
-TEST_F(TREMSTest, case3)
-{
-    TRemSTestFramework<int32_t, 31, 256, 31, 256, 31, 128>();
-}
+TEST_F(TREMSTest, case3) { TRemSTestFramework<int32_t, 31, 256, 31, 256, 31, 128>(); }
 
-TEST_F(TREMSTest, case4)
-{
-    TRemSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>();
-}
+TEST_F(TREMSTest, case4) { TRemSTestFramework<int16_t, 15, 192, 15, 192, 15, 192>(); }
 
-TEST_F(TREMSTest, case5)
-{
-    TRemSTestFramework<float, 7, 512, 7, 512, 7, 448>();
-}
+TEST_F(TREMSTest, case5) { TRemSTestFramework<float, 7, 512, 7, 512, 7, 448>(); }
 
-TEST_F(TREMSTest, case6)
-{
-    TRemSTestFramework<float, 256, 32, 256, 32, 256, 31>();
-}
+TEST_F(TREMSTest, case6) { TRemSTestFramework<float, 256, 32, 256, 32, 256, 31>(); }
 
-TEST_F(TREMSTest, caseHP1)
-{
-    TRemSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>();
-}
+TEST_F(TREMSTest, caseHP1) { TRemSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>(); }
 
-TEST_F(TREMSTest, caseHP2)
-{
-    TRemSTestFramework<float, 64, 64, 64, 64, 64, 61, false, true>();
-}
+TEST_F(TREMSTest, caseHP2) { TRemSTestFramework<float, 64, 64, 64, 64, 64, 61, false, true>(); }

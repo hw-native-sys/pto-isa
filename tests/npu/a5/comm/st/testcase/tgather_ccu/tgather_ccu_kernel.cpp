@@ -35,8 +35,8 @@ __global__ __aicore__ void tgather_ccu_trigger_kernel(uint64_t ckeVA, uint32_t m
     pto::comm::TGATHER<pto::comm::CollEngine::CCU>(group, dstGm, stagingTile, ctx);
 }
 
-extern "C" __attribute__((visibility("default"))) int tgather_ccu_trigger_launch(void *stream, uint64_t ckeVA,
-                                                                                 uint32_t mask)
+extern "C" __attribute__((visibility("default"))) int tgather_ccu_trigger_launch(
+    void* stream, uint64_t ckeVA, uint32_t mask)
 {
     tgather_ccu_trigger_kernel<<<1, nullptr, stream>>>(ckeVA, mask);
     return 0;

@@ -33,7 +33,7 @@ constexpr uint32_t kPtoPrefetchDefaultBlocks = 20U;
 
 #if PTO_PREFETCH_DEVICE_ENABLED
 namespace detail {
-PTO_INTERNAL void PtoPrefetchKernelBody(__gm__ uint8_t *tensor, uint64_t total_elems)
+PTO_INTERNAL void PtoPrefetchKernelBody(__gm__ uint8_t* tensor, uint64_t total_elems)
 {
     constexpr uint32_t tile_bytes = kPtoPrefetchTileBytes;
     constexpr uint32_t tile_elems = tile_bytes / sizeof(uint8_t);
@@ -77,7 +77,7 @@ PTO_INTERNAL void PtoPrefetchKernelBody(__gm__ uint8_t *tensor, uint64_t total_e
 } // namespace detail
 
 // Generic prefetch kernel: split a 1D tensor across blocks (get_blockdim()) and issue TPREFETCH
-__global__ AICORE PTO_AIV_ATTR void PTO_PREFETCH_AIV(__gm__ uint8_t *tensor, uint64_t total_elems)
+__global__ AICORE PTO_AIV_ATTR void PTO_PREFETCH_AIV(__gm__ uint8_t* tensor, uint64_t total_elems)
 {
     detail::PtoPrefetchKernelBody(tensor, total_elems);
 }
@@ -86,7 +86,7 @@ __global__ AICORE PTO_AIV_ATTR void PTO_PREFETCH_AIV(__gm__ uint8_t *tensor, uin
 // Host wrapper to launch PTO_PREFETCH with bytes input and optional SDMA/AIV core selection.
 // Use the template parameters to pick SDMA or AIV and to set aiv_cores for finer control.
 template <bool UseSdma = true, int AivCores = -1>
-void PTO_PREFETCH(__gm__ void *tensor, uint64_t tensor_bytes, aclrtStream stream)
+void PTO_PREFETCH(__gm__ void* tensor, uint64_t tensor_bytes, aclrtStream stream)
 {
 #ifdef __CPU_SIM
     (void)tensor;
@@ -98,10 +98,10 @@ void PTO_PREFETCH(__gm__ void *tensor, uint64_t tensor_bytes, aclrtStream stream
         return;
 
     if constexpr (UseSdma) {
-        aclrtCmoAsync((void *)(uint64_t)tensor, static_cast<size_t>(tensor_bytes), ACL_RT_CMO_TYPE_PREFETCH, stream);
+        aclrtCmoAsync((void*)(uint64_t)tensor, static_cast<size_t>(tensor_bytes), ACL_RT_CMO_TYPE_PREFETCH, stream);
     } else {
         static_assert(AivCores > 0, "AivCores must be > 0 when UseSdma is false");
-        PTO_PREFETCH_AIV<<<AivCores, nullptr, stream> > >((__gm__ uint8_t *)tensor, tensor_bytes);
+        PTO_PREFETCH_AIV<<<AivCores, nullptr, stream>>>((__gm__ uint8_t*)tensor, tensor_bytes);
     }
 #endif
 }

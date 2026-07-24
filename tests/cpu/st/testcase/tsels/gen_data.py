@@ -24,7 +24,7 @@ def gen_golden_data_tsels(case_name, param):
     mask_bits = np.random.randint(0, 2, size=[H, W]).astype(np.uint8)
     input = NumExt.astype(np.random.randint(1, 10, size=[H, W]), dtype)
     scalar = NumExt.astype(np.random.uniform(low=1, high=10, size=(1,)), dtype)
-
+    
     # Calculate golden output using the un-packed mask bits
     golden = NumExt.zeros([H, W], dtype)
     for h in range(H):
@@ -36,7 +36,7 @@ def gen_golden_data_tsels(case_name, param):
     # We follow the layout logic order (row-major matching your loops)
     # If your C++ `GetTileElementOffset` maps differently, flatten mask_bits using that exact layout sequence.
     flattened_bits = mask_bits.flatten()
-
+    
     # Calculate how many uint32 words we need to hold all bits (32 bits per element)
     bits_per_element = 32
     num_words = (flattened_bits.size + bits_per_element - 1) // bits_per_element
@@ -87,6 +87,8 @@ if __name__ == "__main__":
         TSelsParams(np.int32, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.int16, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.float16, 16, 256, 16, 256, 16, 256),
+        TSelsParams(np.uint16, 64, 64, 64, 64, 64, 64),
+        TSelsParams(np.uint32, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(TSelsParams(

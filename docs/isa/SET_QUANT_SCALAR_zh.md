@@ -4,11 +4,12 @@
 
 设置标量量化参数（pre-quantization scale），用于后续 `TPUSH` 操作。标量值根据输出数据类型编码到硬件量化配置寄存器中。
 
-对于 8 位输出类型（`int8_t` 或 `uint8_t`），符号位会自动编码到配置值的第 46 位。
+对于 8位输出类型（`int8_t` 或 `uint8_t`），符号位会自动编码到配置值的第 46位。
 
 ## C++ 内建接口
 
 声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
 template <typename OutType, typename... WaitEvents>

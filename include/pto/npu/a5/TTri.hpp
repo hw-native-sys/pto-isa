@@ -18,12 +18,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 template <typename TileData, unsigned rowStride>
-__tf__ PTO_INTERNAL void TTriu(typename TileData::TileDType __out__ dst, unsigned validRows, unsigned validCols,
-                               int diagonal)
+__tf__ PTO_INTERNAL void TTriu(
+    typename TileData::TileDType __out__ dst, unsigned validRows, unsigned validCols, int diagonal)
 {
     using T = typename TileData::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     unsigned numRepeatPerRow = CeilDivision(validCols, elementsPerRepeat);
     uint32_t start_row = (diagonal > 0) ? 0 : (1 - diagonal);
     int start_num = diagonal;
@@ -55,12 +55,12 @@ __tf__ PTO_INTERNAL void TTriu(typename TileData::TileDType __out__ dst, unsigne
 }
 
 template <typename TileData, unsigned rowStride>
-__tf__ PTO_INTERNAL void TTril(typename TileData::TileDType __out__ dst, unsigned validRows, unsigned validCols,
-                               int diagonal)
+__tf__ PTO_INTERNAL void TTril(
+    typename TileData::TileDType __out__ dst, unsigned validRows, unsigned validCols, int diagonal)
 {
     using T = typename TileData::DType;
-    __ubuf__ T *dstPtr = (__ubuf__ T *)__cce_get_tile_ptr(dst);
-    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     unsigned numRepeatPerRow = CeilDivision(validCols, elementsPerRepeat);
     uint32_t start_row = (diagonal < 0) ? (-diagonal) : (0);
     int start_num = diagonal + 1;
@@ -92,15 +92,15 @@ __tf__ PTO_INTERNAL void TTril(typename TileData::TileDType __out__ dst, unsigne
 }
 
 template <typename TileData, int upperOrLower>
-PTO_INTERNAL void TTRI_IMPL(TileData &dst, int diagonal)
+PTO_INTERNAL void TTRI_IMPL(TileData& dst, int diagonal)
 {
     using T = typename TileData::DType;
-    static_assert(std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value ||
-                      std::is_same<T, int8_t>::value || std::is_same<T, uint32_t>::value ||
-                      std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value ||
-                      std::is_same<T, half>::value || std::is_same<T, float16_t>::value ||
-                      std::is_same<T, float32_t>::value || std::is_same<T, bfloat16_t>::value,
-                  "Fix: TTRI has invalid data type.");
+    static_assert(
+        std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, int8_t>::value ||
+            std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value ||
+            std::is_same<T, half>::value || std::is_same<T, float16_t>::value || std::is_same<T, float32_t>::value ||
+            std::is_same<T, bfloat16_t>::value,
+        "Fix: TTRI has invalid data type.");
 
     if constexpr (upperOrLower == 0)
         TTril<TileData, TileData::RowStride>(dst.data(), dst.GetValidRow(), dst.GetValidCol(), diagonal);

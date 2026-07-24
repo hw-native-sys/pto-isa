@@ -28,7 +28,7 @@ void TColProd(typename TileDst::TileDType dst, typename TileSrc::TileDType src, 
 }
 
 template <typename TileDst, typename TileSrc>
-PTO_INTERNAL void TCOLPROD_IMPL(TileDst &dstTile, TileSrc &srcTile)
+PTO_INTERNAL void TCOLPROD_IMPL(TileDst& dstTile, TileSrc& srcTile)
 {
     TColProd<TileDst, TileSrc>(dstTile.data(), srcTile.data(), srcTile.GetValidRow(), srcTile.GetValidCol());
 }

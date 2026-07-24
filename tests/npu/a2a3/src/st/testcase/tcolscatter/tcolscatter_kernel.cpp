@@ -16,7 +16,7 @@ using namespace std;
 using namespace pto;
 
 template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern maskPattern>
-__global__ AICORE void runTScatterMask(__gm__ T *out, __gm__ T *src)
+__global__ AICORE void runTScatterMask(__gm__ T* out, __gm__ T* src)
 {
     using SrcShapeDim5 = Shape<1, 1, 1, SrcRow, SrcCol>;
     using SrcStridDim5 = Stride<SrcRow * SrcCol, SrcRow * SrcCol, SrcRow * SrcCol, SrcCol, 1>;
@@ -44,56 +44,56 @@ __global__ AICORE void runTScatterMask(__gm__ T *out, __gm__ T *src)
 }
 
 template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern mask>
-void launchTScatterMaskTestCase(void *out, void *src, void *stream)
+void launchTScatterMaskTestCase(void* out, void* src, void* stream)
 {
     if constexpr (std::is_same_v<T, uint16_t>) {
-        runTScatterMask<half, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((half *)out, (half *)src);
+        runTScatterMask<half, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((half*)out, (half*)src);
     } else {
-        runTScatterMask<T, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((T *)out, (T *)src);
+        runTScatterMask<T, DstRow, DstCol, SrcRow, SrcCol, mask><<<1, nullptr, stream>>>((T*)out, (T*)src);
     }
 }
 
-template void launchTScatterMaskTestCase<uint16_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTScatterMaskTestCase<float, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src,
-                                                                                         void *stream);
-template void launchTScatterMaskTestCase<int32_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(void *out, void *src,
-                                                                                           void *stream);
+template void launchTScatterMaskTestCase<uint16_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<float, 16, 64, 16, 64, pto::MaskPattern::P1111>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<int32_t, 16, 64, 16, 64, pto::MaskPattern::P1111>(
+    void* out, void* src, void* stream);
 
-template void launchTScatterMaskTestCase<uint16_t, 32, 128, 16, 64, pto::MaskPattern::P1010>(void *out, void *src,
-                                                                                             void *stream);
-template void launchTScatterMaskTestCase<uint16_t, 32, 128, 16, 64, pto::MaskPattern::P0101>(void *out, void *src,
-                                                                                             void *stream);
-template void launchTScatterMaskTestCase<float, 32, 128, 16, 64, pto::MaskPattern::P1010>(void *out, void *src,
-                                                                                          void *stream);
-template void launchTScatterMaskTestCase<float, 32, 128, 16, 64, pto::MaskPattern::P0101>(void *out, void *src,
-                                                                                          void *stream);
-template void launchTScatterMaskTestCase<int32_t, 32, 128, 16, 64, pto::MaskPattern::P1010>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTScatterMaskTestCase<int32_t, 32, 128, 16, 64, pto::MaskPattern::P0101>(void *out, void *src,
-                                                                                            void *stream);
+template void launchTScatterMaskTestCase<uint16_t, 32, 128, 16, 64, pto::MaskPattern::P1010>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<uint16_t, 32, 128, 16, 64, pto::MaskPattern::P0101>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<float, 32, 128, 16, 64, pto::MaskPattern::P1010>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<float, 32, 128, 16, 64, pto::MaskPattern::P0101>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<int32_t, 32, 128, 16, 64, pto::MaskPattern::P1010>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<int32_t, 32, 128, 16, 64, pto::MaskPattern::P0101>(
+    void* out, void* src, void* stream);
 
-template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P1000>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P0100>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P0010>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P0001>(void *out, void *src,
-                                                                                            void *stream);
-template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P1000>(void *out, void *src,
-                                                                                         void *stream);
-template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P0100>(void *out, void *src,
-                                                                                         void *stream);
-template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P0010>(void *out, void *src,
-                                                                                         void *stream);
-template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P0001>(void *out, void *src,
-                                                                                         void *stream);
-template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P1000>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P0100>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P0010>(void *out, void *src,
-                                                                                           void *stream);
-template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P0001>(void *out, void *src,
-                                                                                           void *stream);
+template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P1000>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P0100>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P0010>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<uint16_t, 16, 256, 4, 64, pto::MaskPattern::P0001>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P1000>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P0100>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P0010>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<float, 16, 256, 4, 64, pto::MaskPattern::P0001>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P1000>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P0100>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P0010>(
+    void* out, void* src, void* stream);
+template void launchTScatterMaskTestCase<int32_t, 16, 256, 4, 64, pto::MaskPattern::P0001>(
+    void* out, void* src, void* stream);

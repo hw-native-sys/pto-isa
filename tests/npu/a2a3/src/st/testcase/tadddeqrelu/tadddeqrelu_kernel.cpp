@@ -16,7 +16,7 @@ using namespace std;
 using namespace pto;
 
 template <int row, int validRow, int col, int validCol>
-PTO_INTERNAL void runTADDDEQRELU(__gm__ half *out, __gm__ int32_t *src0, __gm__ int32_t *src1, float deqScale)
+PTO_INTERNAL void runTADDDEQRELU(__gm__ half* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -57,11 +57,11 @@ PTO_INTERNAL void runTADDDEQRELU(__gm__ half *out, __gm__ int32_t *src0, __gm__ 
     out = dstGlobal.data();
 }
 
-#define DEF_CASE(N, R, VR, C, VC)                                                                            \
-    extern "C" __global__ AICORE void launchTADDDEQRELUCase##N(__gm__ aclFloat16 *out, __gm__ int32_t *src0, \
-                                                               __gm__ int32_t *src1, float deqScale)         \
-    {                                                                                                        \
-        runTADDDEQRELU<R, VR, C, VC>((__gm__ half *)out, src0, src1, deqScale);                              \
+#define DEF_CASE(N, R, VR, C, VC)                                                           \
+    extern "C" __global__ AICORE void launchTADDDEQRELUCase##N(                             \
+        __gm__ aclFloat16* out, __gm__ int32_t* src0, __gm__ int32_t* src1, float deqScale) \
+    {                                                                                       \
+        runTADDDEQRELU<R, VR, C, VC>((__gm__ half*)out, src0, src1, deqScale);              \
     }
 
 DEF_CASE(1, 32, 32, 64, 64)
@@ -80,55 +80,45 @@ static const float deqScaleTable[] = {
 };
 
 template <uint32_t caseId>
-void launchTADDDEQRELUTestCase(void *out, void *src0, void *src1, aclrtStream stream)
+void launchTADDDEQRELUTestCase(void* out, void* src0, void* src1, aclrtStream stream)
 {
     float deqScale = deqScaleTable[caseId - 1];
     switch (caseId) {
         case 1:
-            launchTADDDEQRELUCase1<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase1<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 2:
-            launchTADDDEQRELUCase2<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase2<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 3:
-            launchTADDDEQRELUCase3<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase3<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 4:
-            launchTADDDEQRELUCase4<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase4<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 5:
-            launchTADDDEQRELUCase5<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase5<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 6:
-            launchTADDDEQRELUCase6<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase6<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 7:
-            launchTADDDEQRELUCase7<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase7<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 8:
-            launchTADDDEQRELUCase8<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase8<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 9:
-            launchTADDDEQRELUCase9<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                           deqScale);
+            launchTADDDEQRELUCase9<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         case 10:
-            launchTADDDEQRELUCase10<<<1, nullptr, stream>>>((aclFloat16 *)out, (int32_t *)src0, (int32_t *)src1,
-                                                            deqScale);
+            launchTADDDEQRELUCase10<<<1, nullptr, stream>>>((aclFloat16*)out, (int32_t*)src0, (int32_t*)src1, deqScale);
             break;
         default:
             break;
     }
 }
 
-#define INST_CASE(N) template void launchTADDDEQRELUTestCase<N>(void *, void *, void *, aclrtStream);
+#define INST_CASE(N) template void launchTADDDEQRELUTestCase<N>(void*, void*, void*, aclrtStream);
 INST_CASE(1)
 INST_CASE(2) INST_CASE(3) INST_CASE(4) INST_CASE(5) INST_CASE(6) INST_CASE(7) INST_CASE(8) INST_CASE(9) INST_CASE(10)

@@ -52,9 +52,10 @@ AICORE uint8_t CmpCall(T a, T b, CmpMode cmpMode)
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename T>
-AICORE void TCmps(typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src0, T src1,
-                  CmpMode mode, unsigned srcValidRow, unsigned srcValidCol, unsigned dstValidRow, unsigned dstValidCol,
-                  unsigned dstStride, unsigned srcStride)
+AICORE void TCmps(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc::TileDType __in__ src0, T src1, CmpMode mode,
+    unsigned srcValidRow, unsigned srcValidCol, unsigned dstValidRow, unsigned dstValidCol, unsigned dstStride,
+    unsigned srcStride)
 {
     size_t H = TileDataSrc::Rows;
     size_t W = TileDataSrc::Cols;
@@ -96,11 +97,9 @@ AICORE void TCmps(typename TileDataDst::TileDType __out__ dst, typename TileData
     }
 }
 
-template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void TCMPS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType src1, CmpMode cmpMode)
+template <typename TileDataDst, typename TileDataSrc, typename T>
+PTO_INTERNAL void TCMPS_IMPL(TileDataDst& dst, TileDataSrc& src0, T src1, CmpMode cmpMode)
 {
-    using T = typename TileDataSrc::DType;
-
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
 
@@ -110,16 +109,19 @@ PTO_INTERNAL void TCMPS_IMPL(TileDataDst &dst, TileDataSrc &src0, typename TileD
     unsigned dstStride = TileDataDst::RowStride;
     unsigned srcStride = TileDataSrc::RowStride;
 
-    TCmps<TileDataDst, TileDataSrc, T>(dst.data(), src0.data(), src1, cmpMode, srcValidRow, srcValidCol, dstValidRow,
-                                       dstValidCol, dstStride, srcStride);
+    TCmps<TileDataDst, TileDataSrc, T>(
+        dst.data(), src0.data(), src1, cmpMode, srcValidRow, srcValidCol, dstValidRow, dstValidCol, dstStride,
+        srcStride);
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
-          typename = std::void_t<typename TileDataSrc1::DType>>
-PTO_INTERNAL void TCMPS_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, CmpMode cmpMode)
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
+    typename = std::void_t<typename TileDataSrc1::DType>>
+PTO_INTERNAL void TCMPS_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, CmpMode cmpMode)
 {
-    static_assert(std::is_same_v<typename TileDataSrc0::DType, typename TileDataSrc1::DType>,
-                  "Fix: TCMPS src0 and src1 must have the same data type.");
+    static_assert(
+        std::is_same_v<typename TileDataSrc0::DType, typename TileDataSrc1::DType>,
+        "Fix: TCMPS src0 and src1 must have the same data type.");
     using T = typename TileDataSrc0::DType;
 
     unsigned dstValidRow = dst.GetValidRow();

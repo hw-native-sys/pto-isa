@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-#define PTO_CEIL(x, y) ((((x) + (y)-1) / (y)) * (y))
-#define PTO_DIV_ROUNDUP(x, y) (((x) + (y)-1) / (y))
+#define PTO_CEIL(x, y) ((((x) + (y) - 1) / (y)) * (y))
+#define PTO_DIV_ROUNDUP(x, y) (((x) + (y) - 1) / (y))
 
 namespace TQuantTest {
 
@@ -27,8 +27,8 @@ constexpr int TQUANT_A5_UB_SIZE_BYTES = 256 * 1024;
 // Quantize fp32 tile to fp8 (e4m3) and exponent-only (e8m0).
 // Pad columns to multiples of 32 using min fill to avoid reading garbage.
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-__global__ AICORE void runTQuant(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_t __out__ *out_fp8,
-                                 __gm__ float __in__ *src)
+__global__ AICORE void runTQuant(
+    __gm__ uint8_t __out__* out_e8m0, __gm__ uint8_t __out__* out_fp8, __gm__ float __in__* src)
 {
     constexpr int paddedCols = PTO_CEIL(validCols, 32);
     constexpr int groupedCols_flattened = validRows * (paddedCols / 32);
@@ -41,12 +41,14 @@ __global__ AICORE void runTQuant(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_
         GlobalTensor<uint8_t, Shape<1, 1, 1, 1, groupedCols_flattened>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstFP8Global = GlobalTensor<int8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
 
-    using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
-    using DstE8Tile = Tile<TileType::Vec, uint8_t, 1, groupedCols_flat_u8, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                           512, PadValue::Zero>;
-    using DstFP8Tile = Tile<TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols,
-                            SLayout::NoneBox, 512, PadValue::Zero>;
+    using SrcTile = Tile<
+        TileType::Vec, float, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstE8Tile = Tile<
+        TileType::Vec, uint8_t, 1, groupedCols_flat_u8, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using DstFP8Tile = Tile<
+        TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     using MaxTile = Tile<TileType::Vec, float, 1, groupedCols_flat_f32, BLayout::RowMajor, -1, -1>;
     using ScalingTile = Tile<TileType::Vec, float, 1, groupedCols_flat_f32, BLayout::RowMajor, -1, -1>;
 
@@ -58,7 +60,7 @@ __global__ AICORE void runTQuant(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_
 
     SrcGlobal srcGlobal(src);
     DstE8Global e8Global(out_e8m0);
-    DstFP8Global fp8Global((__gm__ int8_t *)out_fp8);
+    DstFP8Global fp8Global((__gm__ int8_t*)out_fp8);
 
     TASSIGN(srcTile, 0x0);          // 128 KB = 0x20000
     TASSIGN(maxPerGpTile, 0x20100); // 4 KB   = 0x1000 (Max and Scaling can overlap)
@@ -88,21 +90,25 @@ __global__ AICORE void runTQuant(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_
         constexpr int groupedCols_valid = paddedCols / 32;
 
         // E8M0 ZZ destination: 2D with fractalMxSize=32 for [16,2] inner box
-        using E8ZzTile = Tile<TileType::Vec, uint8_t, validRows, groupedCols_valid, BLayout::RowMajor, -1, -1,
-                              SLayout::RowMajor, 32, PadValue::Zero>;
+        using E8ZzTile = Tile<
+            TileType::Vec, uint8_t, validRows, groupedCols_valid, BLayout::RowMajor, -1, -1, SLayout::RowMajor, 32,
+            PadValue::Zero>;
         // 1D flat alias at same address for TSTORE (no dispatch path for isRowMajor + SLayout::RowMajor)
-        using E8StoreTile = Tile<TileType::Vec, uint8_t, 1, groupedCols_flattened, BLayout::RowMajor, -1, -1,
-                                 SLayout::NoneBox, 512, PadValue::Zero>;
+        using E8StoreTile = Tile<
+            TileType::Vec, uint8_t, 1, groupedCols_flattened, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+            PadValue::Zero>;
         // Scratch tile for TMOV ZZ gather-index generation
         constexpr int tmpBufSize = (16 + (validRows / 16) * (groupedCols_valid / 2) + 16) * sizeof(uint16_t);
         constexpr int tmpBufSizeAligned = PTO_CEIL(tmpBufSize, 32);
-        using TmpTile = Tile<TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                             512, PadValue::Zero>;
+        using TmpTile = Tile<
+            TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+            PadValue::Zero>;
 
         // TMOV fp8 ND→NZ
         constexpr int virtualRow = PTO_CEIL(validRows, FRACTAL_NZ_ROW) + 1; // NZ + 1 for reducing bank conflict
-        using DstNZ_int8 = Tile<TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols,
-                                SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
+        using DstNZ_int8 = Tile<
+            TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols, SLayout::RowMajor,
+            512, PadValue::Null, CompactMode::RowPlusOne>;
         DstNZ_int8 fp8TileNZ;
         E8ZzTile e8ZzTile(validRows, groupedCols_valid);
         E8StoreTile e8StoreTile(1, groupedCols_flattened);
@@ -130,17 +136,18 @@ __global__ AICORE void runTQuant(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_
         // Store ZZ-reordered e8m0 exponents
         TSTORE(e8Global, e8StoreTile);
 
-        using DstFp8GlobalNZ = GlobalTensor<int8_t, TileShape2D<int8_t, validRows, paddedCols, Layout::NZ>,
-                                            BaseShape2D<int8_t, validRows, paddedCols, Layout::NZ>, Layout::NZ>;
-        DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t *)out_fp8);
+        using DstFp8GlobalNZ = GlobalTensor<
+            int8_t, TileShape2D<int8_t, validRows, paddedCols, Layout::NZ>,
+            BaseShape2D<int8_t, validRows, paddedCols, Layout::NZ>, Layout::NZ>;
+        DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t*)out_fp8);
         TSTORE(fp8GlobalNZ, fp8TileNZ);
     }
 }
 
 // FP32 --> INT8 SYM
 template <int validRows, int validCols, int mode>
-__global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ float __in__ *src,
-                                        __gm__ float __in__ *scale)
+__global__ AICORE void runTQuantInt8Sym(
+    __gm__ int8_t __out__* out_s8, __gm__ float __in__* src, __gm__ float __in__* scale)
 {
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
     constexpr int paddedCols_b8 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(int8_t));
@@ -188,8 +195,8 @@ __global__ AICORE void runTQuantInt8Sym(__gm__ int8_t __out__ *out_s8, __gm__ fl
 
 // FP32 --> INT8 ASYM
 template <int validRows, int validCols, int mode>
-__global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ float __in__ *src,
-                                         __gm__ float __in__ *scale, __gm__ float __in__ *offset)
+__global__ AICORE void runTQuantInt8Asym(
+    __gm__ uint8_t __out__* out_u8, __gm__ float __in__* src, __gm__ float __in__* scale, __gm__ float __in__* offset)
 {
     // pad each row to multiple of 32 elements
     constexpr int paddedCols_b32 = PTO_CEIL(validCols, BLOCK_BYTE_SIZE / sizeof(float));
@@ -241,14 +248,15 @@ __global__ AICORE void runTQuantInt8Asym(__gm__ uint8_t __out__ *out_u8, __gm__ 
 }
 
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP8(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream)
+void LaunchTQuantMXFP8(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream)
 {
     runTQuant<validRows, validCols, mode, scaleAlg><<<1, nullptr, stream>>>(dst_exp, dst, src);
 }
 
 template <int validRows, int validCols, int mode, pto::QuantType quantType>
-void LaunchTQuantInt8(std::conditional_t<quantType == pto::QuantType::INT8_SYM, int8_t, uint8_t> *dst, float *src,
-                      float *scale, void *stream, float *offset = nullptr)
+void LaunchTQuantInt8(
+    std::conditional_t<quantType == pto::QuantType::INT8_SYM, int8_t, uint8_t>* dst, float* src, float* scale,
+    void* stream, float* offset = nullptr)
 {
     if constexpr (quantType == pto::QuantType::INT8_SYM) {
         runTQuantInt8Sym<validRows, validCols, mode><<<1, nullptr, stream>>>(dst, src, scale);
@@ -259,8 +267,8 @@ void LaunchTQuantInt8(std::conditional_t<quantType == pto::QuantType::INT8_SYM, 
 
 // BF16 --> MXFP8
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-__global__ AICORE void runTQuantBF16(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_t __out__ *out_fp8,
-                                     __gm__ bfloat16_t __in__ *src)
+__global__ AICORE void runTQuantBF16(
+    __gm__ uint8_t __out__* out_e8m0, __gm__ uint8_t __out__* out_fp8, __gm__ bfloat16_t __in__* src)
 {
     constexpr int paddedCols = PTO_CEIL(validCols, 32);
     constexpr int groupedCols_flattened = validRows * (paddedCols / 32);
@@ -275,12 +283,15 @@ __global__ AICORE void runTQuantBF16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
         GlobalTensor<uint8_t, Shape<1, 1, 1, 1, groupedCols_flattened>, pto::Stride<1, 1, 1, groupedCols_flattened, 1>>;
     using DstFP8Global = GlobalTensor<int8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
 
-    using SrcTile = Tile<TileType::Vec, bfloat16_t, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                         512, PadValue::Zero>;
-    using DstE8Tile = Tile<TileType::Vec, uint8_t, 1, groupedCols_flat_u8, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                           512, PadValue::Zero>;
-    using DstFP8Tile = Tile<TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols,
-                            SLayout::NoneBox, 512, PadValue::Zero>;
+    using SrcTile = Tile<
+        TileType::Vec, bfloat16_t, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using DstE8Tile = Tile<
+        TileType::Vec, uint8_t, 1, groupedCols_flat_u8, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using DstFP8Tile = Tile<
+        TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     using MaxTile = Tile<TileType::Vec, bfloat16_t, 1, groupedCols_flat_b16, BLayout::RowMajor, -1, -1>;
     using ScalingTile = Tile<TileType::Vec, bfloat16_t, 1, groupedCols_flat_b16, BLayout::RowMajor, -1, -1>;
 
@@ -292,7 +303,7 @@ __global__ AICORE void runTQuantBF16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
 
     SrcGlobal srcGlobal(src);
     DstE8Global e8Global(out_e8m0);
-    DstFP8Global fp8Global((__gm__ int8_t *)out_fp8);
+    DstFP8Global fp8Global((__gm__ int8_t*)out_fp8);
 
     // UB layout for bf16: worst-case 128x128 needs ~60 KB total
     TASSIGN(srcTile, 0x0);         // bf16 src: up to 128*128*2 = 32 KB
@@ -324,21 +335,25 @@ __global__ AICORE void runTQuantBF16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
         constexpr int groupedCols_valid = paddedCols / 32;
 
         // E8M0 ZZ destination: 2D with fractalMxSize=32 for [16,2] inner box
-        using E8ZzTile = Tile<TileType::Vec, uint8_t, validRows, groupedCols_valid, BLayout::RowMajor, -1, -1,
-                              SLayout::RowMajor, 32, PadValue::Zero>;
+        using E8ZzTile = Tile<
+            TileType::Vec, uint8_t, validRows, groupedCols_valid, BLayout::RowMajor, -1, -1, SLayout::RowMajor, 32,
+            PadValue::Zero>;
         // 1D flat alias at same address for TSTORE (no dispatch path for isRowMajor + SLayout::RowMajor)
-        using E8StoreTile = Tile<TileType::Vec, uint8_t, 1, groupedCols_flattened, BLayout::RowMajor, -1, -1,
-                                 SLayout::NoneBox, 512, PadValue::Zero>;
+        using E8StoreTile = Tile<
+            TileType::Vec, uint8_t, 1, groupedCols_flattened, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+            PadValue::Zero>;
         // Scratch tile for TMOV ZZ gather-index generation
         constexpr int tmpBufSize = (16 + (validRows / 16) * (groupedCols_valid / 2) + 16) * sizeof(uint16_t);
         constexpr int tmpBufSizeAligned = PTO_CEIL(tmpBufSize, 32);
-        using TmpTile = Tile<TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                             512, PadValue::Zero>;
+        using TmpTile = Tile<
+            TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+            PadValue::Zero>;
 
         // TMOV fp8 ND->NZ
         constexpr int virtualRow = PTO_CEIL(validRows, FRACTAL_NZ_ROW) + 1;
-        using DstNZ_int8 = Tile<TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols,
-                                SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
+        using DstNZ_int8 = Tile<
+            TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols, SLayout::RowMajor,
+            512, PadValue::Null, CompactMode::RowPlusOne>;
 
         DstNZ_int8 fp8TileNZ;
         E8ZzTile e8ZzTile(validRows, groupedCols_valid);
@@ -367,23 +382,24 @@ __global__ AICORE void runTQuantBF16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
         // Store ZZ-reordered e8m0 exponents
         TSTORE(e8Global, e8StoreTile);
 
-        using DstFp8GlobalNZ = GlobalTensor<int8_t, TileShape2D<int8_t, validRows, paddedCols, Layout::NZ>,
-                                            BaseShape2D<int8_t, validRows, paddedCols, Layout::NZ>, Layout::NZ>;
-        DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t *)out_fp8);
+        using DstFp8GlobalNZ = GlobalTensor<
+            int8_t, TileShape2D<int8_t, validRows, paddedCols, Layout::NZ>,
+            BaseShape2D<int8_t, validRows, paddedCols, Layout::NZ>, Layout::NZ>;
+        DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t*)out_fp8);
         TSTORE(fp8GlobalNZ, fp8TileNZ);
     }
 }
 
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP8_BF16(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+void LaunchTQuantMXFP8_BF16(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
-    runTQuantBF16<validRows, validCols, mode, scaleAlg><<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t *)src);
+    runTQuantBF16<validRows, validCols, mode, scaleAlg><<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t*)src);
 }
 
 // FP16 --> MXFP8
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-__global__ AICORE void runTQuantFP16(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_t __out__ *out_fp8,
-                                     __gm__ half __in__ *src)
+__global__ AICORE void runTQuantFP16(
+    __gm__ uint8_t __out__* out_e8m0, __gm__ uint8_t __out__* out_fp8, __gm__ half __in__* src)
 {
     constexpr int paddedCols = PTO_CEIL(validCols, 32);
     constexpr int groupedCols_flattened = validRows * (paddedCols / 32);
@@ -396,12 +412,14 @@ __global__ AICORE void runTQuantFP16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
         GlobalTensor<uint8_t, Shape<1, 1, 1, 1, groupedCols_flattened>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstFP8Global = GlobalTensor<int8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
 
-    using SrcTile = Tile<TileType::Vec, half, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
-    using DstE8Tile = Tile<TileType::Vec, uint8_t, 1, groupedCols_flat_u8, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                           512, PadValue::Zero>;
-    using DstFP8Tile = Tile<TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols,
-                            SLayout::NoneBox, 512, PadValue::Zero>;
+    using SrcTile = Tile<
+        TileType::Vec, half, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstE8Tile = Tile<
+        TileType::Vec, uint8_t, 1, groupedCols_flat_u8, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using DstFP8Tile = Tile<
+        TileType::Vec, int8_t, validRows, paddedCols, BLayout::RowMajor, validRows, paddedCols, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     using MaxTile = Tile<TileType::Vec, half, 1, groupedCols_flat_b16, BLayout::RowMajor, -1, -1>;
     using ScalingTile = Tile<TileType::Vec, half, 1, groupedCols_flat_b16, BLayout::RowMajor, -1, -1>;
 
@@ -413,7 +431,7 @@ __global__ AICORE void runTQuantFP16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
 
     SrcGlobal srcGlobal(src);
     DstE8Global e8Global(out_e8m0);
-    DstFP8Global fp8Global((__gm__ int8_t *)out_fp8);
+    DstFP8Global fp8Global((__gm__ int8_t*)out_fp8);
 
     // UB layout for fp16 (2 bytes per element, same footprint as bf16)
     TASSIGN(srcTile, 0x0);          // fp16 src: up to 128*128*2 = 32 KB
@@ -444,18 +462,22 @@ __global__ AICORE void runTQuantFP16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
         // NZ mode: TQUANT (ND output), then TMOV ND->ZZ for e8m0, TMOV ND->NZ for fp8.
         constexpr int groupedCols_valid = paddedCols / 32;
 
-        using E8ZzTile = Tile<TileType::Vec, uint8_t, validRows, groupedCols_valid, BLayout::RowMajor, -1, -1,
-                              SLayout::RowMajor, 32, PadValue::Zero>;
-        using E8StoreTile = Tile<TileType::Vec, uint8_t, 1, groupedCols_flattened, BLayout::RowMajor, -1, -1,
-                                 SLayout::NoneBox, 512, PadValue::Zero>;
+        using E8ZzTile = Tile<
+            TileType::Vec, uint8_t, validRows, groupedCols_valid, BLayout::RowMajor, -1, -1, SLayout::RowMajor, 32,
+            PadValue::Zero>;
+        using E8StoreTile = Tile<
+            TileType::Vec, uint8_t, 1, groupedCols_flattened, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+            PadValue::Zero>;
         constexpr int tmpBufSize = (16 + (validRows / 16) * (groupedCols_valid / 2) + 16) * sizeof(uint16_t);
         constexpr int tmpBufSizeAligned = PTO_CEIL(tmpBufSize, 32);
-        using TmpTile = Tile<TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                             512, PadValue::Zero>;
+        using TmpTile = Tile<
+            TileType::Vec, uint8_t, 1, tmpBufSizeAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+            PadValue::Zero>;
 
         constexpr int virtualRow = PTO_CEIL(validRows, FRACTAL_NZ_ROW) + 1;
-        using DstNZ_int8 = Tile<TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols,
-                                SLayout::RowMajor, 512, PadValue::Null, CompactMode::RowPlusOne>;
+        using DstNZ_int8 = Tile<
+            TileType::Vec, int8_t, virtualRow, paddedCols, BLayout::ColMajor, validRows, paddedCols, SLayout::RowMajor,
+            512, PadValue::Null, CompactMode::RowPlusOne>;
 
         DstNZ_int8 fp8TileNZ;
         E8ZzTile e8ZzTile(validRows, groupedCols_valid);
@@ -480,21 +502,23 @@ __global__ AICORE void runTQuantFP16(__gm__ uint8_t __out__ *out_e8m0, __gm__ ui
 
         TSTORE(e8Global, e8StoreTile);
 
-        using DstFp8GlobalNZ = GlobalTensor<int8_t, TileShape2D<int8_t, validRows, paddedCols, Layout::NZ>,
-                                            BaseShape2D<int8_t, validRows, paddedCols, Layout::NZ>, Layout::NZ>;
-        DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t *)out_fp8);
+        using DstFp8GlobalNZ = GlobalTensor<
+            int8_t, TileShape2D<int8_t, validRows, paddedCols, Layout::NZ>,
+            BaseShape2D<int8_t, validRows, paddedCols, Layout::NZ>, Layout::NZ>;
+        DstFp8GlobalNZ fp8GlobalNZ((__gm__ int8_t*)out_fp8);
         TSTORE(fp8GlobalNZ, fp8TileNZ);
     }
 }
 
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP8_FP16(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+void LaunchTQuantMXFP8_FP16(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
-    runTQuantFP16<validRows, validCols, mode, scaleAlg><<<1, nullptr, stream>>>(dst_exp, dst, (half *)src);
+    runTQuantFP16<validRows, validCols, mode, scaleAlg><<<1, nullptr, stream>>>(dst_exp, dst, (half*)src);
 }
 
-template <typename SrcT, int staticRows, int staticCols, int validRows, int validCols,
-          pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
+template <
+    typename SrcT, int staticRows, int staticCols, int validRows, int validCols,
+    pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 struct MxFp8Exp2DSpec {
     static_assert(staticCols % 64 == 0, "static tail axis must be 64-aligned");
     static_assert(validCols % 64 == 0, "valid tail axis must be 64-aligned");
@@ -516,26 +540,28 @@ struct MxFp8Exp2DSpec {
     static constexpr int scalingOffset = PTO_CEIL(maxOffset + maxBytes, ubAlign);
     static constexpr int e8Offset = PTO_CEIL(scalingOffset + scalingBytes, ubAlign);
     static constexpr int fp8Offset = PTO_CEIL(e8Offset + e8Bytes, ubAlign);
-    static_assert(fp8Offset + fp8Bytes < TQUANT_A5_UB_SIZE_BYTES, "TQuant MXFP8 2D test UB layout exceeds UB size");
+    static_assert(fp8Offset + fp8Bytes < TQUANT_A5_UB_SIZE_BYTES, "TQUANT MXFP8 2D test UB layout exceeds UB size");
 
     using SrcGlobal = GlobalTensor<SrcT, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
     using DstE8Global =
         GlobalTensor<uint8_t, Shape<1, 1, 1, validRows, validGroups>, pto::Stride<1, 1, 1, validGroups, 1>>;
     using DstFP8Global = GlobalTensor<int8_t, Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
 
-    using SrcTile = Tile<TileType::Vec, SrcT, staticRows, staticCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
-    using DstE8Tile = Tile<TileType::Vec, uint8_t, staticRows, expCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                           512, PadValue::Zero>;
-    using DstFP8Tile = Tile<TileType::Vec, int8_t, staticRows, staticCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                            512, PadValue::Zero>;
+    using SrcTile = Tile<
+        TileType::Vec, SrcT, staticRows, staticCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstE8Tile = Tile<
+        TileType::Vec, uint8_t, staticRows, expCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstFP8Tile = Tile<
+        TileType::Vec, int8_t, staticRows, staticCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     using MaxTile = Tile<TileType::Vec, SrcT, 1, packedGroupsAligned, BLayout::RowMajor, -1, -1>;
     using ScalingTile = Tile<TileType::Vec, SrcT, 1, packedGroupsAligned, BLayout::RowMajor, -1, -1>;
 };
 
 template <typename Spec>
-__global__ AICORE void runTQuantExp2D(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_t __out__ *out_fp8,
-                                      __gm__ typename Spec::SrcGlobal::RawDType __in__ *src)
+__global__ AICORE void runTQuantExp2D(
+    __gm__ uint8_t __out__* out_e8m0, __gm__ uint8_t __out__* out_fp8,
+    __gm__ typename Spec::SrcGlobal::RawDType __in__* src)
 {
     typename Spec::SrcTile srcTile(Spec::rows, Spec::cols);
     typename Spec::ScalingTile scalingTile(1, Spec::packedGroups);
@@ -545,7 +571,7 @@ __global__ AICORE void runTQuantExp2D(__gm__ uint8_t __out__ *out_e8m0, __gm__ u
 
     typename Spec::SrcGlobal srcGlobal(src);
     typename Spec::DstE8Global e8Global(out_e8m0);
-    typename Spec::DstFP8Global fp8Global((__gm__ int8_t *)out_fp8);
+    typename Spec::DstFP8Global fp8Global((__gm__ int8_t*)out_fp8);
 
     TASSIGN(srcTile, 0x0);
     TASSIGN(maxPerGpTile, Spec::maxOffset);
@@ -559,9 +585,10 @@ __global__ AICORE void runTQuantExp2D(__gm__ uint8_t __out__ *out_e8m0, __gm__ u
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-    TQUANT<pto::QuantType::MXFP8, typename Spec::DstFP8Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
-           typename Spec::MaxTile, typename Spec::ScalingTile, Spec::scaleAlgValue>(fp8Tile, srcTile, &e8Tile,
-                                                                                    &maxPerGpTile, &scalingTile);
+    TQUANT<
+        pto::QuantType::MXFP8, typename Spec::DstFP8Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
+        typename Spec::MaxTile, typename Spec::ScalingTile, Spec::scaleAlgValue>(
+        fp8Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
 
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -572,41 +599,42 @@ __global__ AICORE void runTQuantExp2D(__gm__ uint8_t __out__ *out_e8m0, __gm__ u
     TSTORE(fp8Global, fp8Tile);
 }
 
-template <int staticRows, int staticCols, int validRows, int validCols,
-          pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP8_FP32_Exp2D(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream)
+template <
+    int staticRows, int staticCols, int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
+void LaunchTQuantMXFP8_FP32_Exp2D(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream)
 {
     using Spec = MxFp8Exp2DSpec<float, staticRows, staticCols, validRows, validCols, scaleAlg>;
     runTQuantExp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, src);
 }
 
-template <int staticRows, int staticCols, int validRows, int validCols,
-          pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP8_BF16_Exp2D(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+template <
+    int staticRows, int staticCols, int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
+void LaunchTQuantMXFP8_BF16_Exp2D(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
     using Spec = MxFp8Exp2DSpec<bfloat16_t, staticRows, staticCols, validRows, validCols, scaleAlg>;
-    runTQuantExp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t *)src);
+    runTQuantExp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t*)src);
 }
 
-template <int staticRows, int staticCols, int validRows, int validCols,
-          pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP8_FP16_Exp2D(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+template <
+    int staticRows, int staticCols, int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
+void LaunchTQuantMXFP8_FP16_Exp2D(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
     using Spec = MxFp8Exp2DSpec<half, staticRows, staticCols, validRows, validCols, scaleAlg>;
-    runTQuantExp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (half *)src);
+    runTQuantExp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (half*)src);
 }
 
-PTO_INTERNAL void CompactFp4PackedRows(__ubuf__ uint8_t *dstPtr, __ubuf__ uint8_t *srcPtr, uint32_t rows,
-                                       uint32_t validPackedCols, uint32_t srcStride, uint32_t dstStride)
+PTO_INTERNAL void CompactFp4PackedRows(
+    __ubuf__ uint8_t* dstPtr, __ubuf__ uint8_t* srcPtr, uint32_t rows, uint32_t validPackedCols, uint32_t srcStride,
+    uint32_t dstStride)
 {
-    constexpr uint32_t elementsPerRepeat = REPEAT_BYTE / sizeof(uint8_t);
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(uint8_t);
     RegTensor<uint8_t> vreg;
     UnalignReg ureg;
     uint16_t repeatTimes = CeilDivision(validPackedCols, elementsPerRepeat);
     for (uint16_t row = 0; row < (uint16_t)rows; ++row) {
         uint32_t remaining = validPackedCols;
-        __ubuf__ uint8_t *srcRow = srcPtr + row * srcStride;
-        __ubuf__ uint8_t *dstRow = dstPtr + row * dstStride;
+        __ubuf__ uint8_t* srcRow = srcPtr + row * srcStride;
+        __ubuf__ uint8_t* dstRow = dstPtr + row * dstStride;
         for (uint16_t repeat = 0; repeat < repeatTimes; ++repeat) {
             uint32_t cols = remaining > elementsPerRepeat ? elementsPerRepeat : remaining;
             MaskReg preg = CreatePredicate<uint8_t>(cols);
@@ -651,22 +679,25 @@ struct MxFp4B16Spec {
         GlobalTensor<uint8_t, Shape<1, 1, 1, validRows, groupedColsValid>, pto::Stride<1, 1, 1, groupedColsValid, 1>>;
     using DstFP4Global =
         GlobalTensor<uint8_t, Shape<1, 1, 1, validRows, validPackedCols>, pto::Stride<1, 1, 1, validPackedCols, 1>>;
-    using SrcTile = Tile<TileType::Vec, SrcT, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
-    using DstE8Tile = Tile<TileType::Vec, uint8_t, validRows, groupedColsE8Static, BLayout::RowMajor, -1, -1,
-                           SLayout::NoneBox, 512, PadValue::Zero>;
-    using DstFP4Tile = Tile<TileType::Vec, float4_e2m1x2_t, 1, fp4FlatAligned, BLayout::RowMajor, -1, -1,
-                            SLayout::NoneBox, 512, PadValue::Zero>;
-    using DstBytesTile = Tile<TileType::Vec, uint8_t, validRows, validPackedColsAligned, BLayout::RowMajor, -1, -1,
-                              SLayout::NoneBox, 512, PadValue::Zero>;
+    using SrcTile = Tile<
+        TileType::Vec, SrcT, validRows, paddedCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstE8Tile = Tile<
+        TileType::Vec, uint8_t, validRows, groupedColsE8Static, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using DstFP4Tile = Tile<
+        TileType::Vec, float4_e2m1x2_t, 1, fp4FlatAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
+    using DstBytesTile = Tile<
+        TileType::Vec, uint8_t, validRows, validPackedColsAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     using MaxTile = Tile<TileType::Vec, SrcT, 1, groupedColsB16FlatAligned, BLayout::RowMajor, -1, -1>;
     using ScalingTile = Tile<TileType::Vec, SrcT, 1, groupedColsB16FlatAligned, BLayout::RowMajor, -1, -1>;
 };
 
 template <typename Spec>
-PTO_INTERNAL void AssignMxFp4B16Tiles(typename Spec::SrcTile &srcTile, typename Spec::MaxTile &maxPerGpTile,
-                                      typename Spec::ScalingTile &scalingTile, typename Spec::DstE8Tile &e8Tile,
-                                      typename Spec::DstFP4Tile &fp4Tile, typename Spec::DstBytesTile &fp4BytesTile)
+PTO_INTERNAL void AssignMxFp4B16Tiles(
+    typename Spec::SrcTile& srcTile, typename Spec::MaxTile& maxPerGpTile, typename Spec::ScalingTile& scalingTile,
+    typename Spec::DstE8Tile& e8Tile, typename Spec::DstFP4Tile& fp4Tile, typename Spec::DstBytesTile& fp4BytesTile)
 {
     TASSIGN(srcTile, 0x0);
     TASSIGN(maxPerGpTile, Spec::maxOffset);
@@ -677,15 +708,16 @@ PTO_INTERNAL void AssignMxFp4B16Tiles(typename Spec::SrcTile &srcTile, typename 
 }
 
 template <typename Spec>
-PTO_INTERNAL void StoreMxFp4B16Result(typename Spec::DstFP4Tile &fp4Tile, typename Spec::DstBytesTile &fp4BytesTile,
-                                      typename Spec::DstE8Tile &e8Tile, typename Spec::DstE8Global &e8Global,
-                                      typename Spec::DstFP4Global &fp4Global)
+PTO_INTERNAL void StoreMxFp4B16Result(
+    typename Spec::DstFP4Tile& fp4Tile, typename Spec::DstBytesTile& fp4BytesTile, typename Spec::DstE8Tile& e8Tile,
+    typename Spec::DstE8Global& e8Global, typename Spec::DstFP4Global& fp4Global)
 {
     __VEC_SCOPE__
     {
         mem_bar(VST_VLD);
-        CompactFp4PackedRows((__ubuf__ uint8_t *)fp4BytesTile.data(), (__ubuf__ uint8_t *)fp4Tile.data(), Spec::rows,
-                             Spec::validPackedCols, Spec::packedCols, Spec::validPackedColsAligned);
+        CompactFp4PackedRows(
+            (__ubuf__ uint8_t*)fp4BytesTile.data(), (__ubuf__ uint8_t*)fp4Tile.data(), Spec::rows,
+            Spec::validPackedCols, Spec::packedCols, Spec::validPackedColsAligned);
         mem_bar(VST_VST);
     }
 
@@ -699,12 +731,13 @@ PTO_INTERNAL void StoreMxFp4B16Result(typename Spec::DstFP4Tile &fp4Tile, typena
 }
 
 template <typename SrcT, int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-__global__ AICORE void runTQuantMXFP4E2M1B16(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_t __out__ *out_fp4,
-                                             __gm__ SrcT __in__ *src)
+__global__ AICORE void runTQuantMXFP4E2M1B16(
+    __gm__ uint8_t __out__* out_e8m0, __gm__ uint8_t __out__* out_fp4, __gm__ SrcT __in__* src)
 {
     using Spec = MxFp4B16Spec<SrcT, validRows, validCols>;
-    static_assert(Spec::fp4StoreOffset + Spec::fp4StoreBytes <= TQUANT_A5_UB_SIZE_BYTES,
-                  "MXFP4 E2M1 test kernel UB layout exceeds UB capacity.");
+    static_assert(
+        Spec::fp4StoreOffset + Spec::fp4StoreBytes <= TQUANT_A5_UB_SIZE_BYTES,
+        "MXFP4 E2M1 test kernel UB layout exceeds UB capacity.");
     typename Spec::SrcTile srcTile(validRows, validCols);
     typename Spec::DstFP4Tile fp4Tile(1, Spec::fp4Bytes);
     typename Spec::DstBytesTile fp4BytesTile(validRows, Spec::validPackedCols);
@@ -725,31 +758,34 @@ __global__ AICORE void runTQuantMXFP4E2M1B16(__gm__ uint8_t __out__ *out_e8m0, _
 #endif
 
     if constexpr (scaleAlg == pto::QuantScaleAlg::OCP) {
-        TQUANT<pto::QuantType::MXFP4_E2M1, typename Spec::DstFP4Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
-               typename Spec::MaxTile>(fp4Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
+        TQUANT<
+            pto::QuantType::MXFP4_E2M1, typename Spec::DstFP4Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
+            typename Spec::MaxTile>(fp4Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
     } else {
-        TQUANT<pto::QuantType::MXFP4_E2M1, typename Spec::DstFP4Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
-               typename Spec::MaxTile, typename Spec::ScalingTile, scaleAlg>(fp4Tile, srcTile, &e8Tile, &maxPerGpTile,
-                                                                             &scalingTile);
+        TQUANT<
+            pto::QuantType::MXFP4_E2M1, typename Spec::DstFP4Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
+            typename Spec::MaxTile, typename Spec::ScalingTile, scaleAlg>(
+            fp4Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
     }
     StoreMxFp4B16Result<Spec>(fp4Tile, fp4BytesTile, e8Tile, e8Global, fp4Global);
 }
 
 template <int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP4_E2M1_FP16(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+void LaunchTQuantMXFP4_E2M1_FP16(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
-    runTQuantMXFP4E2M1B16<half, validRows, validCols, scaleAlg><<<1, nullptr, stream>>>(dst_exp, dst, (half *)src);
+    runTQuantMXFP4E2M1B16<half, validRows, validCols, scaleAlg><<<1, nullptr, stream>>>(dst_exp, dst, (half*)src);
 }
 
 template <int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP4_E2M1_BF16(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+void LaunchTQuantMXFP4_E2M1_BF16(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
     runTQuantMXFP4E2M1B16<bfloat16_t, validRows, validCols, scaleAlg>
-        <<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t *)src);
+        <<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t*)src);
 }
 
-template <typename SrcT, int staticRows, int staticCols, int validRows, int validCols,
-          pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
+template <
+    typename SrcT, int staticRows, int staticCols, int validRows, int validCols,
+    pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 struct MxFp4B16Exp2DSpec {
     static_assert(staticCols % 32 == 0, "static tail axis must be 32-aligned");
     static_assert(validCols % 32 == 0, "valid tail axis must be 32-aligned");
@@ -783,24 +819,27 @@ struct MxFp4B16Exp2DSpec {
         GlobalTensor<uint8_t, Shape<1, 1, 1, validRows, validGroups>, pto::Stride<1, 1, 1, validGroups, 1>>;
     using DstFP4Global =
         GlobalTensor<uint8_t, Shape<1, 1, 1, validRows, validPackedCols>, pto::Stride<1, 1, 1, validPackedCols, 1>>;
-    using SrcTile = Tile<TileType::Vec, SrcT, staticRows, staticCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
-                         PadValue::Zero>;
-    using DstE8Tile = Tile<TileType::Vec, uint8_t, staticRows, expCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                           512, PadValue::Zero>;
-    using DstFP4Tile = Tile<TileType::Vec, float4_e2m1x2_t, 1, fp4Bytes, BLayout::RowMajor, -1, -1, SLayout::NoneBox,
-                            512, PadValue::Zero>;
-    using DstBytesTile = Tile<TileType::Vec, uint8_t, validRows, validPackedColsAligned, BLayout::RowMajor, -1, -1,
-                              SLayout::NoneBox, 512, PadValue::Zero>;
+    using SrcTile = Tile<
+        TileType::Vec, SrcT, staticRows, staticCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstE8Tile = Tile<
+        TileType::Vec, uint8_t, staticRows, expCols, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstFP4Tile = Tile<
+        TileType::Vec, float4_e2m1x2_t, 1, fp4Bytes, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512, PadValue::Zero>;
+    using DstBytesTile = Tile<
+        TileType::Vec, uint8_t, validRows, validPackedColsAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
+        PadValue::Zero>;
     using MaxTile = Tile<TileType::Vec, SrcT, 1, packedGroupsAligned, BLayout::RowMajor, -1, -1>;
     using ScalingTile = Tile<TileType::Vec, SrcT, 1, packedGroupsAligned, BLayout::RowMajor, -1, -1>;
 };
 
 template <typename Spec>
-__global__ AICORE void runTQuantMXFP4E2M1B16Exp2D(__gm__ uint8_t __out__ *out_e8m0, __gm__ uint8_t __out__ *out_fp4,
-                                                  __gm__ typename Spec::SrcGlobal::RawDType __in__ *src)
+__global__ AICORE void runTQuantMXFP4E2M1B16Exp2D(
+    __gm__ uint8_t __out__* out_e8m0, __gm__ uint8_t __out__* out_fp4,
+    __gm__ typename Spec::SrcGlobal::RawDType __in__* src)
 {
-    static_assert(Spec::fp4StoreOffset + Spec::fp4StoreBytes <= TQUANT_A5_UB_SIZE_BYTES,
-                  "MXFP4 E2M1 2D test kernel UB layout exceeds UB capacity.");
+    static_assert(
+        Spec::fp4StoreOffset + Spec::fp4StoreBytes <= TQUANT_A5_UB_SIZE_BYTES,
+        "MXFP4 E2M1 2D test kernel UB layout exceeds UB capacity.");
     typename Spec::SrcTile srcTile(Spec::rows, Spec::cols);
     typename Spec::DstFP4Tile fp4Tile(1, Spec::fp4Bytes);
     typename Spec::DstBytesTile fp4BytesTile(Spec::rows, Spec::validPackedCols);
@@ -825,160 +864,156 @@ __global__ AICORE void runTQuantMXFP4E2M1B16Exp2D(__gm__ uint8_t __out__ *out_e8
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
 
-    TQUANT<pto::QuantType::MXFP4_E2M1, typename Spec::DstFP4Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
-           typename Spec::MaxTile, typename Spec::ScalingTile, Spec::scaleAlgValue>(fp4Tile, srcTile, &e8Tile,
-                                                                                    &maxPerGpTile, &scalingTile);
+    TQUANT<
+        pto::QuantType::MXFP4_E2M1, typename Spec::DstFP4Tile, typename Spec::SrcTile, typename Spec::DstE8Tile,
+        typename Spec::MaxTile, typename Spec::ScalingTile, Spec::scaleAlgValue>(
+        fp4Tile, srcTile, &e8Tile, &maxPerGpTile, &scalingTile);
 
     StoreMxFp4B16Result<Spec>(fp4Tile, fp4BytesTile, e8Tile, e8Global, fp4Global);
 }
 
-template <int staticRows, int staticCols, int validRows, int validCols,
-          pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP4_E2M1_BF16_Exp2D(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+template <
+    int staticRows, int staticCols, int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
+void LaunchTQuantMXFP4_E2M1_BF16_Exp2D(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
     using Spec = MxFp4B16Exp2DSpec<bfloat16_t, staticRows, staticCols, validRows, validCols, scaleAlg>;
-    runTQuantMXFP4E2M1B16Exp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t *)src);
+    runTQuantMXFP4E2M1B16Exp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (bfloat16_t*)src);
 }
 
-template <int staticRows, int staticCols, int validRows, int validCols,
-          pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
-void LaunchTQuantMXFP4_E2M1_FP16_Exp2D(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream)
+template <
+    int staticRows, int staticCols, int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
+void LaunchTQuantMXFP4_E2M1_FP16_Exp2D(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream)
 {
     using Spec = MxFp4B16Exp2DSpec<half, staticRows, staticCols, validRows, validCols, scaleAlg>;
-    runTQuantMXFP4E2M1B16Exp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (half *)src);
+    runTQuantMXFP4E2M1B16Exp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (half*)src);
 }
 
 } // namespace TQuantTest
 
 // MXFP8 cases
-template void TQuantTest::LaunchTQuantMXFP8<32, 32, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<32, 64, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<64, 128, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<128, 128, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<32, 64, 1>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<64, 128, 1>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<64, 256, 1>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<64, 512, 1>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<128, 128, 1>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<15, 32, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<7, 64, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<33, 64, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<13, 192, 0>(uint8_t *dst, float *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<32, 128, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, float *src,
-                                                                                uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8<2, 256, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, float *src,
-                                                                               uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8<32, 32, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<32, 64, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<64, 128, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<128, 128, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<32, 64, 1>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<64, 128, 1>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<64, 256, 1>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<64, 512, 1>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<128, 128, 1>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<15, 32, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<7, 64, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<33, 64, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<13, 192, 0>(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<32, 128, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8<2, 256, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
 // INT8 SYM cases
-template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                 void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                  void *stream, float *offset);
-template void TQuantTest::LaunchTQuantInt8<256, 128, 0, pto::QuantType::INT8_SYM>(int8_t *dst, float *src, float *scale,
-                                                                                  void *stream, float *offset);
+template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<256, 128, 0, pto::QuantType::INT8_SYM>(
+    int8_t* dst, float* src, float* scale, void* stream, float* offset);
 // INT8 ASYM cases
-template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                  float *scale, void *stream,
-                                                                                  float *offset);
-template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                   float *scale, void *stream,
-                                                                                   float *offset);
-template void TQuantTest::LaunchTQuantInt8<256, 128, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src,
-                                                                                   float *scale, void *stream,
-                                                                                   float *offset);
-template void TQuantTest::LaunchTQuantInt8<32, 72, 0, pto::QuantType::INT8_ASYM>(uint8_t *dst, float *src, float *scale,
-                                                                                 void *stream, float *offset);
+template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<256, 128, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
+template void TQuantTest::LaunchTQuantInt8<32, 72, 0, pto::QuantType::INT8_ASYM>(
+    uint8_t* dst, float* src, float* scale, void* stream, float* offset);
 // MXFP8 BF16 cases
-template void TQuantTest::LaunchTQuantMXFP8_BF16<32, 128, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<64, 128, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<128, 128, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                              void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<14, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<7, 48, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<18, 136, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 32, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<2, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<4, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<8, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<16, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<3, 32, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<5, 96, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 16, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<4, 256, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<4, 512, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<3, 256, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<5, 256, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<18, 138, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 192, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 198, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<32, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<64, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<128, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                              void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<32, 128, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                     uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<64, 128, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                     uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<128, 128, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                      uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<7, 48, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                   uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16<2, 256, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                    uint8_t *dst_exp, void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<32, 128, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<64, 128, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<128, 128, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<14, 16, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<7, 48, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<18, 136, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 32, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<2, 16, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<4, 16, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<8, 16, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<16, 16, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<3, 32, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<5, 96, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 16, 0>(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<4, 256, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<4, 512, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<3, 256, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<5, 256, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<18, 138, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 192, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<1, 198, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<32, 128, 1>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<64, 128, 1>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<128, 128, 1>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<32, 128, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<64, 128, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<128, 128, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<7, 48, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16<2, 256, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
 // MXFP8 FP16 cases
-template void TQuantTest::LaunchTQuantMXFP8_FP16<32, 128, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<128, 128, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                              void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<4, 256, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                            void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<11, 640, 0>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<32, 128, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                     uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                     uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<128, 128, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                      uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<2, 256, 0, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                    uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_BF16_Exp2D<3, 128, 1, 64>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                                      void *stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<32, 128, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<128, 128, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<4, 256, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<11, 640, 0>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<32, 128, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<128, 128, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<2, 256, 0, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_BF16_Exp2D<3, 128, 1, 64>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
 
-template void TQuantTest::LaunchTQuantMXFP4_E2M1_FP16<2, 128>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                              void *stream);
-template void TQuantTest::LaunchTQuantMXFP4_E2M1_FP16<32, 1024>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                                void *stream);
-template void TQuantTest::LaunchTQuantMXFP4_E2M1_FP16<2, 256, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                      uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16<2, 128>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                              void *stream);
-template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16<32, 1024>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                                void *stream);
-template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16<2, 256, pto::QuantScaleAlg::NV>(uint8_t *dst, uint16_t *src,
-                                                                                      uint8_t *dst_exp, void *stream);
-template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16_Exp2D<4, 128, 2, 128, pto::QuantScaleAlg::NV>(uint8_t *dst,
-                                                                                                    uint16_t *src,
-                                                                                                    uint8_t *dst_exp,
-                                                                                                    void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<32, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                             void *stream);
-template void TQuantTest::LaunchTQuantMXFP8_FP16<128, 128, 1>(uint8_t *dst, uint16_t *src, uint8_t *dst_exp,
-                                                              void *stream);
+template void TQuantTest::LaunchTQuantMXFP4_E2M1_FP16<2, 128>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP4_E2M1_FP16<32, 1024>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP4_E2M1_FP16<2, 256, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16<2, 128>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16<32, 1024>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16<2, 256, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP4_E2M1_BF16_Exp2D<4, 128, 2, 128, pto::QuantScaleAlg::NV>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<32, 128, 1>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<64, 128, 1>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
+template void TQuantTest::LaunchTQuantMXFP8_FP16<128, 128, 1>(
+    uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);

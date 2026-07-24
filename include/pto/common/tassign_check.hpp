@@ -21,8 +21,7 @@ namespace pto {
 namespace detail {
 
 template <typename TileT, std::size_t Addr>
-struct tassign_static_check {
-};
+struct tassign_static_check {};
 
 } // namespace detail
 } // namespace pto
@@ -69,63 +68,63 @@ template <>
 struct BufferTraits<TileType::Vec> {
     static constexpr std::size_t capacity = PTO_UBUF_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_UBUF_ALIGN_BYTES;
-    static constexpr const char *name = "UB";
+    static constexpr const char* name = "UB";
 };
 
 template <>
 struct BufferTraits<TileType::Mat> {
     static constexpr std::size_t capacity = PTO_CBUF_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_CBUF_ALIGN_BYTES;
-    static constexpr const char *name = "L1";
+    static constexpr const char* name = "L1";
 };
 
 template <>
 struct BufferTraits<TileType::Left> {
     static constexpr std::size_t capacity = PTO_L0A_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_L0A_ALIGN_BYTES;
-    static constexpr const char *name = "L0A";
+    static constexpr const char* name = "L0A";
 };
 
 template <>
 struct BufferTraits<TileType::Right> {
     static constexpr std::size_t capacity = PTO_L0B_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_L0B_ALIGN_BYTES;
-    static constexpr const char *name = "L0B";
+    static constexpr const char* name = "L0B";
 };
 
 template <>
 struct BufferTraits<TileType::Acc> {
     static constexpr std::size_t capacity = PTO_L0C_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_L0C_ALIGN_BYTES;
-    static constexpr const char *name = "L0C";
+    static constexpr const char* name = "L0C";
 };
 
 template <>
 struct BufferTraits<TileType::Bias> {
     static constexpr std::size_t capacity = PTO_BIAS_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_BIAS_ALIGN_BYTES;
-    static constexpr const char *name = "Bias";
+    static constexpr const char* name = "Bias";
 };
 
 template <>
 struct BufferTraits<TileType::Scaling> {
     static constexpr std::size_t capacity = PTO_FBUF_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_FBUF_ALIGN_BYTES;
-    static constexpr const char *name = "FBuffer";
+    static constexpr const char* name = "FBuffer";
 };
 
 template <>
 struct BufferTraits<TileType::ScaleLeft> {
     static constexpr std::size_t capacity = PTO_SCALELEFT_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_L0A_ALIGN_BYTES;
-    static constexpr const char *name = "L0A(Scale)";
+    static constexpr const char* name = "L0A(Scale)";
 };
 
 template <>
 struct BufferTraits<TileType::ScaleRight> {
     static constexpr std::size_t capacity = PTO_SCALERIGHT_SIZE_BYTES;
     static constexpr std::size_t alignment = PTO_L0B_ALIGN_BYTES;
-    static constexpr const char *name = "L0B(Scale)";
+    static constexpr const char* name = "L0B(Scale)";
 };
 
 // =============================================================================
@@ -151,30 +150,32 @@ struct tassign_static_check {
     // FIX-A12: Use a TileType whose memory space exists on the target
     //          architecture, or switch to a platform that supports this
     //          memory space (e.g. ScaleLeft/ScaleRight require A5).
-    static_assert(capacity > 0,
-                  "[SA-0351] TASSIGN: memory space is not available on this architecture "
-                  "(capacity is 0). (Fix: FIX-A12)");
+    static_assert(
+        capacity > 0, "[SA-0351] TASSIGN: memory space is not available on this architecture "
+                      "(capacity is 0). (Fix: FIX-A12)");
 
     // SA-0352: Tile storage size exceeds memory space capacity.
     // FIX-A12: Reduce the tile dimensions (Rows/Cols) or element type size,
     //          or override the capacity via -DPTO_xxx_SIZE_BYTES=<value>.
-    static_assert(tile_bytes <= capacity,
-                  "[SA-0352] TASSIGN: Tile storage size exceeds memory space capacity. "
-                  "Reduce tile dimensions or element size. (Fix: FIX-A12)");
+    static_assert(
+        tile_bytes <= capacity, "[SA-0352] TASSIGN: Tile storage size exceeds memory space capacity. "
+                                "Reduce tile dimensions or element size. (Fix: FIX-A12)");
 
     // SA-0353: addr + tile_size exceeds memory space capacity (out of bounds).
     // FIX-A12: Choose a smaller Addr so that Addr + tile_size <= capacity,
     //          or reduce the tile size.
-    static_assert(capacity == 0 || end_addr <= capacity,
-                  "[SA-0353] TASSIGN: addr + tile_size exceeds memory space capacity "
-                  "(out of bounds). Use a smaller address or reduce tile size. (Fix: FIX-A12)");
+    static_assert(
+        capacity == 0 || end_addr <= capacity,
+        "[SA-0353] TASSIGN: addr + tile_size exceeds memory space capacity "
+        "(out of bounds). Use a smaller address or reduce tile size. (Fix: FIX-A12)");
 
     // SA-0354: addr is not properly aligned for the target memory space.
     // FIX-A12: Choose an Addr that is a multiple of the alignment requirement
     //          (see include/pto/common/buffer_limits.hpp for values).
-    static_assert(alignment == 0 || (Addr % alignment) == 0,
-                  "[SA-0354] TASSIGN: addr is not properly aligned for the target memory space. "
-                  "Addr must be a multiple of the alignment (e.g. 32 bytes). (Fix: FIX-A12)");
+    static_assert(
+        alignment == 0 || (Addr % alignment) == 0,
+        "[SA-0354] TASSIGN: addr is not properly aligned for the target memory space. "
+        "Addr must be a multiple of the alignment (e.g. 32 bytes). (Fix: FIX-A12)");
 };
 
 } // namespace detail

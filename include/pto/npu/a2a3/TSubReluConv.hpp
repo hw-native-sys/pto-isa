@@ -35,23 +35,26 @@ namespace pto {
 // Intrinsic dispatcher: select the fused sub/relu/convert by (src, dst) type.
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void SubReluConvCall(__ubuf__ typename TileDataDst::DType *dst, __ubuf__ typename TileDataSrc::DType *src0,
-                                  __ubuf__ typename TileDataSrc::DType *src1, uint8_t repeat, uint8_t dstBlockStride,
-                                  uint8_t src0BlockStride, uint8_t src1BlockStride, uint8_t dstRepeatStride,
-                                  uint8_t src0RepeatStride, uint8_t src1RepeatStride)
+PTO_INTERNAL void SubReluConvCall(
+    __ubuf__ typename TileDataDst::DType* dst, __ubuf__ typename TileDataSrc::DType* src0,
+    __ubuf__ typename TileDataSrc::DType* src1, uint8_t repeat, uint8_t dstBlockStride, uint8_t src0BlockStride,
+    uint8_t src1BlockStride, uint8_t dstRepeatStride, uint8_t src0RepeatStride, uint8_t src1RepeatStride)
 {
     using DT = typename TileDataDst::DType;
     using ST = typename TileDataSrc::DType;
     // The trailing `false` selects the low-half destination packing (h = 0).
     if constexpr (std::is_same<ST, float>::value && std::is_same<DT, half>::value) {
-        vsubreluconv_f322f16(dst, src0, src1, repeat, dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride,
-                             src0RepeatStride, src1RepeatStride, false);
+        vsubreluconv_f322f16(
+            dst, src0, src1, repeat, dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride,
+            src0RepeatStride, src1RepeatStride, false);
     } else if constexpr (std::is_same<ST, half>::value && std::is_same<DT, int8_t>::value) {
-        vsubreluconv_f162s8(dst, src0, src1, repeat, dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride,
-                            src0RepeatStride, src1RepeatStride, false);
+        vsubreluconv_f162s8(
+            dst, src0, src1, repeat, dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride,
+            src0RepeatStride, src1RepeatStride, false);
     } else if constexpr (std::is_same<ST, int16_t>::value && std::is_same<DT, int8_t>::value) {
-        vsubreluconv_s162s8(dst, src0, src1, repeat, dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride,
-                            src0RepeatStride, src1RepeatStride, false);
+        vsubreluconv_s162s8(
+            dst, src0, src1, repeat, dstBlockStride, src0BlockStride, src1BlockStride, dstRepeatStride,
+            src0RepeatStride, src1RepeatStride, false);
     }
 }
 
@@ -62,8 +65,8 @@ PTO_INTERNAL void SubReluConvCall(__ubuf__ typename TileDataDst::DType *dst, __u
 // repeat window, matching the convention used by TCVT.
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc>
-PTO_INTERNAL void ComputeSubReluConvConfig(unsigned &elementsPerRepeat, unsigned &dstRepeatStride,
-                                           unsigned &srcRepeatStride)
+PTO_INTERNAL void ComputeSubReluConvConfig(
+    unsigned& elementsPerRepeat, unsigned& dstRepeatStride, unsigned& srcRepeatStride)
 {
     constexpr unsigned dstSize = sizeof(typename TileDataDst::DType);
     constexpr unsigned srcSize = sizeof(typename TileDataSrc::DType);
@@ -80,17 +83,16 @@ PTO_INTERNAL void ComputeSubReluConvConfig(unsigned &elementsPerRepeat, unsigned
 //   DS      : dst row stride (in elements)
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc, unsigned SS0, unsigned SS1, unsigned DS>
-__tf__ PTO_INTERNAL void TSubReluConv(typename TileDataDst::TileDType __out__ dstData,
-                                      typename TileDataSrc::TileDType __in__ src0Data,
-                                      typename TileDataSrc::TileDType __in__ src1Data, unsigned validRow,
-                                      unsigned validCol, unsigned elementsPerRepeat, unsigned dstRepeatStride,
-                                      unsigned srcRepeatStride)
+__tf__ PTO_INTERNAL void TSubReluConv(
+    typename TileDataDst::TileDType __out__ dstData, typename TileDataSrc::TileDType __in__ src0Data,
+    typename TileDataSrc::TileDType __in__ src1Data, unsigned validRow, unsigned validCol, unsigned elementsPerRepeat,
+    unsigned dstRepeatStride, unsigned srcRepeatStride)
 {
     using DT = typename TileDataDst::DType;
     using ST = typename TileDataSrc::DType;
-    __ubuf__ DT *dstPtr = (__ubuf__ DT *)__cce_get_tile_ptr(dstData);
-    __ubuf__ ST *src0Ptr = (__ubuf__ ST *)__cce_get_tile_ptr(src0Data);
-    __ubuf__ ST *src1Ptr = (__ubuf__ ST *)__cce_get_tile_ptr(src1Data);
+    __ubuf__ DT* dstPtr = (__ubuf__ DT*)__cce_get_tile_ptr(dstData);
+    __ubuf__ ST* src0Ptr = (__ubuf__ ST*)__cce_get_tile_ptr(src0Data);
+    __ubuf__ ST* src1Ptr = (__ubuf__ ST*)__cce_get_tile_ptr(src1Data);
     unsigned numRepeatPerLine = validCol / elementsPerRepeat;
     unsigned numRemainPerLine = validCol % elementsPerRepeat;
 
@@ -107,10 +109,10 @@ __tf__ PTO_INTERNAL void TSubReluConv(typename TileDataDst::TileDType __out__ ds
             }
             if (remainAfterLoop > 0) {
                 unsigned span = numLoop * elementsPerRepeat * REPEAT_MAX;
-                SubReluConvCall<TileDataDst, TileDataSrc>(dstPtr + i * DS + span, src0Ptr + i * SS0 + span,
-                                                          src1Ptr + i * SS1 + span, (uint8_t)remainAfterLoop, 1, 1, 1,
-                                                          (uint8_t)dstRepeatStride, (uint8_t)srcRepeatStride,
-                                                          (uint8_t)srcRepeatStride);
+                SubReluConvCall<TileDataDst, TileDataSrc>(
+                    dstPtr + i * DS + span, src0Ptr + i * SS0 + span, src1Ptr + i * SS1 + span,
+                    (uint8_t)remainAfterLoop, 1, 1, 1, (uint8_t)dstRepeatStride, (uint8_t)srcRepeatStride,
+                    (uint8_t)srcRepeatStride);
             }
         }
     }
@@ -132,35 +134,40 @@ __tf__ PTO_INTERNAL void TSubReluConv(typename TileDataDst::TileDType __out__ ds
 // Static / dynamic validation shared by the public entry point.
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TSubReluConvCheck(const TileDataDst &dst, const TileDataSrc0 &src0, const TileDataSrc1 &src1)
+PTO_INTERNAL void TSubReluConvCheck(const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1)
 {
     using DT = typename TileDataDst::DType;
     using ST = typename TileDataSrc0::DType;
-    static_assert(std::is_same<ST, typename TileDataSrc1::DType>::value,
-                  "Fix: TSUBRELUCONV src0 and src1 must have the same element type.");
-    static_assert((std::is_same<ST, float>::value && std::is_same<DT, half>::value) ||
-                      (std::is_same<ST, half>::value && std::is_same<DT, int8_t>::value) ||
-                      (std::is_same<ST, int16_t>::value && std::is_same<DT, int8_t>::value),
-                  "Fix: TSUBRELUCONV supports float->half, half->int8 and int16->int8 only.");
-    static_assert(TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-                  "Fix: TSUBRELUCONV only supports row major layout.");
+    static_assert(
+        std::is_same<ST, typename TileDataSrc1::DType>::value,
+        "Fix: TSUBRELUCONV src0 and src1 must have the same element type.");
+    static_assert(
+        (std::is_same<ST, float>::value && std::is_same<DT, half>::value) ||
+            (std::is_same<ST, half>::value && std::is_same<DT, int8_t>::value) ||
+            (std::is_same<ST, int16_t>::value && std::is_same<DT, int8_t>::value),
+        "Fix: TSUBRELUCONV supports float->half, half->int8 and int16->int8 only.");
+    static_assert(
+        TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
+        "Fix: TSUBRELUCONV only supports row major layout.");
     static_assert(
         TileDataDst::Loc == TileType::Vec && TileDataSrc0::Loc == TileType::Vec && TileDataSrc1::Loc == TileType::Vec,
         "Fix: TSUBRELUCONV tiles must live in TileType::Vec.");
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
     PTO_ASSERT(validRow > 0 && validCol > 0, "Fix: TSUBRELUCONV valid rows and columns must be greater than 0.");
-    PTO_ASSERT(src0.GetValidRow() == validRow && src0.GetValidCol() == validCol,
-               "Fix: TSUBRELUCONV input tile src0 valid shape mismatch with output tile dst shape.");
-    PTO_ASSERT(src1.GetValidRow() == validRow && src1.GetValidCol() == validCol,
-               "Fix: TSUBRELUCONV input tile src1 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src0.GetValidRow() == validRow && src0.GetValidCol() == validCol,
+        "Fix: TSUBRELUCONV input tile src0 valid shape mismatch with output tile dst shape.");
+    PTO_ASSERT(
+        src1.GetValidRow() == validRow && src1.GetValidCol() == validCol,
+        "Fix: TSUBRELUCONV input tile src1 valid shape mismatch with output tile dst shape.");
 }
 
 // ============================================================================
 // Public implementation entry point.
 // ============================================================================
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TSUBRELUCONV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TSUBRELUCONV_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     TSubReluConvCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
 
@@ -174,8 +181,8 @@ PTO_INTERNAL void TSUBRELUCONV_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDa
     constexpr unsigned SS1 = TileDataSrc1::RowStride;
     constexpr unsigned DS = TileDataDst::RowStride;
 
-    TSubReluConv<TileDataDst, TileDataSrc0, SS0, SS1, DS>(dst.data(), src0.data(), src1.data(), validRow, validCol,
-                                                          elementsPerRepeat, dstRepeatStride, srcRepeatStride);
+    TSubReluConv<TileDataDst, TileDataSrc0, SS0, SS1, DS>(
+        dst.data(), src0.data(), src1.data(), validRow, validCol, elementsPerRepeat, dstRepeatStride, srcRepeatStride);
 }
 } // namespace pto
 

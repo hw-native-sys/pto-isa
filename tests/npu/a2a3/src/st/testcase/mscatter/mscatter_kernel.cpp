@@ -23,14 +23,15 @@ AICORE PTO_INLINE void FlushScatterOutput()
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     set_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
     wait_flag(PIPE_MTE3, PIPE_S, EVENT_ID0);
-    dcci(static_cast<__gm__ void *>(0), ENTIRE_DATA_CACHE);
+    dcci(static_cast<__gm__ void*>(0), ENTIRE_DATA_CACHE);
     dsb(DSB_DDR);
     pipe_barrier(PIPE_ALL);
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
-          uint32_t kSrcCols, uint32_t kTableRows>
-inline AICORE void runRow(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows, uint32_t kSrcCols,
+    uint32_t kTableRows>
+inline AICORE void runRow(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, kSrcRows, kSrcCols>;
     using SrcGmStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
@@ -62,9 +63,10 @@ inline AICORE void runRow(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kValidRows,
-          uint32_t kValidCols, uint32_t kPadRows, uint32_t kPadCols, uint32_t kPadIdxCols, uint32_t kTableRows>
-inline AICORE void runRowPadded(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kValidRows,
+    uint32_t kValidCols, uint32_t kPadRows, uint32_t kPadCols, uint32_t kPadIdxCols, uint32_t kTableRows>
+inline AICORE void runRowPadded(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, kValidRows, kValidCols>;
     using SrcGmStride = pto::Stride<1, 1, 1, kValidCols, 1>;
@@ -96,9 +98,9 @@ inline AICORE void runRowPadded(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indic
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcCols,
-          uint32_t kTableSize>
-inline AICORE void runElem(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcCols, uint32_t kTableSize>
+inline AICORE void runElem(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, 1, kSrcCols>;
     using SrcGmStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
@@ -130,9 +132,10 @@ inline AICORE void runElem(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
-          uint32_t kSrcCols, uint32_t kTableSize>
-inline AICORE void runElem2D(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows, uint32_t kSrcCols,
+    uint32_t kTableSize>
+inline AICORE void runElem2D(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, kSrcRows, kSrcCols>;
     using SrcGmStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
@@ -164,9 +167,10 @@ inline AICORE void runElem2D(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kValidRows,
-          uint32_t kValidCols, uint32_t kPadRows, uint32_t kPadCols, uint32_t kTableSize>
-inline AICORE void runElem2DPadded(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kValidRows,
+    uint32_t kValidCols, uint32_t kPadRows, uint32_t kPadCols, uint32_t kTableSize>
+inline AICORE void runElem2DPadded(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, kValidRows, kValidCols>;
     using SrcGmStride = pto::Stride<1, 1, 1, kValidCols, 1>;
@@ -198,9 +202,9 @@ inline AICORE void runElem2DPadded(__gm__ T *out, __gm__ T *src, __gm__ TIdx *in
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadCols,
-          uint32_t kTableSize>
-inline AICORE void runElemScalar(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadCols, uint32_t kTableSize>
+inline AICORE void runElemScalar(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, 1, 1>;
     using SrcGmStride = pto::Stride<1, 1, 1, 1, 1>;
@@ -232,9 +236,10 @@ inline AICORE void runElemScalar(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indi
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadRows,
-          uint32_t kPadCols, int64_t kRtValidRows, int64_t kRtValidCols, int64_t kRtTableSize>
-inline AICORE void runElem2DDyn(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadRows, uint32_t kPadCols,
+    int64_t kRtValidRows, int64_t kRtValidCols, int64_t kRtTableSize>
+inline AICORE void runElem2DDyn(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, -1, -1>;
     using SrcGmStride = pto::Stride<1, 1, 1, -1, -1>;
@@ -273,9 +278,10 @@ inline AICORE void runElem2DDyn(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indic
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadRows,
-          uint32_t kPadCols, uint32_t kPadIdxCols, int64_t kRtValidRows, int64_t kRtValidCols, int64_t kRtTableRows>
-inline AICORE void runRowDyn(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kPadRows, uint32_t kPadCols,
+    uint32_t kPadIdxCols, int64_t kRtValidRows, int64_t kRtValidCols, int64_t kRtTableRows>
+inline AICORE void runRowDyn(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, 1, 1, -1, -1>;
     using SrcGmStride = pto::Stride<1, 1, 1, -1, -1>;
@@ -314,13 +320,14 @@ inline AICORE void runRowDyn(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
-          uint32_t kSrcCols, uint32_t kBlockRows, uint32_t kBlockCols, uint32_t kC0>
-inline AICORE void runRowNz(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows, uint32_t kSrcCols,
+    uint32_t kBlockRows, uint32_t kBlockCols, uint32_t kC0>
+inline AICORE void runRowNz(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, kBlockCols, kSrcRows / 16, 16, kC0>;
     using SrcGmStride =
-        pto::Stride<kBlockCols *(kSrcRows / 16) * 16 * kC0, (kSrcRows / 16) * 16 * kC0, 16 * kC0, kC0, 1>;
+        pto::Stride<kBlockCols*(kSrcRows / 16) * 16 * kC0, (kSrcRows / 16) * 16 * kC0, 16 * kC0, kC0, 1>;
     using IdxShape = pto::Shape<1, 1, 1, 1, kSrcRows>;
     using IdxStride = pto::Stride<1, 1, 1, kSrcRows, 1>;
     using TableShape = pto::Shape<1, kBlockCols, kBlockRows, 16, kC0>;
@@ -350,13 +357,14 @@ inline AICORE void runRowNz(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
     FlushScatterOutput();
 }
 
-template <pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows,
-          uint32_t kSrcCols, uint32_t kBlockRows, uint32_t kBlockCols, uint32_t kC0>
-inline AICORE void runElem2DNz(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indices)
+template <
+    pto::ScatterAtomicOp Atomic, pto::ScatterOOB Oob, typename T, typename TIdx, uint32_t kSrcRows, uint32_t kSrcCols,
+    uint32_t kBlockRows, uint32_t kBlockCols, uint32_t kC0>
+inline AICORE void runElem2DNz(__gm__ T* out, __gm__ T* src, __gm__ TIdx* indices)
 {
     using SrcGmShape = pto::Shape<1, kBlockCols, kSrcRows / 16, 16, kC0>;
     using SrcGmStride =
-        pto::Stride<kBlockCols *(kSrcRows / 16) * 16 * kC0, (kSrcRows / 16) * 16 * kC0, 16 * kC0, kC0, 1>;
+        pto::Stride<kBlockCols*(kSrcRows / 16) * 16 * kC0, (kSrcRows / 16) * 16 * kC0, 16 * kC0, kC0, 1>;
     using IdxShape = pto::Shape<1, 1, 1, kSrcRows, kSrcCols>;
     using IdxStride = pto::Stride<1, 1, 1, kSrcCols, 1>;
     using TableShape = pto::Shape<1, kBlockCols, kBlockRows, 16, kC0>;
@@ -386,96 +394,98 @@ inline AICORE void runElem2DNz(__gm__ T *out, __gm__ T *src, __gm__ TIdx *indice
     FlushScatterOutput();
 }
 
-#define DEFINE_ROW(NAME, THOST, T, TIDX, R, C, TR, ATOMIC, OOB)                                                      \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runRow<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, R, C, TR>(out, src, indices);            \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ROW(NAME, THOST, T, TIDX, R, C, TR, ATOMIC, OOB)                                                    \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runRow<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, R, C, TR>(out, src, indices);          \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
-#define DEFINE_ROW_PAD(NAME, THOST, T, TIDX, VR, VC, PR, PC, PIC, TR, ATOMIC, OOB)                                   \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runRowPadded<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, VR, VC, PR, PC, PIC, TR>(out, src, \
-                                                                                                           indices); \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ROW_PAD(NAME, THOST, T, TIDX, VR, VC, PR, PC, PIC, TR, ATOMIC, OOB)                                 \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runRowPadded<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, VR, VC, PR, PC, PIC, TR>(        \
+            out, src, indices);                                                                                    \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
-#define DEFINE_ELEM_ATOMIC(NAME, THOST, T, TIDX, N, TS, ATOMIC, OOB)                                                 \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runElem<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, N, TS>(out, src, indices);              \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ELEM_ATOMIC(NAME, THOST, T, TIDX, N, TS, ATOMIC, OOB)                                               \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runElem<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, N, TS>(out, src, indices);            \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
 #define DEFINE_ELEM(NAME, THOST, T, TIDX, N, TS, OOB) DEFINE_ELEM_ATOMIC(NAME, THOST, T, TIDX, N, TS, None, OOB)
 
-#define DEFINE_ELEM2D_ATOMIC(NAME, THOST, T, TIDX, R, C, TS, ATOMIC, OOB)                                            \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runElem2D<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, R, C, TS>(out, src, indices);         \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ELEM2D_ATOMIC(NAME, THOST, T, TIDX, R, C, TS, ATOMIC, OOB)                                          \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runElem2D<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, R, C, TS>(out, src, indices);       \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
 #define DEFINE_ELEM2D(NAME, THOST, T, TIDX, R, C, TS, OOB) \
     DEFINE_ELEM2D_ATOMIC(NAME, THOST, T, TIDX, R, C, TS, None, OOB)
 
-#define DEFINE_ELEM2D_PAD_ATOMIC(NAME, THOST, T, TIDX, VR, VC, PR, PC, TS, ATOMIC, OOB)                              \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runElem2DPadded<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, VR, VC, PR, PC, TS>(out, src,   \
-                                                                                                         indices);   \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ELEM2D_PAD_ATOMIC(NAME, THOST, T, TIDX, VR, VC, PR, PC, TS, ATOMIC, OOB)                            \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runElem2DPadded<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, VR, VC, PR, PC, TS>(          \
+            out, src, indices);                                                                                    \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
 #define DEFINE_ELEM2D_PAD(NAME, THOST, T, TIDX, VR, VC, PR, PC, TS, OOB) \
     DEFINE_ELEM2D_PAD_ATOMIC(NAME, THOST, T, TIDX, VR, VC, PR, PC, TS, None, OOB)
 
-#define DEFINE_ELEM_SCALAR(NAME, THOST, T, TIDX, PC, TS, OOB)                                                        \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runElemScalar<pto::ScatterAtomicOp::None, pto::ScatterOOB::OOB, T, TIDX, PC, TS>(out, src, indices);         \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ELEM_SCALAR(NAME, THOST, T, TIDX, PC, TS, OOB)                                                      \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runElemScalar<pto::ScatterAtomicOp::None, pto::ScatterOOB::OOB, T, TIDX, PC, TS>(out, src, indices);       \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
-#define DEFINE_ELEM2D_DYN(NAME, THOST, T, TIDX, PR, PC, RVR, RVC, RTS, OOB)                                          \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runElem2DDyn<pto::ScatterAtomicOp::None, pto::ScatterOOB::OOB, T, TIDX, PR, PC, (int64_t)RVR, (int64_t)RVC,  \
-                     (int64_t)RTS>(out, src, indices);                                                               \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ELEM2D_DYN(NAME, THOST, T, TIDX, PR, PC, RVR, RVC, RTS, OOB)                                        \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runElem2DDyn<                                                                                              \
+            pto::ScatterAtomicOp::None, pto::ScatterOOB::OOB, T, TIDX, PR, PC, (int64_t)RVR, (int64_t)RVC,         \
+            (int64_t)RTS>(out, src, indices);                                                                      \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
-#define DEFINE_ROW_DYN(NAME, THOST, T, TIDX, PR, PC, PIC, RVR, RVC, RTR, ATOMIC, OOB)                                \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runRowDyn<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, PR, PC, PIC, (int64_t)RVR,            \
-                  (int64_t)RVC, (int64_t)RTR>(out, src, indices);                                                    \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ROW_DYN(NAME, THOST, T, TIDX, PR, PC, PIC, RVR, RVC, RTR, ATOMIC, OOB)                              \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)       \
+    {                                                                                                              \
+        runRowDyn<                                                                                                 \
+            pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, PR, PC, PIC, (int64_t)RVR, (int64_t)RVC,  \
+            (int64_t)RTR>(out, src, indices);                                                                      \
+    }                                                                                                              \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                        \
+    {                                                                                                              \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices); \
     }
 
 DEFINE_ROW(row_float_8x32_64rows, float, float, int32_t, 8, 32, 64, None, Undefined)
@@ -554,24 +564,24 @@ DEFINE_ELEM2D_DYN(elem2d_dyn_int32_3x3_in_3x8_64size, int32_t, int32_t, int32_t,
 DEFINE_ROW_DYN(row_dyn_int32_3x16_8rows, int32_t, int32_t, int32_t, 3, 16, 8, 3, 16, 8, None, Undefined)
 DEFINE_ROW_DYN(row_dyn_half_4x32_16rows, aclFloat16, half, int32_t, 4, 32, 8, 4, 32, 16, None, Undefined)
 
-#define DEFINE_ROW_NZ(NAME, THOST, T, TIDX, R, C, BR, BC, C0, ATOMIC, OOB)                                           \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)         \
-    {                                                                                                                \
-        runRowNz<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, R, C, BR, BC, C0>(out, src, indices);  \
-    }                                                                                                                \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                          \
-    {                                                                                                                \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices); \
+#define DEFINE_ROW_NZ(NAME, THOST, T, TIDX, R, C, BR, BC, C0, ATOMIC, OOB)                                          \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)        \
+    {                                                                                                               \
+        runRowNz<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, R, C, BR, BC, C0>(out, src, indices); \
+    }                                                                                                               \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                         \
+    {                                                                                                               \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices);  \
     }
 
 #define DEFINE_ELEM2D_NZ(NAME, THOST, T, TIDX, R, C, BR, BC, C0, ATOMIC, OOB)                                          \
-    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T *out, __gm__ T *src, __gm__ TIDX *indices)           \
+    extern "C" __global__ AICORE void runMSCATTER_##NAME(__gm__ T* out, __gm__ T* src, __gm__ TIDX* indices)           \
     {                                                                                                                  \
         runElem2DNz<pto::ScatterAtomicOp::ATOMIC, pto::ScatterOOB::OOB, T, TIDX, R, C, BR, BC, C0>(out, src, indices); \
     }                                                                                                                  \
-    void Launch_##NAME(THOST *out, THOST *src, TIDX *indices, void *stream)                                            \
+    void Launch_##NAME(THOST* out, THOST* src, TIDX* indices, void* stream)                                            \
     {                                                                                                                  \
-        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T *>(out), reinterpret_cast<T *>(src), indices);   \
+        runMSCATTER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(src), indices);     \
     }
 
 DEFINE_ROW_NZ(row_nz_float_16x16_2blk, float, float, int32_t, 16, 16, 2, 2, 8, None, Undefined)

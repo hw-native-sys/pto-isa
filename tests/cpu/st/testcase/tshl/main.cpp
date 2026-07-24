@@ -9,26 +9,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
-#include "pto/pto-inst.hpp"
+#include <pto/pto-inst.hpp>
+#include <pto/common/constants.hpp>
 #include <gtest/gtest.h>
 
 using namespace std;
+using namespace pto;
 using namespace PtoTestCommon;
 
 template <int32_t tilingKey>
-void launchTSHL_demo(uint8_t *out, uint8_t *src, void *stream);
+void launchTSHL_demo(uint8_t* out, uint8_t* src, void* stream);
 
 class TSHLTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -36,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTSHL(T *out, T *src0, T *src1, void *stream);
+void LaunchTSHL(T* out, T* src0, T* src1, void* stream);
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void test_tshl()
@@ -50,13 +50,13 @@ void test_tshl()
     T *dstHost, *src0Host, *src1Host;
     T *dstDevice, *src0Device, *src1Device;
 
-    aclrtMallocHost((void **)(&dstHost), fileSize);
-    aclrtMallocHost((void **)(&src0Host), fileSize);
-    aclrtMallocHost((void **)(&src1Host), fileSize);
+    aclrtMallocHost((void**)(&dstHost), fileSize);
+    aclrtMallocHost((void**)(&src0Host), fileSize);
+    aclrtMallocHost((void**)(&src1Host), fileSize);
 
-    aclrtMalloc((void **)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Host, fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Host, fileSize));
@@ -90,14 +90,6 @@ void test_tshl()
 
     EXPECT_TRUE(ret);
 }
-const int NUM_16 = 16;
-const int NUM_64 = 64;
-const int NUM_256 = 256;
-TEST_F(TSHLTest, case_int16_64x64_64x64_64x64)
-{
-    test_tshl<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>();
-}
-TEST_F(TSHLTest, case_int32_16x256_16x256_16x256)
-{
-    test_tshl<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>();
-}
+
+TEST_F(TSHLTest, case_int16_64x64_64x64_64x64) { test_tshl<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSHLTest, case_int32_16x256_16x256_16x256) { test_tshl<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }

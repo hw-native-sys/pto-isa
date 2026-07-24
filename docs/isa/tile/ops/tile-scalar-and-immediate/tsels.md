@@ -1,14 +1,14 @@
-# pto.tsels
+# TSELS
 
-`pto.tsels` is part of the [Tile Scalar And Immediate](../../tile-scalar-and-immediate.md) instruction set.
+## Tile Operation Diagram
 
-## Summary
+![TSELS tile operation](../../../../figures/isa/TSELS.svg)
 
-Select one of two source tiles using a scalar `selectMode` (global select).
+## Introduction
 
-## Mechanism
+Select between source tile and scalar using a mask tile (per-element selection for source tile).
 
-Select between source tile and scalar using a mask tile (per-element selection for source tile). It operates on tile payloads rather than scalar control state, and its legality is constrained by tile shape, layout, valid-region, and target-profile support.
+## Math Interpretation
 
 For each element `(i, j)` in the valid region:
 
@@ -20,9 +20,7 @@ $$
 \end{cases}
 $$
 
-## Syntax
-
-Textual spelling is defined by the PTO ISA syntax-and-operands pages.
+## Assembly Syntax
 
 Synchronous form:
 
@@ -41,19 +39,6 @@ Synchronous form:
 ```text
 pto.tsels ins(%mask, %src, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-
-### IR Level 1 (SSA)
-
-```text
-%dst = pto.tsels %src0, %src1, %scalar : (!pto.tile<...>, !pto.tile<...>, dtype) -> !pto.tile<...>
-```
-
-### IR Level 2 (DPS)
-
-```text
-pto.tsels ins(%src0, %src1, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
-```
-
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -63,54 +48,37 @@ template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, typ
 PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &src, TileDataTmp &tmp, typename TileDataSrc::DType scalar, WaitEvents &... events);
 ```
 
-## Inputs
-
-- `mask` is the predicate mask tile; lane `(i,j)` selects from `src` if true, otherwise from `scalar`.
-- `src` is the source tile.
-- `scalar` is the scalar fallback value broadcast to all lanes.
-- `tmp` is a required temporary working tile for predicate unpacking.
-- `dst` names the destination tile.
-- The operation iterates over `dst`'s valid region.
-
-## Expected Outputs
-
-`dst` carries the result tile or updated tile payload produced by the operation.
-
-## Side Effects
-
-No architectural side effects beyond producing the destination tile. Does not implicitly fence unrelated traffic.
-
 ## Constraints
 
-!!! warning "Constraints"
-    - **Valid region**:
-        - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+- **Implementation checks (A2A3)**:
+    - `sizeof(TileDataDst::DType)` must be `2` or `4` bytes.
+    - Supported data types are `half`, `float16_t`, `float`, and `float32_t`.
+    - `dst` and `src` must use the same element type.
+    - `dst` and `src` must be row-major.
+    - Runtime: `src.GetValidRow()/GetValidCol()` must match `dst.GetValidRow()/GetValidCol()`.
+- **Implementation checks (A5)**:
+    - `sizeof(TileDataDst::DType)` may be `1`, `2`, or `4` bytes.
+    - Supported data types are `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, and `float`.
+    - `dst` and `src` must use the same element type.
+    - `dst`, `mask`, and `src` must be row-major.
+    - Runtime: `src.GetValidRow()/GetValidCol()` must match `dst.GetValidRow()/GetValidCol()`.
+- **Valid region**:
+    - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
+- **Mask encoding**:
+    - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
-    - **Mask encoding**:
-        - The mask tile is interpreted as packed predicate bits in a target-defined layout.
+## Temporary Space
 
-## Exceptions
+### A2A3
 
-!!! danger "Exceptions"
-    - Illegal operand tuples, unsupported types, invalid layout combinations, or unsupported target-profile modes are rejected by the verifier or by the selected backend instruction set.
-    - Programs must not rely on behavior outside the documented legal domain of this operation, even if one backend currently accepts it.
+`tmp` **is used** as a small buffer to store the scalar value for the `set_cmpmask` operation and to hold the comparison mask. The scalar is written to `tmp[0]` before the select loop.
 
-## Target-Profile Restrictions
+- `tmp` element type must match `TileDataSrc::DType`.
+- `tmp` size requirement: at least 1 element (to hold the scalar). A typical declaration: `Tile<TileType::Vec, float, 1, 16>` or similar.
 
-??? info "Target-Profile Restrictions"
-    - **Implementation checks (A2A3)**:
-        - `sizeof(TileDataDst::DType)` must be `2` or `4` bytes.
-        - Supported data types are `half`, `float16_t`, `float`, and `float32_t`.
-        - `dst` and `src` must use the same element type.
-        - `dst` and `src` must be row-major.
-        - Runtime: `src.GetValidRow()/GetValidCol()` must match `dst.GetValidRow()/GetValidCol()`.
+### A5
 
-    - **Implementation checks (A5)**:
-        - `sizeof(TileDataDst::DType)` may be `1`, `2`, or `4` bytes.
-        - Supported data types are `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, and `float`.
-        - `dst` and `src` must use the same element type.
-        - `dst`, `mask`, and `src` must be row-major.
-        - Runtime: `src.GetValidRow()/GetValidCol()` must match `dst.GetValidRow()/GetValidCol()`.
+`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses `vdup` to broadcast the scalar into a vector register and `vsel` for selection, requiring no scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 ## Examples
 
@@ -160,6 +128,8 @@ void example_manual() {
 }
 ```
 
+## ASM Form Examples
+
 ### Auto Mode
 
 ```text
@@ -170,7 +140,7 @@ void example_manual() {
 ### Manual Mode
 
 ```text
-# Manual mode: bind resources explicitly before issuing the instruction.
+# Manual mode: resources must be bound explicitly before issuing the instruction.
 # Optional for tile operands:
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
@@ -184,9 +154,3 @@ void example_manual() {
 # AS Level 2 (DPS)
 pto.tsels ins(%mask, %src, %scalar : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
-
-## Related Ops / Instruction Set Links
-
-- Instruction set overview: [Tile Scalar And Immediate](../../tile-scalar-and-immediate.md)
-- Previous op in instruction set: [pto.tcmps](./tcmps.md)
-- Next op in instruction set: [pto.tmins](./tmins.md)

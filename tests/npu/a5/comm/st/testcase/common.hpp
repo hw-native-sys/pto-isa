@@ -55,16 +55,16 @@ static inline double DbgNowMs()
 // Runtime APIs — lower-level device/stream management (from libruntime.so).
 // PyPTO uses rtSetDevice on rank 0 and rtStreamCreate for streams.
 using rtError_t = int32_t;
-using rtStream_t = void *;
+using rtStream_t = void*;
 static constexpr int32_t RT_STREAM_PRIORITY_DEFAULT = 0;
 extern "C" rtError_t rtSetDevice(int32_t device);
-extern "C" rtError_t rtStreamCreate(rtStream_t *stream, int32_t priority);
+extern "C" rtError_t rtStreamCreate(rtStream_t* stream, int32_t priority);
 extern "C" rtError_t rtStreamDestroy(rtStream_t stream);
 
 // Internal HCCL APIs — declared here instead of including hcom.h because
 // hcom.h uses internal types (s32 etc.) unavailable under bisheng -xcce.
-extern "C" HcclResult HcclAllocComResourceByTiling(HcclComm comm, void *stream, void *mc2Tiling, void **commContext);
-extern "C" HcclResult HcomGetCommHandleByGroup(const char *group, HcclComm *commHandle);
+extern "C" HcclResult HcclAllocComResourceByTiling(HcclComm comm, void* stream, void* mc2Tiling, void** commContext);
+extern "C" HcclResult HcomGetCommHandleByGroup(const char* group, HcclComm* commHandle);
 
 #ifndef HCCL_RANK_GRAPH_H
 using CommTopo = uint32_t;
@@ -72,7 +72,7 @@ static constexpr uint32_t COMM_TOPO_MESH = 0b1u;
 #else
 static constexpr CommTopo COMM_TOPO_MESH = COMM_TOPO_1DMESH;
 #endif
-extern "C" HcclResult HcomGetL0TopoTypeEx(const char *group, CommTopo *topoType, uint32_t isSetDevice);
+extern "C" HcclResult HcomGetL0TopoTypeEx(const char* group, CommTopo* topoType, uint32_t isSetDevice);
 static constexpr uint32_t COMM_IS_NOT_SET_DEVICE = 0;
 
 // V2 tiling structures matching PyPTO's hccl_context.h definitions.
@@ -120,11 +120,11 @@ struct Mc2CommConfigV2 {
 // Device-side helper: convert a local window pointer to the equivalent address on a remote rank.
 // ============================================================================
 template <typename T>
-AICORE inline __gm__ T *CommRemotePtr(__gm__ CommDeviceContext *ctx, __gm__ T *localPtr, int pe)
+AICORE inline __gm__ T* CommRemotePtr(__gm__ CommDeviceContext* ctx, __gm__ T* localPtr, int pe)
 {
     uint64_t localBase = ctx->windowsIn[ctx->rankId];
     uint64_t offset = (uint64_t)localPtr - localBase;
-    return (__gm__ T *)(ctx->windowsIn[pe] + offset);
+    return (__gm__ T*)(ctx->windowsIn[pe] + offset);
 }
 
 // ============================================================================
@@ -139,9 +139,9 @@ inline void HcclHostBarrier(HcclComm comm, aclrtStream stream)
     COMM_DBG("  HcclHostBarrier: stream sync done (acl=" << (int)aret << ")");
 }
 
-inline void *WindowAlloc(uint64_t windowBase, size_t &offset, size_t bytes)
+inline void* WindowAlloc(uint64_t windowBase, size_t& offset, size_t bytes)
 {
-    void *ptr = reinterpret_cast<void *>(windowBase + offset);
+    void* ptr = reinterpret_cast<void*>(windowBase + offset);
     offset += bytes;
     return ptr;
 }
@@ -155,10 +155,10 @@ struct TestContext {
     int aclStatus{0};
     HcclComm comm{nullptr};
 
-    CommDeviceContext *deviceCtx{nullptr};
+    CommDeviceContext* deviceCtx{nullptr};
     CommDeviceContext hostCtx{};
 
-    bool Init(int rankId, int nRanks, int nDevices, int firstDeviceId, const HcclRootInfo *rootInfo)
+    bool Init(int rankId, int nRanks, int nDevices, int firstDeviceId, const HcclRootInfo* rootInfo)
     {
         if (nDevices <= 0 || nRanks <= 0) {
             std::cerr << "[ERROR] n_devices and n_ranks must be > 0\n";
@@ -193,8 +193,9 @@ struct TestContext {
 
         CommTopo topoRet = static_cast<CommTopo>(0);
         hret = HcomGetL0TopoTypeEx(group, &topoRet, COMM_IS_NOT_SET_DEVICE);
-        COMM_LOG("[INIT] Rank " << rankId << ": HcomGetL0TopoTypeEx -> " << (int)hret << " topo=" << topoRet
-                                << (topoRet == COMM_TOPO_MESH ? " (MESH)" : " (RING/other)"));
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": HcomGetL0TopoTypeEx -> " << (int)hret << " topo=" << topoRet
+                           << (topoRet == COMM_TOPO_MESH ? " (MESH)" : " (RING/other)"));
         if (hret != HCCL_SUCCESS) {
             std::cerr << "[ERROR] HcomGetL0TopoTypeEx failed: " << hret << std::endl;
             return false;
@@ -230,20 +231,22 @@ struct TestContext {
         strncpy(tiling.inner.groupName, group, GROUP_NAME_SIZE - 1);
         strncpy(tiling.inner.algConfig, "BatchWrite=level0:fullmesh", ALG_CONFIG_SIZE - 1);
 
-        COMM_LOG("[INIT] Rank " << rankId << ": tiling V2: init.version=100, inner.opType=18"
-                                << ", inner.commEngine=3, sizeof(Mc2CommConfigV2)=" << sizeof(Mc2CommConfigV2));
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": tiling V2: init.version=100, inner.opType=18"
+                           << ", inner.commEngine=3, sizeof(Mc2CommConfigV2)=" << sizeof(Mc2CommConfigV2));
 
-        void *ctxPtr = nullptr;
+        void* ctxPtr = nullptr;
         COMM_LOG("[INIT] Rank " << rankId << ": HcclAllocComResourceByTiling (V2 tiling, topo=" << topoRet << ") ...");
         hret = HcclAllocComResourceByTiling(commHandle, stream, &tiling, &ctxPtr);
-        COMM_LOG("[INIT] Rank " << rankId << ": HcclAllocComResourceByTiling -> " << static_cast<int>(hret)
-                                << " ctxPtr=" << ctxPtr);
+        COMM_LOG(
+            "[INIT] Rank " << rankId << ": HcclAllocComResourceByTiling -> " << static_cast<int>(hret)
+                           << " ctxPtr=" << ctxPtr);
         if (hret != HCCL_SUCCESS || ctxPtr == nullptr) {
             std::cerr << "[ERROR] HcclAllocComResourceByTiling failed: " << hret << std::endl;
             return false;
         }
 
-        deviceCtx = reinterpret_cast<CommDeviceContext *>(ctxPtr);
+        deviceCtx = reinterpret_cast<CommDeviceContext*>(ctxPtr);
         aclError aRet = aclrtMemcpy(&hostCtx, sizeof(hostCtx), deviceCtx, sizeof(hostCtx), ACL_MEMCPY_DEVICE_TO_HOST);
         COMM_LOG("[INIT] Rank " << rankId << ": aclrtMemcpy(deviceCtx->hostCtx) -> " << static_cast<int>(aRet));
         if (aRet != ACL_SUCCESS) {
@@ -251,11 +254,13 @@ struct TestContext {
             return false;
         }
 
-        COMM_LOG("[INFO] Rank " << rankId << " hccl init OK" << " rankId=" << hostCtx.rankId
-                                << " rankNum=" << hostCtx.rankNum << " winSize=" << hostCtx.winSize);
+        COMM_LOG(
+            "[INFO] Rank " << rankId << " hccl init OK" << " rankId=" << hostCtx.rankId
+                           << " rankNum=" << hostCtx.rankNum << " winSize=" << hostCtx.winSize);
         for (uint32_t i = 0; i < hostCtx.rankNum && i < HCCL_MAX_RANK_NUM; ++i) {
-            COMM_LOG("[INFO] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << hostCtx.windowsIn[i]
-                                    << " windowsOut[" << i << "]=0x" << hostCtx.windowsOut[i] << std::dec);
+            COMM_LOG(
+                "[INFO] Rank " << rankId << ": windowsIn[" << i << "]=0x" << std::hex << hostCtx.windowsIn[i]
+                               << " windowsOut[" << i << "]=0x" << hostCtx.windowsOut[i] << std::dec);
         }
         return true;
     }
@@ -306,7 +311,7 @@ inline int GetAvailableDeviceCount()
 // MPI_Barrier ensures all ranks are synchronized before HCCL operations.
 // ============================================================================
 template <typename Func>
-inline bool ForkAndRunWithHcclRootInfo(int nRanks, int firstRankId, int firstDeviceId, Func &&perRankFn)
+inline bool ForkAndRunWithHcclRootInfo(int nRanks, int firstRankId, int firstDeviceId, Func&& perRankFn)
 {
     int mpiRank = CommMpiRank();
     int mpiSize = CommMpiSize();
@@ -389,7 +394,7 @@ struct UrmaTestContext {
     int rootRank{0};
     rtStream_t stream{nullptr};
     HcclComm comm{nullptr};
-    void *devBuf{nullptr};
+    void* devBuf{nullptr};
     size_t allocSize{0};
     UrmaWorkspaceManager urmaMgr;
 
@@ -493,8 +498,8 @@ struct UrmaTestContext {
 // ============================================================================
 using UrmaKernelFn = bool (*)(int, int, int, int, int, int);
 
-inline bool RunUrmaTestMpiLaunch(int n_ranks, int n_devices, int first_rank_id, int first_device_id,
-                                 UrmaKernelFn kernelFn)
+inline bool RunUrmaTestMpiLaunch(
+    int n_ranks, int n_devices, int first_rank_id, int first_device_id, UrmaKernelFn kernelFn)
 {
     int mpiRank = CommMpiRank();
     int mpiSize = CommMpiSize();

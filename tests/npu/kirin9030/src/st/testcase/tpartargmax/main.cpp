@@ -14,29 +14,29 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR,
-          int dstTC, int src0TR, int src0TC, int src1TR, int src1TC, bool isHalf>
-void LaunchTPartArgMax(T *outVal, T *src0Val, T *src1Val, U *outIdx, U *src0Idx, U *src1Idx, void *stream);
+template <
+    typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR, int dstTC,
+    int src0TR, int src0TC, int src1TR, int src1TC, bool isHalf>
+void LaunchTPartArgMax(T* outVal, T* src0Val, T* src1Val, U* outIdx, U* src0Idx, U* src1Idx, void* stream);
 
 class TPARTARGMAXTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
     return fullPath;
 }
 
-template <typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR,
-          int dstTC, int src0TR, int src0TC, int src1TR, int src1TC, bool isHalf = false>
+template <
+    typename T, typename U, int dstVR, int dstVC, int src0VR, int src0VC, int src1VR, int src1VC, int dstTR, int dstTC,
+    int src0TR, int src0TC, int src1TR, int src1TC, bool isHalf = false>
 void test_tpartargmax()
 {
     size_t src0ValFileSize = src0TR * src0TC * sizeof(T);
@@ -56,19 +56,19 @@ void test_tpartargmax()
     U *dstIdxHost, *src0IdxHost, *src1IdxHost;
     U *dstIdxDevice, *src0IdxDevice, *src1IdxDevice;
 
-    aclrtMallocHost((void **)(&dstHost), dstValFileSize);
-    aclrtMallocHost((void **)(&src0Host), src0ValFileSize);
-    aclrtMallocHost((void **)(&src1Host), src1ValFileSize);
-    aclrtMallocHost((void **)(&dstIdxHost), dstIdxFileSize);
-    aclrtMallocHost((void **)(&src0IdxHost), src0IdxFileSize);
-    aclrtMallocHost((void **)(&src1IdxHost), src1IdxFileSize);
+    aclrtMallocHost((void**)(&dstHost), dstValFileSize);
+    aclrtMallocHost((void**)(&src0Host), src0ValFileSize);
+    aclrtMallocHost((void**)(&src1Host), src1ValFileSize);
+    aclrtMallocHost((void**)(&dstIdxHost), dstIdxFileSize);
+    aclrtMallocHost((void**)(&src0IdxHost), src0IdxFileSize);
+    aclrtMallocHost((void**)(&src1IdxHost), src1IdxFileSize);
 
-    aclrtMalloc((void **)&dstDevice, dstValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0Device, src0ValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1Device, src1ValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&dstIdxDevice, dstIdxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src0IdxDevice, src0IdxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&src1IdxDevice, src1IdxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, src0ValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, src1ValFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstIdxDevice, dstIdxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0IdxDevice, src0IdxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1IdxDevice, src1IdxFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
     ReadFile(GetGoldenDir() + "/input0_val.bin", src0ValFileSize, src0Host, src0ValFileSize);
     ReadFile(GetGoldenDir() + "/input1_val.bin", src1ValFileSize, src1Host, src1ValFileSize);
@@ -84,8 +84,9 @@ void test_tpartargmax()
     aclrtMemcpy(src0IdxDevice, src0IdxFileSize, src0IdxHost, src0IdxFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1IdxDevice, src1IdxFileSize, src1IdxHost, src1IdxFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTPartArgMax<T, U, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC, dstTR, dstTC, src0TR, src0TC, src1TR, src1TC,
-                      isHalf>(dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice, src1IdxDevice, stream);
+    LaunchTPartArgMax<
+        T, U, dstVR, dstVC, src0VR, src0VC, src1VR, src1VC, dstTR, dstTC, src0TR, src0TC, src1TR, src1TC, isHalf>(
+        dstDevice, src0Device, src1Device, dstIdxDevice, src0IdxDevice, src1IdxDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstValFileSize, dstDevice, dstValFileSize, ACL_MEMCPY_DEVICE_TO_HOST);

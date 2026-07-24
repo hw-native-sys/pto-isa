@@ -15,9 +15,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
-          int dst_validCol>
-__global__ AICORE void runTCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src)
+template <
+    typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
+    int dst_validCol>
+__global__ AICORE void runTCOLEXPAND(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
     using DynDim2Stride = pto::Stride<1, 1, -1, -1, 1>;
@@ -55,9 +56,10 @@ __global__ AICORE void runTCOLEXPAND(__gm__ T __out__ *out, __gm__ T __in__ *src
     out = dstGlobal.data();
 }
 
-template <typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
-          int dst_validCol>
-void launchTCOLEXPAND(T *out, T *src, void *stream)
+template <
+    typename T, int src_row, int src_col, int src_validCol, int dst_row, int dst_col, int dst_validRow,
+    int dst_validCol>
+void launchTCOLEXPAND(T* out, T* src, void* stream)
 {
     cout << "launchTCOLEXPAND start!" << endl;
 
@@ -67,15 +69,15 @@ void launchTCOLEXPAND(T *out, T *src, void *stream)
     cout << "launchTCOLEXPAND end!" << endl;
 }
 
-template void launchTCOLEXPAND<int16_t, 32, 32, 8, 32, 32, 16, 8>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLEXPAND<int32_t, 16, 16, 8, 24, 16, 16, 8>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLEXPAND<float, 16, 16, 8, 24, 16, 16, 8>(float *out, float *src, void *stream);
-template void launchTCOLEXPAND<int16_t, 8, 128, 127, 16, 128, 8, 127>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLEXPAND<int32_t, 3, 64, 63, 16, 64, 15, 63>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLEXPAND<float, 3, 64, 63, 16, 64, 15, 63>(float *out, float *src, void *stream);
-template void launchTCOLEXPAND<int16_t, 16, 256, 256, 12, 256, 6, 256>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLEXPAND<int32_t, 4, 256, 256, 16, 256, 15, 256>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLEXPAND<float, 6, 64, 64, 16, 64, 15, 64>(float *out, float *src, void *stream);
-template void launchTCOLEXPAND<int16_t, 16, 256, 255, 16, 256, 7, 255>(int16_t *out, int16_t *src, void *stream);
-template void launchTCOLEXPAND<int32_t, 8, 256, 255, 32, 256, 31, 255>(int32_t *out, int32_t *src, void *stream);
-template void launchTCOLEXPAND<float, 1, 64, 63, 1, 64, 1, 63>(float *out, float *src, void *stream);
+template void launchTCOLEXPAND<int16_t, 32, 32, 8, 32, 32, 16, 8>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLEXPAND<int32_t, 16, 16, 8, 24, 16, 16, 8>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLEXPAND<float, 16, 16, 8, 24, 16, 16, 8>(float* out, float* src, void* stream);
+template void launchTCOLEXPAND<int16_t, 8, 128, 127, 16, 128, 8, 127>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLEXPAND<int32_t, 3, 64, 63, 16, 64, 15, 63>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLEXPAND<float, 3, 64, 63, 16, 64, 15, 63>(float* out, float* src, void* stream);
+template void launchTCOLEXPAND<int16_t, 16, 256, 256, 12, 256, 6, 256>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLEXPAND<int32_t, 4, 256, 256, 16, 256, 15, 256>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLEXPAND<float, 6, 64, 64, 16, 64, 15, 64>(float* out, float* src, void* stream);
+template void launchTCOLEXPAND<int16_t, 16, 256, 255, 16, 256, 7, 255>(int16_t* out, int16_t* src, void* stream);
+template void launchTCOLEXPAND<int32_t, 8, 256, 255, 32, 256, 31, 255>(int32_t* out, int32_t* src, void* stream);
+template void launchTCOLEXPAND<float, 1, 64, 63, 1, 64, 1, 63>(float* out, float* src, void* stream);

@@ -19,19 +19,19 @@ namespace pto {
 
 template <typename T>
 struct ColExpandAddOp {
-    PTO_INTERNAL static void ColExpandBinInstr(__ubuf__ T *dst, __ubuf__ T *src0, __ubuf__ T *src1, uint8_t repeats)
+    PTO_INTERNAL static void ColExpandBinInstr(__ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint8_t repeats)
     {
         vadd(dst, src0, src1, repeats, 1, 1, 1, 8, 8, 8);
     }
-    PTO_INTERNAL static void ColExpandBinInstr(__ubuf__ T *dst, __ubuf__ T *src0, __ubuf__ T *src1, uint8_t repeats,
-                                               uint8_t dstRepeatStride, uint8_t src0RepeatStride,
-                                               uint8_t src1RepeatStride)
+    PTO_INTERNAL static void ColExpandBinInstr(
+        __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint8_t repeats, uint8_t dstRepeatStride,
+        uint8_t src0RepeatStride, uint8_t src1RepeatStride)
     {
         vadd(dst, src0, src1, repeats, 1, 1, 1, dstRepeatStride, src0RepeatStride, 0);
     }
 };
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TCOLEXPANDADD_IMPL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1)
+PTO_INTERNAL void TCOLEXPANDADD_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
     TCOLEXPANDOP_IMPL<ColExpandAddOp<T>, ColExpandAddOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);

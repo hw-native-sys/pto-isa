@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-__global__ AICORE void runTNeg(__gm__ T __out__ *out, __gm__ T __in__ *src)
+__global__ AICORE void runTNeg(__gm__ T __out__* out, __gm__ T __in__* src)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kGRows_, kGCols_>;
     using DynStridDim5 = pto::Stride<1, 1, 1, kGCols_, 1>;
@@ -44,15 +44,15 @@ __global__ AICORE void runTNeg(__gm__ T __out__ *out, __gm__ T __in__ *src)
 }
 
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void LaunchTNeg(T *out, T *src, void *stream)
+void LaunchTNeg(T* out, T* src, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>)
-        runTNeg<half, kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>((half *)(out), (half *)(src));
+        runTNeg<half, kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>((half*)(out), (half*)(src));
     else
         runTNeg<T, kGRows_, kGCols_, kTRows_, kTCols_><<<1, nullptr, stream>>>(out, src);
 }
 
-template void LaunchTNeg<float, 64, 64, 64, 64>(float *out, float *src, void *stream);
-template void LaunchTNeg<int32_t, 32, 32, 32, 32>(int32_t *out, int32_t *src, void *stream);
-template void LaunchTNeg<aclFloat16, 32, 64, 32, 64>(aclFloat16 *out, aclFloat16 *src, void *stream);
-template void LaunchTNeg<int16_t, 64, 16, 64, 16>(int16_t *out, int16_t *src, void *stream);
+template void LaunchTNeg<float, 64, 64, 64, 64>(float* out, float* src, void* stream);
+template void LaunchTNeg<int32_t, 32, 32, 32, 32>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTNeg<aclFloat16, 32, 64, 32, 64>(aclFloat16* out, aclFloat16* src, void* stream);
+template void LaunchTNeg<int16_t, 64, 16, 64, 16>(int16_t* out, int16_t* src, void* stream);

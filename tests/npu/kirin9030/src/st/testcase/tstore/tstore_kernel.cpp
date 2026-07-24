@@ -19,13 +19,14 @@ AICORE constexpr uint32_t GetBlockSize()
     return 32 / sizeof(T);
 }
 } // namespace
-template <typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
-          int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
-AICORE inline void RunTStoreRowMajor(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1,
+    int gWholeShape2, int gWholeShape3, int gWholeShape4>
+AICORE inline void RunTStoreRowMajor(__gm__ T* out, __gm__ T* src)
 {
-    constexpr int gStride[5] = {gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4,
-                                gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, gWholeShape4,
-                                1};
+    constexpr int gStride[5] = {
+        gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape2 * gWholeShape3 * gWholeShape4,
+        gWholeShape3 * gWholeShape4, gWholeShape4, 1};
 
     constexpr int blockSize = GetBlockSize<T>();
     constexpr int validRow = gShape0 * gShape1 * gShape2 * gShape3;
@@ -53,13 +54,14 @@ AICORE inline void RunTStoreRowMajor(__gm__ T *out, __gm__ T *src)
     out = dstGlobal.data();
 }
 
-template <typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
-          int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
-AICORE inline void RunTStoreColMajor(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1,
+    int gWholeShape2, int gWholeShape3, int gWholeShape4>
+AICORE inline void RunTStoreColMajor(__gm__ T* out, __gm__ T* src)
 {
-    constexpr int gStride[5] = {gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4,
-                                gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, 1,
-                                gWholeShape3};
+    constexpr int gStride[5] = {
+        gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape2 * gWholeShape3 * gWholeShape4,
+        gWholeShape3 * gWholeShape4, 1, gWholeShape3};
 
     constexpr int blockSize = GetBlockSize<T>();
     constexpr int Row = (gShape3 + blockSize - 1) / blockSize * blockSize;
@@ -87,13 +89,14 @@ AICORE inline void RunTStoreColMajor(__gm__ T *out, __gm__ T *src)
     out = dstGlobal.data();
 }
 
-template <typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
-          int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
-AICORE inline void RunTStoreNZ(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0, int gWholeShape1,
+    int gWholeShape2, int gWholeShape3, int gWholeShape4>
+AICORE inline void RunTStoreNZ(__gm__ T* out, __gm__ T* src)
 {
-    constexpr int gStride[5] = {gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4,
-                                gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape3 * gWholeShape4, gWholeShape4,
-                                1};
+    constexpr int gStride[5] = {
+        gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape2 * gWholeShape3 * gWholeShape4,
+        gWholeShape3 * gWholeShape4, gWholeShape4, 1};
 
     constexpr int Row = gShape2 * gShape3;
     constexpr int Col = gShape0 * gShape1 * gShape4;
@@ -119,47 +122,75 @@ AICORE inline void RunTStoreNZ(__gm__ T *out, __gm__ T *src)
     out = dstGlobal.data();
 }
 
-template <typename T, pto::Layout format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4,
-          int gWholeShape0, int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
-__global__ AICORE void TStoreKernel(__gm__ T *out, __gm__ T *src)
+template <
+    typename T, pto::Layout format, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
+    int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
+__global__ AICORE void TStoreKernel(__gm__ T* out, __gm__ T* src)
 {
     if constexpr (format == pto::Layout::ND) {
-        RunTStoreRowMajor<T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
-                          gWholeShape3, gWholeShape4>(out, src);
+        RunTStoreRowMajor<
+            T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2, gWholeShape3,
+            gWholeShape4>(out, src);
     } else if constexpr (format == pto::Layout::DN) {
-        RunTStoreColMajor<T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
-                          gWholeShape3, gWholeShape4>(out, src);
+        RunTStoreColMajor<
+            T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2, gWholeShape3,
+            gWholeShape4>(out, src);
     } else if constexpr (format == pto::Layout::NZ) {
-        RunTStoreNZ<T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
-                    gWholeShape3, gWholeShape4>(out, src);
+        RunTStoreNZ<
+            T, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2, gWholeShape3,
+            gWholeShape4>(out, src);
     }
 }
 
-template <int format, typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
-          int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
-void LaunchTStore(T *out, T *src, void *stream)
+template <
+    int format, typename T, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
+    int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4>
+void LaunchTStore(T* out, T* src, void* stream)
 {
     if constexpr (format == 0) {
-        TStoreKernel<T, pto::Layout::ND, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1,
-                     gWholeShape2, gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
+        TStoreKernel<
+            T, pto::Layout::ND, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
+            gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (format == 1) {
-        TStoreKernel<T, pto::Layout::DN, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1,
-                     gWholeShape2, gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
+        TStoreKernel<
+            T, pto::Layout::DN, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
+            gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (format == 2) {
-        TStoreKernel<T, pto::Layout::NZ, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1,
-                     gWholeShape2, gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
+        TStoreKernel<
+            T, pto::Layout::NZ, gShape0, gShape1, gShape2, gShape3, gShape4, gWholeShape0, gWholeShape1, gWholeShape2,
+            gWholeShape3, gWholeShape4><<<1, nullptr, stream>>>(out, src);
     }
 }
 
-template void LaunchTStore<0, float, 2, 1, 1, 39, 47, 3, 2, 1, 43, 61>(float *out, float *src, void *stream);
-template void LaunchTStore<0, int16_t, 1, 2, 1, 23, 121, 3, 2, 2, 35, 125>(int16_t *out, int16_t *src, void *stream);
-template void LaunchTStore<0, int8_t, 2, 2, 3, 23, 47, 3, 3, 4, 32, 50>(int8_t *out, int8_t *src, void *stream);
-template void LaunchTStore<1, float, 1, 1, 1, 4, 21, 1, 1, 1, 8, 32>(float *out, float *src, void *stream);
-template void LaunchTStore<1, uint16_t, 3, 1, 1, 1, 124, 5, 1, 1, 2, 128>(uint16_t *out, uint16_t *src, void *stream);
-template void LaunchTStore<1, int8_t, 2, 3, 7, 47, 13, 2, 3, 7, 55, 29>(int8_t *out, int8_t *src, void *stream);
-template void LaunchTStore<2, float, 1, 1, 1, 16, 8, 1, 1, 2, 16, 8>(float *out, float *src, void *stream);
-template void LaunchTStore<2, int16_t, 2, 2, 2, 16, 16, 5, 3, 3, 16, 16>(int16_t *out, int16_t *src, void *stream);
-template void LaunchTStore<2, uint8_t, 1, 2, 1, 16, 32, 2, 4, 2, 16, 32>(uint8_t *out, uint8_t *src, void *stream);
-template void LaunchTStore<0, int64_t, 1, 1, 2, 16, 16, 2, 2, 2, 16, 16>(int64_t *out, int64_t *src, void *stream);
-template void LaunchTStore<1, uint64_t, 1, 1, 2, 16, 64, 2, 2, 2, 16, 64>(uint64_t *out, uint64_t *src, void *stream);
-template void LaunchTStore<0, int64_t, 1, 1, 2, 39, 47, 2, 2, 2, 43, 50>(int64_t *out, int64_t *src, void *stream);
+template void LaunchTStore<0, float, 2, 1, 1, 39, 47, 3, 2, 1, 43, 61>(float* out, float* src, void* stream);
+template void LaunchTStore<0, int16_t, 1, 2, 1, 23, 121, 3, 2, 2, 35, 128>(int16_t* out, int16_t* src, void* stream);
+template void LaunchTStore<0, int8_t, 2, 2, 3, 23, 47, 3, 3, 4, 32, 50>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTStore<1, float, 1, 1, 1, 4, 21, 1, 1, 1, 8, 32>(float* out, float* src, void* stream);
+template void LaunchTStore<1, uint16_t, 3, 1, 1, 1, 124, 5, 1, 1, 2, 128>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<1, int8_t, 2, 3, 7, 47, 13, 2, 3, 7, 55, 29>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTStore<2, float, 1, 1, 1, 16, 8, 1, 1, 2, 16, 8>(float* out, float* src, void* stream);
+template void LaunchTStore<2, int16_t, 2, 2, 2, 16, 16, 5, 3, 3, 16, 16>(int16_t* out, int16_t* src, void* stream);
+template void LaunchTStore<2, uint8_t, 1, 2, 1, 16, 32, 2, 4, 2, 16, 32>(uint8_t* out, uint8_t* src, void* stream);
+template void LaunchTStore<0, int64_t, 1, 1, 2, 16, 16, 2, 2, 2, 16, 16>(int64_t* out, int64_t* src, void* stream);
+template void LaunchTStore<1, uint64_t, 1, 1, 2, 16, 64, 2, 2, 2, 16, 64>(uint64_t* out, uint64_t* src, void* stream);
+template void LaunchTStore<0, int64_t, 1, 1, 2, 39, 47, 2, 2, 2, 43, 50>(int64_t* out, int64_t* src, void* stream);
+template void LaunchTStore<0, int32_t, 1, 1, 1, 8, 16, 1, 1, 1, 16, 16>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTStore<0, int16_t, 1, 2, 3, 16, 32, 2, 3, 4, 32, 32>(int16_t* out, int16_t* src, void* stream);
+template void LaunchTStore<0, int8_t, 2, 3, 1, 16, 32, 3, 4, 2, 32, 32>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTStore<0, uint32_t, 2, 1, 2, 8, 16, 3, 2, 3, 16, 16>(uint32_t* out, uint32_t* src, void* stream);
+template void LaunchTStore<0, int32_t, 3, 4, 1, 16, 8, 4, 5, 2, 32, 16>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 2, 1, 1, 16, 32, 3, 2, 2, 32, 32>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, int16_t, 1, 1, 1, 32, 16, 2, 2, 2, 32, 32>(int16_t* out, int16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 111, 88, 1, 1, 1, 112, 96>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 97, 65, 1, 1, 1, 112, 80>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 112, 88, 1, 1, 1, 112, 96>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 112, 65, 1, 1, 1, 112, 80>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 97, 97, 1, 1, 1, 112, 112>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 64, 65, 1, 1, 1, 64, 80>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 48, 65, 1, 1, 1, 48, 80>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 80, 49, 1, 1, 1, 80, 64>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 64, 81, 1, 1, 1, 64, 96>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 48, 97, 1, 1, 1, 48, 112>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 80, 83, 1, 1, 1, 80, 96>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 112, 73, 1, 1, 1, 112, 80>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTStore<0, uint16_t, 1, 1, 1, 80, 79, 1, 1, 1, 80, 80>(uint16_t* out, uint16_t* src, void* stream);

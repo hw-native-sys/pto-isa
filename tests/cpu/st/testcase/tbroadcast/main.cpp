@@ -18,15 +18,13 @@ using namespace PtoTestCommon;
 
 class TBroadCastTest : public testing::Test {
 protected:
-    void SetUp() override
-    {}
-    void TearDown() override
-    {}
+    void SetUp() override {}
+    void TearDown() override {}
 };
 
 std::string GetGoldenDir()
 {
-    const testing::TestInfo *testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    const testing::TestInfo* testInfo = testing::UnitTest::GetInstance()->current_test_info();
     const std::string caseName = testInfo->name();
     std::string suiteName = testInfo->test_suite_name();
     std::string fullPath = "../" + suiteName + "." + caseName;
@@ -34,7 +32,7 @@ std::string GetGoldenDir()
 }
 
 template <typename T, int D0, int D1, int D2, int D3, int D4, int KN>
-void LaunchTBroadcast(T *out, T *src, void *stream);
+void LaunchTBroadcast(T* out, T* src, void* stream);
 
 /**
  * @tparam T Data type (float, int32_t, etc.)
@@ -58,10 +56,10 @@ void test_tbroadcast_5d()
     T *dstHost, *srcHost;
     T *dstDevice, *srcDevice;
 
-    aclrtMallocHost((void **)(&dstHost), tileBytesDst);
-    aclrtMallocHost((void **)(&srcHost), tileBytesSrc);
-    aclrtMalloc((void **)&dstDevice, tileBytesDst, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void **)&srcDevice, tileBytesSrc, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMallocHost((void**)(&dstHost), tileBytesDst);
+    aclrtMallocHost((void**)(&srcHost), tileBytesSrc);
+    aclrtMalloc((void**)&dstDevice, tileBytesDst, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, tileBytesSrc, ACL_MEM_MALLOC_HUGE_FIRST);
 
     size_t readSizeSrc = tileBytesSrc;
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", readSizeSrc, srcHost, tileBytesSrc));
@@ -92,28 +90,13 @@ void test_tbroadcast_5d()
     aclFinalize();
 }
 
-TEST_F(TBroadCastTest, case_float_1)
-{
-    test_tbroadcast_5d<float, 1, 2, 4, 64, 64, 5>();
-}
+TEST_F(TBroadCastTest, case_float_1) { test_tbroadcast_5d<float, 1, 2, 4, 64, 64, 5>(); }
 
-TEST_F(TBroadCastTest, case_int32_2)
-{
-    test_tbroadcast_5d<int32_t, 1, 2, 4, 64, 64, 3>();
-}
+TEST_F(TBroadCastTest, case_int32_2) { test_tbroadcast_5d<int32_t, 1, 2, 4, 64, 64, 3>(); }
 
-TEST_F(TBroadCastTest, case_int16_3)
-{
-    test_tbroadcast_5d<int16_t, 2, 2, 3, 64, 64, 2>();
-}
+TEST_F(TBroadCastTest, case_int16_3) { test_tbroadcast_5d<int16_t, 2, 2, 3, 64, 64, 2>(); }
 
-TEST_F(TBroadCastTest, case_half_4)
-{
-    test_tbroadcast_5d<aclFloat16, 1, 2, 1, 16, 256, 1>();
-}
+TEST_F(TBroadCastTest, case_half_4) { test_tbroadcast_5d<aclFloat16, 1, 2, 1, 16, 256, 1>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TBroadCastTest, case_bf16_5)
-{
-    test_tbroadcast_5d<bfloat16_t, 1, 2, 1, 16, 256, 1>();
-}
+TEST_F(TBroadCastTest, case_bf16_5) { test_tbroadcast_5d<bfloat16_t, 1, 2, 1, 16, 256, 1>(); }
 #endif

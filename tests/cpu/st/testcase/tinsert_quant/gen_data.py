@@ -54,7 +54,7 @@ def get_quant_vector(dst_dtype, n, saturate_inf):
         sign_bit = 1 if (dst_dtype == np.int8) else 0
         # if saturate_inf, saturate INF to +/- MAX, and NaN to 0 in float-2-float operations
         # otherwise, keep it as is
-        sat_bit = 1 if saturate_inf else 0
+        sat_bit = 1 if saturate_inf else 0 
 
         packed = (int(sat_bit) << 48) | \
                     (int(sign_bit) << 46) | \
@@ -110,9 +110,9 @@ def apply_quant_element(src_val, quant_gm, mode, dst_dtype, use_relu=False):
     elif mode == QuantMode.I32_TO_F16:
         f16_lim = np.finfo(np.float16)
         res = np.clip(res, f16_lim.min, f16_lim.max)
-
+    
     if use_relu:
-        res = np.maximum(res, 0)
+        res = np.fmax(res, 0)
 
     return NumExt.astype(np.array([res]), dst_dtype)[0]
 
@@ -129,7 +129,7 @@ def process_quant(data_array, quant_array, src_dtype, dst_dtype, is_vector, use_
         q_param = quant_array[j] if is_vector else quant_array[0]
         for i in range(rows):
             out[i, j] = apply_quant_element(data_array[i, j], q_param, mode, dst_dtype, use_relu)
-
+    
     return out
 
 
@@ -174,16 +174,16 @@ def type2str(t):
 
 class TInsertParams:
     def __init__(
-        self,
-        src_dtype: np.dtype,
+        self, 
+        src_dtype: np.dtype, 
         dst_dtype: np.dtype,
-        dst_valid_rows: int,
-        dst_valid_cols: int,
-        src_valid_rows: int,
-        src_valid_cols: int,
-        idx_row: int,
+        dst_valid_rows: int, 
+        dst_valid_cols: int,  
+        src_valid_rows: int, 
+        src_valid_cols: int, 
+        idx_row: int, 
         idx_col: int,
-        is_v_quant: bool,
+        is_v_quant: bool, 
         saturate_inf: bool,
         use_relu: bool
     ):
@@ -203,7 +203,7 @@ class TInsertParams:
         self.is_v_quant = is_v_quant
         self.saturate_inf = saturate_inf
         self.use_relu = use_relu
-
+        
 
 def gen_case_name(param, idx):
     return f"case_{idx}_{type2str(param.src_dtype)}_{type2str(param.dst_dtype)}"
@@ -278,3 +278,4 @@ if __name__ == "__main__":
         gen_golden_data(case_name, case_param)
 
         os.chdir(original_dir)
+
