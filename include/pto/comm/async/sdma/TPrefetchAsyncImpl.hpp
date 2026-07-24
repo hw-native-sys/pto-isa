@@ -124,7 +124,7 @@ PTO_INTERNAL uint64_t TPrefetchAsyncGetTotalBytes(GlobalData& globalData)
 }
 
 template <typename GlobalData>
-PTO_INTERNAL comm::AsyncEvent TPrefetchAsyncSdmaImpl(GlobalData& srcGlobalData, const comm::AsyncSession& session)
+PTO_INTERNAL comm::AsyncEvent TPrefetchAsyncSdmaImpl(GlobalData& srcGlobalData, const comm::sdma::SdmaSession& session)
 {
     if (srcGlobalData.data() == nullptr) {
         return comm::AsyncEvent(0, comm::DmaEngine::SDMA);
@@ -139,11 +139,7 @@ PTO_INTERNAL comm::AsyncEvent TPrefetchAsyncSdmaImpl(GlobalData& srcGlobalData, 
         return comm::AsyncEvent(0, comm::DmaEngine::SDMA);
     }
 
-    comm::sdma::SdmaSession sdmaSession;
-    comm::sdma::detail::LoadSdmaSession(session, sdmaSession);
-    const comm::AsyncEvent event = comm::sdma::__sdma_cmo_prefetch(srcGlobalData.data(), totalBytes, sdmaSession);
-    session.sdmaRuntimeCtx = sdmaSession.runtimeCtx;
-    return event;
+    return comm::sdma::__sdma_cmo_prefetch(srcGlobalData.data(), totalBytes, session);
 }
 
 template <typename Context>
@@ -158,7 +154,7 @@ PTO_INTERNAL bool InitPrefetchAsyncSession(Context& ctx, comm::AsyncSession& ses
     constexpr comm::sdma::SdmaBaseConfig baseConfig{comm::sdma::kDefaultSdmaBlockBytes, 0, 1};
     session.engine = comm::DmaEngine::SDMA;
     session.valid = comm::sdma::BuildSdmaSession(
-        ctx.scratchTile, ctx.workspace, session, syncId, baseConfig, comm::sdma::kAutoChannelGroupIdx);
+        ctx.scratchTile, ctx.workspace, session.sdmaSession, syncId, baseConfig, comm::sdma::kAutoChannelGroupIdx);
     return session.valid;
 }
 
@@ -182,7 +178,7 @@ PTO_INTERNAL comm::AsyncEvent TPREFETCH_ASYNC_IMPL(GlobalData& srcGlobalData, Pr
     if (session.engine != comm::DmaEngine::SDMA) {
         return comm::AsyncEvent(0, comm::DmaEngine::SDMA);
     }
-    return detail::TPrefetchAsyncSdmaImpl(srcGlobalData, session);
+    return detail::TPrefetchAsyncSdmaImpl(srcGlobalData, session.sdmaSession);
 }
 
 } // namespace pto

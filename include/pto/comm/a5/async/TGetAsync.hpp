@@ -72,7 +72,7 @@ PTO_INTERNAL AsyncEvent
 TGET_ASYNC_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const AsyncSession& session)
 {
     if constexpr (engine == DmaEngine::SDMA) {
-        return detail::TGET_ASYNC_SDMA_IMPL(dstGlobalData, srcGlobalData, session);
+        return detail::TGET_ASYNC_SDMA_IMPL(dstGlobalData, srcGlobalData, session.sdmaSession);
     } else if constexpr (engine == DmaEngine::URMA) {
 #ifdef PTO_URMA_SUPPORTED
         return detail::TGET_ASYNC_URMA_IMPL(dstGlobalData, srcGlobalData, session);
