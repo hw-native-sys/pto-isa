@@ -66,7 +66,7 @@ PTO_INTERNAL bool TPutAsyncCheckTensorCompatibility()
 
 template <typename GlobalDstData, typename GlobalSrcData>
 PTO_INTERNAL AsyncEvent
-TPUT_ASYNC_SDMA_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const sdma::SdmaSession& session)
+TPUT_ASYNC_SDMA_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const AsyncSession& session)
 {
     (void)TPutAsyncCheckTensorCompatibility<GlobalDstData, GlobalSrcData>();
 
@@ -88,7 +88,9 @@ TPUT_ASYNC_SDMA_IMPL(GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData,
     PTO_ASSERT(dstElems >= srcElems, "TPUT_ASYNC SDMA: dst buffer too small for src data.");
 
     using T = typename GlobalSrcData::RawDType;
-    return sdma::__sdma_put_async(dstGlobalData.data(), srcGlobalData.data(), srcElems * sizeof(T), session);
+    const uint64_t eventHandle =
+        sdma::__sdma_put_async(dstGlobalData.data(), srcGlobalData.data(), srcElems * sizeof(T), session);
+    return AsyncEvent(eventHandle, DmaEngine::SDMA);
 }
 
 } // namespace detail
