@@ -124,7 +124,8 @@ log "creating GitCode PR from ${gitcode_head} to ${GITCODE_OWNER}/${GITCODE_REPO
 response_file="$(mktemp)"
 trap 'rm -f "${response_file}"' EXIT
 status_code="$(
-  curl -sS -o "${response_file}" -w '%{http_code}' \
+  curl -sS --connect-timeout 30 --max-time 180 \
+    -o "${response_file}" -w '%{http_code}' \
     -X POST "${api_url}" \
     -H "Content-Type: application/json" \
     -H "PRIVATE-TOKEN: ${GITCODE_TOKEN}" \

@@ -19,7 +19,10 @@ concurrency:
 jobs:
   mirror:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The push to the GitCode fork can take several minutes when the fork does
+    # not share history with the source (it transfers many objects). Give the
+    # create-PR step room to finish instead of being canceled at 10m.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout base repository
