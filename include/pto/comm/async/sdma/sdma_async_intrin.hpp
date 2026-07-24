@@ -17,30 +17,6 @@ namespace pto {
 namespace comm {
 namespace sdma {
 
-namespace detail {
-
-// ============================================================================
-// Bridge: rebuild a master-style SdmaSession from the flattened AsyncSession,
-// carrying the persisted runtimeCtx so the multi-post protocol stays coherent.
-// ============================================================================
-PTO_INTERNAL void LoadSdmaSession(const AsyncSession& async, SdmaSession& session)
-{
-    session.execCtx.contextGm = async.contextGm;
-    session.execCtx.tmpBuf.addr = async.tmpBufAddr;
-    session.execCtx.tmpBuf.size = async.tmpBufSize;
-    session.execCtx.syncId = async.syncId;
-    session.execCtx.channelGroupIdx = async.channelGroupIdx;
-    session.execCtx.baseConfig.block_bytes = async.blockBytes;
-    session.execCtx.baseConfig.comm_block_offset = async.commBlockOffset;
-    session.execCtx.baseConfig.queue_num = async.queueNum;
-    session.eventCtx.tmpBuf = session.execCtx.tmpBuf;
-    session.eventCtx.syncId = async.syncId;
-    session.runtimeCtx = async.sdmaRuntimeCtx;
-    session.valid = async.valid;
-}
-
-} // namespace detail
-
 // ============================================================================
 // Explicit SDMA context builders (explicit contextGm / syncId parameters)
 // ============================================================================
@@ -99,44 +75,6 @@ PTO_INTERNAL bool BuildSdmaSession(
     return session.valid;
 }
 
-template <typename ScratchTile>
-PTO_INTERNAL bool BuildSdmaSession(
-    ScratchTile& scratchTile, __gm__ uint8_t* workspace, AsyncSession& session, uint32_t syncId = 0,
-    const SdmaBaseConfig& baseConfig = {kDefaultSdmaBlockBytes, 0, 1}, uint32_t channelGroupIdx = kAutoChannelGroupIdx)
-{
-    if (channelGroupIdx == kAutoChannelGroupIdx) {
-        channelGroupIdx = static_cast<uint32_t>(get_block_idx());
-    }
-    if (syncId > 7 || baseConfig.queue_num == 0 || baseConfig.queue_num > kSdmaMaxChannel ||
-        channelGroupIdx >= (kSdmaMaxChannel / baseConfig.queue_num) || workspace == nullptr) {
-        session.valid = false;
-        return false;
-    }
-    TmpBuffer tmpBuf;
-    if (!detail::MakeTmpBufferFromTile(scratchTile, tmpBuf)) {
-        session.valid = false;
-        return false;
-    }
-    session.engine = DmaEngine::SDMA;
-    session.valid = true;
-    session.contextGm = workspace;
-    session.tmpBufAddr = tmpBuf.addr;
-    session.tmpBufSize = tmpBuf.size;
-    session.syncId = syncId;
-    session.channelGroupIdx = channelGroupIdx;
-    session.blockBytes = baseConfig.block_bytes;
-    session.commBlockOffset = baseConfig.comm_block_offset;
-    session.queueNum = baseConfig.queue_num;
-    // Initialize the persistent runtime state once, mirroring the
-    // SdmaSession build path (the backend requires runtimeCtx per session).
-    session.sdmaRuntimeCtx = {};
-    SdmaSession probe;
-    detail::LoadSdmaSession(session, probe);
-    session.valid = detail::InitializeRuntimeCtx(probe);
-    session.sdmaRuntimeCtx = probe.runtimeCtx;
-    return session.valid;
-}
-
 // ============================================================================
 // Async SDMA intrinsics (standalone re-implementation)
 // ============================================================================
@@ -158,41 +96,6 @@ __sdma_get_async(__gm__ T* dst, __gm__ T* src, uint64_t transferSize, const Sdma
         return {};
     }
     return detail::SdmaPostAsync((__gm__ uint8_t*)dst, (__gm__ uint8_t*)src, 0U, transferSize, session);
-}
-
-// ============================================================================
-// AsyncSession intrinsics: rebuild the SdmaSession view (carrying persisted
-// runtimeCtx), forward to the backend, then persist runtimeCtx back. Return the
-// raw event handle so the instruction layer can wrap it in an AsyncEvent.
-// ============================================================================
-template <typename T>
-PTO_INTERNAL uint64_t
-__sdma_put_async(__gm__ T* dst, __gm__ T* src, uint64_t transfer_size, const AsyncSession& session)
-{
-    if (transfer_size == 0) {
-        return 0;
-    }
-    SdmaSession sdmaSession;
-    detail::LoadSdmaSession(session, sdmaSession);
-    const AsyncEvent event =
-        detail::SdmaPostAsync((__gm__ uint8_t*)dst, (__gm__ uint8_t*)src, 0U, transfer_size, sdmaSession);
-    session.sdmaRuntimeCtx = sdmaSession.runtimeCtx;
-    return event.handle;
-}
-
-template <typename T>
-PTO_INTERNAL uint64_t
-__sdma_get_async(__gm__ T* dst, __gm__ T* src, uint64_t transfer_size, const AsyncSession& session)
-{
-    if (transfer_size == 0) {
-        return 0;
-    }
-    SdmaSession sdmaSess;
-    detail::LoadSdmaSession(session, sdmaSess);
-    const AsyncEvent event =
-        detail::SdmaPostAsync((__gm__ uint8_t*)dst, (__gm__ uint8_t*)src, 0U, transfer_size, sdmaSess);
-    session.sdmaRuntimeCtx = sdmaSess.runtimeCtx;
-    return event.handle;
 }
 
 namespace detail {
