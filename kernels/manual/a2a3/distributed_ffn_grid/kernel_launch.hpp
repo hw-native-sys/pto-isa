@@ -1,8 +1,9 @@
 /**
 Copyright (c) 2026 Huawei Technologies Co., Ltd.
-This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+This program is free software; you can redistribute it and/or modify it under the terms and conditions of
 CANN Open Software License Agreement Version 2.0 (the "License").
-Please refer to the License for details. You may not use this file except in compliance with the License.
+Please refer to the License for details.
+You may not use this file except in compliance with the License.
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
@@ -13,27 +14,51 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 
-// ReduceSum mixed Cube/Vec kernel for the single-device multi-block FFN path.
+// Four distributed-FFN GridPipe examples, one per interface-under-test.  Each call
+// launches `blockCount` blocks of one `phase`; the kernel maps the wave-local
+// block id to a global cell via (rowStart, colStart, waveCols):
+//   row = rowStart + blk/waveCols, col = colStart + blk%waveCols.
 //
-// gridRows*gridCols blocks form a single-device logical grid.  Each block uses
-// get_block_idx() as its row-major cell id.
+// ReduceSum pattern (I split across all 32 cells, x broadcast, full-H down partial
+// per cell, partials reduced EAST 8-way then SOUTH 4-way):
+//   - TREDUCE  : the fused TREDUCE<Dir, Sum> collective.
+//   - TPUSH    : the explicit TPOP<Dir> + TADD + TPUSH<Dir> lowering of TREDUCE.
 //
-// The kernel is compiled for dav-c220 mixed Cube/Vector.  Cube and Vec branches
-// run concurrently and exchange gate/up/hidden/down intermediates through
-// regular A2/A3 TPipe ready/free synchronization.  The final row-local EAST
-// reduce still uses GridPipe windows.
-void launchDistributedFfnGridMixedKernel(uint8_t *ffts, uint8_t *reducePipeWindow, uint8_t *x, uint8_t *wGate,
-                                         uint8_t *wUp, uint8_t *wDown, uint8_t *gatePartial, uint8_t *upPartial,
-                                         uint8_t *hiddenIn, uint8_t *downPartial, uint8_t *yOutput, uint8_t *hcclCtx,
-                                         int gridRows, int gridCols, void *stream);
+// AllGather pattern (I split across all 32 cells, hidden AllGathered before down):
+//   - TBROADCAST : the TBROADCAST<GridGroup> MPSC collective (every cell broadcasts).
+//   - TPUSH      : a nearest-neighbor TPUSH/TPOP relay (fan-in-1 DAG) gather.
 
-// AllGather split variant.  The GridPipe window carries fp16 hidden shards
-// [T, Fi] across columns, then each column computes and stores its [T, Hc]
-// output shard directly.
-void launchDistributedFfnGridAllGatherMixedKernel(uint8_t *ffts, uint8_t *gatherPipeWindow, uint8_t *x, uint8_t *wGate,
-                                                  uint8_t *wUp, uint8_t *wDown, uint8_t *gatePartial,
-                                                  uint8_t *upPartial, uint8_t *hiddenIn, uint8_t *downPartial,
-                                                  uint8_t *yOutput, uint8_t *hcclCtx, int gridRows, int gridCols,
-                                                  void *stream);
+// --- ReduceSum pattern: TREDUCE variant (fused receive-combine-forward). ---
+void launchDistributedFfnGridTreduceReduceSumMixedKernel(
+    uint8_t *ffts, uint8_t *reduceWindow, uint8_t *xFull, uint8_t *wGateShards, uint8_t *wUpShards, uint8_t *wDownShards,
+    uint8_t *partialBuf, uint8_t *rowPartialBuf, uint8_t *yFull, uint8_t *gatePartialBuf, uint8_t *upPartialBuf,
+    uint8_t *hiddenBuf, uint8_t *hcclCtx, int phase, int rowStart, int colStart, int waveCols, int gridRows, int gridCols,
+    int blockCount, void *stream);
+
+// --- ReduceSum pattern: TPUSH variant (explicit TPOP + TADD + TPUSH). ---
+void launchDistributedFfnGridTpushReduceSumMixedKernel(
+    uint8_t *ffts, uint8_t *reduceWindow, uint8_t *xFull, uint8_t *wGateShards, uint8_t *wUpShards, uint8_t *wDownShards,
+    uint8_t *partialBuf, uint8_t *rowPartialBuf, uint8_t *yFull, uint8_t *gatePartialBuf, uint8_t *upPartialBuf,
+    uint8_t *hiddenBuf, uint8_t *hcclCtx, int phase, int rowStart, int colStart, int waveCols, int gridRows, int gridCols,
+    int blockCount, void *stream);
+
+// --- AllGather pattern: TBROADCAST variant (MPSC group broadcast).  Each ready/
+//     free lane owns a full cache line (kBcastLaneStride), so the MPSC gather no
+//     longer needs a cube keep-alive (doneFlags removed). ---
+void launchDistributedFfnGridTbroadcastAllGatherMixedKernel(
+    uint8_t *ffts, uint8_t *p1Window, uint8_t *p2Window, uint8_t *xFull, uint8_t *wGateShards, uint8_t *wUpShards,
+    uint8_t *wDownShards, uint8_t *hiddenShardBuf, uint8_t *rowBlockBuf, uint8_t *hiddenFullBuf,
+    uint8_t *gatePartialBuf, uint8_t *upPartialBuf, uint8_t *yFull, uint8_t *p1Ctx, uint8_t *p2Ctx,
+    int phase, int rowStart, int colStart, int waveCols, int gridRows, int gridCols,
+    int blockCount, void *stream);
+
+// --- AllGather pattern: TPUSH variant (nearest-neighbor relay).  The relay is a
+//     fan-in-1 DAG, so the vec-only gather waves need no cube keep-alive. ---
+void launchDistributedFfnGridTpushAllGatherMixedKernel(
+    uint8_t *ffts, uint8_t *p1Window, uint8_t *p2Window, uint8_t *xFull, uint8_t *wGateShards, uint8_t *wUpShards,
+    uint8_t *wDownShards, uint8_t *hiddenShardBuf, uint8_t *rowBlockBuf, uint8_t *hiddenFullBuf,
+    uint8_t *gatePartialBuf, uint8_t *upPartialBuf, uint8_t *yFull, uint8_t *p1Ctx, uint8_t *p2Ctx,
+    int phase, int rowStart, int colStart, int waveCols, int gridRows, int gridCols,
+    int blockCount, void *stream);
 
 #endif // DISTRIBUTED_FFN_GRID_KERNEL_LAUNCH_HPP
