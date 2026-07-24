@@ -1,0 +1,41 @@
+name: Mirror GitHub PR to GitCode PR
+
+# Triggers immediately on PR activity (runs in parallel with CI / A5 Smoke,
+# does NOT wait for or depend on them). Mirrors the PR head to a GitCode fork
+# branch and opens a cross-repo PR on cann/pto-isa (base master).
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pr-to-gitcode-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout base repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Mirror PR branch and create GitCode PR
+        run: |
+          bash scripts/github_pr_to_gitcode_pr.sh
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          GITCODE_PUSH_URL: ${{ secrets.GITCODE_PUSH_URL }}
+          GITCODE_OWNER: cann
+          GITCODE_REPO: pto-isa
+          GITCODE_BASE_BRANCH: master
+          GITCODE_HEAD_OWNER: zhhywang
