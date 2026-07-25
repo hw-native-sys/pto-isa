@@ -626,8 +626,6 @@ struct TPipe {
         PTO_INTERNAL void popMatTileFromGMFiFo(RingFiFo& fifo, TileCons& tile)
         {
             using T = typename TileCons::DType;
-            constexpr int ConsN = TileCons::Cols;
-            constexpr int ConsM = TileCons::Rows;
             size_t entryBase = (static_cast<size_t>(tileIndex) % RingFiFo::SLOT_NUM) * RingFiFo::SLOT_SIZE;
             __gm__ T* addr = (__gm__ T*)((uint64_t)fifo.GM_SLOT_BUFFER + entryBase + entryOffset);
             using GlobalStride = pto::Stride<1, 1, 1, -1, 1>;
