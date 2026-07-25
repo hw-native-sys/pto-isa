@@ -126,7 +126,7 @@ PTO_INTERNAL void TransB8FullSubTiles(
             set_va_reg_sb(VA7, &tmpUb1[HALF_ADDR_NUM]);
             if (numSubTileY == 1) { // [32, 32]
                 Op::TransB8Instr(1, 0, 0);
-            } else {                // larger then [32, 32], e.g, [32, 64]
+            } else { // larger then [32, 32], e.g, [32, 64]
                 Op::TransB8Instr(numSubTileY, 1, vconvSrcStride);
             }
         } // end of numSubTileX
@@ -354,7 +354,7 @@ PTO_INTERNAL void TransRepeatXB8FullSubTiles(
             set_va_reg_sb(VA1, &tmpUb[HALF_ADDR_NUM]);
             if (numSubTileX == 1) { // [32, 32]
                 Op::TransB8Instr(1, 0, 0);
-            } else {                // larger than [32, 32], e.g, [32, 64]
+            } else { // larger than [32, 32], e.g, [32, 64]
                 Op::TransB8Instr(numSubTileX, vconvDstStride, 1);
             }
         } // end of numSubTileY
@@ -406,13 +406,22 @@ template <typename T, unsigned blockSizeElem, bool reverse = false>
 PTO_INTERNAL void ConvNCHW2NC1HWC0Unalign(
     __ubuf__ T* dst, __ubuf__ T* src, unsigned srcN, unsigned srcC, unsigned srcH, unsigned srcW, unsigned validC0)
 {
-    unsigned srcStride = srcH * srcW;
-    unsigned dstStride = dstC0;
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+    unsigned srcStride, dstStride, validCol, validRow, validC1;
+    if constexpr (reverse) {
+        srcStride = validC0;
+        dstStride = srcH * srcW;
+        validCol = validC0;
+        validRow = srcH * srcW;
+        validC1 = srcC;
+    } else {
+        srcStride = srcH * srcW;
+        dstStride = validC0;
+        validCol = srcH * srcW;
+        validRow = validC0;
+        validC1 = (srcC + validC0 - 1) / validC0;
+    }
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? Y_ELEM_B8 : Y_ELEM_OTHER;
     // N C1 C0 HW -> N C1 HW C0
     for (int n = 0; n < srcN; n++) {
@@ -457,14 +466,11 @@ __tf__ PTO_INTERNAL void TTransConvNCHW2NC1HWC0(
         validC1 = (srcC + validC0 - 1) / validC0;
     }
     if (((dstStride % blockSizeElem) != 0) || ((srcStride % blockSizeElem) != 0) || srcStride / blockSizeElem > 255) {
-        ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem>(dstPtrOrig, srcPtrOrig, srcN, srcC, srcH, srcW, dstC0);
+        ConvNCHW2NC1HWC0Unalign<Tsrc, blockSizeElem, reverse>(dstPtrOrig, srcPtrOrig, srcN, srcC, srcH, srcW, validC0);
         return;
     }
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
     // N C1 C0 HW -> N C1 HW C0
     for (int n = 0; n < srcN; n++) {
         for (int c = 0; c < validC1; c++) {
@@ -533,14 +539,10 @@ PTO_INTERNAL void ConvGNCHW2GNC1HWC0Unalign(
     __ubuf__ T* dst, __ubuf__ T* src, unsigned srcG, unsigned srcN, unsigned srcC, unsigned srcH, unsigned srcW,
     unsigned validC0)
 {
-    unsigned srcStride = srcH * srcW;
-    unsigned dstStride = dstC0;
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned gStride = srcN * dstC1 * dstC0 * srcH * srcW;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+    unsigned validC1 = reverse ? srcC : ((srcC + validC0 - 1) / validC0);
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
+    unsigned gStride = srcN * nStride;
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? Y_ELEM_B8 : Y_ELEM_OTHER;
     for (unsigned g = 0; g < srcG; g++) {
         __ubuf__ T* srcPtr = src + g * gStride;
@@ -581,12 +583,9 @@ __tf__ PTO_INTERNAL void TTransConvGNCHW2GNC1HWC0(
             dstPtrOrig, srcPtrOrig, srcG, srcN, srcC, srcH, srcW, validC0);
         return;
     }
-    unsigned validCol = srcH * srcW;
-    unsigned validRow = dstC0;
-    unsigned dstC1 = (srcC + dstC0 - 1) / dstC0;
-    unsigned gStride = srcN * dstC1 * dstC0 * srcH * srcW;
-    unsigned nStride = dstC1 * dstC0 * srcH * srcW;
-    unsigned cStride = dstC0 * srcH * srcW;
+    unsigned cStride = validC0 * srcH * srcW;
+    unsigned nStride = validC1 * cStride;
+    unsigned gStride = srcN * nStride;
     for (unsigned g = 0; g < srcG; g++) {
         for (unsigned n = 0; n < srcN; n++) {
             for (unsigned c = 0; c < validC1; c++) {
