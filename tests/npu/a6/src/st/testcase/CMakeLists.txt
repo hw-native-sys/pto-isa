@@ -51,7 +51,7 @@ function(pto_cube_st NAME)
     target_compile_options(${NAME}_kernel PRIVATE
         ${CMAKE_CCE_COMPILE_OPTIONS}
         --cce-aicore-arch=dav-920r1-cube
-        -DREGISTER_BASE -std=c++17)
+        -DREGISTER_BASE -std=c++17 -Wno-c++20-extensions)
     target_include_directories(${NAME}_kernel PRIVATE
         ${ASCEND_HOME_PATH}/pkg_inc/
         ${ASCEND_HOME_PATH}/pkg_inc/profiling/
@@ -80,6 +80,7 @@ endfunction()
 # lower correctly for dav-920r1-vec yet (see arch_cce_intrinsic.hpp:114-123).
 set(ALL_TESTCASES
     tquant
+    tload_hif4
 )
 
 if (AUTO_MODE)

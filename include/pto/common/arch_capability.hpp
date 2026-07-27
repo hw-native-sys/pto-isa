@@ -22,6 +22,7 @@ enum class ChipArch : uint8_t {
     A5 = 1,
     KIRIN9030 = 2,
     KIRINX90 = 3,
+    A6 = 4,
     UNKNOWN = 255,
 };
 
@@ -51,6 +52,32 @@ struct ArchTraitsBase {
 template <ChipArch Arch>
 struct ArchTraits;
 
+// Common capability/alias block shared by A5 and A6 (both support FP4+FP8 cube
+// + TQuant + MxLayout). Specializations only add per-arch fields (e.g. A5's
+// SupportsComm). Gated by A5/A6 to avoid referencing the fp8/fp4 builtin types
+// on CPU sim / A2A3 / Kirin paths where they don't exist.
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+template <ChipArch Arch>
+struct ArchTraitsFp4Capable : ArchTraitsBase<Arch> {
+    static constexpr bool SupportsBf16 = true;
+    static constexpr bool SupportsFp8 = true;
+    static constexpr bool SupportsFp4 = true;
+    static constexpr bool SupportsSyncAll = true;
+    static constexpr bool SupportsTQuant = true;
+    static constexpr bool SupportsTHistogram = true;
+    static constexpr bool SupportsMxLayout = true;
+    static constexpr bool AccSupportsFloat = true;
+    static constexpr bool AccSupportsInt32 = true;
+    using Bf16Type = bfloat16_t;
+    using HiFloat8Type = hifloat8_t;
+    using Float8E4M3Type = float8_e4m3_t;
+    using Float8E5M2Type = float8_e5m2_t;
+    using Float8E8M0Type = float8_e8m0_t;
+    using Float4E2M1Type = float4_e2m1x2_t;
+    using Float4E1M2Type = float4_e1m2x2_t;
+};
+#endif
+
 #if defined(PTO_NPU_ARCH_A2A3)
 template <>
 struct ArchTraits<ChipArch::A2A3> : ArchTraitsBase<ChipArch::A2A3> {
@@ -65,26 +92,18 @@ using CurrArch = ArchTraits<ChipArch::A2A3>;
 
 #elif defined(PTO_NPU_ARCH_A5)
 template <>
-struct ArchTraits<ChipArch::A5> : ArchTraitsBase<ChipArch::A5> {
-    static constexpr bool SupportsBf16 = true;
-    static constexpr bool SupportsFp8 = true;
-    static constexpr bool SupportsFp4 = true;
-    static constexpr bool SupportsSyncAll = true;
+struct ArchTraits<ChipArch::A5> : ArchTraitsFp4Capable<ChipArch::A5> {
     static constexpr bool SupportsComm = true;
-    static constexpr bool SupportsTQuant = true;
-    static constexpr bool SupportsTHistogram = true;
-    static constexpr bool SupportsMxLayout = true;
-    static constexpr bool AccSupportsFloat = true;
-    static constexpr bool AccSupportsInt32 = true;
-    using Bf16Type = bfloat16_t;
-    using HiFloat8Type = hifloat8_t;
-    using Float8E4M3Type = float8_e4m3_t;
-    using Float8E5M2Type = float8_e5m2_t;
-    using Float8E8M0Type = float8_e8m0_t;
-    using Float4E2M1Type = float4_e2m1x2_t;
-    using Float4E1M2Type = float4_e1m2x2_t;
 };
 using CurrArch = ArchTraits<ChipArch::A5>;
+
+#elif defined(PTO_NPU_ARCH_A6)
+template <>
+struct ArchTraits<ChipArch::A6> : ArchTraitsFp4Capable<ChipArch::A6> {
+    // A6 supports all FP4-capable flags inherited from ArchTraitsFp4Capable.
+    // (SupportsComm currently false — A6 comm support is a separate workstream.)
+};
+using CurrArch = ArchTraits<ChipArch::A6>;
 
 #elif defined(PTO_NPU_ARCH_KIRIN9030)
 template <>
@@ -285,10 +304,20 @@ PTO_INTERNAL constexpr bool IsFP4E1M2()
     }
 }
 
+template <typename T, typename Arch = CurrArch>
+PTO_INTERNAL constexpr bool IsHIF4()
+{
+#if defined(PTO_NPU_ARCH_A6)
+    return std::is_same_v<std::remove_cv_t<T>, hifloat4x2_t>;
+#else
+    return false;
+#endif
+}
+
 template <typename T>
 PTO_INTERNAL constexpr bool IsFP4()
 {
-    return IsFP4E2M1<T>() || IsFP4E1M2<T>();
+    return IsFP4E2M1<T>() || IsFP4E1M2<T>() || IsHIF4<T>();
 }
 
 template <typename T>

@@ -937,6 +937,71 @@ struct TileShape2D<T, rows, cols, Layout::MX_B_NN>
 };
 
 template <typename T, int64_t rows, int64_t cols>
+struct BaseShape2D<T, rows, cols, Layout::HIF4_A_ZZ>
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), (cols == DYNAMIC) ? DYNAMIC : cols * HIF4_ROW_LEN, HIF4_BLOCK_SIZE,
+          HIF4_COL_LEN, 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), (cols == DYNAMIC) ? DYNAMIC : cols * HIF4_ROW_LEN, HIF4_BLOCK_SIZE,
+        HIF4_COL_LEN, 1>;
+
+    PTO_INTERNAL BaseShape2D() : Parent() {}
+
+    PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
+        : Parent(dynamicCols * dynamicRows, dynamicCols * HIF4_ROW_LEN, HIF4_BLOCK_SIZE, HIF4_COL_LEN, 1)
+    {}
+    using Parent::Parent;
+};
+
+template <typename T, int64_t rows, int64_t cols>
+struct TileShape2D<T, rows, cols, Layout::HIF4_A_ZZ>
+    : public Shape<
+          1, rows == DYNAMIC ? DYNAMIC : rows / HIF4_ROW_LEN, cols == DYNAMIC ? DYNAMIC : cols, HIF4_ROW_LEN,
+          HIF4_COL_LEN> {
+    using Parent = Shape<
+        1, rows == DYNAMIC ? DYNAMIC : rows / HIF4_ROW_LEN, cols == DYNAMIC ? DYNAMIC : cols, HIF4_ROW_LEN,
+        HIF4_COL_LEN>;
+    PTO_INTERNAL TileShape2D() : Parent() {}
+    PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
+        : Parent(1, dynamicRows / HIF4_ROW_LEN, dynamicCols, HIF4_ROW_LEN, HIF4_COL_LEN)
+    {}
+    using Parent::Parent;
+};
+
+template <typename T, int64_t rows, int64_t cols>
+struct BaseShape2D<T, rows, cols, Layout::HIF4_B_NN>
+    : public Stride<
+          GetBaseShape2DStride0<T, rows, cols>(), (rows == DYNAMIC) ? DYNAMIC : rows * HIF4_ROW_LEN, HIF4_BLOCK_SIZE,
+          HIF4_COL_LEN, 1> {
+    using Parent = Stride<
+        GetBaseShape2DStride0<T, rows, cols>(), (rows == DYNAMIC) ? DYNAMIC : rows * HIF4_ROW_LEN, HIF4_BLOCK_SIZE,
+        HIF4_COL_LEN, 1>;
+
+    PTO_INTERNAL BaseShape2D() : Parent() {}
+
+    PTO_INTERNAL BaseShape2D(int64_t dynamicRows, int64_t dynamicCols)
+        : Parent(dynamicCols * dynamicRows, dynamicRows * HIF4_ROW_LEN, HIF4_BLOCK_SIZE, HIF4_COL_LEN, 1)
+    {}
+    using Parent::Parent;
+};
+
+template <typename T, int64_t rows, int64_t cols>
+struct TileShape2D<T, rows, cols, Layout::HIF4_B_NN>
+    : public Shape<
+          1, cols == DYNAMIC ? DYNAMIC : cols / HIF4_ROW_LEN, rows == DYNAMIC ? DYNAMIC : rows, HIF4_ROW_LEN,
+          HIF4_COL_LEN> {
+    using Parent = Shape<
+        1, cols == DYNAMIC ? DYNAMIC : cols / HIF4_ROW_LEN, rows == DYNAMIC ? DYNAMIC : rows, HIF4_ROW_LEN,
+        HIF4_COL_LEN>;
+
+    PTO_INTERNAL TileShape2D() : Parent() {}
+    PTO_INTERNAL TileShape2D(int64_t dynamicRows, int64_t dynamicCols)
+        : Parent(1, dynamicCols / HIF4_ROW_LEN, dynamicRows, HIF4_ROW_LEN, HIF4_COL_LEN)
+    {}
+    using Parent::Parent;
+};
+
+template <typename T, int64_t rows, int64_t cols>
 struct BaseShape2D<T, rows, cols, Layout::MX_B_ND>
     : public Stride<
           GetBaseShape2DStride0<T, rows, cols>(), GetBaseShape2DStride0<T, rows, cols>(),

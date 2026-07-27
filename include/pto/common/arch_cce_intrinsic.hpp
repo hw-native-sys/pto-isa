@@ -237,10 +237,18 @@ PTO_INTERNAL void pto_copy_gm_to_cbuf_align_v2(
 {
     using U = std::conditional_t<
         sizeof(T) == sizeof(uint8_t), uint8_t, std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A5)
     copy_gm_to_cbuf_align_v2(
         reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, nBurst, lenBurst, leftPaddingCount,
         rightPaddingCount, dataSelectBit, l2CacheCtl, burstSrcStride, burstDstStride);
+#elif defined(PTO_NPU_ARCH_A6)
+    uint64_t config0 =
+        static_cast<uint64_t>(sid & 0xF) | (static_cast<uint64_t>(nBurst & 0x1FFFFF) << 4) |
+        (static_cast<uint64_t>(lenBurst & 0x1FFFFF) << 25) | (static_cast<uint64_t>(leftPaddingCount & 0x3F) << 46) |
+        (static_cast<uint64_t>(rightPaddingCount & 0x3F) << 52) | (static_cast<uint64_t>(dataSelectBit & 0x1) << 58) |
+        (static_cast<uint64_t>(l2CacheCtl & 0xF) << 60);
+    uint64_t config1 = (burstSrcStride & 0xFFFFFFFFFFULL) | (static_cast<uint64_t>(burstDstStride & 0x1FFFFF) << 40);
+    copy_gm_to_cbuf_align_v2(reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), config0, config1);
 #elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINDEV0000)
     copy_gm_to_cbuf_align_v2(
         reinterpret_cast<__cbuf__ U*>(dst), reinterpret_cast<__gm__ U*>(src), sid, nBurst, lenBurst, leftPaddingCount,

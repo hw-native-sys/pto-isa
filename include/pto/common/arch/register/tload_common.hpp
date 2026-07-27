@@ -316,7 +316,8 @@ PTO_INTERNAL constexpr bool IsScale()
     if constexpr (
         GlobalData::layout == pto::Layout::MX_A_ND || GlobalData::layout == pto::Layout::MX_A_DN ||
         GlobalData::layout == pto::Layout::MX_A_ZZ || GlobalData::layout == pto::Layout::MX_B_ND ||
-        GlobalData::layout == pto::Layout::MX_B_DN || GlobalData::layout == pto::Layout::MX_B_NN) {
+        GlobalData::layout == pto::Layout::MX_B_DN || GlobalData::layout == pto::Layout::MX_B_NN ||
+        GlobalData::layout == pto::Layout::HIF4_A_ZZ || GlobalData::layout == pto::Layout::HIF4_B_NN) {
         return true;
     }
     return false;
