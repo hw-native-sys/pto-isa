@@ -1,4 +1,4 @@
-name: arm_compile_action
+name: compile_action
 
 on:
   workflow_call:
@@ -17,6 +17,9 @@ on:
         required: false
         type: string
         default: 'large'
+      ge_st_rt2:
+        required: false
+        type: string
       image_version:
         required: true
         type: string
@@ -29,7 +32,7 @@ on:
         value: ${{jobs.JOB_compile.outputs.package_name}}
 jobs:
   JOB_compile:
-    name: compile
+    name: Compile
     select: selected_by_default
     needs: []
     steps:
@@ -38,7 +41,7 @@ jobs:
         identifier: process_checkout
         uses: checkout
         with:
-          ref: ${{ atomgit.event.pull_request.merge_commit_sha || atomgit.sha }}
+          ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
           token: ${{secrets.GIT_TOKEN}}
       -
         name: download
@@ -63,17 +66,38 @@ jobs:
             export WORKSPACE=${{ steps.process_checkout.outputs.path }}
             cd ${{ steps.process_checkout.outputs.path }}
             export task_name=${{ inputs.task_name }}
+            export ge_st_rt2=${{ inputs.ge_st_rt2 }}
             export package_name=${{ inputs.package_name }}
             BuildAccelerate bash compile.sh
           AC_SERVER_IP: ${{ vars.AC_SERVER_IP }}
+      -
+        name: rename_package
+        run: |
+          mkdir -p "${{ steps.process_checkout.outputs.path }}/build_out"
+          cd "${{ steps.process_checkout.outputs.path }}/build_out"
+          for f in *.run; do
+              [ -f "$f" ] || continue
+              [ "$f" = "${{ inputs.package_name }}" ] && continue
+              mv "$f" "${{ inputs.package_name }}"
+              echo "Renamed: $f -> ${{ inputs.package_name }}"
+              break
+          done
+      -
+        name: verify_package
+        if: ${{ inputs.task_name != 'Compile_Ascend_X86_A5' && inputs.task_name != 'Compile_Ascend_ARM_A5' }}
+        uses: cann/.gitcode/actions/verify-package@master
+        with:
+          workspace: ${{ steps.process_checkout.outputs.path }}
       - name: upload
+        if: ${{ inputs.task_name != 'Compile_Ascend_X86_A5' && inputs.task_name != 'Compile_Ascend_ARM_A5' }}
         uses: obs-upload
         with:
           endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
           bucket: "ascend-ci"
           access-key: ${{ secrets.AK }}
           secret-key: ${{ secrets.SK }}
-          artifact-path: "${{ steps.process_checkout.outputs.path }}/build_out/*.run"
+          artifact-path: |
+            ${{ steps.process_checkout.outputs.path }}/build_out/${{ inputs.package_name != '' && inputs.package_name || '*.run' }}
           object-prefix: ${{ env.obs_path }}/
     if: "${{ default() }}"
     runs-on:

@@ -12,7 +12,7 @@ on:
 
 jobs:
   JOB_staticcheck:
-    name: staticcheck
+    name: StaticCheck
     select: selected_by_default
     needs: []
     steps:
@@ -21,7 +21,7 @@ jobs:
         identifier: process_checkout
         uses: checkout
         with:
-          ref: ${{ atomgit.event.pull_request.merge_commit_sha || atomgit.sha }}
+          ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
           token: ${{secrets.GIT_TOKEN}}
       -
         name: download
