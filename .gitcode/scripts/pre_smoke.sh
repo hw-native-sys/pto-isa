@@ -8,7 +8,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
-set +e
+set -e
 set -o pipefail
 
 mkdir -p /home/taskspace && cd /home/taskspace
@@ -24,6 +24,7 @@ mpirun --version
 rm -rf /opt/rh/devtoolset-7
 source /usr/local/Ascend/cann/set_env.sh
 echo "bash build.sh --run_simple"
+set +e
 bash build.sh --run_simple --a3 2>&1 | tee -a ./run_test.log
 source /usr/local/Ascend/cann/set_env.sh
 echo "bash build.sh --comm --a3 --npu"
