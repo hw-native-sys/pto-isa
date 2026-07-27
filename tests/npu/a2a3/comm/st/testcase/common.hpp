@@ -719,6 +719,10 @@ inline bool ForkAndRunWithHcclRootInfo(int nRanks, int firstRankId, int firstDev
     return perRankFn(rankId, &rootInfo);
 }
 
-// SdmaWorkspaceManager moved to pto/comm/async/sdma/sdma_workspace_manager.hpp
+// SdmaWorkspaceManager moved to pto/comm/async/sdma/sdma_workspace_manager.hpp.
+// Host binaries that only need HCCL/MPI helpers (e.g. moe_dispatch) can skip this
+// include — pulling it transitively requires CCE address-space stubs on host.
+#ifndef PTO_COMM_ST_SKIP_SDMA_WORKSPACE_MANAGER
 #include "pto/comm/async/sdma/sdma_workspace_manager.hpp"
 using SdmaWorkspaceManager = pto::comm::sdma::SdmaWorkspaceManager;
+#endif
