@@ -14,12 +14,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 PTO_SYNCALL_AIC_KERNEL_META(RunSoftSyncAllAIC);
+PTO_SYNCALL_AIC_KERNEL_META(RunSoftSyncAllAICPartial);
 
 constexpr int32_t kBlockCount = 24;
 constexpr int32_t kInt32PerCacheLine = 8;
 constexpr uint64_t kFlagL1Addr = 0x0;
 constexpr uint64_t kOutL1Addr = 0x1000;
-constexpr uint64_t kSoftSyncL1Addr = 0x2000;
+// Written by the launched-but-not-participating cores of the partial case, so the
+// host can tell "core ran and skipped the barrier" from "core never ran" (0).
+constexpr int32_t kIdleCoreMark = 2;
 
 PTO_INTERNAL void StoreInt32LineL1(__gm__ int32_t* dst, int32_t value, uint64_t l1Addr)
 {
@@ -43,19 +46,17 @@ PTO_INTERNAL void InvalidateGmLines(__gm__ int32_t* addr, int32_t lines)
     dsb(DSB_DDR);
 }
 
-extern "C" __global__ AICORE void RunSoftSyncAllAIC(
-    __gm__ int32_t __out__* out, __gm__ int32_t __out__* flags, __gm__ int32_t __out__* syncWorkspace,
-    int32_t totalBlocks)
+// Barrier body shared by the all-cores and the partial-participation kernels.
+// totalBlocks is the number of cube cores that reach the barrier, which is also how
+// many flag slots each participant is expected to observe.
+PTO_INTERNAL void SoftSyncAllAicBody(
+    __gm__ int32_t* out, __gm__ int32_t* flags, __gm__ int32_t* syncWorkspace, int32_t totalBlocks)
 {
     const int32_t idx = block_idx;
     StoreInt32LineL1(flags + idx * kInt32PerCacheLine, idx + 1, kFlagL1Addr);
 
     GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>> gmWs(syncWorkspace);
-    Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> syncL1Tile;
-#ifndef __PTO_AUTO__
-    syncL1Tile.data() = reinterpret_cast<__cbuf__ int32_t*>(kSoftSyncL1Addr);
-#endif
-    SYNCALL<SyncAllMode::Soft, SyncCoreType::AICOnly>(gmWs, syncL1Tile, kBlockCount);
+    SYNCALL<SyncAllMode::Soft, SyncCoreType::AICOnly>(gmWs, totalBlocks);
 
     InvalidateGmLines(flags, kBlockCount);
     int32_t allVisible = 1;
@@ -70,7 +71,35 @@ extern "C" __global__ AICORE void RunSoftSyncAllAIC(
     StoreInt32LineL1(out + idx * kInt32PerCacheLine, allVisible, kOutL1Addr);
 }
 
+extern "C" __global__ AICORE void RunSoftSyncAllAIC(
+    __gm__ int32_t __out__* out, __gm__ int32_t __out__* flags, __gm__ int32_t __out__* syncWorkspace,
+    int32_t totalBlocks)
+{
+    SoftSyncAllAicBody(out, flags, syncWorkspace, totalBlocks);
+}
+
+// Partial participation: every cube core is launched, but only blocks [0, syncBlocks)
+// call SYNCALL. The idle cores must not touch the barrier at all - the soft barrier
+// counts arrivals against usedCores, so an extra arrival would shift the epoch.
+extern "C" __global__ AICORE void RunSoftSyncAllAICPartial(
+    __gm__ int32_t __out__* out, __gm__ int32_t __out__* flags, __gm__ int32_t __out__* syncWorkspace,
+    int32_t syncBlocks)
+{
+    const int32_t idx = block_idx;
+    if (idx >= syncBlocks) {
+        StoreInt32LineL1(out + idx * kInt32PerCacheLine, kIdleCoreMark, kOutL1Addr);
+        return;
+    }
+    SoftSyncAllAicBody(out, flags, syncWorkspace, syncBlocks);
+}
+
 void LaunchSoftSyncAllAIC(int32_t* out, int32_t* flags, int32_t* syncWorkspace, int32_t totalBlocks, void* stream)
 {
     RunSoftSyncAllAIC<<<24, nullptr, stream>>>(out, flags, syncWorkspace);
+}
+
+void LaunchSoftSyncAllAICPartial(
+    int32_t* out, int32_t* flags, int32_t* syncWorkspace, int32_t launchBlocks, int32_t syncBlocks, void* stream)
+{
+    RunSoftSyncAllAICPartial<<<launchBlocks, nullptr, stream>>>(out, flags, syncWorkspace, syncBlocks);
 }

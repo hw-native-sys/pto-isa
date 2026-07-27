@@ -318,10 +318,10 @@ bool RunMoeDispatch(
     size_t tpeSize = EP * EP * expertPerRank * sizeof(int32_t);
     size_t psbSize = EP * expertPerRank * sizeof(int32_t);
 
-    // Soft SYNCALL workspace: each core needs SYNCALL_SOFT_SLOT_INT32 (=8) int32_t slots
+    // Soft SYNCALL workspace: one cache line holding the shared arrival counter
     // Use EP as blockNum for multi-core parallel dispatch
     int32_t blockNum = EP;
-    size_t syncWsSize = static_cast<size_t>(blockNum) * SYNCALL_SOFT_SLOT_INT32 * sizeof(int32_t);
+    size_t syncWsSize = SYNCALL_SOFT_WORKSPACE_INT32 * sizeof(int32_t);
 
     // For WithSync mode: TPE exchange area in shmem + routing workspace
     // offsetTPE must be uniform across all ranks so remote writes land correctly.

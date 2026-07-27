@@ -36,7 +36,6 @@ constexpr int kDefaultTileCols = static_cast<int>(moe_combine::kMoeCombineTileCo
 constexpr uint32_t kRouteCacheMax = 16;
 constexpr uint64_t kPingUbAddr = 0x0;
 constexpr uint64_t kPongUbAddr = 0x1000;
-constexpr uint64_t kSoftSyncUbAddr = 0x5000;
 
 using ShapeDyn = pto::Shape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
 using StrideDyn = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>;
@@ -251,14 +250,8 @@ AICORE inline uint32_t TokenShardEnd(uint32_t totalTokens, uint32_t blockId, uin
 
 AICORE inline void SoftSyncAiv(__gm__ int32_t* gmWorkspace, uint32_t blockNum)
 {
-    pto::Tile<pto::TileType::Vec, int32_t, 1, pto::SYNCALL_SOFT_SLOT_INT32, pto::BLayout::RowMajor, -1, -1> syncTile(
-        1, pto::SYNCALL_SOFT_SLOT_INT32);
-#ifndef __PTO_AUTO__
-    syncTile.data() = reinterpret_cast<__ubuf__ int32_t*>(kSoftSyncUbAddr);
-#endif
-    GlobalNd<int32_t> syncGlobal =
-        MakeGlobal1D(gmWorkspace, static_cast<int32_t>(blockNum * pto::SYNCALL_SOFT_SLOT_INT32));
-    pto::SYNCALL<pto::SyncAllMode::Soft>(syncGlobal, syncTile, static_cast<int32_t>(blockNum));
+    GlobalNd<int32_t> syncGlobal = MakeGlobal1D(gmWorkspace, pto::SYNCALL_SOFT_WORKSPACE_INT32);
+    pto::SYNCALL<pto::SyncAllMode::Soft>(syncGlobal, static_cast<int32_t>(blockNum));
 }
 
 AICORE inline uint32_t EffectiveRowChunk(MoeCombineShape shape)

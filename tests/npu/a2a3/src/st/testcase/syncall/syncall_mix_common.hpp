@@ -20,11 +20,9 @@ constexpr int32_t kInt32PerCacheLine = 8;
 constexpr uint64_t kMixFlagUbAddr = 0x0;
 constexpr uint64_t kMixReadUbAddr = 0x1000;
 constexpr uint64_t kMixOutUbAddr = 0x2000;
-constexpr uint64_t kMixSoftUbAddr = 0x3000;
 constexpr uint64_t kMixFlagL1Addr = 0x0;
 constexpr uint64_t kMixReadL1Addr = 0x1000;
 constexpr uint64_t kMixOutL1Addr = 0x2000;
-constexpr uint64_t kMixSoftL1Addr = 0x3000;
 
 PTO_INTERNAL int32_t GetMixLogicalIdx()
 {
@@ -130,13 +128,7 @@ PTO_INTERNAL void RunMixSyncAllBody(
 
     if constexpr (UseSoft) {
         GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>> gmWs(syncWorkspace);
-        Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> syncUbTile;
-        Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> syncL1Tile;
-#ifndef __PTO_AUTO__
-        syncUbTile.data() = reinterpret_cast<__ubuf__ int32_t*>(kMixSoftUbAddr);
-        syncL1Tile.data() = reinterpret_cast<__cbuf__ int32_t*>(kMixSoftL1Addr);
-#endif
-        SYNCALL<SyncAllMode::Soft, SyncCoreType::Mix>(gmWs, syncUbTile, syncL1Tile, TotalParticipants);
+        SYNCALL<SyncAllMode::Soft, SyncCoreType::Mix>(gmWs, totalParticipants);
     } else {
         SYNCALL<SyncCoreType::Mix>();
     }
@@ -145,13 +137,7 @@ PTO_INTERNAL void RunMixSyncAllBody(
 
     if constexpr (UseSoft) {
         GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>> gmWs(syncWorkspace);
-        Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> syncUbTile;
-        Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> syncL1Tile;
-#ifndef __PTO_AUTO__
-        syncUbTile.data() = reinterpret_cast<__ubuf__ int32_t*>(kMixSoftUbAddr);
-        syncL1Tile.data() = reinterpret_cast<__cbuf__ int32_t*>(kMixSoftL1Addr);
-#endif
-        SYNCALL<SyncAllMode::Soft, SyncCoreType::Mix>(gmWs, syncUbTile, syncL1Tile, TotalParticipants);
+        SYNCALL<SyncAllMode::Soft, SyncCoreType::Mix>(gmWs, totalParticipants);
     } else {
         SYNCALL<SyncCoreType::Mix>();
     }
@@ -160,13 +146,7 @@ PTO_INTERNAL void RunMixSyncAllBody(
 
     if constexpr (UseSoft) {
         GlobalTensor<int32_t, pto::Shape<>, pto::Stride<>> gmWs(syncWorkspace);
-        Tile<TileType::Vec, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> syncUbTile;
-        Tile<TileType::Mat, int32_t, 1, SYNCALL_SOFT_SLOT_INT32> syncL1Tile;
-#ifndef __PTO_AUTO__
-        syncUbTile.data() = reinterpret_cast<__ubuf__ int32_t*>(kMixSoftUbAddr);
-        syncL1Tile.data() = reinterpret_cast<__cbuf__ int32_t*>(kMixSoftL1Addr);
-#endif
-        SYNCALL<SyncAllMode::Soft, SyncCoreType::Mix>(gmWs, syncUbTile, syncL1Tile, TotalParticipants);
+        SYNCALL<SyncAllMode::Soft, SyncCoreType::Mix>(gmWs, totalParticipants);
     } else {
         SYNCALL<SyncCoreType::Mix>();
     }
