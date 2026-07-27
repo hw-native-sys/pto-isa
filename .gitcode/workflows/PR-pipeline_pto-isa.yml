@@ -1,4 +1,4 @@
-name: pto-isa_action
+name: PR-pipeline_pto-isa
 
 concurrency:
   max: 5
@@ -20,7 +20,7 @@ on:
 
 env:
   org_name: "cann"
-  repo_name: "pt-isa"
+  repo_name: "pto-isa"
   MERGE_ID: ${{atomgit.event.pull_request.number}}
   TARGET_BRANCH: ${{atomgit.base_ref}}
   SOURCE_BRANCH: ${{atomgit.head_ref}}
@@ -48,7 +48,9 @@ stages:
               echo "Compile_Ascend_X86: ${{ steps.revise_image.outputs.Compile_Ascend_X86 }}"
               echo ${org_name}
         if: "${{ default() }}"
-        runs-on: ["codearts-hosted", "ubuntu-latest", "x64", "large"]
+        runs-on: ["dedicate-hosted", "x64", "small"]
+        container:
+          image: swr.cn-north-4.myhuaweicloud.com/ci_cann/ubuntu20.04.05_x86:k8s_v1.1006
       JOB_pr:
         name: Test_get-pr
         steps:
@@ -57,7 +59,7 @@ stages:
             identifier: process_checkout
             uses: checkout
             with:
-              ref: ${{ atomgit.event.pull_request.merge_commit_sha || atomgit.sha }}
+              ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
               token: ${{ secrets.GIT_TOKEN }}
           -
             name: get_pr
@@ -141,6 +143,7 @@ stages:
           package_name: 'cann-pto-isa_linux-x86_64-A5.run'
           arch: 'x64'
           spec: 'large'
+          ge_st_rt2: 'A5'
           image_version: ${{ jobs.JOB_image.outputs.Compile_Ascend_X86_A5_ubuntu24 }}
       Compile_Ascend_ARM_A5:
         name: Compile_Ascend_ARM_A5
@@ -150,6 +153,7 @@ stages:
           package_name: 'cann-pto-isa_linux-aarch64-A5.run'
           arch: 'arm64'
           spec: 'xlarge'
+          ge_st_rt2: 'A5'
           image_version: ${{ jobs.JOB_image.outputs.Compile_Ascend_ARM_A5 }}
       JOB_codecheck:
         name: CodeCheck
@@ -210,6 +214,7 @@ stages:
         with:
           ut_type: ''
           task_name: 'UT_Test_automode_A3'
+          ge_st_rt2: 'A3'
           image_version: ${{ jobs.JOB_image.outputs.UT_Test_A3 }}
       UT_Test_automode_A5:
         name: UT_Test_automode_A5
@@ -219,6 +224,7 @@ stages:
         with:
           ut_type: ''
           task_name: 'UT_Test_automode_A5'
+          ge_st_rt2: 'A5'
           image_version: ${{ jobs.JOB_image.outputs.UT_Test_A5 }}
     pre:
     - type: auto
@@ -233,6 +239,7 @@ stages:
             identifier: process_checkout
             uses: checkout
             with:
+              ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
               token: ${{secrets.GIT_TOKEN}}
               path: "./runner"
           -
