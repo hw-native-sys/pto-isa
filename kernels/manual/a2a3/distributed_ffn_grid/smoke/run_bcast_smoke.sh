@@ -22,7 +22,7 @@ fi
 source "${ASCEND_CANN_PATH}"
 
 SHORT=r:,v:,d:
-LONG=run-mode:,soc-version:,device-id:,grid-rows:,grid-cols:,src:,span-col:,token-tile:,model-tile:,build-only
+LONG=run-mode:,soc-version:,device-id:,grid-rows:,grid-cols:,src:,span-col:,subrect:,rect-r0:,rect-r1:,rect-c0:,rect-c1:,rect-src:,token-tile:,model-tile:,build-only
 OPTS=$(getopt -a --options $SHORT --longoptions $LONG -- "$@")
 eval set -- "$OPTS"
 
@@ -36,6 +36,12 @@ while :; do
         (--grid-cols)        BCAST_COLS="$2"; shift 2;;
         (--src)              BCAST_SRC="$2"; shift 2;;
         (--span-col)         BCAST_SPAN_COL="$2"; shift 2;;
+        (--subrect)          BCAST_SUBRECT="$2"; shift 2;;
+        (--rect-r0)          BCAST_RECT_R0="$2"; shift 2;;
+        (--rect-r1)          BCAST_RECT_R1="$2"; shift 2;;
+        (--rect-c0)          BCAST_RECT_C0="$2"; shift 2;;
+        (--rect-c1)          BCAST_RECT_C1="$2"; shift 2;;
+        (--rect-src)         BCAST_RECT_SRC="$2"; shift 2;;
         (--token-tile)       BCAST_T="$2"; shift 2;;
         (--model-tile)       BCAST_W="$2"; shift 2;;
         (--build-only)       BUILD_ONLY=1; shift;;
@@ -50,6 +56,12 @@ done
 : "${BCAST_COLS:=5}"
 : "${BCAST_SRC:=2}"
 : "${BCAST_SPAN_COL:=0}"
+: "${BCAST_SUBRECT:=0}"
+: "${BCAST_RECT_R0:=0}"
+: "${BCAST_RECT_R1:=${BCAST_ROWS}}"
+: "${BCAST_RECT_C0:=0}"
+: "${BCAST_RECT_C1:=${BCAST_COLS}}"
+: "${BCAST_RECT_SRC:=0}"
 : "${BCAST_T:=16}"
 : "${BCAST_W:=64}"
 : "${DEVICE_ID:=${ASCEND_DEVICE_ID:-${DEVICE_ID:-0}}}"
@@ -64,7 +76,7 @@ ipcrm -a 2>/dev/null
 
 echo "=== GridPipe single-source broadcast smoke ==="
 echo "  RUN_MODE: ${RUN_MODE}  SOC_VERSION: ${SOC_VERSION}  DEVICE_ID: ${DEVICE_ID}"
-echo "  Grid: ${BCAST_ROWS}x${BCAST_COLS}  SRC: ${BCAST_SRC}  SPAN_COL: ${BCAST_SPAN_COL}  Tile: ${BCAST_T}x${BCAST_W}"
+echo "  Grid: ${BCAST_ROWS}x${BCAST_COLS}  SRC: ${BCAST_SRC}  SPAN_COL: ${BCAST_SPAN_COL}  SUBRECT: ${BCAST_SUBRECT}  Rect: [r${BCAST_RECT_R0}:${BCAST_RECT_R1},c${BCAST_RECT_C0}:${BCAST_RECT_C1}] RectSRC: ${BCAST_RECT_SRC}  Tile: ${BCAST_T}x${BCAST_W}"
 echo "=============================================="
 
 # CMakeLists.txt lives in the parent demo directory; build from there.
@@ -81,7 +93,11 @@ set -euo pipefail
 
 cmake -DRUN_MODE=${RUN_MODE} -DSOC_VERSION=${SOC_VERSION} \
       -DBCAST_ROWS=${BCAST_ROWS} -DBCAST_COLS=${BCAST_COLS} -DBCAST_SRC=${BCAST_SRC} \
-      -DBCAST_SPAN_COL=${BCAST_SPAN_COL} -DBCAST_T=${BCAST_T} -DBCAST_W=${BCAST_W} \
+      -DBCAST_SPAN_COL=${BCAST_SPAN_COL} -DBCAST_SUBRECT=${BCAST_SUBRECT} \
+      -DBCAST_RECT_R0=${BCAST_RECT_R0} -DBCAST_RECT_R1=${BCAST_RECT_R1} \
+      -DBCAST_RECT_C0=${BCAST_RECT_C0} -DBCAST_RECT_C1=${BCAST_RECT_C1} \
+      -DBCAST_RECT_SRC=${BCAST_RECT_SRC} \
+      -DBCAST_T=${BCAST_T} -DBCAST_W=${BCAST_W} \
       ..
 make -j16 bcast_smoke
 

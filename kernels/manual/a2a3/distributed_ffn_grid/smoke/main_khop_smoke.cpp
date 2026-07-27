@@ -11,7 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Host driver for the GridPipe routed K-hop unicast smoke kernel.
 //
 // Layout: a gridRows x gridCols logical grid on one device, backed by per-cell
-// GM windows + a fake HcclDeviceContext (same mock as the FFN GridPipe demos).
+// GM windows + a fake CommDeviceContext (same mock as the FFN GridPipe demos).
 // Cell c is stamped with input value (c + 1) across its [T, W] tile.  After the
 // kernel, every receiver cell (col >= DIST) must hold its DIST-hop EAST
 // upstream's stamp; non-receivers stay zero.  Verified in-process (no data
@@ -45,12 +45,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "khop_smoke_config.hpp"
 #include "khop_smoke_launch.hpp"
 
-static bool ParseDeviceIdValue(const char *value, int &deviceId)
+static bool ParseDeviceIdValue(const char* value, int& deviceId)
 {
     if (value == nullptr || value[0] == '\0') {
         return false;
     }
-    char *end = nullptr;
+    char* end = nullptr;
     long parsed = std::strtol(value, &end, 10);
     if (end == value || *end != '\0' || parsed < 0 || parsed > INT_MAX) {
         return false;
@@ -59,7 +59,7 @@ static bool ParseDeviceIdValue(const char *value, int &deviceId)
     return true;
 }
 
-static int GetDeviceId(int argc, char **argv)
+static int GetDeviceId(int argc, char** argv)
 {
     int deviceId = 0;
     for (int i = 1; i < argc; ++i) {
@@ -70,7 +70,7 @@ static int GetDeviceId(int argc, char **argv)
             }
             return deviceId;
         }
-        constexpr const char *kPrefix = "--device-id=";
+        constexpr const char* kPrefix = "--device-id=";
         constexpr size_t kPrefixLen = 12;
         if (std::strncmp(argv[i], kPrefix, kPrefixLen) == 0) {
             if (!ParseDeviceIdValue(argv[i] + kPrefixLen, deviceId)) {
@@ -80,7 +80,7 @@ static int GetDeviceId(int argc, char **argv)
             return deviceId;
         }
     }
-    if (const char *env = std::getenv("ASCEND_DEVICE_ID")) {
+    if (const char* env = std::getenv("ASCEND_DEVICE_ID")) {
         (void)ParseDeviceIdValue(env, deviceId);
     }
     return deviceId;
@@ -104,10 +104,10 @@ static bool InitAcl(int deviceId)
 
 struct Resources {
     aclrtStream stream = nullptr;
-    void *windows_dev = nullptr;
-    void *in_dev = nullptr;
-    void *out_dev = nullptr;
-    void *hccl_ctx_dev = nullptr;
+    void* windows_dev = nullptr;
+    void* in_dev = nullptr;
+    void* out_dev = nullptr;
+    void* hccl_ctx_dev = nullptr;
     uint64_t ffts = 0;
     uint32_t fftsLen = 0;
 
@@ -118,9 +118,9 @@ struct Resources {
     size_t bufBytes = 0; // in / out, cells * tile
 };
 
-static bool BuildFakeHcclCtx(Resources &r)
+static bool BuildFakeHcclCtx(Resources& r)
 {
-    HcclDeviceContext hostCtx{};
+    CommDeviceContext hostCtx{};
     hostCtx.rankId = 0;
     hostCtx.rankNum = static_cast<uint32_t>(r.cells);
     hostCtx.winSize = static_cast<uint64_t>(KHOP_WINDOW_BYTES);
@@ -129,19 +129,20 @@ static bool BuildFakeHcclCtx(Resources &r)
         hostCtx.windowsIn[i] = base + i * static_cast<size_t>(KHOP_WINDOW_BYTES);
         hostCtx.windowsOut[i] = hostCtx.windowsIn[i];
     }
-    if (aclrtMalloc(&r.hccl_ctx_dev, sizeof(HcclDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+    if (aclrtMalloc(&r.hccl_ctx_dev, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMalloc(hccl_ctx) failed" << std::endl;
         return false;
     }
-    if (aclrtMemcpy(r.hccl_ctx_dev, sizeof(HcclDeviceContext), &hostCtx, sizeof(HcclDeviceContext),
-                    ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
+    if (aclrtMemcpy(
+            r.hccl_ctx_dev, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext),
+            ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMemcpy(hccl_ctx) failed" << std::endl;
         return false;
     }
     return true;
 }
 
-static bool Allocate(Resources &r)
+static bool Allocate(Resources& r)
 {
     if (r.cells == 0 || r.cells > HCCL_MAX_RANK_NUM) {
         std::cerr << "[ERROR] invalid cell count " << r.cells << std::endl;
@@ -169,7 +170,7 @@ static bool Allocate(Resources &r)
     std::vector<float> hostIn(r.cells * static_cast<size_t>(KHOP_TILE_ELEMS));
     for (size_t cell = 0; cell < r.cells; ++cell) {
         float stamp = static_cast<float>(cell + 1);
-        float *dst = hostIn.data() + cell * static_cast<size_t>(KHOP_TILE_ELEMS);
+        float* dst = hostIn.data() + cell * static_cast<size_t>(KHOP_TILE_ELEMS);
         for (int e = 0; e < KHOP_TILE_ELEMS; ++e) {
             dst[e] = stamp;
         }
@@ -191,7 +192,7 @@ static bool Allocate(Resources &r)
     return true;
 }
 
-static bool Verify(Resources &r)
+static bool Verify(Resources& r)
 {
     std::vector<float> outHost(r.cells * static_cast<size_t>(KHOP_TILE_ELEMS));
     if (aclrtMemcpy(outHost.data(), r.bufBytes, r.out_dev, r.bufBytes, ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
@@ -212,7 +213,7 @@ static bool Verify(Resources &r)
                 size_t upstream = static_cast<size_t>(row) * r.cols + (col - KHOP_DIST);
                 expected = static_cast<float>(upstream + 1);
             }
-            const float *tile = outHost.data() + cell * static_cast<size_t>(KHOP_TILE_ELEMS);
+            const float* tile = outHost.data() + cell * static_cast<size_t>(KHOP_TILE_ELEMS);
             for (int e = 0; e < KHOP_TILE_ELEMS; ++e) {
                 double d = std::abs(static_cast<double>(tile[e]) - static_cast<double>(expected));
                 if (d > maxDiff) {
@@ -237,22 +238,23 @@ static bool Verify(Resources &r)
     return true;
 }
 
-static bool CheckFaults(Resources &r)
+static bool CheckFaults(Resources& r)
 {
     constexpr size_t kFlagWords = static_cast<size_t>(KHOP_GRID_FLAGS_BYTES) / sizeof(uint32_t);
     std::vector<uint32_t> flags(r.cells * kFlagWords, 0);
     for (size_t cell = 0; cell < r.cells; ++cell) {
-        auto *src = reinterpret_cast<uint8_t *>(r.windows_dev) + cell * KHOP_WINDOW_BYTES;
-        auto *dst = flags.data() + cell * kFlagWords;
-        if (aclrtMemcpy(dst, kFlagWords * sizeof(uint32_t), src, kFlagWords * sizeof(uint32_t),
-                        ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
+        auto* src = reinterpret_cast<uint8_t*>(r.windows_dev) + cell * KHOP_WINDOW_BYTES;
+        auto* dst = flags.data() + cell * kFlagWords;
+        if (aclrtMemcpy(
+                dst, kFlagWords * sizeof(uint32_t), src, kFlagWords * sizeof(uint32_t), ACL_MEMCPY_DEVICE_TO_HOST) !=
+            ACL_SUCCESS) {
             std::cerr << "[ERROR] flag D2H memcpy failed for cell " << cell << std::endl;
             return false;
         }
     }
     bool ok = true;
     for (size_t cell = 0; cell < r.cells; ++cell) {
-        const uint32_t *cf = flags.data() + cell * kFlagWords;
+        const uint32_t* cf = flags.data() + cell * kFlagWords;
         for (size_t i = 0; i < kFlagWords; ++i) {
             if (cf[i] >= 0x100U) {
                 std::cerr << "[ERROR] GridPipe fault cell=" << cell << " flagWord=" << i << " code=0x" << std::hex
@@ -264,7 +266,7 @@ static bool CheckFaults(Resources &r)
     return ok;
 }
 
-static void Cleanup(Resources &r)
+static void Cleanup(Resources& r)
 {
     if (r.hccl_ctx_dev) {
         aclrtFree(r.hccl_ctx_dev);
@@ -292,9 +294,10 @@ static bool Run()
     }
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    launchKHopSmokeKernel(reinterpret_cast<uint8_t *>(r.ffts), reinterpret_cast<uint8_t *>(r.windows_dev),
-                          reinterpret_cast<uint8_t *>(r.in_dev), reinterpret_cast<uint8_t *>(r.out_dev),
-                          reinterpret_cast<uint8_t *>(r.hccl_ctx_dev), r.rows, r.cols, r.stream);
+    launchKHopSmokeKernel(
+        reinterpret_cast<uint8_t*>(r.ffts), reinterpret_cast<uint8_t*>(r.windows_dev),
+        reinterpret_cast<uint8_t*>(r.in_dev), reinterpret_cast<uint8_t*>(r.out_dev),
+        reinterpret_cast<uint8_t*>(r.hccl_ctx_dev), r.rows, r.cols, r.stream);
     aclError syncRet = aclrtSynchronizeStream(r.stream);
     auto t1 = std::chrono::high_resolution_clock::now();
     double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
@@ -308,7 +311,7 @@ static bool Run()
     return ok;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     int deviceId = GetDeviceId(argc, argv);
     std::cout << "[INFO] using device " << deviceId << std::endl;
