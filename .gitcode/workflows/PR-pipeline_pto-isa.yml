@@ -284,6 +284,7 @@ stages:
               object-prefix: ${{ env.obs_smoke_path }}/
           -
             name: smoke executor
+            timeout-minutes: 30
             uses: manifest-management-plugin
             with:
               action: DEPLOY
@@ -309,7 +310,7 @@ stages:
               action: CRUSH
               repo: ${{ steps.process_checkout.outputs.path }}
               file_path: ${{ steps.process_checkout.outputs.path }}/ci/smoke-conf/smoke-A2.yaml
-        if: "${{ default() }}"
+        if: env.TARGET_BRANCH == 'master'
         runs-on: ['self-hosted','arch=arm','smoke=204']
     pre:
     - type: auto
