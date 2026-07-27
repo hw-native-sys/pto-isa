@@ -173,6 +173,8 @@ enum class Layout {
     MX_B_ND,
     MX_B_DN,
     MX_B_NN,
+    HIF4_A_ZZ,
+    HIF4_B_NN,
     NC1HWC0,
     GNC1HWC0,
     NCHW,
