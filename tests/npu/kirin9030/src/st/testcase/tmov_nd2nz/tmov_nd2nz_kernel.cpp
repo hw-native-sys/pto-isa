@@ -8,33 +8,37 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 #include <pto/pto-inst.hpp>
-#include "acl/acl.h"
+#include <pto/common/constants.hpp>
 
 using namespace pto;
 
-template <int kSrcRows, int kDstRows, int kCols>
-__global__ AICORE void runTMOV_nd2nz(__gm__ half* out, __gm__ half* src)
+// TMOV ND→NZ kernel.
+// Sizes must be pre-aligned: kRows % 16 == 0 and kCols % 32 == 0.
+template <typename T, int kRows, int kCols>
+__global__ AICORE void runTMOV_nd2nz(__gm__ T* out, __gm__ T* src)
 {
-    using T = half;
-    constexpr int c0 = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T));
+    constexpr int c0 = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T)); // 32
 
-    using SrcShape = Shape<1, 1, 1, kSrcRows, kCols>;
+    // Input GM: ND row-major
+    using SrcShape = Shape<1, 1, 1, kRows, kCols>;
     using SrcStride = pto::Stride<1, 1, 1, kCols, 1>;
     using SrcGlobal = GlobalTensor<T, SrcShape, SrcStride>;
 
+    // Output GM: NZ fractal [C1, N1, 16, c0]
     constexpr int C1 = kCols / c0;
-    constexpr int N1 = kDstRows / FRACTAL_NZ_ROW;
+    constexpr int N1 = kRows / FRACTAL_NZ_ROW;
     using DstShape = Shape<1, C1, N1, FRACTAL_NZ_ROW, c0>;
-    using DstStride = pto::Stride<C1 * kDstRows * c0, kDstRows * c0, FRACTAL_NZ_ROW * c0, c0, 1>;
+    using DstStride = pto::Stride<C1 * kRows * c0, kRows * c0, FRACTAL_NZ_ROW * c0, c0, 1>;
     using DstGlobal = GlobalTensor<T, DstShape, DstStride, Layout::NZ>;
 
-    using SrcTile = Tile<TileType::Vec, T, kSrcRows, kCols, BLayout::RowMajor, -1, -1>;
-    using DstTile = Tile<TileType::Vec, T, kDstRows, kCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
+    // UB tiles: src ND, dst NZ
+    using SrcTile = Tile<TileType::Vec, T, kRows, kCols, BLayout::RowMajor, -1, -1>;
+    using DstTile = Tile<TileType::Vec, T, kRows, kCols, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
 
-    SrcTile srcTile(kSrcRows, kCols);
-    DstTile dstTile(kSrcRows, kCols);
+    SrcTile srcTile(kRows, kCols);
+    DstTile dstTile(kRows, kCols);
     TASSIGN<0x0>(srcTile);
-    TASSIGN<sizeof(T) * kSrcRows * kCols>(dstTile);
+    TASSIGN<sizeof(T) * kRows * kCols>(dstTile);
 
     SrcGlobal srcGlobal(src);
     DstGlobal dstGlobal(out);
@@ -54,14 +58,16 @@ __global__ AICORE void runTMOV_nd2nz(__gm__ half* out, __gm__ half* src)
 #endif
 
     TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
 }
 
-template <int kSrcRows, int kDstRows, int kCols>
-void launchTMOV_nd2nz(aclFloat16* out, aclFloat16* src, void* stream)
+// Host-visible launch wrappers
+template <typename T, int kRows, int kCols>
+void launchTMOV_nd2nz(T* out, T* src, void* stream)
 {
-    runTMOV_nd2nz<kSrcRows, kDstRows, kCols><<<1, nullptr, stream>>>((half*)out, (half*)src);
+    runTMOV_nd2nz<T, kRows, kCols><<<1, nullptr, stream>>>((T*)out, (T*)src);
 }
 
-template void launchTMOV_nd2nz<1, 16, 128>(aclFloat16*, aclFloat16*, void*);
-template void launchTMOV_nd2nz<1, 16, 256>(aclFloat16*, aclFloat16*, void*);
-template void launchTMOV_nd2nz<16, 16, 256>(aclFloat16*, aclFloat16*, void*);
+template void launchTMOV_nd2nz<int8_t, 32, 32>(int8_t*, int8_t*, void*);
+template void launchTMOV_nd2nz<int8_t, 32, 64>(int8_t*, int8_t*, void*);
+template void launchTMOV_nd2nz<int8_t, 64, 64>(int8_t*, int8_t*, void*);

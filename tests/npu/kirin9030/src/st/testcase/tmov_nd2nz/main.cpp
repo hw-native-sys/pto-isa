@@ -14,8 +14,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <int kSrcRows, int kDstRows, int kCols>
-void launchTMOV_nd2nz(aclFloat16* out, aclFloat16* src, void* stream);
+template <typename T, int kRows, int kCols>
+void launchTMOV_nd2nz(T* out, T* src, void* stream);
 
 class TMovNd2NzTest : public testing::Test {
 protected:
@@ -32,19 +32,19 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <int kSrcRows, int kDstRows, int kCols>
+template <int kRows, int kCols>
 void test_tmov_nd2nz()
 {
-    size_t inputSize = kSrcRows * kCols * sizeof(aclFloat16);
-    size_t outputSize = kDstRows * kCols * sizeof(aclFloat16);
+    size_t inputSize = kRows * kCols * sizeof(int8_t);
+    size_t outputSize = kRows * kCols * sizeof(int8_t); // NZ total == ND total for aligned sizes
 
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    aclFloat16 *dstHost, *dstDevice;
-    aclFloat16 *srcHost, *srcDevice;
+    int8_t *dstHost, *dstDevice;
+    int8_t *srcHost, *srcDevice;
 
     aclrtMallocHost((void**)(&dstHost), outputSize);
     aclrtMallocHost((void**)(&srcHost), inputSize);
@@ -54,7 +54,7 @@ void test_tmov_nd2nz()
     ReadFile(GetGoldenDir() + "/input_arr.bin", inputSize, srcHost, inputSize);
 
     aclrtMemcpy(srcDevice, inputSize, srcHost, inputSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTMOV_nd2nz<kSrcRows, kDstRows, kCols>(dstDevice, srcDevice, stream);
+    launchTMOV_nd2nz<int8_t, kRows, kCols>(dstDevice, srcDevice, stream);
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, outputSize, dstDevice, outputSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
@@ -62,7 +62,6 @@ void test_tmov_nd2nz()
 
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);
-
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
 
@@ -70,17 +69,17 @@ void test_tmov_nd2nz()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<uint8_t> golden(outputSize);
-    std::vector<uint8_t> devFinal(outputSize);
+    std::vector<int8_t> golden(kRows * kCols);
+    std::vector<int8_t> devFinal(kRows * kCols);
     ReadFile(GetGoldenDir() + "/golden.bin", outputSize, golden.data(), outputSize);
     ReadFile(GetGoldenDir() + "/output_z.bin", outputSize, devFinal.data(), outputSize);
 
-    bool ret = ResultCmp<uint8_t>(golden, devFinal, 0.0f);
+    bool ret = ResultCmp(golden, devFinal, 0.0f);
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TMovNd2NzTest, case_half_1x128_1to16) { test_tmov_nd2nz<1, 16, 128>(); }
+TEST_F(TMovNd2NzTest, case_int8_32x32) { test_tmov_nd2nz<32, 32>(); }
 
-TEST_F(TMovNd2NzTest, case_half_1x256_1to16) { test_tmov_nd2nz<1, 16, 256>(); }
+TEST_F(TMovNd2NzTest, case_int8_32x64) { test_tmov_nd2nz<32, 64>(); }
 
-TEST_F(TMovNd2NzTest, case_half_16x256_16to16) { test_tmov_nd2nz<16, 16, 256>(); }
+TEST_F(TMovNd2NzTest, case_int8_64x64) { test_tmov_nd2nz<64, 64>(); }
