@@ -48,7 +48,7 @@ PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 输入类型必须是以下之一：`int32_t`、`half`、`float`。
     - 输出类型必须是 `uint8_t`。
     - `src0/src1/dst` tile位置必须是 `TileType::Vec`。

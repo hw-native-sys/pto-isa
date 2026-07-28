@@ -46,7 +46,7 @@ PTO_INST RecordEvent TSHRS(TileDataDst &dst, TileDataSrc &src, typename TileData
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 支持的元素类型为 `int32_t`、`int`、`int16_t`、`uint32_t`、`unsigned int` 和 `uint16_t`。
     - `dst` 和 `src` 必须使用相同的元素类型。
     - `dst` 和 `src` 必须是向量Tile。

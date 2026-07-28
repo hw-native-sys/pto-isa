@@ -21,6 +21,7 @@ $$ \mathrm{dst}_{i,0} = \prod_{j=0}^{C-1} \mathrm{src}_{i,j} $$
 ```text
 %dst = trowprod %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 降级可能引入内部临时tile；C++内建函数需要显式的 `tmp` 操作数。
 
 ### AS Level 1 (SSA)

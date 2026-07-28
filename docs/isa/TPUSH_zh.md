@@ -7,13 +7,14 @@
 本指令支持多类数据的推送，包括基于 `TileSplitAxis` 的Tile重载、简化版Tile重载（参数顺序相反、无需Split）、GlobalTensor重载以及基于TConfig的重载。
 
 ## 操作语义
+
 对于TileData流程：
 
 1. `TPUSH(Pipe&, TileData&, Split)` 将生产者tile存入当前FIFO槽位，并为消费者记录数据就绪同步。生产者tile索引在槽位地址计算完成后递增。
 2. `TPOP(Pipe&, TileData&, Split)` 等待生产者的数据就绪同步，将当前FIFO槽位加载到消费者tile中。消费者tile索引在槽位地址计算完成后递增。
 3. `TFREE(Pipe&, Split)` 释放FIFO中的槽位空间。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品平台上此接口为空操作（`TPOP` 已在内部执行空闲空间通知），Ascend 950PR/Ascend 950DT平台上会释放 `TPOP` 使用的FIFO槽位空间。
 
-对于GlobalData流程:
+对于GlobalData流程：
 
 1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者FIFO槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
 2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将FIFO槽位提交给消费者。它本身不会存储tile数据。
@@ -241,4 +242,5 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
 ## ASM形式示例
 
 当前公开的汇编参考尚未为 `TPUSH` 定义稳定的PTO-AS写法。手写CV FIFO程序时请使用C++ intrinsic形式。
-```
+
+```text

@@ -50,7 +50,7 @@ PTO_INST RecordEvent TCOLEXPANDSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ## 约束
 
-- `TileDataDst::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品, Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT），`uint16`、`uint32`、`bfloat16_t`、`int8`、`uint8`（适用于Ascend 950PR/Ascend 950DT）。
+- `TileDataDst::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品， Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT），`uint16`、`uint32`、`bfloat16_t`、`int8`、`uint8`（适用于Ascend 950PR/Ascend 950DT）。
 - Tile形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
 - `src1` 预期提供**每列一个标量**（即，其有效形状必须覆盖 `C` 个值）。
 - 确切的布局/分形约束是目标特定的；参见 `include/pto/npu/*/TColExpand*.hpp` 下的后端头文件。

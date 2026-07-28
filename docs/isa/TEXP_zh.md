@@ -50,12 +50,11 @@ PTO_INST RecordEvent TEXP(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
 * `ExpAlgorithm::DEFAULT`：普通算法，速度快但精度较低。
 * `ExpAlgorithm::HIGH_PRECISION`：高精度算法，速度较慢。
 
-
 ## 约束
 
 - **实现检查 (NPU)**:
     - `TileData::DType` 必须是以下之一：`float` 或 `half`。
-    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`);
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）;
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
@@ -63,7 +62,6 @@ PTO_INST RecordEvent TEXP(TileDataDst &dst, TileDataSrc &src, WaitEvents &... ev
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **高精度算法**
     - 仅在Ascend 950PR/Ascend 950DT上有效，`PrecisionType`选项在Atlas A3 训练系列产品/Atlas A3 推理系列产品上将被忽略。
-
 
 ## 示例
 

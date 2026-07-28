@@ -93,7 +93,7 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
 
 ## 约束
 
-- **基于索引的gather：实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **基于索引的gather：实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - `sizeof(DstTileData::DType)` 必须是2或4字节（b16/b32）。
     - `sizeof(Src1TileData::DType)` 必须是4字节（b32: `int32_t`、`uint32_t`）。
     - `DstTileData::DType` 必须与 `Src0TileData::DType` 类型相同。
@@ -105,7 +105,7 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
     - `sizeof(Src1TileData::DType)` 对应类型必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t` 之一。
     - `DstTileData::DType` 必须与 `Src0TileData::DType` 类型相同。
     - `src1.GetValidCol() == Src1TileData::Cols` 且 `dst.GetValidCol() == DstTileData::Cols`。
-- **基于掩码模式的gather：实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **基于掩码模式的gather：实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 源元素大小必须是`2`或`4`字节。
     - `SrcTileData::DType`/`DstTileData::DType` 必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t` 或 `float` 之一。
     - `dst` 和 `src` 必须都是 `TileType::Vec` 且行主序。
@@ -115,13 +115,13 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
     - `dst` 和 `src` 必须都是 `TileType::Vec` 且行主序。
     - `SrcTileData::DType`/`DstTileData::DType` 必须是 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`、`float8_e4m3_t`、`float8_e5m2_t` 或 `hifloat8_t` 之一。
     - 支持的数据类型限制为目标定义的集合（通过实现中的 `static_assert` 强制执行），且 `sizeof(dst element) == sizeof(src element)`，`dst.GetValidCol() == DstTileData::Cols`（连续的目标存储）。
-- **基于比较的gather：实现检查**：类型与 `cmpMode` 约束详见 [C++内建接口 → 基于比较的Gather约束](#基于比较的-gather-约束) 一节。
+- **基于比较的gather：实现检查**：类型与 `cmpMode` 约束详见 [C++内建接口 → 基于比较的Gather约束](#基于比较的gather约束) 一节。
 - **边界 / 有效性**:
     - 索引边界不通过显式运行时断言进行验证；超出范围的索引行为由目标定义。
 - **临时Tile**:
-    - **基于索引的Gather (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**：C++ API需要显式传入 `tmp` Tile。`TileDataTmp::DType` 必须与 `TileDataS1::DType` 类型相同（`int32_t` 或 `uint32_t`）。`src1.GetValidRow() == TileDataTmp::Rows` 且 `src1.GetValidCol() == TileDataTmp::Cols`。tmp Tile用于存放b16源类型的 `vmuls` 中间结果供 `vgather` 使用；对于b32源类型，结果直接写入 `dst`，但API仍需要 `tmp`。
+    - **基于索引的Gather （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**：C++ API需要显式传入 `tmp` Tile。`TileDataTmp::DType` 必须与 `TileDataS1::DType` 类型相同（`int32_t` 或 `uint32_t`）。`src1.GetValidRow() == TileDataTmp::Rows` 且 `src1.GetValidCol() == TileDataTmp::Cols`。tmp Tile用于存放b16源类型的 `vmuls` 中间结果供 `vgather` 使用；对于b32源类型，结果直接写入 `dst`，但API仍需要 `tmp`。
     - **基于索引的Gather (Ascend 950PR/Ascend 950DT)**：`tmp` Tile被接受但不使用。Ascend 950PR/Ascend 950DT硬件无需临时缓冲区即可处理基于索引的Gather。
-    - **基于比较的Gather (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**：C++ API需要显式传入 `tmp` Tile，该Tile作为三个内部区域的合并暂存缓冲区：
+    - **基于比较的Gather （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**：C++ API需要显式传入 `tmp` Tile，该Tile作为三个内部区域的合并暂存缓冲区：
         1. **cmpsTmp**（比较结果位图）：偏移量0，以 `uint8_t` 存储，大小 = `TileDataTmp::Rows × TileDataTmp::Cols`字节。
         2. **indexTmp**（索引数组）：偏移量 = `TileDataTmp::Rows × TileDataTmp::Cols × sizeof(uint8_t)`，以 `TileDataD::DType` 存储，大小 = `TileDataS::Rows × TileDataS::Cols × sizeof(TileDataD::DType)`字节。
         3. **cvtTmp**（转换后的k值数组）：偏移量 = `TileDataTmp::Rows × TileDataTmp::Cols × sizeof(uint8_t)` + `TileDataS::Rows × TileDataS::Cols × sizeof(TileDataD::DType)`，以 `TileDataS::DType` 存储，大小 = `TileDataS::Rows × sizeof(TileDataS::DType)`字节。

@@ -69,7 +69,7 @@ PTO_INST void TASSIGN(T& obj);
 
 内存空间、容量和对齐由Tile的 `TileType`（即 `Loc` 模板参数）自动确定：
 
-| TileType | 内存空间 | 容量 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品) | 容量 (Ascend 950PR/Ascend 950DT) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
+| TileType | 内存空间 | 容量 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品） | 容量 (Ascend 950PR/Ascend 950DT) | 容量 (Kirin9030) | 容量 (KirinX90) | 对齐 |
 |----------|----------|-------------|-----------|------------------|-----------------|------|
 | Vec | UB | 192KB | 256KB | 128KB | 128KB | 32Byte |
 | Mat | L1 | 512KB | 512KB | 512KB | 1024KB | 32Byte |

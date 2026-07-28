@@ -110,6 +110,7 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataPara &sc
 ### MXFP4（e2m1）
 
 同MXFP8，但：
+
 | Tile | dtype | 字节数 |
 |------|-------|--------|
 | `dst` | `float4_e2m1x2_t`（每字节打包2个e2m1） | $M \cdot N / 2$ |

@@ -51,7 +51,7 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
 ## 约束
 
 - `isUpperOrLower` 必须是 `0`（下三角）或 `1`（上三角）。
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 目标Tile必须是行主序（`isRowMajor`），由 `static_assert` 强制执行。
     - 支持的元素类型：`int32_t`、`int`、`int16_t`、`uint32_t`、`uint16_t`、`half`、`float16_t`、`float`、`float32_t`。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:

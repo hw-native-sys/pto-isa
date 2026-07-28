@@ -13,7 +13,7 @@
 
 越界处理通过 `GatherOOB` 模板参数选择。`MGATHER` 没有原子或冲突策略：每个目标槽有唯一的源索引，因此不会发生冲突。
 
-目标也可以是 **L1 / cube `TileType::Mat` tile（NZ布局）**（索引以GM tensor形式提供）。此GM → L1路径（支持 `Coalesce::Row` 和 `Coalesce::Elem`，适用于Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品和Ascend 950PR/Ascend 950DT）见下方 [GM → L1 Gather（TileType::Mat目标）](#gm--l1-gathertiletypemat-) 章节。
+目标也可以是 **L1 / cube `TileType::Mat` tile（NZ布局）**（索引以GM tensor形式提供）。此GM → L1路径（支持 `Coalesce::Row` 和 `Coalesce::Elem`，适用于Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品和Ascend 950PR/Ascend 950DT）见下方 [GM → L1 Gather（TileType::Mat目标）](#gm-l1-gather) 章节。
 
 按目标分发摘要：
 
@@ -130,11 +130,13 @@ enum class GatherOOB : uint8_t {
 ### Tile约束（CPU）
 
 **支持的数据类型：**
+
 - `dst` / `src` 元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
 - 在AICore目标上（CPU模拟器以 `__CCE_AICORE__` 编译时），还支持 `float8_e4m3_t` 和 `float8_e5m2_t`。
 - `indexes` 元素类型必须是 `int32_t` 或 `uint32_t`。
 
 **Tile与内存类型：**
+
 - `dst` 必须是向量Tile（`TileType::Vec`）。
 - `indexes` 必须是向量Tile（`TileType::Vec`）。
 - `dst` 和 `indexes` 必须使用行主序布局（`BLayout::RowMajor + SLayout::NoneBox`）。
@@ -142,6 +144,7 @@ enum class GatherOOB : uint8_t {
 - `src` 必须使用 `Layout::ND`。
 
 **形状约束：**
+
 - `dst.Rows == indexes.Rows`。
 - `indexes` 的形状必须为 `[1, N]`（按行gather）或 `[N, M]`（按元素gather）。
 - `dst` 行宽必须满足32字节对齐，即 `dst.Cols * sizeof(T)` 必须是32的倍数。
@@ -150,10 +153,12 @@ enum class GatherOOB : uint8_t {
 ### Tile约束（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）
 
 **支持的数据类型：**
+
 - `dst` / `src` 元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品不支持 `float8_e4m3_t`、`float8_e5m2_t`、`hifloat8_t`。
 - `indexes` 元素类型必须是 `int32_t` 或 `uint32_t`。
 
 **Tile与内存类型：**
+
 - `dst` 必须是向量Tile（`TileDst::Loc == TileType::Vec`）。
 - `indexes` 必须是向量Tile（`TileIdx::Loc == TileType::Vec`）。
 - 索引tile **始终** 是 `BLayout::RowMajor + SLayout::NoneBox`（ND），无论表布局如何。
@@ -163,6 +168,7 @@ enum class GatherOOB : uint8_t {
     - `GlobalTable::layout == Layout::NZ` ⇒ `TileDst` 是 `BLayout::ColMajor + SLayout::RowMajor + SFractalSize == TileConfig::fractalABSize`（= 512Byte）。
 
 **形状约束：**
+
 - 填充后的 `TileDst::Cols * sizeof(T)` 必须在两种布局中均为32字节对齐。`ValidRow` / `ValidCol` 不受此规则约束。
 - 对于 `Coalesce::Row`：`TileIdx::ValidRow == 1` 且 `TileIdx::ValidCol == TileDst::ValidRow`。
 - 对于 `Coalesce::Elem`：`TileIdx::ValidRow == TileDst::ValidRow` 且 `TileIdx::ValidCol == TileDst::ValidCol`。
@@ -172,10 +178,12 @@ enum class GatherOOB : uint8_t {
 ### Tile约束（Ascend 950PR/Ascend 950DT）
 
 **支持的数据类型：**
+
 - `dst` / `src` 元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。在 `__CCE_AICORE__` 构建中还包含 `hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`。
 - `indexes` 元素类型必须是 `int32_t` 或 `uint32_t`。
 
 **Tile与内存类型：**
+
 - `dst` 必须是向量Tile（`TileDst::Loc == TileType::Vec`）。
 - `indexes` 必须是向量Tile（`TileIdx::Loc == TileType::Vec`）。
 - SIMT内核对UB tile的布局无感知：每次UB读写均通过 `tile_offset_2d<TileX>(r, c)`，因此 `TileDst` 可以为 `BLayout::RowMajor` 或 `BLayout::ColMajor`（搭配 `SLayout::NoneBox`）。
@@ -183,6 +191,7 @@ enum class GatherOOB : uint8_t {
 - **GM表布局：仅 `Layout::ND`。** Ascend 950PR/Ascend 950DT SIMT内核将GM寻址为扁平行主序缓冲区，行步长硬编码为 `validCols`；`MGatherCheck` 强制 `GlobalTable::staticShape[4] == TileDst::ValidCol`，因此表不能有任何行间填充。
 
 **形状约束：**
+
 - 填充后的 `TileDst::Cols * sizeof(T)`（RowMajor）或 `TileDst::Rows * sizeof(T)`（ColMajor）必须32字节对齐。
 - 对于 `Coalesce::Row`：索引tile的有效形状为 `[1, R]`（`BLayout::RowMajor`）**或** `[R, 1]`（`BLayout::ColMajor`）。
 - 对于 `Coalesce::Elem`：`TileIdx::ValidRow == TileDst::ValidRow` 且 `TileIdx::ValidCol == TileDst::ValidCol`。`TileIdx` 的 `BLayout` 与 `TileDst` 无关。
@@ -459,7 +468,7 @@ AICORE void example_scalar(__gm__ float* tablePtr, __gm__ int32_t* idxPtr)
 pto.mgather ins(%mem, %idx : !pto.partition_tensor_view<MxNxdtype>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
 
-## GM → L1 Gather（TileType::Mat目标）
+## GM → L1 Gather（TileType::Mat目标） <a id="gm-l1-gather"></a>
 
 除上述GM → UB gather外，`MGATHER` 还支持直接收集索引选择的数据到 **L1 / cube `TileType::Mat` tile（NZ fractal布局）** 中。当 `TileDst::Loc == TileType::Mat` 时，自动选择GM → L1路径。
 
@@ -588,6 +597,6 @@ AICORE void example_gm2l1_elem_simt(__gm__ T* tablePtr, __gm__ int32_t* idxPtr, 
 
 ## 相关指令
 
-- [`TLOAD`](TLOAD.md)：连续块传输GM → Tile。
-- [`MSCATTER`](MSCATTER.md)：索引散射Tile → GM（逆操作）。
-- [`TGATHER`](TGATHER.md)：基于索引的Tile内部gather（同vec-core上的UB-to-UB）。
+- [`TLOAD`](TLOAD_zh.md)：连续块传输GM → Tile。
+- [`MSCATTER`](MSCATTER_zh.md)：索引散射Tile → GM（逆操作）。
+- [`TGATHER`](TGATHER_zh.md)：基于索引的Tile内部gather（同vec-core上的UB-to-UB）。

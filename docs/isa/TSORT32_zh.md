@@ -2,7 +2,7 @@
 
 ## 指令示意图
 
-![TSort32 tile operation](../figures/isa/TSort32.svg)
+![TSort32 tile operation](../figures/isa/TSORT32.svg)
 
 ## 简介
 
@@ -40,6 +40,7 @@ $$
 其中 `π` 为该块的排序置换。
 
 注：
+
 - `idx` 是输入Tile（索引随值一起被重排），不是输出。
 - `dst` 存储排序后的值-索引对，而非仅排序后的值。
 

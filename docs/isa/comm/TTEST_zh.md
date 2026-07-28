@@ -18,7 +18,7 @@ $$\mathrm{result} = (\mathrm{signal} \;\mathtt{cmp}\; \mathrm{cmpValue})$$
 
 $$\mathrm{result} = \bigwedge_{d_0, d_1, d_2, d_3, d_4} (\mathrm{signal}_{d_0, d_1, d_2, d_3, d_4} \;\mathtt{cmp}\; \mathrm{cmpValue})$$
 
-其中 `cmp` ∈ {`EQ`, `NE`, `GT`, `GE`, `LT`, `LE`}
+其中 `cmp` ∈ {`EQ`， `NE`， `GT`， `GE`， `LT`， `LE`}
 
 ## 汇编语法
 
@@ -49,6 +49,7 @@ PTO_INST bool TTEST(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp)
     - 单个信号：形状为 `<1,1,1,1,1>`。
     - 信号tensor：形状决定要检测的多维区域（最高5维）。
 - **比较运算符**（WaitCmp）：
+
   | 值 | 条件 |
   |-------|--------|
   | `EQ` | `signal == cmpValue` |

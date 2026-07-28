@@ -72,7 +72,7 @@ PTO_INST RecordEvent TDIVS(TileDataDst &dst, typename TileDataDst::DType scalar,
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**（两个重载）:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**（两个重载）:
     - `TileData::DType` 必须是以下之一：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。

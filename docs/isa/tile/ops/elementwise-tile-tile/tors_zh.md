@@ -46,7 +46,7 @@ PTO_INST RecordEvent TORS(TileDataDst &dst, TileDataSrc &src, typename TileDataD
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 适用于整数元素类型。
     - `dst` 和 `src` 必须使用相同的元素类型。
     - `dst` 和 `src` 必须是向量Tile。

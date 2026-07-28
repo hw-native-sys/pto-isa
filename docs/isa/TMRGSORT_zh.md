@@ -41,7 +41,7 @@ $$ \mathrm{dst} = \mathrm{merge\_desc}(\mathrm{src}_0, \mathrm{src}_1, \ldots) $
 
 将 `src` 视为 **4个连续等长的已排序块**，在单个Tile内完成4路归并。
 
-```
+```text
 src Tile（1 行）：
 ┌── blockLen ──┬── blockLen ──┬── blockLen ──┬── blockLen ──┐
 │    块 0      │    块 1      │    块 2      │    块 3      │
@@ -73,7 +73,7 @@ dst Tile（1 行）：
 
 将2~4个**独立的已预排序列表**归并为一个有序输出。
 
-```
+```text
 src0 Tile ──┐
 src1 Tile ──┤
 src2 Tile ──┼──→ vmrgsort4 ──→ tmp ──→ dst
@@ -227,7 +227,7 @@ GETMRGSORTTMPSIZE<Src0Tile, Src1Tile, Src2Tile, Src3Tile>() = Src0Tile::Cols + S
 
 TMRGSORT常用于通过迭代归并排序实现TopK选择：
 
-```
+```text
 阶段 1：单列表排序（逐步增大 blockLen）
   blockLen=64:  每 256 个元素 → 4 路归并 → 256 个有序元素
   blockLen=256: 每 1024 个元素 → 4 路归并 → 1024 个有序元素

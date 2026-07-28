@@ -27,8 +27,6 @@ $$ \mathrm{dst1}_{i, j} = \mathrm{interleaved}_{\mathrm{validCols} + j}, \quad 0
 
 ## 汇编语法
 
-PTO-AS形式：参见 [PTO-AS规范](../assembly/PTO-AS_zh.md)。
-
 同步形式：
 
 ```text
@@ -65,7 +63,7 @@ PTO_INST RecordEvent TInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDataS
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
-    - 所有Tile（`dst0`、`dst1`、`src0`、`src1`）必须具有相同的 `DType`, 相同的有效形状。
+    - 所有Tile（`dst0`、`dst1`、`src0`、`src1`）必须具有相同的 `DType`， 相同的有效形状。
     - 所有Tile的 `validCol` 必须为偶数（`dst0.GetValidCol() % 2 == 0`）。由于所有Tile共享相同的有效形状，这等价于要求 `dst0.GetValidCol() % 2 == 0`。
 - **有效区域**:
     - 该操作使用 `dst0.GetValidRow()` / `dst0.GetValidCol()` 作为迭代域；假定 `src0/src1/dst1` 是兼容的。

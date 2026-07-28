@@ -81,8 +81,8 @@ PTO_INST RecordEvent THISTOGRAM(TileDataDst &dst, TileDataSrc &src, TileDataIdx 
 
 | 源dtype | 目的dtype | idx dtype | 允许的 `byte` | 说明 |
 |----------|-----------|-----------|--------------|------|
-| `U16` (`uint16_t`) | `U32` | `U8` | `BYTE_0`, `BYTE_1` | 仅有低/高字节可提取 |
-| `U32` (`uint32_t`) | `U32` | `U8` | `BYTE_0`…`BYTE_3` | 四字节均可，配合0–3行idx |
+| `U16` （`uint16_t`） | `U32` | `U8` | `BYTE_0`， `BYTE_1` | 仅有低/高字节可提取 |
+| `U32` （`uint32_t`） | `U32` | `U8` | `BYTE_0`…`BYTE_3` | 四字节均可，配合0–3行idx |
 
 > `dst` 必须为 `uint32_t`，`idx` 必须为 `uint8_t`，`src` 限定 `uint16_t` / `uint32_t`；其它组合由实现内 `static_assert` 拦截。
 
@@ -99,7 +99,7 @@ THISTOGRAM在向量流水线（`PIPE_V`）上执行：
 | 约束 | 适用范围 | 原因 |
 |------|---------|------|
 | `dst` 为 `uint32_t` 且行主序 | 所有目标 | 256桶计数宽度与存储布局 |
-| `src` ∈ {`uint16_t`, `uint32_t`} 且行主序 | 所有目标 | 字节提取路径 |
+| `src` ∈ {`uint16_t`， `uint32_t`} 且行主序 | 所有目标 | 字节提取路径 |
 | `idx` 为 `uint8_t` | 所有目标 | 过滤字节字宽 |
 | `uint16` 源：`idx` 为DN（ColMajor + NoneBox）且1列 | Ascend 950PR/Ascend 950DT / Kirin9030 / CPU | 单字节/行广播匹配 |
 | `uint32` 源：`idx` 行主序，行数 $=3-k$，列数 $=$ 源列数 | Ascend 950PR/Ascend 950DT / Kirin9030 / CPU | 级联过滤所需索引行 |

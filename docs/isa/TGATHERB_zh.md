@@ -48,7 +48,7 @@ PTO_INST RecordEvent TGATHERB(TileDataDst &dst, TileDataSrc &src, TileDataOffset
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 目标布局必须是行主序（`TileDataDst::isRowMajor`）。
     - 目标元素大小必须是 `1`、`2` 或 `4` 字节（通过辅助函数中的 `static_assert` 强制执行）。
     - `TileDataSrc::DType`/`TileDataDst::DType` 必须是 `int8_t` 或 `uint8_t` 或 `int16_t` 或 `uint16_t` 或 `int32_t` 或 `uint32_t` 或 `half` 或 `bfloat16_t` 或 `float`。

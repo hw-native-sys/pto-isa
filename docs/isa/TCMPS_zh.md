@@ -73,7 +73,7 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0,
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`float`、`half`、`uint16_t`、`int16_t`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - 当输入类型为 `int32_t` 时，仅支持 `CmpMode::EQ`；其他比较模式会回退到 `EQ`。

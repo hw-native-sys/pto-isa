@@ -18,7 +18,7 @@ $$\mathrm{signal} \;\mathtt{cmp}\; \mathrm{cmpValue}$$
 
 $$\forall d_0, d_1, d_2, d_3, d_4: \mathrm{signal}_{d_0, d_1, d_2, d_3, d_4} \;\mathtt{cmp}\; \mathrm{cmpValue}$$
 
-其中 `cmp` ∈ {`EQ`, `NE`, `GT`, `GE`, `LT`, `LE`}
+其中 `cmp` ∈ {`EQ`， `NE`， `GT`， `GE`， `LT`， `LE`}
 
 ## 汇编语法
 
@@ -46,6 +46,7 @@ PTO_INST void TWAIT(GlobalSignalData &signalData, int32_t cmpValue, WaitCmp cmp,
     - 单个信号：形状为 `<1,1,1,1,1>`。
     - 信号tensor：形状决定要等待的多维区域（最高5维）。tensor中所有信号必须满足条件。
 - **比较运算符**（WaitCmp）：
+
   | 值 | 条件 |
   |-------|--------|
   | `EQ` | `signal == cmpValue` |
