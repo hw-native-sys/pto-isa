@@ -189,6 +189,7 @@ tstore_mat2gm
 tcolscatter
 tscatter
 tcolexpand
+tcolexpand_pipe_bug_mfe
 ttri
 tnot
 trelu
