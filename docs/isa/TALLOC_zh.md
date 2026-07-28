@@ -8,7 +8,7 @@
 
 ## 操作语义
 
-对于GlobalData流程:
+对于GlobalData流程：
 
 1. `TALLOC(Pipe&, GlobalData&)` 从 `TPipe` 中分配一个生产者FIFO槽位，并将其暴露为 `GlobalTensor` 视图。生产者可通过 `TSTORE` 等指令向该槽位写入数据。
 2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将FIFO槽位提交给消费者。它本身不会存储tile数据。
@@ -129,4 +129,5 @@ AICORE void example_v2c_split(__gm__ void *fifoMem)
 ## ASM形式示例
 
 当前公开的汇编参考尚未为 `TALLOC` 定义稳定的PTO-AS写法。手写CV FIFO程序时请使用C++ intrinsic形式。
-```
+
+```text

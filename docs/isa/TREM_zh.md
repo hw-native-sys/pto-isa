@@ -51,14 +51,14 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
-    - `TileData::DType` 必须是以下之一：`float`, `float32_t`, `int32_t`。
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
+    - `TileData::DType` 必须是以下之一：`float`， `float32_t`， `int32_t`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 运行时：`src0`、`src1` 和 `dst` tiles应具有相同的 `validRow/validCol`。
     - `tmp` tile必须至少有2行和 `validCols` 列（第0行用于中间结果，第1行用于比较掩码）。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
-    - `TileData::DType` 必须是以下之一：`half`, `float`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`。
+    - `TileData::DType` 必须是以下之一：`half`， `float`， `int16_t`， `uint16_t`， `int32_t`， `uint32_t`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 运行时：`src0`、`src1` 和 `dst` tiles应具有相同的 `validRow/validCol`。

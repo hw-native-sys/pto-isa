@@ -41,8 +41,6 @@ $$ \mathrm{dst1}_{i, k} = \mathrm{src}_{i, 2k+1}, \quad 0 \le k < \mathrm{halfVa
 
 ## 汇编语法
 
-PTO-AS形式：参见 [PTO-AS规范](../assembly/PTO-AS_zh.md)。
-
 同步形式（双源）：
 
 ```text
@@ -108,7 +106,7 @@ PTO_INST RecordEvent TDeInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDat
     - `TileData::DType` 必须是以下之一：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - 所有Tile必须具有相同的 `DType`。
-    - 双源形式：`src0`、`src1`、`dst0`、`dst1` 必须具有相同的有效形状, 且他们的validCols必须为偶数。
+    - 双源形式：`src0`、`src1`、`dst0`、`dst1` 必须具有相同的有效形状， 且他们的validCols必须为偶数。
     - 单源形式：`src`、`dst0`、`dst1` 必须具有相同的有效行数；`dst0`、`dst1` 的 `validCols` 必须为 `src` 的 `validCols` 的一半。
 - **有效区域**:
     - 双源形式：该操作使用 `dst0.GetValidRow()` / `dst0.GetValidCol()` 作为迭代域。`dst0/dst1` 每行持有 `validCols` 个元素。

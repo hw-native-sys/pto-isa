@@ -50,7 +50,7 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| `scratchTile` | — | 用于SDMA控制元数据的UB scratch tile（参见 [scratchTile的作用](#scratchtile-的作用)）。|
+| `scratchTile` | — | 用于SDMA控制元数据的UB scratch tile（参见 [scratchTile的作用](#scratchtile的作用)）。|
 | `workspace` | — | 由主机侧 `SdmaWorkspaceManager` 分配的GM指针。|
 | `session` | — | 输出的 `AsyncSession` 对象。|
 | `syncId` | `0` | MTE3/MTE2管道同步事件ID（0-7）。若kernel在相同ID上使用了其他管道屏障，则需覆盖此值。|

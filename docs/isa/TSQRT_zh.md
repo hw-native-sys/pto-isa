@@ -48,12 +48,12 @@ PTO_INST RecordEvent TSQRT(TileDataDst &dst, TileDataSrc &src, WaitEvents &... e
 
 - **实现检查 (NPU)**:
     - `TileData::DType` 必须是以下之一：`float` 或 `half`。
-    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`);
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）;
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
 - **有效区域**:
-    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域.
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **域 / NaN**:
     - 行为由目标定义（例如，对于负数输入）。
 

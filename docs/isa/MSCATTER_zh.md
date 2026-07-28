@@ -184,11 +184,13 @@ enum class ScatterConflict : uint8_t {  // 仅 A5
 ### Tile约束（CPU）
 
 **支持的数据类型：**
+
 - `src` / `dst` 元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
 - 在AICore目标上（CPU模拟器以 `__CCE_AICORE__` 编译时），还支持 `float8_e4m3_t` 和 `float8_e5m2_t`。
 - `indexes` 元素类型必须是 `int32_t` 或 `uint32_t`。
 
 **Tile与内存类型：**
+
 - `src` 必须是向量Tile（`TileType::Vec`）。
 - `indexes` 必须是向量Tile（`TileType::Vec`）。
 - `src` 和 `indexes` 必须使用行主序布局（`BLayout::RowMajor + SLayout::NoneBox`）。
@@ -196,6 +198,7 @@ enum class ScatterConflict : uint8_t {  // 仅 A5
 - `dst` 必须使用 `Layout::ND`。
 
 **形状约束：**
+
 - `src.Rows == indexes.Rows`。
 - `indexes` 形状为 `[N, 1]`（按行）或 `[N, M]`（按元素）。
 - `src` 行宽必须32字节对齐。
@@ -204,10 +207,12 @@ enum class ScatterConflict : uint8_t {  // 仅 A5
 ### Tile约束（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）
 
 **支持的数据类型：**
+
 - `src` / `dst` 元素类型：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。不支持 `float8_e4m3_t`、`float8_e5m2_t`、`hifloat8_t`。
 - `indexes` 元素类型必须是 `int32_t` 或 `uint32_t`。
 
 **Tile与内存类型：**
+
 - `src` 必须是向量Tile（`TileSrc::Loc == TileType::Vec`）。
 - `indexes` 必须是向量Tile（`TileIdx::Loc == TileType::Vec`）。
 - 索引tile **始终** 是 `BLayout::RowMajor + SLayout::NoneBox`（ND）。
@@ -217,11 +222,13 @@ enum class ScatterConflict : uint8_t {  // 仅 A5
     - `GlobalTable::layout == Layout::NZ` ⇒ `TileSrc` 为 `BLayout::ColMajor + SLayout::RowMajor + SFractalSize == 512`。
 
 **原子操作约束：**
+
 - `ScatterAtomicOp::None` 支持所有上述dtype。
 - `ScatterAtomicOp::Add` 要求 `int8_t`、`int16_t`、`int32_t`、`half`、`bfloat16_t` 或 `float`。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品不支持无符号整数原子加法。
 - `ScatterAtomicOp::Max` 和 `Min` **在Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上不支持**。
 
 **形状约束：**
+
 - 填充后的 `TileSrc::Cols * sizeof(T)` 必须32字节对齐。
 - `Coalesce::Row`：`TileIdx::ValidRow == 1` 且 `TileIdx::ValidCol == TileSrc::ValidRow`。
 - `Coalesce::Elem`：`TileIdx::ValidRow == TileSrc::ValidRow` 且 `TileIdx::ValidCol == TileSrc::ValidCol`。
@@ -230,21 +237,25 @@ enum class ScatterConflict : uint8_t {  // 仅 A5
 ### Tile约束（Ascend 950PR/Ascend 950DT）
 
 **支持的数据类型：**
+
 - `src` / `dst` 元素类型：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。`__CCE_AICORE__` 构建中还包含 `hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`。
 - `indexes` 元素类型必须是 `int32_t` 或 `uint32_t`。
 
 **Tile与内存类型：**
+
 - `src` 必须是向量Tile（`TileSrc::Loc == TileType::Vec`）。
 - `indexes` 必须是向量Tile（`TileIdx::Loc == TileType::Vec`）。
 - SIMT内核对UB tile的布局无感知：每次读写均通过 `tile_offset_2d<TileX>(r, c)`。
 - **GM表布局：仅 `Layout::ND`。** Ascend 950PR/Ascend 950DT SIMT内核将GM寻址为扁平行主序缓冲区，行步长硬编码为 `validCols`；`MScatterCheck` 强制 `GlobalTable::staticShape[4] == TileSrc::ValidCol`。
 
 **原子操作约束：**
+
 - `ScatterAtomicOp::None` 支持所有dtype。
 - `ScatterAtomicOp::Add` 要求 `int32_t`、`uint32_t`、`float`、`half` 或 `bfloat16_t`。
 - `ScatterAtomicOp::Max` / `Min` 要求 `int32_t`、`uint32_t` 或 `float`。
 
 **形状约束：**
+
 - 填充后的 `TileSrc::Cols * sizeof(T)`（RowMajor）或 `TileSrc::Rows * sizeof(T)`（ColMajor）必须32字节对齐。
 - `Coalesce::Row`：索引tile有效形状为 `[1, R]`（`RowMajor`）**或** `[R, 1]`（`ColMajor`）。
 - `Coalesce::Elem`：`TileIdx::ValidRow == TileSrc::ValidRow` 且 `TileIdx::ValidCol == TileSrc::ValidCol`。
@@ -252,6 +263,7 @@ enum class ScatterConflict : uint8_t {  // 仅 A5
 ### 动态运行时形状（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品和Ascend 950PR/Ascend 950DT）
 
 `MSCATTER` 同时接受编译时和运行时动态形状：
+
 - `Tile<…, RowMask, ColMask>` 中 `RowMask == -1` 及/或 `ColMask == -1` 将运行时有效范围存储在tile中。
 - `Shape<S0, S1, S2, S3, S4>` / `Stride<…>` 中的 `-1` 条目使用运行时尺寸构造。
 
@@ -536,6 +548,6 @@ pto.mscatter ins(%src, %idx : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem 
 
 ## 相关指令
 
-- [`TSTORE`](TSTORE.md)：连续块传输Tile → GM。
-- [`MGATHER`](MGATHER.md)：索引收集GM → Tile（逆操作）。
-- [`TSCATTER`](TSCATTER.md)：基于索引的Tile内部散射。
+- [`TSTORE`](TSTORE_zh.md)：连续块传输Tile → GM。
+- [`MGATHER`](MGATHER_zh.md)：索引收集GM → Tile（逆操作）。
+- [`TSCATTER`](TSCATTER_zh.md)：基于索引的Tile内部散射。

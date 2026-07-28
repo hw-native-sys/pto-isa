@@ -58,8 +58,8 @@ PTO_INST RecordEvent TDEQUANT(TileDataDst &dst, TileDataSrc &src, TileDataPara &
 
 | 源dtype | 目的dtype | scale/offset dtype | 说明 |
 |----------|-----------|--------------------|------|
-| `S8` (`int8_t`) | `FP32` | `FP32` | `UNPK4_B8` 解包后类型转换为FP32 |
-| `S16` (`int16_t`) | `FP32` | `FP32` | `UNPK_B16` 解包后类型转换为FP32 |
+| `S8` （`int8_t`） | `FP32` | `FP32` | `UNPK4_B8` 解包后类型转换为FP32 |
+| `S16` （`int16_t`） | `FP32` | `FP32` | `UNPK_B16` 解包后类型转换为FP32 |
 
 > `dst`、`scale`、`offset` 必须dtype一致且均为 `FP32`；`src` 仅支持 `S8` / `S16`。其它dtype组合为非法（实现内 `static_assert` 拦截）。
 
@@ -98,7 +98,7 @@ B.IOT
 | `dst` 与 `src` 有效形状相同（$M \times N$） | 所有目标 | 逐元素一一对应 |
 | `scale`、`offset` 有效行数 == `dst` 有效行数 | 所有目标 | 每行一组参数 |
 | `dst`/`scale`/`offset` dtype必须一致且为 `FP32` | 所有目标 | 反量化输出精度 |
-| `src` ∈ {`S8`, `S16`} | 所有目标 | 整数量化码字宽 |
+| `src` ∈ {`S8`， `S16`} | 所有目标 | 整数量化码字宽 |
 
 ## 示例
 

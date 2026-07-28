@@ -52,7 +52,7 @@ PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &sr
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - `sizeof(TileDataDst::DType)` 必须是 `2`或`4`字节。
     - 支持的数据类型为 2 或 4 字节类型：`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
     - `dst` 和 `src` 必须使用相同的元素类型。

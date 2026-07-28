@@ -46,12 +46,12 @@ PTO_INST RecordEvent TSUBS(TileDataDst &dst, TileDataSrc &src0, typename TileDat
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
-    - `TileData::DType` 必须是以下之一： `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`, `half`, `float`, `bfloat16_t`.
+    - `TileData::DType` 必须是以下之一： `uint8_t`， `int8_t`， `uint16_t`， `int16_t`， `uint32_t`， `int32_t`， `half`， `float`， `bfloat16_t`。
     - Tile位置必须是向量（`TileDataDst::Loc == TileType::Vec` 且 `TileDataSrc::Loc == TileType::Vec`）。
     - 静态有效边界：`TileDataDst::ValidRow <= TileDataDst::Rows`、`TileDataDst::ValidCol <= TileDataDst::Cols`、`TileDataSrc::ValidRow <= TileDataSrc::Rows`，且 `TileDataSrc::ValidCol <= TileDataSrc::Cols`。
     - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。

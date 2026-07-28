@@ -52,18 +52,18 @@ PTO_INST RecordEvent TDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
-    - `TileData::DType` 必须是以下之一： `half`, `float`.
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
+    - `TileData::DType` 必须是以下之一： `half`， `float`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
-    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`.
+    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`。
+    - 运行时： `src0`， `src1`且`dst` tiles应具有相同的 `validRow/validCol`。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
-    - `TileData::DType` 必须是以下之一： `int32_t`, `uint32_t`, `float`, `int16_t`, `uint16_t`, `half`.
+    - `TileData::DType` 必须是以下之一： `int32_t`， `uint32_t`， `float`， `int16_t`， `uint16_t`， `half`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
-    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`.
-    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`.
+    - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`。
+    - 运行时： `src0`， `src1`且`dst` tiles应具有相同的 `validRow/validCol`。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **除零**:

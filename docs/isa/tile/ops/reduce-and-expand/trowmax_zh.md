@@ -21,6 +21,7 @@ $$ \mathrm{dst}_{i,0} = \max_{0 \le j < C} \mathrm{src}_{i,j} $$
 ```text
 %dst = trowmax %src : !pto.tile<...> -> !pto.tile<...>
 ```
+
 降低时可能引入内部临时Tile；C++内建接口需要显式传入 `tmp` 操作数。
 
 ### AS Level 1（SSA）
@@ -63,7 +64,7 @@ PTO_INST RecordEvent TROWMAX(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
-- 支持的元素类型 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)：`half`、`float`、`int32_t`、`int16_t`。
+- 支持的元素类型 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）：`half`、`float`、`int32_t`、`int16_t`。
 - 支持的元素类型 (Ascend 950PR/Ascend 950DT)：`half`、`float`、`int32_t`、`int16_t`、`int8_t`、`uint8_t`。
 - 实现同时接受ND输出和 `Cols == 1` 的DN输出。
 - 运行时检查遵循共享的行归约检查路径：

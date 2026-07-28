@@ -78,7 +78,7 @@ pto.tgemv.acc ins(%c_in, %a, %b : !pto.tile_buf<...>, !pto.tile_buf<...>, !pto.t
 
 ### 数据类型约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 支持的 `(CType, AType, BType)` 三元组：
         - `(int32_t, int8_t, int8_t)`
         - `(float, half, half)`

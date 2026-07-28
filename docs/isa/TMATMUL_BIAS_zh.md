@@ -59,7 +59,7 @@ PTO_INST RecordEvent TMATMUL_BIAS(TileRes &cMatrix, TileLeft &aMatrix, TileRight
 ## 约束
 
 - 所有来自 `TMATMUL` 的约束都适用于 `(cMatrix, aMatrix, bMatrix)` 三元组。
-- **偏置约束 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **偏置约束 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - `TileBias::DType` 必须匹配 `TileRes::DType`。
     - `TileBias::Loc == TileType::Bias` 且 `TileBias::Rows == 1`。
 - **偏置约束 (Ascend 950PR/Ascend 950DT)**:

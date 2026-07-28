@@ -46,20 +46,20 @@ PTO_INST RecordEvent TSUB(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
-    - `TileData::DType` 必须是以下之一： `int32_t`, `int16_t`, `half`, `float`。
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
+    - `TileData::DType` 必须是以下之一： `int32_t`， `int16_t`， `half`， `float`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`。
-    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`。
+    - 运行时： `src0`， `src1`且`dst` tiles应具有相同的 `validRow/validCol`。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
-    - `TileData::DType` 必须是以下之一： `uint32_t`, `int32_t`, `uint16_t`, `int16_t`, `uint8_t`, `int8_t`, `bfloat16_t`, `float`, `half`。（注：Ascend 950PR/Ascend 950DT架构新增无符号整型支持，Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品仅支持有符号及浮点类型）
+    - `TileData::DType` 必须是以下之一： `uint32_t`， `int32_t`， `uint16_t`， `int16_t`， `uint8_t`， `int8_t`， `bfloat16_t`， `float`， `half`。（注：Ascend 950PR/Ascend 950DT架构新增无符号整型支持，Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品仅支持有符号及浮点类型）
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界： `TileData::ValidRow <= TileData::Rows`且`TileData::ValidCol <= TileData::Cols`。
-    - 运行时： `src0`, `src1`且`dst` tiles应具有相同的 `validRow/validCol`。
+    - 运行时： `src0`， `src1`且`dst` tiles应具有相同的 `validRow/validCol`。
 - **有效区域**:
-    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域; `src0/src1` 假定是兼容的 (此操作中不通过显式运行时检查进行验证).
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域； `src0/src1` 假定是兼容的 （此操作中不通过显式运行时检查进行验证）.
 
 ## 示例
 

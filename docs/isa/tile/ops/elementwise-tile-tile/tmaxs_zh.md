@@ -46,7 +46,7 @@ PTO_INST RecordEvent TMAXS(TileDataDst& dst, TileDataSrc& src, typename TileData
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - `TileData::DType` 必须是以下之一：`int32_t`、`int16_t`、`half`、`float`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:

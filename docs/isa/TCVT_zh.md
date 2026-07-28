@@ -74,7 +74,7 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
     - `C = dst.GetValidCol()`。
     - `SS = TileDataS::RowStride`，单位为源元素个数。
     - `REPEAT_MAX = 255`，`REPEAT_BYTE = 256`，`BLOCK_BYTE_SIZE = 32`。
-  - **`float -> int16`，非饱和 (`SaturationMode::OFF`)**:
+  - **`float -> int16`，非饱和 （`SaturationMode::OFF`）**:
     - 临时结果是第一步 `float -> int32` 转换产生的 `int32_t` Tile。
     - 由于 `float` 源行受Tile约束保证32字节对齐，`SS / 8` 是以32字节块为单位的源repeat stride。
     - 对齐的主区域中，一次调用处理一行，最多处理 `REPEAT_MAX` 个repeat，每个repeat为 `64` 个元素：
@@ -88,13 +88,13 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
     - 该路径所需的最小tmp大小为：
     $$ \text{tmpFloatToInt16Bytes} = \max(\text{tmpHeadBytes}, \text{tmpTailBytes}) $$
     - 对主区域而言，一个紧凑的完整repeat上界是 `REPEAT_MAX * REPEAT_BYTE = 65280` 字节；但当 `SS` 较大时，尾部会按源行stride写入，所需空间可能更大。
-  - **`half -> int16`，非饱和 (`SaturationMode::OFF`)**:
+  - **`half -> int16`，非饱和 （`SaturationMode::OFF`）**:
     - 实现按行处理，每行拆分为不超过 `64` 个元素的子块，并在每个子块之间复用同一段临时缓冲区。对于 `C > 0`，令：
     $$ H = \min(C, 64) $$
     - 该路径所需的最小tmp大小为：
     $$ \text{tmpHalfToInt16Bytes} = 32 \times \left\lceil\frac{H}{8}\right\rceil $$
     - 对任意非空Tile，该路径的形状无关上界为 `256` 字节。
-  - **`half -> int8`，非饱和 (`SaturationMode::OFF`)**:
+  - **`half -> int8`，非饱和 （`SaturationMode::OFF`）**:
     - 实现同样按不超过 `64` 个元素的子块处理，并复用同一段256字节临时区域。第一步最多将 `64` 个 `int32_t` 写入字节 `[0, 255]`；完成 `int32 -> int16` 窄化后，字节 `[0, 127]` 保存 `int16_t` 值，字节 `[128, 255]` 被复用为scratch。
     - `tempMaskBuf = tempAndBuf + 64` 会前进 `64 * sizeof(int16_t) = 128` 字节，因此它指向同一256字节临时区域的上半部分，不需要额外再分配256字节。
     - 该路径所需的最小tmp大小为：
@@ -128,6 +128,7 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
 | FP4_E2M1X2 | N/A | BF16 | Ascend 950PR/Ascend 950DT独有源类型 |
 
 说明：
+
 - 关键差异：Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品支持I32 -> FP16（half，deq路径），Ascend 950PR/Ascend 950DT不支持I32 -> FP16。
 - Ascend 950PR/Ascend 950DT上不支持FP16 -> FP8_E4M3和FP16 -> FP8_E5M2。
 

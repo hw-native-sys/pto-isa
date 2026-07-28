@@ -1,6 +1,5 @@
 # TRANDOM
 
-
 ## Tile Operation Diagram
 
 ![TRANDOM tile operation](../figures/isa/TRANDOM.svg)
@@ -14,6 +13,7 @@
 该指令实现了一个基于计数器的随机数生成器。对于有效区域中的每个元素，它基于密钥和计数器状态，使用可配置轮数的密码类变换生成伪随机值。
 
 该算法使用：
+
 - 128位状态（4 × 32位计数器）
 - 64位密钥（2 × 32位字）
 - 类似ChaCha的四分之一轮操作，使用向量指令

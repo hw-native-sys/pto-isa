@@ -46,7 +46,7 @@ PTO_INST RecordEvent TAND(TileData &dst, TileData &src0, TileData &src1, WaitEve
 
 ## 约束
 
-- **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**:
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 支持的元素类型为1字节、2字节或4字节整数类型。
     - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
     - `dst`、`src0` 和 `src1` 必须是行主序。
