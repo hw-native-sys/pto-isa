@@ -17,10 +17,17 @@ the E8M0 exponents are converted to ZZ via the new `TMOV<grp_axis=0>(DN→ZZ)`.
 
 ## C++ Intrinsic
 
-The primary interface is the `<grp_axis, mx_alg>` template:
+The existing `<grp_axis, mx_alg>` interface is retained unchanged and keeps the
+non-interleaved behavior. A bool-template overload enables interleaving:
 
 ```cpp
 template <int grp_axis, auto mx_alg, typename TileDataOut = void, typename TileDataSrc = void,
+          typename TileDataExp = void, typename TileDataMax = void, typename TileDataScaling = void,
+          typename... WaitEvents>
+PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
+                           TileDataScaling *scaling, WaitEvents &...events);
+
+template <int grp_axis, auto mx_alg, bool interleave, typename TileDataOut = void, typename TileDataSrc = void,
           typename TileDataExp = void, typename TileDataMax = void, typename TileDataScaling = void,
           typename... WaitEvents>
 PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp, TileDataMax *max,
@@ -33,6 +40,7 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataExp *exp
 |-----------|-------------|
 | `grp_axis` | **0** = DN (groups on axis 0 / rows); **1** = ND (groups on axis 1 / columns, default) |
 | `mx_alg` | Combined destination-format + scale-algorithm tag (`MxQuantAlg` enum) |
+| `interleave` | DN only: write E8M0 as adjacent row-group pairs in flattened `[ceil(M/64), 2*N]` form |
 | `dst` | Output FP8/FP4 tile (RowMajor, same shape as `src`) |
 | `src` | Input fp32/bf16/fp16 tile (RowMajor `M×N`) |
 | `exp` | Output E8M0 exponent tile: shape `M̂×N` for DN, `M×Γ` for ND |
@@ -49,6 +57,20 @@ enum class MxQuantAlg {
     NvMxFp4E2M1 = 3,  // MXFP4 E2M1 + NV scale
 };
 ```
+
+For DN (`grp_axis=0`), MXFP8 supports `fp16`, `bf16`, and `fp32` input, while
+MXFP4 supports `fp16` and `bf16`. Both the ordinary E8M0 layout and the optional
+interleaved layout are supported:
+
+| Quantized format | Scale algorithm | Input types | `interleave` |
+|------------------|-----------------|-------------|--------------|
+| MXFP8 E4M3 | OCP | fp16 / bf16 / fp32 | `false` (default) / `true` |
+| MXFP8 E4M3 | NV | fp16 / bf16 / fp32 | `false` (default) / `true` |
+| MXFP4 E2M1 | OCP | fp16 / bf16 | `false` (default) / `true` |
+| MXFP4 E2M1 | NV | fp16 / bf16 | `false` (default) / `true` |
+
+Omitting the bool template argument is equivalent to `interleave=false`, so
+existing callers retain the original exponent layout.
 
 > **Backward compatibility:** the old `TQUANT<QuantType::MXFP8, ...>` interface is
 > retained unchanged. The `<grp_axis, mx_alg>` form is the preferred interface going
@@ -67,6 +89,39 @@ For a source tile `M×N` with `M̂ = M/32`, `Γ = N/32`:
 The **data tile is identical** between ND and DN (same `(r,c)` addresses); only the
 exponent/max/scaling tile shapes differ. Therefore `TMOV(ND→NZ)` on the data is
 reused unchanged. Only the exponent needs a new transform: **DN→ZZ**.
+
+When `interleave=true`, the E8M0 bytes are written in the non-tail-axis
+`aclnnDynamicMxQuant` order. PTO flattens its last two logical axes:
+
+```text
+E_OUT[p, c, 0] = E_DN[2p, c]
+E_OUT[p, c, 1] = E_DN[2p + 1, c]  // zero when the final group is absent
+
+E_FLAT[p, 2c]     = E_OUT[p, c, 0]
+E_FLAT[p, 2c + 1] = E_OUT[p, c, 1]
+```
+
+The physical byte sequence is therefore `row0_col0, row1_col0, row0_col1,
+row1_col1, ...`. The default is `false`, preserving the original RowMajor
+`M_hat x N` exponent output. The interleaved Tile shape and valid shape are:
+
+```text
+TileShape  = [ceil(TileM / 64), 2 * TileN]
+ValidShape = [ceil(ValidM / 64), 2 * ValidN]
+```
+
+PyPTO can restore the public `[..., ceil(M/64), N, 2]` shape with a zero-copy
+reshape. This flag changes only the exponent output; quantized
+data, max, and reciprocal scaling retain their existing layouts.
+
+Tile rows and valid rows must be 64-aligned. DN tiling must also start each tile
+at a 64-row-aligned source offset so group pairs are not split between tiles.
+Tile and valid columns have no additional DN-interleave alignment constraint.
+These requirements apply only when `interleave=true`.
+
+`TMOV<0>(DN->ZZ)` continues to consume the original non-interleaved `M_hat x N`
+layout. Callers requesting `interleave=true` must not pass that exponent tile to
+the existing DN->ZZ transform without first deinterleaving it.
 
 ## Cube Consumption Contract
 

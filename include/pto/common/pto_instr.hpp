@@ -2544,6 +2544,19 @@ PTO_INST RecordEvent TQUANT(
     return {};
 }
 
+template <
+    int grp_axis, auto mx_alg, bool interleave, typename TileDataOut = void, typename TileDataSrc = void,
+    typename TileDataExp = void, typename TileDataMax = void, typename TileDataScaling = void, typename... WaitEvents>
+PTO_INST RecordEvent TQUANT(
+    TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling,
+    WaitEvents&... events)
+{
+    TSYNC(events...);
+    TQUANT_IMPL<grp_axis, mx_alg, interleave, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+        dst, src, exp, max, scaling);
+    return {};
+}
+
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
 PTO_INST RecordEvent
 TINTERLEAVE(TileDataDst& dst1, TileDataDst& dst0, TileDataSrc& src1, TileDataSrc& src0, WaitEvents&... events)
