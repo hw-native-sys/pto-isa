@@ -60,7 +60,7 @@ endif()
 add_compile_options(
     -D_FORTIFY_SOURCE=2
     -O2 -std=c++17
-    -Wno-macro-redefined -Wno-ignored-attributes -Wno-unknown-attributes
+    -Wno-macro-redefined -Wno-ignored-attributes -Wno-unknown-attributes -Wno-c++20-extensions
     -fstack-protector-strong
 )
 add_link_options(

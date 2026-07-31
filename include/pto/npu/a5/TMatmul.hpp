@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TMATMUL_HPP
 
 #include <cstdint>
+#include <pto/common/buffer_limits.hpp>
 
 namespace pto {
 
@@ -120,6 +121,9 @@ PTO_INTERNAL void CheckMadMxValid()
              (TileRight::SFractal == SLayout::ColMajor)) &&
             ((TileRes::Loc == TileType::Acc) && (!TileRes::isRowMajor) && (TileRes::SFractal == SLayout::RowMajor)),
         "TMatmulMX:Non-conforming matrix fractal");
+    constexpr size_t accBytes = static_cast<size_t>(TileRes::Rows) * static_cast<size_t>(TileRes::Cols) * sizeof(CType);
+    static_assert(
+        accBytes <= PTO_L0C_SIZE_BYTES, "TMatmulMX:accumulator (Rows*Cols*sizeof(out)) exceeds L0C capacity.");
 }
 
 PTO_INTERNAL void CheckDynamicMmad(uint16_t aMatrixRow, uint16_t aMatrixCol, uint16_t bMatrixCol)

@@ -25,11 +25,6 @@ void LaunchTQuantHif4A6(
     uint8_t* fp4, uint16_t* scale, void* stream);
 } // namespace TQuantHif4A6
 
-namespace TQuantVaddA6 {
-template <int validRows, int validCols>
-void LaunchVaddA6(uint16_t* dst, uint16_t* src0, uint16_t* src1, void* stream);
-} // namespace TQuantVaddA6
-
 class TQUANT_HIF4_A6_TEST : public testing::Test {
 protected:
     void SetUp() override {}
@@ -44,62 +39,6 @@ std::string GetGoldenDir()
     return "../" + suiteName + "." + caseName;
 }
 
-// ---- VADD stub: basic connectivity probe ----
-TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_128x128_vadd_nd)
-{
-    constexpr int validRows = 128;
-    constexpr int validCols = 128;
-    size_t srcFileSize = validRows * validCols * sizeof(uint16_t);
-    size_t dstFileSize = srcFileSize;
-
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-    aclrtStream stream;
-    aclrtCreateStream(&stream);
-
-    uint16_t* src0Host = nullptr;
-    uint16_t* src1Host = nullptr;
-    uint16_t* dstHost = nullptr;
-    uint16_t* src0Device = nullptr;
-    uint16_t* src1Device = nullptr;
-    uint16_t* dstDevice = nullptr;
-    aclrtMallocHost((void**)&src0Host, srcFileSize);
-    aclrtMallocHost((void**)&src1Host, srcFileSize);
-    aclrtMallocHost((void**)&dstHost, dstFileSize);
-    aclrtMalloc((void**)&src0Device, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&src1Device, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/input1.bin", srcFileSize, src0Host, srcFileSize);
-    ReadFile(GetGoldenDir() + "/input2.bin", srcFileSize, src1Host, srcFileSize);
-    aclrtMemcpy(src0Device, srcFileSize, src0Host, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(src1Device, srcFileSize, src1Host, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-
-    TQuantVaddA6::LaunchVaddA6<validRows, validCols>(dstDevice, src0Device, src1Device, stream);
-
-    aclError syncRet = aclrtSynchronizeStream(stream);
-    ASSERT_EQ(syncRet, ACL_SUCCESS) << "aclrtSynchronizeStream failed (ret=" << syncRet
-                                    << "): " << aclGetRecentErrMsg();
-    aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstFileSize);
-
-    aclrtFree(dstDevice);
-    aclrtFree(src1Device);
-    aclrtFree(src0Device);
-    aclrtFreeHost(dstHost);
-    aclrtFreeHost(src1Host);
-    aclrtFreeHost(src0Host);
-    aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
-
-    std::vector<uint16_t> golden(dstFileSize / sizeof(uint16_t));
-    std::vector<uint16_t> dev(dstFileSize / sizeof(uint16_t));
-    ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
-    ReadFile(GetGoldenDir() + "/output.bin", dstFileSize, dev.data(), dstFileSize);
-    EXPECT_TRUE(ResultCmp<uint16_t>(golden, dev, 0.0f));
-}
-
 // ---- HiF4 quantization helper ----
 template <int validRows, int validCols>
 void RunHif4Case(const std::string& goldenDir)
@@ -109,7 +48,7 @@ void RunHif4Case(const std::string& goldenDir)
     size_t max4Size = (totalElem / 4) * sizeof(uint16_t);
     size_t max8Size = (totalElem / 8) * sizeof(uint16_t);
     size_t eaSize = (totalElem / 64) * 2;
-    size_t ebSize = ((totalElem / 8) / 8) * 2;
+    size_t ebSize = (totalElem / 8) / 8; // psts PK counters US_B16 upsample -> 1 byte per 64-group (all 8 Eb bits)
     size_t ecSize = (totalElem / 4) / 8;
     size_t expDstSize = (totalElem / 64) * 4;
     size_t fp4Size = totalElem / 2;

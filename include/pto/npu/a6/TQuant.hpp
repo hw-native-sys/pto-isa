@@ -3350,7 +3350,7 @@ PTO_INTERNAL void CalcExpScale_Cont(
     vector_bool p_Eb, p_Ec;
     vector_bf16 vb16_Eb_tmp, vb16_Ec_tmp_0, vb16_Ec_tmp_1, vb16_Eb_rec, vb16_Ec_rec, vb16_Ebc_rec;
     vector_bf16 vb16_e_scale; // scaling for bf16->f4e1m2
-    vector_align ureg_max;
+    vector_align ureg_Eb;
     uint32_t elem_count = validRows * validCols;
     uint32_t loop_num = CeilDivision(elem_count, 128 * 4); // processing exponents for 128 elem per loop
     MaskReg pgAll = pset_b8(PAT_ALL);
@@ -3364,9 +3364,11 @@ PTO_INTERNAL void CalcExpScale_Cont(
 
         vcvt_rcpe6m22bf16((vector_bf16&)vb16_Ea_rec, (vector_f8e6m2&)vb16_Ea, pgAll, PART_EVEN); // Ea_rec = 1/Ea
 
-        vmul(vb16_Eb_tmp, vb16_Mb, vb16_Ea_rec, pgAll);              // Eb_temp = Max per 8 * 1/Ea
-        vcmps_ge(p_Eb, vb16_Eb_tmp, 4, pgAll);                       // Eb_temp >= 4 ---> 1, otherwise 0
-        psts(p_Eb, (__ubuf__ uint32_t*&)ebPtr, 16, PK, POST_UPDATE); // Packing downsamples Eb to output frequency
+        vmul(vb16_Eb_tmp, vb16_Mb, vb16_Ea_rec, pgAll); // Eb_temp = Max per 8 * 1/Ea
+        vcmps_ge(p_Eb, vb16_Eb_tmp, 4, pgAll);          // Eb_temp >= 4 ---> 1, otherwise 0
+
+        pstu(ureg_Eb, p_Eb, (__ubuf__ uint32_t*&)ebPtr); // Packing downsamples by 4
+        vstas(ureg_Eb, (__ubuf__ uint32_t*&)ebPtr, 0, POST_UPDATE);
 
         vmul(vb16_Ec_tmp_0, vb16_Mc, vb16_Ea_rec, pgAll);       // Vmax16 * Ea_rec_bf16
         vsel(vb16_Eb_rec, vb16_half, vb16_one, p_Eb);           // 2^-(Ebi): for preg 0->1, for preg 1->0.5
@@ -3430,9 +3432,7 @@ PTO_INTERNAL void ExpLayoutForCube_Cont(
         vlds(
             vb8_Ea, eaPtr, loop_idx * 128,
             DS_B8); // Ea is initially stored 0-extended in UB, need to remove that extra 0
-        vlds(
-            vb8_Eb, ebPtr, loop_idx * 128,
-            DS_B8); // Eb is also upsampled from the CalcExponent stage, need to be downsampled again
+        vlds(vb8_Eb, ebPtr, loop_idx * 128, NORM);
         vlds(vb8_Ec, ecPtr, loop_idx * 256, NORM);
         vintlv(vb8_EaEb, vb8_EaEb_hi, vb8_Ea, vb8_Eb);
         vsstb(vb8_EaEb, expDstPtr + (uint32_t)loop_idx * 512, (int32_t)cfgStride, pregDyn);

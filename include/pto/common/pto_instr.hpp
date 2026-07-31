@@ -566,7 +566,7 @@ PTO_INST RecordEvent TSUBC(TileData& dst, TileData& src0, TileData& src1, TileDa
     return {};
 }
 
-#if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(__CPU_SIM)
 template <
     typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
     typename... WaitEvents>

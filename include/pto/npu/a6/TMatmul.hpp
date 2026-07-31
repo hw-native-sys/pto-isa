@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TMATMUL_A6_HPP
 
 #include <cstdint>
+#include <pto/common/buffer_limits.hpp>
 
 namespace pto {
 
@@ -161,6 +162,14 @@ constexpr bool isSupportedFp8Combo = (std::is_same_v<A, float8_e4m3_t> && std::i
                                      (std::is_same_v<A, float8_e5m2_t> && std::is_same_v<B, float8_e4m3_t>) ||
                                      (std::is_same_v<A, float8_e5m2_t> && std::is_same_v<B, float8_e5m2_t>);
 
+#if defined(PTO_NPU_ARCH_A6)
+template <typename A, typename B>
+constexpr bool isSupportedHif4Combo = std::is_same_v<A, hifloat4x2_t> && std::is_same_v<B, hifloat4x2_t>;
+#else
+template <typename A, typename B>
+constexpr bool isSupportedHif4Combo = false;
+#endif
+
 template <typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale>
 PTO_INTERNAL void CheckMadMxValid()
 {
@@ -170,11 +179,14 @@ PTO_INTERNAL void CheckMadMxValid()
     using CType = typename TileRes::DType;
     constexpr bool isFp4 = isSupportedFp4Combo<AType, BType>;
     constexpr bool isFp8 = isSupportedFp8Combo<AType, BType>;
+    constexpr bool isHif4 = isSupportedHif4Combo<AType, BType>;
 
-    static_assert((isFp4 || isFp8) && std::is_same_v<CType, float>, "TMatmulMX:No supported data type combination.");
+    static_assert(
+        (isFp4 || isFp8 || isHif4) && std::is_same_v<CType, float>, "TMatmulMX:No supported data type combination.");
     static_assert((TileLeft::Cols % BASEK == 0), "TMatmulMX: aMatrixCol must be a multiple of 64.");
-    if constexpr (isFp4) {
-        static_assert((TileLeft::Cols % 2 == 0), "TMatmulMX:For FP4 data types, aMatrixCol must be an even number.");
+    if constexpr (isFp4 || isHif4) {
+        static_assert(
+            (TileLeft::Cols % 2 == 0), "TMatmulMX:For FP4/HiF4 data types, aMatrixCol must be an even number.");
     }
     static_assert(
         ((TileLeft::Loc == TileType::Left) && (!TileLeft::isRowMajor) && (TileLeft::SFractal == SLayout::RowMajor)) &&
@@ -182,6 +194,9 @@ PTO_INTERNAL void CheckMadMxValid()
              (TileRight::SFractal == SLayout::ColMajor)) &&
             ((TileRes::Loc == TileType::Acc) && (!TileRes::isRowMajor) && (TileRes::SFractal == SLayout::RowMajor)),
         "TMatmulMX:Non-conforming matrix fractal");
+    constexpr size_t accBytes = static_cast<size_t>(TileRes::Rows) * static_cast<size_t>(TileRes::Cols) * sizeof(CType);
+    static_assert(
+        accBytes <= PTO_L0C_SIZE_BYTES, "TMatmulMX:accumulator (Rows*Cols*sizeof(out)) exceeds L0C capacity.");
 }
 
 PTO_INTERNAL void CheckDynamicMmad(uint16_t aMatrixRow, uint16_t aMatrixCol, uint16_t bMatrixCol)

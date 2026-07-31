@@ -94,7 +94,11 @@ Per loop (128 elements = 8 blocks of 16):
 
   // Eb: threshold check — is the per-8 max more than 4× the shared exponent?
   Eb_tmp  = Mb * Ea_rec
-  Eb_bit  = (Eb_tmp >= 4) ? 1 : 0                     // psts as packed predicate
+  Eb_bit  = (Eb_tmp >= 4) ? 1 : 0
+  // Store Eb via pstu (predicate → align register) + vstas (align → UB).
+  // This packs the predicate at output frequency (1 byte / 64-group, all 8
+  // Eb bits), avoiding the old DS_B8 downsample that dropped bits b4–b7.
+  pstu(ureg_Eb, p_Eb, ebPtr); vstas(ureg_Eb, ebPtr, 0, POST_UPDATE)
 
   // Ec: threshold check — refine further with the Eb correction
   Eb_rec  = Eb_bit ? 0.5 : 1.0                        // 2^(-Eb)
@@ -115,8 +119,11 @@ Per loop (128 elements = 8 blocks of 16):
 ### 2.3 Stage 2b: ExpLayoutForCube (CCE-only, NOT in golden)
 
 Rearranges Ea/Eb/Ec from their per-level flat layout into the interleaved
-packed layout the Cube matmul unit consumes. This is a hardware-specific
-data-movement step — **the Python golden does NOT replicate it.**
+packed layout the Cube matmul unit consumes. Ea is loaded with `DS_B8` (it is
+stored zero-extended); Eb is loaded with `NORM` (the `pstu`+`vstas` store in
+Stage 2 already put it at output frequency, so no downsample is needed).
+This is a hardware-specific data-movement step — **the Python golden does NOT
+replicate it.**
 
 ### 2.4 Stage 3: CalcFp4Values_Cont
 

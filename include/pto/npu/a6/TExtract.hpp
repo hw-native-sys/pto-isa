@@ -494,10 +494,15 @@ __tf__ PTO_INTERNAL void TExtractAccToVec(
 
 template <typename T>
 constexpr bool is_textract_supported_type = std::disjunction_v<
-    std::is_same<T, int8_t>, std::is_same<T, float8_e4m3_t>, std::is_same<T, float8_e5m2_t>,
+    std::is_same<T, int8_t>, std::is_same<T, uint8_t>, std::is_same<T, float8_e4m3_t>, std::is_same<T, float8_e5m2_t>,
     std::is_same<T, hifloat8_t>, std::is_same<T, int4b_t>, std::is_same<T, half>, std::is_same<T, bfloat16_t>,
     std::is_same<T, float>, std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>,
-    std::is_same<T, float8_e8m0_t>>;
+    std::is_same<T, float8_e8m0_t>
+#if defined(PTO_NPU_ARCH_A6)
+    ,
+    std::is_same<T, hifloat4x2_t>
+#endif
+    >;
 
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TExtractToLeft(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol)
@@ -511,7 +516,11 @@ PTO_INTERNAL void TExtractToLeft(DstTileData& dst, SrcTileData& src, uint16_t in
         DstTileData::SFractal == SLayout::RowMajor && !DstTileData::isRowMajor, "TExtract: DstTile Invalid Fractal");
     constexpr bool isFp4Type = std::is_same<typename SrcTileData::DType, float4_e2m1x2_t>::value ||
                                std::is_same<typename SrcTileData::DType, float4_e1m2x2_t>::value ||
-                               std::is_same<typename SrcTileData::DType, int4b_t>::value;
+                               std::is_same<typename SrcTileData::DType, int4b_t>::value
+#if defined(PTO_NPU_ARCH_A6)
+                               || std::is_same<typename SrcTileData::DType, hifloat4x2_t>::value
+#endif
+        ;
     if constexpr (SrcTileData::Rows == 1 && SrcTileData::isRowMajor) {
         TExtractToAVector<DstTileData, SrcTileData, isFp4Type>(
             dst.data(), src.data(), indexRow, indexCol, dst.GetValidCol());
@@ -543,7 +552,11 @@ PTO_INTERNAL void TExtractToRight(DstTileData& dst, SrcTileData& src, uint16_t i
         DstTileData::SFractal == SLayout::ColMajor && DstTileData::isRowMajor, "TExtract: DstTile Invalid Fractal");
     constexpr bool isFp4Type = std::is_same<typename SrcTileData::DType, float4_e2m1x2_t>::value ||
                                std::is_same<typename SrcTileData::DType, float4_e1m2x2_t>::value ||
-                               std::is_same<typename SrcTileData::DType, int4b_t>::value;
+                               std::is_same<typename SrcTileData::DType, int4b_t>::value
+#if defined(PTO_NPU_ARCH_A6)
+                               || std::is_same<typename SrcTileData::DType, hifloat4x2_t>::value
+#endif
+        ;
     if constexpr (DstTileData::SFractal == SrcTileData::SFractal) {
         if constexpr (DstTileData::Compact == CompactMode::Normal) {
             TExtractToBCompact<DstTileData, SrcTileData, isFp4Type>(
@@ -566,8 +579,9 @@ PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTileData& dst, SrcTileData& src, uint16_
 {
     static_assert(
         is_textract_supported_type<typename DstTileData::DType>,
-        "TExtract: Unsupported data type! Supported types: int8_t, hifloat8_t, fp8_e5m2_t, fp8_e4m3fn_t, \
-        int4b_t, half, bfloat16_t, float, float4_e2m1x2_t, float4_e1m2x2_t, float8_e8m0_t");
+        "TExtract: Unsupported data type! Supported types: int8_t, uint8_t, hifloat8_t, fp8_e5m2_t, \
+        fp8_e4m3fn_t, int4b_t, half, bfloat16_t, float, float4_e2m1x2_t, float4_e1m2x2_t, \
+        float8_e8m0_t, hifloat4x2_t");
     static_assert(
         (SrcTileData::Loc == TileType::Acc) ||
             std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value,
@@ -872,8 +886,12 @@ PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTileData& dst, SrcTileData& src,
     // so callers must use packed-unit counts: indexCol/validCol/RowStride must be in T units
     // (not individual fp4 elements), and DMA further requires indexCol to be 32-byte aligned
     // for the aligned-stride fast path.
-    constexpr bool isFp4Type =
-        std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t> || std::is_same_v<T, int4b_t>;
+    constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t> ||
+                               std::is_same_v<T, int4b_t>
+#if defined(PTO_NPU_ARCH_A6)
+                               || std::is_same_v<T, hifloat4x2_t>
+#endif
+        ;
     if constexpr (isFp4Type) {
         static_assert(
             SrcTileData::RowStride * sizeof(T) % BLOCK_BYTE_SIZE == 0,
@@ -940,8 +958,12 @@ __tf__ PTO_INTERNAL void TExtractVecToVecNZImpl(
     __ubuf__ T* dstAddr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     __ubuf__ T* srcAddr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     constexpr uint32_t typeSize = sizeof(T);
-    constexpr bool isFp4Type =
-        std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t> || std::is_same_v<T, int4b_t>;
+    constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t> ||
+                               std::is_same_v<T, int4b_t>
+#if defined(PTO_NPU_ARCH_A6)
+                               || std::is_same_v<T, hifloat4x2_t>
+#endif
+        ;
     constexpr uint32_t c0Size = BLOCK_BYTE_SIZE / typeSize;
     uint32_t byteValidCol = isFp4Type ? validCol / 2 : validCol;
     uint32_t byteIndexCol = isFp4Type ? indexCol / 2 : indexCol;
@@ -969,7 +991,11 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t ind
                 (std::is_same<T, int32_t>::value) || (std::is_same<T, int8_t>::value) ||
                 (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, float8_e4m3_t>::value) ||
                 (std::is_same<T, float8_e5m2_t>::value) || (std::is_same<T, float8_e8m0_t>::value) ||
-                (std::is_same<T, float4_e2m1x2_t>::value) || (std::is_same<T, float4_e1m2x2_t>::value),
+                (std::is_same<T, float4_e2m1x2_t>::value) || (std::is_same<T, float4_e1m2x2_t>::value)
+#if defined(PTO_NPU_ARCH_A6)
+                || (std::is_same<T, hifloat4x2_t>::value)
+#endif
+                ,
             "TEXTRACT Vec→Vec : Unsupported data type.");
         if constexpr (DstTileData::isRowMajor && SrcTileData::isRowMajor) {
             static_assert(

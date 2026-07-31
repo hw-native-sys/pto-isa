@@ -70,7 +70,9 @@ def make_artifacts(valid_rows, valid_cols):
         Artifact("output", "max4", 1, "bf16", 2, total // 4),
         Artifact("output", "max8", 2, "bf16", 2, total // 8),
         Artifact("output", "ea", 3, "u8", 1, (total // 64) * 2),  # 2B per Ea (zero-extended bf16)
-        Artifact("output", "eb", 4, "u8", 1, (total // 8) * 2 // 8),  # psts PK: Eb 2× upsampled bits → bytes
+        Artifact(
+            "output", "eb", 4, "u8", 1, total // 64
+        ),  # psts PK counters US_B16 upsample -> 1 byte per 64-group (all 8 Eb bits)
         Artifact("output", "ec", 5, "u8", 1, (total // 4) // 8),  # psts PK: Ec packed bits → bytes
         Artifact("output", "exp_dst", 6, "u8", 1, (total // 64) * 4),
         Artifact("output", "fp4", 7, "u8", 1, total // 2),
@@ -112,52 +114,25 @@ class Hif4Params:
         return make_artifacts(self.valid_rows, self.valid_cols)
 
 
-@dataclass(frozen=True)
-class VaddParams:
-    """One vadd stub test case (basic connectivity probe)."""
-
-    valid_rows: int
-    valid_cols: int
-    kind: str = "vadd"
-
-    @property
-    def case_name(self):
-        return f"TQUANT_HIF4_A6_TEST.case_bf16_{self.valid_rows}x{self.valid_cols}_vadd_nd"
-
-    @property
-    def artifacts(self):
-        total = self.valid_rows * self.valid_cols
-        return [
-            Artifact("input", "input1", 1, "bf16", 2, total),
-            Artifact("input", "input2", 2, "bf16", 2, total),
-            Artifact("output", "output", 0, "bf16", 2, total),
-        ]
-
-
 # The full set of test cases. build.py --case <n> selects one.
 CASE_PARAMS = [
-    VaddParams(128, 128),  # 0: vadd stub — basic functionality
-    Hif4Params(128, 128),  # 1: HiF4 default/reference
-    Hif4Params(64, 128),  # 2: HiF4 smaller
-    Hif4Params(256, 128),  # 3: HiF4 medium
-    Hif4Params(128, 256),  # 4: HiF4 medium wide
-    Hif4Params(256, 256),  # 5: HiF4 max
-    Hif4Params(128, 512),  # 6: HiF4 max wide
+    Hif4Params(128, 128),  # 0: HiF4 default/reference
+    Hif4Params(64, 128),  # 1: HiF4 smaller
+    Hif4Params(256, 128),  # 2: HiF4 medium
+    Hif4Params(128, 256),  # 3: HiF4 medium wide
+    Hif4Params(256, 256),  # 4: HiF4 max
+    Hif4Params(128, 512),  # 5: HiF4 max wide
 ]
 
 # The DEFAULT case (used when --case is not specified).
-DEFAULT_PARAMS = CASE_PARAMS[1]  # 128×128 HiF4
+DEFAULT_PARAMS = CASE_PARAMS[0]  # 128×128 HiF4
 
 # Module-level constants consumed by build.py (for the default case).
 CASE_NAME = DEFAULT_PARAMS.case_name
 VALID_ROWS = DEFAULT_PARAMS.valid_rows
 VALID_COLS = DEFAULT_PARAMS.valid_cols
 ARTIFACTS = DEFAULT_PARAMS.artifacts
-GOLDEN_REF = (
-    {"output_names": [a.name for a in ARTIFACTS if a.role == "output"], "threshold": 0.0}
-    if DEFAULT_PARAMS.kind == "hif4"
-    else {"output_names": ["output"], "threshold": 0.0}
-)
+GOLDEN_REF = {"output_names": [a.name for a in ARTIFACTS if a.role == "output"], "threshold": 0.0}
 
 
 # ============================================================
@@ -349,7 +324,8 @@ def pack_fp4_codes(codes):
 
 def pack_bits_lsb(bits):
     """Pack a bit array (uint8, 0 or 1) into bytes, LSB-first within each byte.
-    Matches the CCE psts PK packing mode."""
+    Used for both Eb (8 bits per 64-group -> 1 byte) and Ec (16 bits per
+    64-group -> 2 bytes). Paper-faithful: keeps all bits, no CCE US_B16/DS_B8."""
     n_bytes = (len(bits) + 7) // 8
     packed = np.zeros(n_bytes, dtype=np.uint8)
     for i in range(len(bits)):
@@ -358,40 +334,22 @@ def pack_bits_lsb(bits):
     return packed
 
 
-def pack_predicate_cce(bits, upsample=1):
-    """Pack predicate bits matching CCE psts PK mode.
-
-    The CCE loads per-8/per-4 maxima via US_B16 (upsampling 2×),
-    so each bit is duplicated `upsample` times in the VL.
-    psts PK then packs LSB-first into bytes.
-
-    bits: unique per-group values (0 or 1)
-    upsample: duplication factor (1=Eb with US_B16 2×, 2=Ec with US_B16 2×)
-    """
-    # Duplicate each bit `upsample` times (matches US_B16)
-    duplicated = np.repeat(bits, upsample)
-    # Pack LSB-first
-    return pack_bits_lsb(duplicated)
-
-
 # ============================================================
 #  ExpLayoutForCube — replicate the CCE transformation
 # ============================================================
 
 
 def exp_layout_for_cube(ea_flat, eb_flat, ec_flat, total_elem):
-    """Replicate ExpLayoutForCube_Cont: B8-interleave Ea/Eb, then block-interleave with Ec.
+    """Build the Cube scale layout: B8-interleave Ea/Eb, then block-interleave with Ec.
 
-    The CCE loads from UB:
-      - Ea via DS_B8 from zero-extended buffer (byte offset = loop_idx * 128)
-        DS_B8 takes every other byte → effective packed offset = loop_idx * 64
-      - Eb via DS_B8 from upsampled buffer (byte offset = loop_idx * 128)
-        DS_B8 takes every other byte → effective packed offset = loop_idx * 64
-      - Ec via NORM (byte offset = loop_idx * 256)
-    Then vintlv(Ea, Eb) → 256B, then vsstb blockStride=2: [EaEb_blk0, Ec_blk0, ...]
+    This is the golden (paper-faithful) version. The CCE's ExpLayoutForCube_Cont
+    historically applied DS_B8 to Eb (dropping Eb bits b4-b7 of every group);
+    that quirk does NOT match the paper, so eb_flat here carries all 8 Eb bits
+    per group (one byte per group via pack_bits_lsb). Layout: vintlv(Ea, Eb) ->
+    256B, then vsstb blockStride=2: [EaEb_blk0, Ec_blk0, ...].
 
     ea_flat: raw Ea bytes (1B per exponent, total/64 bytes)
-    eb_flat: packed Eb bytes (after DS_B8 downsample)
+    eb_flat: packed Eb bytes (1B per group, all 8 Eb bits, paper-faithful)
     ec_flat: packed Ec bytes
     """
     input_size = total_elem // 64
@@ -403,8 +361,8 @@ def exp_layout_for_cube(ea_flat, eb_flat, ec_flat, total_elem):
         ec_chunk = np.zeros(256, dtype=np.uint8)
         # DS_B8 offset in zero-extended space = loop_idx * 128
         # Packed offset = loop_idx * 128 / 2 = loop_idx * 64
-        ea_start = loop_idx * 64
-        eb_start = loop_idx * 64
+        ea_start = loop_idx * 64  # CCE DS_B8 halves the loop_idx*128 offset
+        eb_start = loop_idx * 128  # CCE NORM: no halving (was *64 when Eb used DS_B8)
         ec_start = loop_idx * 256
         ea_chunk[: min(128, len(ea_flat) - ea_start)] = ea_flat[ea_start : ea_start + 128]
         eb_chunk[: min(128, len(eb_flat) - eb_start)] = eb_flat[eb_start : eb_start + 128]
@@ -559,30 +517,8 @@ def make_bf16_input(valid_rows, valid_cols):
 
 
 def gen_golden_for_case(params):
-    """Generate all artifacts for one case (HiF4 or vadd) into the current directory."""
-    if params.kind == "vadd":
-        return gen_golden_vadd(params)
+    """Generate all artifacts for one HiF4 case into the current directory."""
     return gen_golden_hif4(params)
-
-
-def gen_golden_vadd(params):
-    """Generate vadd stub artifacts: two BF16 inputs + golden (src0+src1)."""
-    src0 = make_bf16_input(params.valid_rows, params.valid_cols)
-    src1 = make_bf16_input(params.valid_rows, params.valid_cols)
-    golden = (src0.astype(np.float32) + src1.astype(np.float32)).astype(bfloat16)
-
-    src0.ravel().tofile("input1.bin")
-    src1.ravel().tofile("input2.bin")
-    golden.ravel().tofile("golden.bin")
-
-    for a in params.artifacts:
-        data = {"input1": src0, "input2": src1, "output": golden}[a.name]
-        actual = data.ravel().nbytes
-        ok = actual == a.bytes_size
-        print(f"  {a.name + '.bin':20s} {actual:6d} B  {'OK' if ok else 'MISMATCH'}")
-
-    print(f"\n  vadd stub: {params.valid_rows}×{params.valid_cols} BF16")
-    return True
 
 
 def gen_golden_hif4(params):
@@ -594,15 +530,16 @@ def gen_golden_hif4(params):
     src = make_bf16_input(valid_rows, valid_cols)
     result = hif4_quantize(src)
 
-    # Pack Eb/Ec bits matching CCE psts PK (LSB-first, with US_B16 duplication)
-    eb_packed = pack_predicate_cce(result["eb"], upsample=2)
-    ec_packed = pack_predicate_cce(result["ec"], upsample=1)
+    # Eb: one byte per 64-group carrying all 8 Eb bits (paper-faithful).
+    # The CCE loads the per-8 maxima via US_B16 (upsampling 2x), but the store
+    # uses psts PK which counters the upsampling, so the stored Eb is exactly
+    # the per-group values (1 byte/group, all 8 bits). The old code wrongly
+    # upsampled the golden Eb to match a misread of the load; PK counters it.
+    eb_packed = pack_bits_lsb(result["eb"])
+    ec_packed = pack_bits_lsb(result["ec"])
 
-    # For exp_dst, the CCE applies DS_B8 on Eb (downsamples the 2× upsampled data)
-    eb_packed_ds = eb_packed[0::2]  # DS_B8: take every other byte
-
-    # Cube-layout exponents: B8-interleave Ea + Eb(DS_B8'd), then block-interleave with Ec
-    exp_dst = exp_layout_for_cube(result["ea"], eb_packed_ds, ec_packed, total)
+    # Cube-layout exponents: B8-interleave Ea + Eb, then block-interleave with Ec
+    exp_dst = exp_layout_for_cube(result["ea"], eb_packed, ec_packed, total)
 
     # Write all artifacts
     src.ravel().tofile("input1.bin")
@@ -612,7 +549,7 @@ def gen_golden_hif4(params):
     ea_zext = np.zeros(len(result["ea"]) * 2, dtype=np.uint8)
     ea_zext[0::2] = result["ea"]
     ea_zext.tofile("golden_ea.bin")
-    # Eb stored as packed predicate bits (psts PK: LSB-first, US_B16 2× duplication)
+    # Eb: 1 byte per 64-group (psts PK counters the US_B16 upsample at load)
     eb_packed.tofile("golden_eb.bin")
     ec_packed.tofile("golden_ec.bin")
     np.frombuffer(exp_dst, dtype=np.uint8).tofile("golden_exp_dst.bin")
@@ -665,7 +602,9 @@ if __name__ == "__main__":
         "--regression", action="store_true", help="regression-platform mode: generate only the default case into cwd"
     )
     parser.add_argument("--all", action="store_true", help="generate ALL cases, each into its own subdirectory")
-    parser.add_argument("--case", type=int, default=None, help="generate a specific case by index (0=vadd, 1+=hif4)")
+    parser.add_argument(
+        "--case", type=int, default=None, help="generate a specific case by index (0=hif4 128x128, 1=hif4 64x128, ...)"
+    )
     parser.add_argument(
         "--compare-cce", type=str, default=None, help="compare CCE outputs in the given directory against golden"
     )
