@@ -44,7 +44,10 @@ void TPushPopDirBothTestFunc(uint32_t M, uint32_t K, uint32_t N)
     size_t dFileSize = K * N * sizeof(T);
     size_t fFileSize = M * N * sizeof(T);
     size_t outFileSize = M * N * sizeof(T);
-    size_t fifoFileSize = 2 * M * N * sizeof(T);
+    // A DIR_BOTH pipe is two rings in GM: C2V at offset 0 and V2C at SLOT_NUM * SLOT_SIZE.
+    // SLOT_SIZE = M * N * sizeof(T) and SLOT_NUM = FIFO_DEPTH = 2 in the kernel, so the
+    // buffer must be 2 * SLOT_NUM * SLOT_SIZE.
+    size_t fifoFileSize = 4 * M * N * sizeof(T);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
