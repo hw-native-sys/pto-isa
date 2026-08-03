@@ -448,7 +448,7 @@ inline constexpr uint32_t kFaultFlagWordOffset = 2 * kGridDirectionCount;
 // LPU WSE: mtspr SPR_FREE_<DIR>, newValue     (cross-core, wakes producer WFE)
 //
 // A2/A3 mock: producer / consumer holds a pointer into the *neighbor's* GM
-// window (resolved by HcclRemotePtr at runtime); we write the new monotonic
+// window (resolved by CommRemotePtr at runtime); we write the new monotonic
 // counter into that remote location.  Pairing read happens via MockWfe* below.
 //
 // volatile cast prevents the compiler from caching the write.  Cross-rank

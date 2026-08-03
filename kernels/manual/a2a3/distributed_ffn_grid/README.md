@@ -9,7 +9,7 @@
 - The mixed Cube/Vec kernel computes gate/up, activation, down projection, and row-local `EAST` reduce in one launch.
 - The last column in each row writes the final fp32 `[T, H]` output tile, which the host compares with `golden.bin` using `1e-3` tolerance.
 
-The `EAST` reduce uses the A2/A3 GridPipe mock backend: local SRAM windows backed by GM in the mock, fake `HcclDeviceContext` window pointers, ready/free counters, `dcci/dsb` fences, and spin waits. This validates the programming model and same-device mock path; it is not multi-card communication validation.
+The `EAST` reduce uses the A2/A3 GridPipe mock backend: local SRAM windows backed by GM in the mock, fake `CommDeviceContext` window pointers, ready/free counters, `dcci/dsb` fences, and spin waits. This validates the programming model and same-device mock path; it is not multi-card communication validation.
 
 An AllGather variant is also provided in `run_allgather.sh` / `distributed_ffn_grid_allgather`. It gathers hidden shards across columns before down projection, so the post-down ReduceSum is removed and each column writes its own output-H shard.
 
@@ -47,7 +47,7 @@ Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unica
    - `distributed_ffn_grid_reducesum`: host executable.
 4. The host initializes ACL on the selected device.
 5. The host allocates contiguous device buffers for `gridRows * gridCols` cells.
-6. The host allocates one local GridPipe SRAM window per cell, backed by GM in the mock, and builds a fake `HcclDeviceContext`:
+6. The host allocates one local GridPipe SRAM window per cell, backed by GM in the mock, and builds a fake `CommDeviceContext`:
 
 ```text
 windowsIn[cell] = reduce_pipe_windows_dev + cell * FFN_GRID_WINDOW_BYTES
@@ -120,7 +120,7 @@ To stay close to real silicon, the mock models future-hardware per-core SRAM as 
 segment c = [base + c*winSize, base + (c+1)*winSize)   // base == windowsIn[0]
 ```
 
-`GmSramArena` (in `include/pto/common/grid_sram_intrinsic.hpp`) carries `{base, segBytes, numSegs}` plus the `SegmentOf` / `InSegment` classifiers; the demo builds it on-device from the fake `HcclDeviceContext` window table (`SramArenaFromCtx`). It is the single source of truth for "which core owns this address".
+`GmSramArena` (in `include/pto/common/grid_sram_intrinsic.hpp`) carries `{base, segBytes, numSegs}` plus the `SegmentOf` / `InSegment` classifiers; the demo builds it on-device from the fake `CommDeviceContext` window table (`SramArenaFromCtx`). It is the single source of truth for "which core owns this address".
 
 This makes the NoC contract explicit and **enforced**: the fabric can only *write* across cores, never *read*.
 

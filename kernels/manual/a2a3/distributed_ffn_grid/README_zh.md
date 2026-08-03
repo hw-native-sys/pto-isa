@@ -9,7 +9,7 @@
 - mixed Cube/Vec kernel 在单次 launch 中完成 gate/up、activation、down projection 和行内 `EAST` reduce。
 - 每行最右列写出 fp32 `[T, H]` 输出 tile，host 使用 `1e-3` 容差与 `golden.bin` 比对。
 
-`EAST` reduce 使用 A2/A3 GridPipe mock backend：本地 SRAM windows（当前由 GM 分配模拟）、fake `HcclDeviceContext` window 指针、ready/free counter、`dcci/dsb` fence 和 spin wait。该 demo 验证的是单设备 mock 路径和 GridPipe 编程模型，不是多卡通信验证。
+`EAST` reduce 使用 A2/A3 GridPipe mock backend：本地 SRAM windows（当前由 GM 分配模拟）、fake `CommDeviceContext` window 指针、ready/free counter、`dcci/dsb` fence 和 spin wait。该 demo 验证的是单设备 mock 路径和 GridPipe 编程模型，不是多卡通信验证。
 
 仓内同时提供一个 AllGather 版本：`run_allgather.sh` / `distributed_ffn_grid_allgather`。它在 hidden 阶段先沿列做 fp16 AllGather，再让 down 阶段按输出 `H` 维切片，去掉 post-down ReduceSum。
 
@@ -47,7 +47,7 @@
    - `distributed_ffn_grid_reducesum`：host 可执行文件。
 4. host 在选定 device 上初始化 ACL。
 5. host 按 `gridRows * gridCols` 个 cell 分配连续 device buffers。
-6. host 分配每个 cell 一个本地 GridPipe SRAM window（当前用 GM backing），并构造 fake `HcclDeviceContext`：
+6. host 分配每个 cell 一个本地 GridPipe SRAM window（当前用 GM backing），并构造 fake `CommDeviceContext`：
 
 ```text
 windowsIn[cell] = reduce_pipe_windows_dev + cell * FFN_GRID_WINDOW_BYTES
@@ -120,7 +120,7 @@ mock 使用 GM flag polling 和 cache maintenance 在 A2/A3 上模拟 LPU WSE �
 段 c = [base + c*winSize, base + (c+1)*winSize)   // base == windowsIn[0]
 ```
 
-`GmSramArena`（位于 `include/pto/common/grid_sram_intrinsic.hpp`）持有 `{base, segBytes, numSegs}` 以及 `SegmentOf` / `InSegment` 判定函数；demo 在 device 侧从 fake `HcclDeviceContext` 的 window 表构造它（`SramArenaFromCtx`）。它是"某地址归哪个核所有"的唯一真相来源。
+`GmSramArena`（位于 `include/pto/common/grid_sram_intrinsic.hpp`）持有 `{base, segBytes, numSegs}` 以及 `SegmentOf` / `InSegment` 判定函数；demo 在 device 侧从 fake `CommDeviceContext` 的 window 表构造它（`SramArenaFromCtx`）。它是"某地址归哪个核所有"的唯一真相来源。
 
 这样就把真实硅片的 NoC 约束显式化并**强制**起来：fabric 只能跨核**写**，不能跨核**读**。
 

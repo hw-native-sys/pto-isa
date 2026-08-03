@@ -19,7 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 //   get_neighbor_sram_addr(...)
 //     -> resolves an address in our own SRAM window to the same byte offset in
 //        peerRank's window.  On A2/A3 this SRAM window is mocked by local GM
-//        windows and HcclRemotePtr.
+//        windows and CommRemotePtr.
 //
 //   CopyTileToNeighborSramSlot<TileT>(remoteSlot, tile, slotBytes)
 //     -> Tile-to-intrinsic adapter: extract the Tile UB pointer, then call
@@ -41,21 +41,21 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/npu/a2a3/grid_intrinsic.hpp>
 
-#include "common.hpp" // HcclRemotePtr, HcclDeviceContext
+#include "common.hpp" // CommRemotePtr, CommDeviceContext
 
 namespace pto {
 namespace a2a3_grid_payload {
 
 AICORE inline uint64_t ResolvePeerWindowAddress(__gm__ void *runtimeCtx, uint64_t localAddr, int peerRank)
 {
-    auto *ctx = reinterpret_cast<__gm__ HcclDeviceContext *>(runtimeCtx);
+    auto *ctx = reinterpret_cast<__gm__ CommDeviceContext *>(runtimeCtx);
     for (uint32_t i = 0; i < ctx->rankNum && i < HCCL_MAX_RANK_NUM; ++i) {
         uint64_t base = ctx->windowsIn[i];
         if (localAddr >= base && localAddr < base + ctx->winSize) {
             return ctx->windowsIn[peerRank] + (localAddr - base);
         }
     }
-    return reinterpret_cast<uint64_t>(HcclRemotePtr(ctx, reinterpret_cast<__gm__ void *>(localAddr), peerRank));
+    return reinterpret_cast<uint64_t>(CommRemotePtr(ctx, reinterpret_cast<__gm__ void *>(localAddr), peerRank));
 }
 
 AICORE inline neighbor_sram_addr LocalSramAddr(__gm__ uint8_t *localSlot)
@@ -70,7 +70,7 @@ AICORE inline neighbor_sram_addr LocalSramAddr(__gm__ uint8_t *localSlot)
 // uses to decide whether a read stays inside the caller's own segment.
 AICORE inline GmSramArena SramArenaFromCtx(__gm__ void *runtimeCtx)
 {
-    auto *ctx = reinterpret_cast<__gm__ HcclDeviceContext *>(runtimeCtx);
+    auto *ctx = reinterpret_cast<__gm__ CommDeviceContext *>(runtimeCtx);
     GmSramArena arena;
     arena.base = ctx->windowsIn[0];
     arena.segBytes = ctx->winSize;
