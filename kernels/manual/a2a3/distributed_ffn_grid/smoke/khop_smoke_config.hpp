@@ -13,7 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // A 1 x COLS row of cells.  Each cell c pushes a stamped fp32 tile DIST hops
 // EAST (TPUSH<EAST, DIST>) to cell c+DIST; cell c+DIST pops it (TPOP<EAST, DIST>)
 // and stores it.  This exercises the Scheme A K-hop data path *and* the routed
-// ready/free doorbell (mtspr_neighbor_counter's new dist operand) end to end.
+// ready/free scoreboard (the sync_hscb doorbell's dist reach) end to end.
 //
 // DIST is a compile-time constant (TPUSH/TPOP take it as a template parameter),
 // configured via -DCONFIG_KHOP_DIST=N at cmake time.
