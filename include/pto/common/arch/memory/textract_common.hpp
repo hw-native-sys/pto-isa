@@ -492,7 +492,7 @@ AICORE void TExtractToRight(DstTileData& dst, SrcTileData& src, uint16_t indexRo
             TExtractToB<DstTileData, SrcTileData, false>(dst.data(), src.data(), indexRow, indexCol);
         }
     } else {
-        if constexpr (DstTileData::Compact == CompactMode::Normal) {
+        if constexpr (DstTileData::Compact == CompactMode::Normal || sizeof(typename SrcTileData::DType) == 1) {
             TExtractToBCompact<DstTileData, SrcTileData, true>(
                 dst.data(), src.data(), indexRow, indexCol, dst.GetValidRow(), dst.GetValidCol());
         } else {
