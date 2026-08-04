@@ -643,7 +643,7 @@ AICORE inline void compute_p(
         }
 
 #if USE_L0C_TO_DUAL_UB_PATH_QK
-        qkPipe.cons.setFreeStatus((row_slice == static_cast<int>(kTileFactor) - 1));
+        qkPipe.cons.setFreeStatus((row_slice == static_cast<int>(kTileFactor) - 1) && should_notify_qk_consume);
         TFREE(qkPipe);
 
         if (row_slice == static_cast<int>(kTileFactor) - 1) {
@@ -1146,6 +1146,15 @@ __global__ AICORE void runTFA(
             qkPipe.prod.allocate();
         for (int i = 0; i < pending_update_consumed; ++i)
             pvPipe.prod.allocate();
+#if USE_L0C_TO_DUAL_UB_PATH_QK
+        // ubBufSync.free() fires every tile while allocate() only starts at
+        // tile_id >= srcVecTNBuffers, leaving min(num_tiles, srcVecTNBuffers)
+        // unmatched free credits (Cube IDs flag+1 / flag+1+16). Drain them here.
+        const int pending_ub_buf_freed =
+            (num_tiles_s1 < static_cast<int>(srcVecTNBuffers)) ? num_tiles_s1 : static_cast<int>(srcVecTNBuffers);
+        for (int i = 0; i < pending_ub_buf_freed; ++i)
+            ubBufSync.allocate();
+#endif
     }
 
     if constexpr (DAV_VEC) {
