@@ -122,6 +122,10 @@ CASE_PARAMS = [
     Hif4Params(128, 256),  # 3: HiF4 medium wide
     Hif4Params(256, 256),  # 4: HiF4 max
     Hif4Params(128, 512),  # 5: HiF4 max wide
+    Hif4Params(64, 64),  # 6: predicate-mask path (input_size=64 -> 4 blocks/loop)
+    Hif4Params(16, 64),  # 7: minimal predicate-mask (input_size=16 -> 1 block/loop)
+    Hif4Params(48, 128),  # 8: predicate-mask (input_size=96 -> 3 blocks/loop)
+    Hif4Params(64, 192),  # 9: predicate-mask (input_size=192 -> 6 blocks/loop)
 ]
 
 # The DEFAULT case (used when --case is not specified).
@@ -351,11 +355,20 @@ def exp_layout_for_cube(ea_flat, eb_flat, ec_flat, total_elem):
     ea_flat: raw Ea bytes (1B per exponent, total/64 bytes)
     eb_flat: packed Eb bytes (1B per group, all 8 Eb bits, paper-faithful)
     ec_flat: packed Ec bytes
+
+    Predicate masking: the CCE kernel computes rem = input_size * 2 (interleaved
+    Ea/Eb bytes) and masks each loop's vsstb with CreatePredicate<uint8_t>(rem).
+    When input_size is not a multiple of 128 (e.g. 64x64 -> input_size=64), the
+    final loop writes fewer than 8 blocks. We mirror that by tracking rem and
+    writing blocks_this_loop = min(8, ceil(rem/32)) per loop, decrementing rem by
+    256 (one full loop's worth) after each iteration.
     """
     input_size = total_elem // 64
     loop_num = (input_size + 127) // 128
+    rem = input_size * 2  # interleaved Ea/Eb bytes; mirrors CCE CreatePredicate<uint8_t>(rem)
     exp_dst = bytearray()
     for loop_idx in range(loop_num):
+        blocks_this_loop = min(8, (rem + 31) // 32)
         ea_chunk = np.zeros(128, dtype=np.uint8)
         eb_chunk = np.zeros(128, dtype=np.uint8)
         ec_chunk = np.zeros(256, dtype=np.uint8)
@@ -370,9 +383,10 @@ def exp_layout_for_cube(ea_flat, eb_flat, ec_flat, total_elem):
         eaeb = np.empty(256, dtype=np.uint8)
         eaeb[0::2] = ea_chunk
         eaeb[1::2] = eb_chunk
-        for blk in range(8):
+        for blk in range(blocks_this_loop):
             exp_dst.extend(eaeb[blk * 32 : (blk + 1) * 32].tobytes())
             exp_dst.extend(ec_chunk[blk * 32 : (blk + 1) * 32].tobytes())
+        rem -= 256
     return bytes(exp_dst)
 
 

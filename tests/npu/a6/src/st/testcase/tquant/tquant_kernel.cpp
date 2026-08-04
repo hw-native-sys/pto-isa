@@ -222,4 +222,12 @@ template void TQuantHif4A6::LaunchTQuantHif4A6<256, 256>(
     uint16_t*, uint16_t*, uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
 template void TQuantHif4A6::LaunchTQuantHif4A6<128, 512>(
     uint16_t*, uint16_t*, uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
+template void TQuantHif4A6::LaunchTQuantHif4A6<64, 64>(
+    uint16_t*, uint16_t*, uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
+template void TQuantHif4A6::LaunchTQuantHif4A6<16, 64>(
+    uint16_t*, uint16_t*, uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
+template void TQuantHif4A6::LaunchTQuantHif4A6<48, 128>(
+    uint16_t*, uint16_t*, uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
+template void TQuantHif4A6::LaunchTQuantHif4A6<64, 192>(
+    uint16_t*, uint16_t*, uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
 #endif

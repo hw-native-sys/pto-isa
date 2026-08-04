@@ -129,3 +129,11 @@ TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_256x128_hif4_nd) { RunHif4Case<256, 128>(G
 TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_128x256_hif4_nd) { RunHif4Case<128, 256>(GetGoldenDir()); }
 TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_256x256_hif4_nd) { RunHif4Case<256, 256>(GetGoldenDir()); }
 TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_128x512_hif4_nd) { RunHif4Case<128, 512>(GetGoldenDir()); }
+
+TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_64x64_hif4_nd) { RunHif4Case<64, 64>(GetGoldenDir()); }
+
+TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_16x64_hif4_nd) { RunHif4Case<16, 64>(GetGoldenDir()); }
+
+TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_48x128_hif4_nd) { RunHif4Case<48, 128>(GetGoldenDir()); }
+
+TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_64x192_hif4_nd) { RunHif4Case<64, 192>(GetGoldenDir()); }
