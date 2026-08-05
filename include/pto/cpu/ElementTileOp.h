@@ -164,12 +164,6 @@ PTO_INTERNAL void TXOR_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& 
     TXOR_IMPL(dst, src0, src1);
 }
 
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TCMP_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, CmpMode mode)
-{
-    BinaryElementTileOp_Impl<ElementOp::OP_CMP>(dst, src0, src1, static_cast<size_t>(mode));
-}
-
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
 PTO_INTERNAL void TPRELU_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, TileDataTmp& tmp)
 {
