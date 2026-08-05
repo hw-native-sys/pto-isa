@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 #include "common.hpp"
 #include "utils.hpp"
+#include "Int64Rearrange.hpp"
 
 namespace pto {
 template <typename TileDataDst, typename TileDataSrc>
@@ -25,8 +26,8 @@ PTO_INTERNAL void TColExpandCheck(unsigned srcValidRow, unsigned srcValidCol, un
         "Fix: TCOLEXPAND input data type must be consistent with the output data type.");
     static_assert(
         (sizeof(typename TileDataSrc::DType) == 1) || (sizeof(typename TileDataSrc::DType) == 2) ||
-            (sizeof(typename TileDataSrc::DType) == 4),
-        "Fix: TCOLEXPAND data type must be b8/b16/b32");
+            (sizeof(typename TileDataSrc::DType) == 4) || (sizeof(typename TileDataSrc::DType) == 8),
+        "Fix: TCOLEXPAND data type must be b8/b16/b32/b64");
     static_assert(TileDataDst::Loc == pto::TileType::Vec, "Fix: TCOLEXPAND Dst TileType must be Vec Tile!");
     static_assert(TileDataSrc::Loc == pto::TileType::Vec, "Fix: TCOLEXPAND Src TileType must be Vec Tile!");
     static_assert(
@@ -124,8 +125,14 @@ PTO_INTERNAL void TCOLEXPAND_IMPL(TileDataDst& dst, TileDataSrc& src)
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
     TColExpandCheck<TileDataDst, TileDataSrc>(src.GetValidRow(), src.GetValidCol(), dstValidCol);
-    TColExpand<TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem>(
-        dst.data(), src.data(), dstValidRow, dstValidCol);
+    using T = typename TileDataDst::DType;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64ColExpand<T, TileDataDst::Cols>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ T*)src.data(), dstValidRow, dstValidCol);
+    } else {
+        TColExpand<TileDataDst, TileDataSrc, elementsPerRepeat, blockSizeElem>(
+            dst.data(), src.data(), dstValidRow, dstValidCol);
+    }
 }
 } // namespace pto
 #endif

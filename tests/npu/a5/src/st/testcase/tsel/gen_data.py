@@ -23,8 +23,15 @@ def gen_golden_data_tsel(param):
 
     output = np.zeros(row * col).astype(dtype)
 
-    input0 = np.random.rand(row * col).astype(dtype)
-    input1 = np.random.rand(row * col).astype(dtype)
+    if dtype == np.int64:
+        input0 = np.arange(row * col, dtype=dtype) - 100
+        input1 = np.arange(row * col, dtype=dtype) + 1000
+    elif dtype == np.uint64:
+        input0 = np.arange(row * col, dtype=dtype) + 100
+        input1 = np.arange(row * col, dtype=dtype) + 1000
+    else:
+        input0 = np.random.rand(row * col).astype(dtype)
+        input1 = np.random.rand(row * col).astype(dtype)
     mask_size = row * mask_col
     mask = np.random.randint(0, 255, size=mask_size, dtype=np.uint8)
     golden = np.zeros(row * col).astype(dtype)
@@ -79,6 +86,8 @@ if __name__ == "__main__":
         TSelParams("TSELTest.case8", np.int8, 2, 32, 2, 32),
         TSelParams("TSELTest.case9", np.int8, 2, 160, 2, 160),
         TSelParams("TSELTest.case10", np.float32, 2, 512, 2, 512),
+        TSelParams("TSELTest.case_int64_4x16", np.int64, 4, 16, 4, 16),
+        TSelParams("TSELTest.case_uint64_4x16", np.uint64, 4, 16, 4, 16),
     ]
 
     for param in case_params_list:

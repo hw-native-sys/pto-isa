@@ -75,3 +75,5 @@ template void LaunchTDivS<float, 1, 32, 1, 16, 1, 16>(float* out, float* src, fl
 template void LaunchTDivS<float, 2, 16, 2, 16, 2, 16, true>(float* out, float* src, float scalar, void* stream);
 template void LaunchTDivSHalf<2, 32, 2, 32, 2, 32, true>(
     aclFloat16* out, aclFloat16* src, aclFloat16 scalar, void* stream);
+template void LaunchTDivS<int64_t, 4, 16, 4, 16, 4, 16>(int64_t* out, int64_t* src, int64_t scalar, void* stream);
+template void LaunchTDivS<uint64_t, 4, 16, 4, 16, 4, 16>(uint64_t* out, uint64_t* src, uint64_t scalar, void* stream);

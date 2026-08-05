@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/common.hpp>
 #include <pto/npu/a5/utils.hpp>
 #include <pto/npu/a5/TBinOp.hpp>
+#include <pto/npu/a5/Int64Binary.hpp>
 #include <pto/common/debug.h>
 
 namespace pto {
@@ -56,7 +57,10 @@ __tf__ PTO_INTERNAL OP_NAME(TSHR) OP_TYPE(element_wise) void TShlr(
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
-    if constexpr (
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Binary<Int64Op::Shr, T, TileDataDst::Cols, TileDataSrc0::Cols, TileDataSrc1::Cols>(
+            dstPtr, src0Ptr, src1Ptr, validRows, validCols);
+    } else if constexpr (
         std::is_same<T, int8_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, int32_t>::value) {
         BinaryInstr<ShrOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
             dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
@@ -75,8 +79,9 @@ PTO_INTERNAL void TShlrCheck(const TileDataDst& dst, const TileDataSrc0& src0, c
         std::is_same<T, typename TileDataSrc0::DType>::value && std::is_same<T, typename TileDataSrc1::DType>::value,
         "Fix: TSHR has invalid data type.");
     static_assert(
-        std::is_same<T, uint8_t>::value || std::is_same<T, int8_t>::value || std::is_same<T, uint16_t>::value ||
-            std::is_same<T, int16_t>::value || std::is_same<T, uint32_t>::value || std::is_same<T, int32_t>::value,
+        std::is_same<T, uint64_t>::value || std::is_same<T, int64_t>::value || std::is_same<T, uint8_t>::value ||
+            std::is_same<T, int8_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, uint32_t>::value || std::is_same<T, int32_t>::value,
         "Fix: TSHR has invalid data type.");
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,

@@ -108,3 +108,16 @@ TEST_F(TCMPTest, case_int16_77x80_32x32) { test_tcmp<int16_t, 77, 80, 32, 32, Cm
 TEST_F(TCMPTest, case_bfloat16_32x32_16x32) { test_tcmp<aclFloat16, 32, 32, 16, 32, CmpMode::EQ, true>(); }
 TEST_F(TCMPTest, case_bfloat16_77x80_32x32) { test_tcmp<aclFloat16, 77, 80, 32, 32, CmpMode::LE, true>(); }
 TEST_F(TCMPTest, case_float_32x32_32x32_nan) { test_tcmp<float, 32, 32, 32, 32, CmpMode::NE>(); }
+#define TCMP_INT64_CASE(Type, TypeName, Mode) \
+    TEST_F(TCMPTest, case_##TypeName##_4x16_4x15_##Mode) { test_tcmp<Type, 4, 16, 4, 15, CmpMode::Mode>(); }
+#define TCMP_INT64_MODES(Type, TypeName) \
+    TCMP_INT64_CASE(Type, TypeName, EQ)  \
+    TCMP_INT64_CASE(Type, TypeName, NE)  \
+    TCMP_INT64_CASE(Type, TypeName, LT)  \
+    TCMP_INT64_CASE(Type, TypeName, GT)  \
+    TCMP_INT64_CASE(Type, TypeName, GE)  \
+    TCMP_INT64_CASE(Type, TypeName, LE)
+TCMP_INT64_MODES(int64_t, int64)
+TCMP_INT64_MODES(uint64_t, uint64)
+#undef TCMP_INT64_MODES
+#undef TCMP_INT64_CASE

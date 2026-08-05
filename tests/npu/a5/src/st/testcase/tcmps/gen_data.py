@@ -24,7 +24,15 @@ def gen_golden_data_tcmps(param):
     valid_row, valid_col = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    if dtype == np.int16 or dtype == np.int32:
+    if dtype == np.int64:
+        input1 = np.random.randint(-100, 100, size=[row, col]).astype(dtype)
+        input2 = np.array([0], dtype=dtype)
+        input1.flat[:5] = [np.iinfo(dtype).min, -1, 0, 1, np.iinfo(dtype).max]
+    elif dtype == np.uint64:
+        input1 = np.random.randint(0, 100, size=[row, col]).astype(dtype)
+        input2 = np.array([1 << 63], dtype=dtype)
+        input1.flat[:5] = [0, 1, 1 << 63, np.iinfo(dtype).max, 1 << 63]
+    elif dtype == np.int16 or dtype == np.int32:
         input1 = np.random.randint(-10, 10, size=[row, col]).astype(dtype)
         input2 = np.random.randint(-10, 10, size=[1]).astype(dtype)
     else:
@@ -32,14 +40,18 @@ def gen_golden_data_tcmps(param):
         input2 = np.random.uniform(-10, 10, size=[1]).astype(dtype)
 
     if param.mode == "EQ":
-        if param.dtype == bfloat16:
+        if np.issubdtype(dtype, np.integer):
+            bool_result = input1 == input2[0]
+        elif param.dtype == bfloat16:
             input1_f32 = input1.astype(np.float32)
             input2_f32 = input2.astype(np.float32)
             bool_result = np.isclose(input1_f32, input2_f32[0], rtol=0, atol=1e-9)
         else:
             bool_result = np.isclose(input1, input2[0], rtol=0, atol=1e-9)
     elif param.mode == "NE":
-        if param.dtype == bfloat16:
+        if np.issubdtype(dtype, np.integer):
+            bool_result = input1 != input2[0]
+        elif param.dtype == bfloat16:
             input1_f32 = input1.astype(np.float32)
             input2_f32 = input2.astype(np.float32)
             bool_result = ~np.isclose(input1_f32, input2_f32[0], rtol=0, atol=1e-9)
@@ -81,9 +93,12 @@ def generate_case_name(param):
         np.float16: 'half',
         np.int32: 'int32',
         np.int16: 'int16',
-        bfloat16: 'bfloat16'
+        bfloat16: 'bfloat16',
+        np.int64: 'int64',
+        np.uint64: 'uint64'
     }[param.dtype]
-    return f"TCMPSTest.case_{dtype_str}_{param.row}x{param.col}_{param.valid_row}x{param.valid_col}"
+    mode_suffix = f"_{param.mode}" if param.dtype in (np.int64, np.uint64) else ""
+    return f"TCMPSTest.case_{dtype_str}_{param.row}x{param.col}_{param.valid_row}x{param.valid_col}{mode_suffix}"
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -108,6 +123,8 @@ if __name__ == "__main__":
         TcmpsParams(np.int16, 77, 80, 32, 32, "LE"),
         TcmpsParams(bfloat16, 32, 32, 16, 32, "EQ"),
         TcmpsParams(bfloat16, 77, 80, 32, 32, "LE"),
+        *[TcmpsParams(dtype, 4, 64, 4, 64, mode)
+          for dtype in (np.int64, np.uint64) for mode in ("EQ", "NE", "LT", "GT", "GE", "LE")],
     ]
 
     for i, param in enumerate(case_params_list):

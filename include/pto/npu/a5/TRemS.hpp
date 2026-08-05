@@ -17,6 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils.hpp"
 #include "TBinSOp.hpp"
 #include "custom/TFmodRemHp.hpp"
+#include "Int64Div.hpp"
 
 namespace pto {
 
@@ -77,9 +78,13 @@ __tf__ PTO_INTERNAL OP_NAME(TREMS) OP_TYPE(element_wise) void TRemS(
     __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
-    BinaryInstr<
-        RemSOp<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
-        srcRowStride>(dstPtr, srcPtr, scalar, kValidRows, kValidCols, version);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64RemScalar<T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, srcPtr, scalar, kValidRows, kValidCols);
+    } else {
+        BinaryInstr<
+            RemSOp<PrecisionType, T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride,
+            srcRowStride>(dstPtr, srcPtr, scalar, kValidRows, kValidCols, version);
+    }
 }
 
 template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp>
@@ -89,7 +94,7 @@ PTO_INTERNAL void TRemSCheck(
 {
     using T = typename TileDataDst::DType;
     static_assert(std::is_same<T, typename TileDataSrc::DType>::value, "The data type must be same of src and dst");
-    static_assert((sizeof(T) == 2) || (sizeof(T) == 4), "TREMS: Invalid data type");
+    static_assert((sizeof(T) == 2) || (sizeof(T) == 4) || (sizeof(T) == 8), "TREMS: Invalid data type");
     static_assert(
         (TileDataDst::Loc == TileType::Vec) && (TileDataSrc::Loc == TileType::Vec),
         "TileType of dst and src tiles must be TileType::Vec.");

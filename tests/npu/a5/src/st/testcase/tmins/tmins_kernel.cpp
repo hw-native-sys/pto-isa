@@ -112,3 +112,7 @@ template void LaunchTMins<int8_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(
     int8_t* out, int8_t* src0, int8_t* scalar, void* stream);
 template void LaunchTMins<uint8_t, 32, 128, 32, 128, 32, 128, PAD_VALUE_NULL>(
     uint8_t* out, uint8_t* src0, uint8_t* scalar, void* stream);
+template void LaunchTMins<int64_t, 4, 16, 4, 16, 4, 16, PAD_VALUE_NULL>(
+    int64_t* out, int64_t* src0, int64_t* scalar, void* stream);
+template void LaunchTMins<uint64_t, 4, 16, 4, 16, 4, 16, PAD_VALUE_NULL>(
+    uint64_t* out, uint64_t* src0, uint64_t* scalar, void* stream);

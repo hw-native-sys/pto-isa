@@ -67,9 +67,17 @@ extern "C" __global__ AICORE void launchTMULSCase7(__gm__ float* out, __gm__ flo
 {
     runTMuls<float, 1, 32, 1, 1, 16, 16>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTMULSCase8(__gm__ int64_t* out, __gm__ int64_t* src, int64_t scalar)
+{
+    runTMuls<int64_t, 4, 16, 4, 4, 16, 16>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTMULSCase9(__gm__ uint64_t* out, __gm__ uint64_t* src, uint64_t scalar)
+{
+    runTMuls<uint64_t, 4, 16, 4, 4, 16, 16>(out, src, scalar);
+}
 
-template <uint32_t caseId>
-void launchTMULSTestCase(void* out, void* src, float scalar, aclrtStream stream)
+template <uint32_t caseId, typename T>
+void launchTMULSTestCase(void* out, void* src, T scalar, aclrtStream stream)
 {
     switch (caseId) {
         case 1: {
@@ -100,15 +108,25 @@ void launchTMULSTestCase(void* out, void* src, float scalar, aclrtStream stream)
             launchTMULSCase7<<<1, nullptr, stream>>>((float*)out, (float*)src, scalar);
             break;
         }
+        case 8: {
+            launchTMULSCase8<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src, (int64_t)scalar);
+            break;
+        }
+        case 9: {
+            launchTMULSCase9<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src, (uint64_t)scalar);
+            break;
+        }
         default: {
         }
     }
 }
 
-template void launchTMULSTestCase<1>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTMULSTestCase<2>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTMULSTestCase<3>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTMULSTestCase<4>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTMULSTestCase<5>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTMULSTestCase<6>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTMULSTestCase<7>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMULSTestCase<1, float>(void*, void*, float, aclrtStream);
+template void launchTMULSTestCase<2, aclFloat16>(void*, void*, aclFloat16, aclrtStream);
+template void launchTMULSTestCase<3, int32_t>(void*, void*, int32_t, aclrtStream);
+template void launchTMULSTestCase<4, int16_t>(void*, void*, int16_t, aclrtStream);
+template void launchTMULSTestCase<5, float>(void*, void*, float, aclrtStream);
+template void launchTMULSTestCase<6, float>(void*, void*, float, aclrtStream);
+template void launchTMULSTestCase<7, float>(void*, void*, float, aclrtStream);
+template void launchTMULSTestCase<8, int64_t>(void*, void*, int64_t, aclrtStream);
+template void launchTMULSTestCase<9, uint64_t>(void*, void*, uint64_t, aclrtStream);

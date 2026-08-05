@@ -11,8 +11,6 @@
 # --------------------------------------------------------------------------------
 
 import os
-import struct
-import ctypes
 import numpy as np
 np.random.seed(23)
 
@@ -30,16 +28,19 @@ def gen_golden_data(param):
         value_max = np.finfo(data_type).max
         value_min = np.finfo(data_type).min
 
-    input_arr = np.random.uniform(low=value_min, high=value_max, size=(rows, cols)).astype(data_type)
-    divider = np.random.uniform(low=value_min, high=value_max, size=(1, 1)).astype(data_type)
+    if data_type in (np.int64, np.uint64):
+        input_arr = np.random.randint(1, 1000, size=(rows, cols)).astype(data_type)
+        divider = np.array([[17]], dtype=data_type)
+    else:
+        input_arr = np.random.uniform(low=value_min, high=value_max, size=(rows, cols)).astype(data_type)
+        divider = np.random.uniform(low=value_min, high=value_max, size=(1, 1)).astype(data_type)
     output_arr = np.zeros((dst_tile_row, dst_tile_col), dtype=data_type)
     for i in range(rows):
         for j in range(cols):
             output_arr[i, j] = input_arr[i, j] + divider[0, 0]
 
     input_arr.tofile('input.bin')
-    with open("divider.bin", 'wb') as f:
-        f.write(struct.pack('f', np.float32(divider[0, 0])))
+    divider.tofile("divider.bin")
     output_arr.tofile('golden.bin')
 
 
@@ -65,6 +66,8 @@ if __name__ == "__main__":
         taddsParams("TADDSTest.case9", np.int8, 256, 64, 256, 32),
         taddsParams("TADDSTest.case10", np.uint8, 256, 64, 256, 32),
         taddsParams("TADDSTest.case11", np.uint8, 1, 64, 1, 32),
+        taddsParams("TADDSTest.case_int64_4x16", np.int64, 4, 16, 4, 16),
+        taddsParams("TADDSTest.case_uint64_4x16", np.uint64, 4, 16, 4, 16),
     ]
 
     for _, case in enumerate(case_params_list):

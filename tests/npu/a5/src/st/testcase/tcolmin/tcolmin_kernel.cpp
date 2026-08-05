@@ -143,6 +143,14 @@ extern "C" __global__ AICORE void launchTCOLMINCase73(__gm__ uint32_t* out, __gm
 {
     runTColMin<uint32_t, 16, 15, 1, 256, 255>(out, src, false);
 }
+extern "C" __global__ AICORE void launchTCOLMINCase81(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTColMin<int64_t, 4, 4, 1, 16, 16>(out, src, false);
+}
+extern "C" __global__ AICORE void launchTCOLMINCase82(__gm__ uint64_t* out, __gm__ uint64_t* src)
+{
+    runTColMin<uint64_t, 4, 4, 1, 16, 16>(out, src, false);
+}
 
 template <uint32_t caseId>
 void launchTCOLMINTestCase(void* out, void* src, aclrtStream stream)
@@ -244,6 +252,14 @@ void launchTCOLMINTestCase(void* out, void* src, aclrtStream stream)
             launchTCOLMINCase73<<<1, nullptr, stream>>>((uint32_t*)out, (uint32_t*)src);
             break;
         }
+        case 81: {
+            launchTCOLMINCase81<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 82: {
+            launchTCOLMINCase82<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
         default: {
         }
     }
@@ -273,3 +289,5 @@ template void launchTCOLMINTestCase<63>(void* out, void* src, aclrtStream stream
 template void launchTCOLMINTestCase<71>(void* out, void* src, aclrtStream stream);
 template void launchTCOLMINTestCase<72>(void* out, void* src, aclrtStream stream);
 template void launchTCOLMINTestCase<73>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMINTestCase<81>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMINTestCase<82>(void* out, void* src, aclrtStream stream);

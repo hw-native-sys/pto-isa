@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 #include <pto/npu/a5/common.hpp>
 #include <pto/npu/a5/utils.hpp>
+#include <pto/npu/a5/Int64Rearrange.hpp>
 
 namespace pto {
 template <typename TileData, unsigned rowStride>
@@ -96,16 +97,21 @@ PTO_INTERNAL void TTRI_IMPL(TileData& dst, int diagonal)
 {
     using T = typename TileData::DType;
     static_assert(
-        std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, int8_t>::value ||
-            std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value ||
-            std::is_same<T, half>::value || std::is_same<T, float16_t>::value || std::is_same<T, float32_t>::value ||
+        std::is_same<T, int64_t>::value || std::is_same<T, uint64_t>::value || std::is_same<T, int32_t>::value ||
+            std::is_same<T, int16_t>::value || std::is_same<T, int8_t>::value || std::is_same<T, uint32_t>::value ||
+            std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value || std::is_same<T, half>::value ||
+            std::is_same<T, float16_t>::value || std::is_same<T, float32_t>::value ||
             std::is_same<T, bfloat16_t>::value,
         "Fix: TTRI has invalid data type.");
 
-    if constexpr (upperOrLower == 0)
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Tri<T, TileData::Cols>(
+            (__ubuf__ T*)dst.data(), dst.GetValidRow(), dst.GetValidCol(), diagonal, upperOrLower != 0);
+    } else if constexpr (upperOrLower == 0) {
         TTril<TileData, TileData::RowStride>(dst.data(), dst.GetValidRow(), dst.GetValidCol(), diagonal);
-    else
+    } else {
         TTriu<TileData, TileData::RowStride>(dst.data(), dst.GetValidRow(), dst.GetValidCol(), diagonal);
+    }
 }
 } // namespace pto
 

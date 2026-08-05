@@ -75,3 +75,6 @@ template void LaunchTRem<int32_t, 8, 8, 8, 8, false, false>(int32_t* out, int32_
 template void LaunchTRem<float, 64, 64, 64, 64, false, true>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTRem<float, 128, 128, 96, 96, false, true>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTRem<float, 128, 128, 96, 97, false, true>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTRem<int64_t, 4, 16, 4, 16, false, false>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTRem<uint64_t, 4, 16, 4, 16, false, false>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);

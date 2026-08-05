@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 #include "common.hpp"
 #include "utils.hpp"
+#include "Int64Rearrange.hpp"
 
 namespace pto {
 template <uint32_t numel, typename T>
@@ -83,16 +84,16 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile& dst, SrcTile& src, IdxTile& idx)
     using TD = typename DstTile::DType;
     using TI = typename IdxTile::DType;
     static_assert(
-        std::is_same_v<TD, int32_t> || std::is_same_v<TD, int16_t> || std::is_same_v<TD, int8_t> ||
-            std::is_same_v<TD, uint32_t> || std::is_same_v<TD, uint16_t> || std::is_same_v<TD, uint8_t> ||
-            std::is_same_v<TD, half> || std::is_same_v<TD, float16_t> || std::is_same_v<TD, float32_t> ||
-            std::is_same_v<TD, bfloat16_t>,
+        std::is_same_v<TD, int64_t> || std::is_same_v<TD, uint64_t> || std::is_same_v<TD, int32_t> ||
+            std::is_same_v<TD, int16_t> || std::is_same_v<TD, int8_t> || std::is_same_v<TD, uint32_t> ||
+            std::is_same_v<TD, uint16_t> || std::is_same_v<TD, uint8_t> || std::is_same_v<TD, half> ||
+            std::is_same_v<TD, float16_t> || std::is_same_v<TD, float32_t> || std::is_same_v<TD, bfloat16_t>,
         "Fix: TSCATTER: Invalid data type.");
     static_assert(
         std::is_same_v<TD, typename SrcTile::DType>, "Fix: TSCATTER: Data type of dst and src must be the same.");
     static_assert(
-        (sizeof(TD) == 4 && sizeof(TI) == 4) || (sizeof(TD) == 2 && sizeof(TI) == 2) ||
-            (sizeof(TD) == 1 && sizeof(TI) == 2),
+        (sizeof(TD) == 8 && sizeof(TI) == 4) || (sizeof(TD) == 4 && sizeof(TI) == 4) ||
+            (sizeof(TD) == 2 && sizeof(TI) == 2) || (sizeof(TD) == 1 && sizeof(TI) == 2),
         "Fix: TSCATTER: Invalid data type of idx.");
     static_assert(
         std::is_same_v<TI, uint16_t> || std::is_same_v<TI, uint32_t> || std::is_same_v<TI, int16_t> ||
@@ -108,7 +109,14 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile& dst, SrcTile& src, IdxTile& idx)
         DstTile::ValidRow <= DstTile::Rows && SrcTile::ValidRow <= SrcTile::Rows && IdxTile::ValidRow <= IdxTile::Rows,
         "Fix: TSCATTER: Number of valid rows must not be greater than number of tile rows.");
 
-    TScatterImpl<DstTile, SrcTile, IdxTile>(dst.data(), src.data(), idx.data(), idx.GetValidRow(), idx.GetValidCol());
+    if constexpr (sizeof(TD) == 8) {
+        Int64Scatter<TD, TI, DstTile::Numel, SrcTile::Cols, IdxTile::Cols>(
+            (__ubuf__ TD*)dst.data(), (__ubuf__ TD*)src.data(), (__ubuf__ TI*)idx.data(), idx.GetValidRow(),
+            idx.GetValidCol());
+    } else {
+        TScatterImpl<DstTile, SrcTile, IdxTile>(
+            dst.data(), src.data(), idx.data(), idx.GetValidRow(), idx.GetValidCol());
+    }
 }
 
 template <MaskPattern mask, uint16_t SrcRowStride, uint16_t DstRowStride, uint16_t Times, typename T>
@@ -222,10 +230,10 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile& dst, SrcTile& src)
     } else {
         using T = typename DstTile::DType;
         static_assert(
-            std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, int8_t> ||
-                std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, uint8_t> ||
-                std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float32_t> ||
-                std::is_same_v<T, bfloat16_t>,
+            std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
+                std::is_same_v<T, uint32_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, int16_t> ||
+                std::is_same_v<T, uint16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, half> ||
+                std::is_same_v<T, float16_t> || std::is_same_v<T, float32_t> || std::is_same_v<T, bfloat16_t>,
             "Fix: TSCATTER: Invalid dst data type.");
         static_assert(
             std::is_same_v<T, typename SrcTile::DType>, "Fix: TSCATTER: Data type of dst and src must be the same.");
@@ -254,7 +262,12 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTile& dst, SrcTile& src)
                 "TSCATTER: validCol of dst must be 2 or 4 times that of src.");
         }
 
-        TScatterMaskImpl<mask, ScatterType, DstTile, SrcTile>(dst.data(), src.data(), validRow, validCol);
+        if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+            Int64ScatterPattern<mask, ScatterType, T, DstTile::Numel, DstTile::Cols, SrcTile::Cols>(
+                (__ubuf__ T*)dst.data(), (__ubuf__ T*)src.data(), validRow, validCol);
+        } else {
+            TScatterMaskImpl<mask, ScatterType, DstTile, SrcTile>(dst.data(), src.data(), validRow, validCol);
+        }
     }
 }
 } // namespace pto

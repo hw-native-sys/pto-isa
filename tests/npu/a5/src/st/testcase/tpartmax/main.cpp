@@ -99,7 +99,12 @@ void test_tpartmax()
     std::vector<T> devFinal(dstFileSize);
     ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstFileSize, devFinal.data(), dstFileSize);
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    }
     EXPECT_TRUE(ret);
 }
 
@@ -133,4 +138,6 @@ TEST_F(TPARTMAXTest, case_fp32_8x8_8x0_8x8) { test_tpartmax<float, 8, 8, 8, 0, 8
 TEST_F(TPARTMAXTest, case_fp32_8x8_0x8_8x8) { test_tpartmax<float, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8, 8, 8>(); }
 TEST_F(TPARTMAXTest, case_fp32_8x8_8x8_8x0) { test_tpartmax<float, 8, 8, 8, 8, 8, 0, 8, 8, 8, 8, 1, 8>(); }
 TEST_F(TPARTMAXTest, case_fp32_8x8_8x8_0x8) { test_tpartmax<float, 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8>(); }
+TEST_F(TPARTMAXTest, case_s64_4x16_2x16_4x16) { test_tpartmax<int64_t, 4, 16, 2, 16, 4, 16>(); }
+TEST_F(TPARTMAXTest, case_u64_4x16_2x16_4x16) { test_tpartmax<uint64_t, 4, 16, 2, 16, 4, 16>(); }
 } // namespace TPartMaxTest

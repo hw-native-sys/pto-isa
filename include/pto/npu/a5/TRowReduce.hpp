@@ -34,6 +34,7 @@ full text of the License.
 #include "common.hpp"
 #include "pto/common/pto_tile.hpp"
 #include "TPartBinOps.hpp"
+#include "Int64Reduce.hpp"
 #include <math.h>
 #include <type_traits>
 
@@ -440,33 +441,48 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 PTO_INTERNAL void TROWMAX_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp)
 {
     using T = typename TileDataIn::DType;
-    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
-    unsigned rows = src.GetValidRow();
-    unsigned cols = src.GetValidCol();
-
-    TRowMax<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
+    TRowReduceCheck<TileDataOut, TileDataIn>(src.GetValidRow(), src.GetValidCol(), dst.GetValidRow());
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64RowMinMax<Int64Op::Max, T, TileDataOut::Cols, TileDataIn::Cols>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ T*)src.data(), src.GetValidRow(), src.GetValidCol());
+    } else {
+        constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+        unsigned rows = src.GetValidRow();
+        unsigned cols = src.GetValidCol();
+        TRowMax<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
+    }
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 PTO_INTERNAL void TROWSUM_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp)
 {
     using T = typename TileDataIn::DType;
-    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
-    unsigned rows = src.GetValidRow();
-    unsigned cols = src.GetValidCol();
-
-    TRowSum<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
+    TRowReduceCheck<TileDataOut, TileDataIn>(src.GetValidRow(), src.GetValidCol(), dst.GetValidRow());
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64RowSum<T, TileDataOut::Cols, TileDataIn::Cols>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ T*)src.data(), src.GetValidRow(), src.GetValidCol());
+    } else {
+        constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+        unsigned rows = src.GetValidRow();
+        unsigned cols = src.GetValidCol();
+        TRowSum<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
+    }
 }
 
 template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 PTO_INTERNAL void TROWMIN_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp)
 {
     using T = typename TileDataIn::DType;
-    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
-    unsigned rows = src.GetValidRow();
-    unsigned cols = src.GetValidCol();
-
-    TRowMin<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
+    TRowReduceCheck<TileDataOut, TileDataIn>(src.GetValidRow(), src.GetValidCol(), dst.GetValidRow());
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64RowMinMax<Int64Op::Min, T, TileDataOut::Cols, TileDataIn::Cols>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ T*)src.data(), src.GetValidRow(), src.GetValidCol());
+    } else {
+        constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+        unsigned rows = src.GetValidRow();
+        unsigned cols = src.GetValidCol();
+        TRowMin<TileDataOut, TileDataIn, elementsPerRepeat>(dst.data(), src.data(), dst.GetValidRow(), rows, cols);
+    }
 }
 
 } // namespace pto

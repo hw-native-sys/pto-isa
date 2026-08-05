@@ -56,3 +56,5 @@ template void LaunchTShlS<uint16_t, 32, 112, 32, 128, 32, 111>(
     uint16_t* out, uint16_t* src, uint16_t scalar, void* stream);
 template void LaunchTShlS<uint16_t, 1, 112, 1, 128, 1, 111>(
     uint16_t* out, uint16_t* src, uint16_t scalar, void* stream);
+template void LaunchTShlS<int64_t, 4, 16, 4, 16, 4, 16>(int64_t* out, int64_t* src, int64_t scalar, void* stream);
+template void LaunchTShlS<uint64_t, 4, 16, 4, 16, 4, 16>(uint64_t* out, uint64_t* src, uint64_t scalar, void* stream);

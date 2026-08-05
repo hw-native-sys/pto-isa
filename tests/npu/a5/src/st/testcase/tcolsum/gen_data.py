@@ -26,7 +26,10 @@ def gen_golden_data(param):
     if data_type == np.int8:
         value_max = 5
         value_min = -5
-    input_arr = np.random.uniform(low=value_min, high=value_max, size=(row, col)).astype(data_type)
+    if data_type in (np.int64, np.uint64):
+        input_arr = np.random.randint(1, 100, size=(row, col)).astype(data_type)
+    else:
+        input_arr = np.random.uniform(low=value_min, high=value_max, size=(row, col)).astype(data_type)
     output_arr = np.zeros((col))
     for i in range(valid_row):
         for j in range(valid_col):
@@ -65,6 +68,8 @@ if __name__ == "__main__":
         TColsumParams("TCOLSUMTest.case24", np.int8, 64, 63, 128, 127),
         TColsumParams("TCOLSUMTest.case25", np.int8, 64, 64, 128, 128),
         TColsumParams("TCOLSUMTest.case31", np.float32, 1, 1, 512, 511),
+        TColsumParams("TCOLSUMTest.case_int64_4x16", np.int64, 4, 4, 16, 16),
+        TColsumParams("TCOLSUMTest.case_uint64_4x16", np.uint64, 4, 4, 16, 16),
     ]
 
     for _, case in enumerate(case_params_list):

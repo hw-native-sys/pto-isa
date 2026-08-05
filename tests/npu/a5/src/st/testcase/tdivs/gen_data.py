@@ -11,8 +11,6 @@
 # --------------------------------------------------------------------------------
 
 import os
-import struct
-import ctypes
 import numpy as np
 
 
@@ -23,7 +21,10 @@ def gen_golden_data(param):
     dst_tile_row = param.dst_tile_row
     dst_tile_col = param.dst_tile_col
 
-    if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
+    if dtype in (np.int64, np.uint64):
+        input_arr = np.random.randint(1, 1000, size=[rows, cols]).astype(dtype)
+        divider = np.array([[7]], dtype=dtype)
+    elif dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
         dtype_info = np.iinfo(dtype)
         input_arr = np.random.randint(dtype_info.min, dtype_info.max, size=[rows, cols]).astype(dtype)
         divider = np.random.randint(dtype_info.min, dtype_info.max, size=[1, 1]).astype(dtype)
@@ -33,7 +34,10 @@ def gen_golden_data(param):
         divider = np.random.uniform(low=dtype_info.min, high=dtype_info.max, size=[1, 1]).astype(dtype)
     
     output_arr = np.zeros((dst_tile_row, dst_tile_col), dtype=dtype)
-    output_arr[0:rows, 0:cols] = input_arr[0:rows, 0:cols] / divider[0, 0]
+    if dtype in (np.int64, np.uint64):
+        output_arr[0:rows, 0:cols] = input_arr[0:rows, 0:cols] // divider[0, 0]
+    else:
+        output_arr[0:rows, 0:cols] = input_arr[0:rows, 0:cols] / divider[0, 0]
 
     input_arr.tofile('input.bin')
     divider.tofile('divider.bin')
@@ -60,7 +64,9 @@ if __name__ == "__main__":
         TDivsParams("TDIVSTest.case6", np.float32, 256, 32, 256, 16),
         TDivsParams("TDIVSTest.case7", np.float32, 1, 32, 1, 16),
         TDivsParams("TDIVSTest.caseHP1", np.float32, 2, 16, 2, 16),
-        TDivsParams("TDIVSTest.caseHP2", np.float16, 2, 32, 2, 32)
+        TDivsParams("TDIVSTest.caseHP2", np.float16, 2, 32, 2, 32),
+        TDivsParams("TDIVSTest.case_int64_4x16", np.int64, 4, 16, 4, 16),
+        TDivsParams("TDIVSTest.case_uint64_4x16", np.uint64, 4, 16, 4, 16),
     ]
 
     for _, case in enumerate(case_params_list):

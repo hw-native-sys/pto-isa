@@ -111,3 +111,17 @@ template void LaunchTCmps<int16_t, 32, 32, 16, 32, CmpMode::EQ, true, true>(
     uint8_t* out, int16_t* src0, int16_t* src1, void* stream);
 template void LaunchTCmps<int16_t, 77, 80, 32, 32, CmpMode::LE, false, true>(
     uint8_t* out, int16_t* src0, int16_t* src1, void* stream);
+#define INSTANTIATE_TCMPS_INT64(Type, Mode)                                     \
+    template void LaunchTCmps<Type, 4, 64, 4, 64, CmpMode::Mode, false, false>( \
+        uint8_t * out, Type * src0, Type * src1, void* stream);
+#define INSTANTIATE_TCMPS_INT64_MODES(Type) \
+    INSTANTIATE_TCMPS_INT64(Type, EQ)       \
+    INSTANTIATE_TCMPS_INT64(Type, NE)       \
+    INSTANTIATE_TCMPS_INT64(Type, LT)       \
+    INSTANTIATE_TCMPS_INT64(Type, GT)       \
+    INSTANTIATE_TCMPS_INT64(Type, GE)       \
+    INSTANTIATE_TCMPS_INT64(Type, LE)
+INSTANTIATE_TCMPS_INT64_MODES(int64_t)
+INSTANTIATE_TCMPS_INT64_MODES(uint64_t)
+#undef INSTANTIATE_TCMPS_INT64_MODES
+#undef INSTANTIATE_TCMPS_INT64

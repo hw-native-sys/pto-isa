@@ -45,7 +45,9 @@ def generate_case_name(idx, param):
         np.float16: 'half',
         np.int8: 'int8',
         np.int16: 'int16',
-        np.int32: 'int32'
+        np.int32: 'int32',
+        np.int64: 'int64',
+        np.uint64: 'uint64',
     }[param.datatype]
     return f"TROWEXPANDTest.case{idx}_{dtype_str}_{param.row}_{param.src_col}_{param.row}_{param.dst_valid_col}"
 
@@ -62,6 +64,8 @@ if __name__ == "__main__":
         TRowExpandParam(np.float16, 16, 16, 512, 511),
         TRowExpandParam(np.int8, 16, 32, 256, 255),
         TRowExpandParam(np.float32, 16, 8, 128, 127),
+        TRowExpandParam(np.int64, 4, 16, 16, 16),
+        TRowExpandParam(np.uint64, 4, 16, 16, 16),
     ]
 
     for i, param in enumerate(case_params_list):

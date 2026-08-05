@@ -75,12 +75,17 @@ void test_tshls()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSizeDst);
-    std::vector<T> devFinal(fileSizeDst);
+    std::vector<T> golden(fileSizeDst / sizeof(T));
+    std::vector<T> devFinal(fileSizeDst / sizeof(T));
     ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
     ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -92,3 +97,5 @@ TEST_F(TSHLSTest, case_uint16_64x64_64x64_64x64) { test_tshls<uint16_t, 64, 64, 
 TEST_F(TSHLSTest, case_uint16_32x128_32x128_32x128) { test_tshls<uint16_t, 32, 128, 32, 128, 32, 128>(); }
 TEST_F(TSHLSTest, case_uint16_32x112_32x128_32x111) { test_tshls<uint16_t, 32, 112, 32, 128, 32, 111>(); }
 TEST_F(TSHLSTest, case_uint16_1x112_1x128_1x111) { test_tshls<uint16_t, 1, 112, 1, 128, 1, 111>(); }
+TEST_F(TSHLSTest, case_int64_4x16_4x16_4x16) { test_tshls<int64_t, 4, 16, 4, 16, 4, 16>(); }
+TEST_F(TSHLSTest, case_uint64_4x16_4x16_4x16) { test_tshls<uint64_t, 4, 16, 4, 16, 4, 16>(); }

@@ -77,8 +77,8 @@ void test_trem()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSize);
-    std::vector<T> devFinal(fileSize);
+    std::vector<T> golden(fileSize / sizeof(T));
+    std::vector<T> devFinal(fileSize / sizeof(T));
     ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
@@ -87,7 +87,12 @@ void test_trem()
         eps = 0.00005f;
     }
     eps = highPrecision ? 0.0000001f : eps;
-    bool ret = ResultCmp<T>(golden, devFinal, eps);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, eps);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -115,3 +120,5 @@ TEST_F(TREMTest, case10) { test_trem<float, 64, 64, 64, 64, false, true>(); }
 TEST_F(TREMTest, case11) { test_trem<float, 128, 128, 96, 96, false, true>(); }
 
 TEST_F(TREMTest, case12) { test_trem<float, 128, 128, 96, 97, false, true>(); }
+TEST_F(TREMTest, case_int64_4x16) { test_trem<int64_t, 4, 16, 4, 16, false>(); }
+TEST_F(TREMTest, case_uint64_4x16) { test_trem<uint64_t, 4, 16, 4, 16, false>(); }

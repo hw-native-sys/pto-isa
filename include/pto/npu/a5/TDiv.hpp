@@ -18,6 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/TBinOp.hpp>
 #include <pto/common/debug.h>
 #include "custom/Div754.hpp"
+#include "Int64Div.hpp"
 
 namespace pto {
 
@@ -49,8 +50,13 @@ __tf__ PTO_INTERNAL OP_NAME(TDIV) OP_TYPE(element_wise) void TDiv(
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
 
-    BinaryInstr<DivOp<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
-        dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Div<T, TileDataDst::Cols, TileDataSrc0::Cols, TileDataSrc1::Cols>(
+            dstPtr, src0Ptr, src1Ptr, validRows, validCols);
+    } else {
+        BinaryInstr<DivOp<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
+            dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
+    }
     return;
 }
 
@@ -59,8 +65,9 @@ PTO_INTERNAL void TDivCheck(const TileDataDst& dst, const TileDataSrc0& src0, co
 {
     using T = typename TileDataDst::DType;
     static_assert(
-        std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
-            std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half>,
+        std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
+            std::is_same_v<T, uint32_t> || std::is_same_v<T, float> || std::is_same_v<T, int16_t> ||
+            std::is_same_v<T, uint16_t> || std::is_same_v<T, half>,
         "Fix: TDIV has invalid data type.");
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,

@@ -143,6 +143,14 @@ extern "C" __global__ AICORE void launchTCOLMAXCase73(__gm__ uint32_t* out, __gm
 {
     runTColMax<uint32_t, 16, 15, 1, 256, 255>(out, src, false);
 }
+extern "C" __global__ AICORE void launchTCOLMAXCase81(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTColMax<int64_t, 4, 4, 1, 16, 16>(out, src, false);
+}
+extern "C" __global__ AICORE void launchTCOLMAXCase82(__gm__ uint64_t* out, __gm__ uint64_t* src)
+{
+    runTColMax<uint64_t, 4, 4, 1, 16, 16>(out, src, false);
+}
 
 template <uint32_t caseId>
 void launchTCOLMAXTestCase(void* out, void* src, aclrtStream stream)
@@ -244,6 +252,14 @@ void launchTCOLMAXTestCase(void* out, void* src, aclrtStream stream)
             launchTCOLMAXCase73<<<1, nullptr, stream>>>((uint32_t*)out, (uint32_t*)src);
             break;
         }
+        case 81: {
+            launchTCOLMAXCase81<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 82: {
+            launchTCOLMAXCase82<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
         default: {
         }
     }
@@ -273,3 +289,5 @@ template void launchTCOLMAXTestCase<63>(void* out, void* src, aclrtStream stream
 template void launchTCOLMAXTestCase<71>(void* out, void* src, aclrtStream stream);
 template void launchTCOLMAXTestCase<72>(void* out, void* src, aclrtStream stream);
 template void launchTCOLMAXTestCase<73>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<81>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<82>(void* out, void* src, aclrtStream stream);

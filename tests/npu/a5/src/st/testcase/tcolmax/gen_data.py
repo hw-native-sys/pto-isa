@@ -23,7 +23,7 @@ def gen_golden_data(param):
     valid_col = param.valid_col
     value_max = 100
     value_min = -100
-    if data_type == np.uint8 or data_type == np.uint16 or data_type == np.uint32:
+    if data_type in (np.uint8, np.uint16, np.uint32, np.uint64):
         value_max = 200
         value_min = 0
     input_arr = np.random.uniform(low=value_min, high=value_max, size=(row, col)).astype(data_type)
@@ -75,6 +75,8 @@ if __name__ == "__main__":
         TColMaxParams("TCOLMAXTest.case71", np.uint32, 1, 1, 256, 255),
         TColMaxParams("TCOLMAXTest.case72", np.uint32, 16, 16, 128, 127),
         TColMaxParams("TCOLMAXTest.case73", np.uint32, 16, 15, 256, 255),
+        TColMaxParams("TCOLMAXTest.case_int64_4x16", np.int64, 4, 4, 16, 16),
+        TColMaxParams("TCOLMAXTest.case_uint64_4x16", np.uint64, 4, 4, 16, 16),
     ]
 
     for _, case in enumerate(case_params_list):

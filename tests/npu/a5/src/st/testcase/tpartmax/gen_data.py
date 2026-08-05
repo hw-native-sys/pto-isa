@@ -23,8 +23,15 @@ def gen_golden_data_tpartmax(case_name, param):
     src1_rows, src1_cols = [param.src1_vr, param.src1_vc]
 
     # Generate random input arrays
-    src0_in = np.random.uniform(low=-255, high=255, size=(src0_rows, src0_cols)).astype(dtype)
-    src1_in = np.random.uniform(low=-255, high=255, size=(src1_rows, src1_cols)).astype(dtype)
+    if dtype == np.int64:
+        src0_in = np.random.randint(-255, 255, size=(src0_rows, src0_cols)).astype(dtype)
+        src1_in = np.random.randint(-255, 255, size=(src1_rows, src1_cols)).astype(dtype)
+    elif dtype == np.uint64:
+        src0_in = np.random.randint(0, 255, size=(src0_rows, src0_cols)).astype(dtype)
+        src1_in = np.random.randint(0, 255, size=(src1_rows, src1_cols)).astype(dtype)
+    else:
+        src0_in = np.random.uniform(low=-255, high=255, size=(src0_rows, src0_cols)).astype(dtype)
+        src1_in = np.random.uniform(low=-255, high=255, size=(src1_rows, src1_cols)).astype(dtype)
 
     pad_value = {
         np.float32: np.float32(-np.inf),
@@ -35,6 +42,8 @@ def gen_golden_data_tpartmax(case_name, param):
         np.int16: np.iinfo(np.int16).min,
         np.uint32: np.iinfo(np.uint32).min,
         np.int32: np.iinfo(np.int32).min,
+        np.int64: np.iinfo(np.int64).min,
+        np.uint64: np.iinfo(np.uint64).min,
     }.get(dtype)
 
     if src0_rows < dst_rows or src0_cols < dst_cols:
@@ -80,6 +89,8 @@ def generate_case_name(param):
         np.uint8: 'u8',
         np.uint16: 'u16',
         np.uint32: 'u32',
+        np.int64: 's64',
+        np.uint64: 'u64',
     }[param.dtype]
     return (f"TPARTMAXTest.case_{dtype_str}_{param.dst_vr}x{param.dst_vc}_{param.src0_vr}x{param.src0_vc}_"
             f"{param.src1_vr}x{param.src1_vc}")
@@ -113,6 +124,8 @@ if __name__ == "__main__":
         TPartMaxParams(np.float32, 8, 8, 0, 8, 8, 8),
         TPartMaxParams(np.float32, 8, 8, 8, 8, 8, 0),
         TPartMaxParams(np.float32, 8, 8, 8, 8, 0, 8),
+        TPartMaxParams(np.int64, 4, 16, 2, 16, 4, 16),
+        TPartMaxParams(np.uint64, 4, 16, 2, 16, 4, 16),
     ]
 
     for param in case_params_list:

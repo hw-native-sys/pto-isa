@@ -27,12 +27,34 @@ def gen_golden_data_trem(case_name, param):
         value_max = np.finfo(dtype).max / 100
         value_min = np.finfo(dtype).min / 100
 
-    # Generate random input arrays
-    input1 = np.random.uniform(low=value_min, high=value_max, size=(h_valid, w_valid)).astype(dtype)
-    input2 = np.random.uniform(low=value_min, high=value_max, size=(h_valid, w_valid)).astype(dtype)
-
-    # Perform the andbtraction
-    golden = input1 % input2
+    if dtype == np.int64:
+        input1 = np.random.randint(-1000000, 1000000, size=(h_valid, w_valid)).astype(dtype)
+        input2 = np.random.randint(1, 1000, size=(h_valid, w_valid)).astype(dtype)
+        input1.flat[:4] = [np.iinfo(np.int64).min, -7, 7, np.iinfo(np.int64).max]
+        input2.flat[:4] = [-1, 3, -3, 0]
+        golden = np.zeros_like(input1)
+        for i in range(h_valid):
+            for j in range(w_valid):
+                lhs = int(input1[i, j])
+                rhs = int(input2[i, j])
+                if rhs == 0 or (lhs == np.iinfo(np.int64).min and rhs == -1):
+                    golden[i, j] = 0
+                else:
+                    quotient = abs(lhs) // abs(rhs)
+                    quotient = -quotient if (lhs < 0) != (rhs < 0) else quotient
+                    golden[i, j] = lhs - quotient * rhs
+    elif dtype == np.uint64:
+        input1 = np.random.randint(0, 2000000, size=(h_valid, w_valid)).astype(dtype)
+        input2 = np.random.randint(1, 1000, size=(h_valid, w_valid)).astype(dtype)
+        input1.flat[:3] = [np.iinfo(np.uint64).max, 7, 0]
+        input2.flat[:3] = [3, 0, np.iinfo(np.uint64).max]
+        golden = np.zeros_like(input1)
+        nonzero = input2 != 0
+        golden[nonzero] = input1[nonzero] % input2[nonzero]
+    else:
+        input1 = np.random.uniform(low=value_min, high=value_max, size=(h_valid, w_valid)).astype(dtype)
+        input2 = np.random.uniform(low=value_min, high=value_max, size=(h_valid, w_valid)).astype(dtype)
+        golden = input1 % input2
 
     # Apply valid region constraints
     output = np.zeros(h_valid * w_valid).astype(dtype)
@@ -76,6 +98,8 @@ if __name__ == "__main__":
         TremParams("TREMTest.case10", np.float32, 64, 64, 64, 64),
         TremParams("TREMTest.case11", np.float32, 128, 128, 96, 96),
         TremParams("TREMTest.case12", np.float32, 128, 128, 96, 97),
+        TremParams("TREMTest.case_int64_4x16", np.int64, 4, 16, 4, 16),
+        TremParams("TREMTest.case_uint64_4x16", np.uint64, 4, 16, 4, 16),
     ]
 
     for param in case_params_list:

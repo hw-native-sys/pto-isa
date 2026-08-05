@@ -56,6 +56,8 @@ template void LaunchTTri<float, 32, 91, 1>(float* out, int diagonal, void* strea
 template void LaunchTTri<float, 128, 128, 1>(float* out, int diagonal, void* stream);
 template void LaunchTTri<float, 763, 32, 0>(float* out, int diagonal, void* stream);
 template void LaunchTTri<float, 763, 32, 1>(float* out, int diagonal, void* stream);
+template void LaunchTTri<int64_t, 4, 15, 1>(int64_t* out, int diagonal, void* stream);
+template void LaunchTTri<uint64_t, 4, 15, 0>(uint64_t* out, int diagonal, void* stream);
 
 // --- Dynamic (static != valid) variants ---
 

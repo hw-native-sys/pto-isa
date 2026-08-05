@@ -132,3 +132,7 @@ template void LaunchTMax<int16_t, 32, 128, 32, 128, 32, 256, 32, 127, false>(
     int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 template void LaunchTMax<int32_t, 16, 32, 16, 64, 16, 32, 16, 31, false>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTMax<int64_t, 4, 16, 4, 16, 4, 16, 4, 16, true>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTMax<uint64_t, 4, 16, 4, 16, 4, 16, 4, 16, true>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);

@@ -210,6 +210,8 @@ if __name__ == "__main__":
         TGatherParamsNorm("TGATHERTest.case6_f8e5m2_i16_16x128_16x64", np.int8, np.int16, 16, 128, 16, 64),
         TGatherParamsNorm("TGATHERTest.case7_i8_u16_16x128_16x64", np.int8, np.uint16, 16, 128, 16, 64),
         TGatherParamsNorm("TGATHERTest.case8_u8_u16_16x128_16x64", np.uint8, np.uint16, 16, 128, 16, 64),
+        TGatherParamsNorm("TGATHERTest.case9_int64_u32_4x16_4x16", np.int64, np.uint32, 4, 16, 4, 16),
+        TGatherParamsNorm("TGATHERTest.case10_uint64_u32_4x16_4x16", np.uint64, np.uint32, 4, 16, 4, 16),
         ParamMasked("TGATHERTest.case1_float_P0101", np.float32, np.float32, FLOAT_P0101_ROW, FLOAT_P0101_COL, P0101),
         ParamMasked("TGATHERTest.case1_float_P1010", np.float32, np.float32, FLOAT_P1010_ROW, FLOAT_P1010_COL, P1010),
         ParamMasked("TGATHERTest.case1_float_P0001", np.float32, np.float32, FLOAT_P0001_ROW, FLOAT_P0001_COL, P0001),
@@ -232,6 +234,14 @@ if __name__ == "__main__":
         ParamMasked("TGATHERTest.case1_U32_P0100", np.uint32, np.uint32, FLOAT_P0100_ROW, FLOAT_P0100_COL, P0100),
         ParamMasked("TGATHERTest.case1_I32_P1000", np.int32, np.int32, FLOAT_P1000_ROW, FLOAT_P1000_COL, P1000),
         ParamMasked("TGATHERTest.case1_I32_P1111", np.int32, np.int32, FLOAT_P1111_ROW, FLOAT_P1111_COL, P1111),
+        ParamMasked("TGATHERTest.case_int64_4x16_P1010", np.int64, np.int64, 4, 16, P1010),
+        ParamMasked("TGATHERTest.case_uint64_4x16_P0001", np.uint64, np.uint64, 4, 16, P0001),
+        ParamMasked(
+            "TGATHERTest.case_int64_dynamic_3x15_static_4x24_P1010", np.int64, np.int64, 3, 15, P1010
+        ),
+        ParamMasked(
+            "TGATHERTest.case_uint64_dynamic_3x15_static_4x24_P1010", np.uint64, np.uint64, 3, 15, P1010
+        ),
         ParamMasked("TGATHERTest.case1_b8_P0101", np.int8, np.int8, HALF_P0101_ROW, HALF_P0101_COL, P0101),
         ParamMasked("TGATHERTest.case1_b8_P1010", np.uint8, np.uint8, HALF_P1010_ROW, HALF_P1010_COL, P1010),
         ParamMasked("TGATHERTest.case1_b8_P0001", np.int8, np.int8, HALF_P0001_ROW, HALF_P0001_COL, P0001),

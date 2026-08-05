@@ -29,9 +29,10 @@ PTO_INTERNAL void TColReduceCheck(int srcValidRow, int srcValidCol, int dstValid
         "Fix: TCOLREDUCE output tile only support Nd fractal Tile");
     using T = typename TileDataIn::DType;
     static_assert(
-        std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, int8_t> ||
-            std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> ||
-            std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, bfloat16_t>,
+        std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, half> ||
+            std::is_same_v<T, float> || std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> ||
+            std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t> ||
+            std::is_same_v<T, uint32_t> || std::is_same_v<T, bfloat16_t>,
         "Fix: TCOLREDUCE input data type is not supported by this instruction.");
 
     static_assert(

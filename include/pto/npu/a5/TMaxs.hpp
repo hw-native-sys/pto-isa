@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include "utils.hpp"
 #include "TBinSOp.hpp"
+#include "Int64Binary.hpp"
 
 namespace pto {
 
@@ -39,8 +40,14 @@ __tf__ PTO_INTERNAL OP_NAME(TMAXS) OP_TYPE(element_wise) void TMaxS(
     using T = typename TileDataDst::DType;
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src);
-    BinaryInstr<MaxSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, srcRowStride>(
-        dstPtr, srcPtr, scalar, kValidRows, kValidCols, version);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Scalar<Int64Op::Max, T, TileDataDst::Cols, TileDataSrc::Cols>(
+            dstPtr, srcPtr, scalar, kValidRows, kValidCols);
+    } else {
+        BinaryInstr<
+            MaxSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, srcRowStride>(
+            dstPtr, srcPtr, scalar, kValidRows, kValidCols, version);
+    }
 }
 
 template <typename TileDataDst, typename TileDataSrc>
@@ -48,9 +55,10 @@ PTO_INTERNAL void TMAXS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDa
 {
     using T = typename TileDataDst::DType;
     static_assert(
-        std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
-            std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+        std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
+            std::is_same_v<T, uint32_t> || std::is_same_v<T, float> || std::is_same_v<T, int16_t> ||
+            std::is_same_v<T, uint16_t> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t> ||
+            std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
         "TMAXS: Invalid data type (supported: "
         "int32_t/uint32_t/int16_t/uint16_t/int8_t/uint8_t/half/bfloat16_t/float).");
     static_assert(

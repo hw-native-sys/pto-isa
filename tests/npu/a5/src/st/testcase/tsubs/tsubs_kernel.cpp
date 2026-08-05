@@ -83,9 +83,17 @@ extern "C" __global__ AICORE void launchTSUBSCase11(__gm__ uint8_t* out, __gm__ 
 {
     runTSubS<uint8_t, 1, 64, 1, 1, 32, 32>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTSUBSCase12(__gm__ int64_t* out, __gm__ int64_t* src, int64_t scalar)
+{
+    runTSubS<int64_t, 4, 16, 4, 4, 16, 16>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTSUBSCase13(__gm__ uint64_t* out, __gm__ uint64_t* src, uint64_t scalar)
+{
+    runTSubS<uint64_t, 4, 16, 4, 4, 16, 16>(out, src, scalar);
+}
 
-template <uint32_t caseId>
-void launchTSUBSTestCase(void* out, void* src, float scalar, aclrtStream stream)
+template <uint32_t caseId, typename T>
+void launchTSUBSTestCase(void* out, void* src, T scalar, aclrtStream stream)
 {
     switch (caseId) {
         case 1: {
@@ -132,19 +140,29 @@ void launchTSUBSTestCase(void* out, void* src, float scalar, aclrtStream stream)
             launchTSUBSCase11<<<1, nullptr, stream>>>((uint8_t*)out, (uint8_t*)src, scalar);
             break;
         }
+        case 12: {
+            launchTSUBSCase12<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src, (int64_t)scalar);
+            break;
+        }
+        case 13: {
+            launchTSUBSCase13<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src, (uint64_t)scalar);
+            break;
+        }
         default: {
         }
     }
 }
 
-template void launchTSUBSTestCase<1>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<2>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<3>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<4>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<5>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<6>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<7>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<8>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<9>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<10>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTSUBSTestCase<11>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTSUBSTestCase<1, float>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<2, aclFloat16>(void*, void*, aclFloat16, aclrtStream);
+template void launchTSUBSTestCase<3, int32_t>(void*, void*, int32_t, aclrtStream);
+template void launchTSUBSTestCase<4, int16_t>(void*, void*, int16_t, aclrtStream);
+template void launchTSUBSTestCase<5, float>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<6, float>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<7, uint32_t>(void*, void*, uint32_t, aclrtStream);
+template void launchTSUBSTestCase<8, uint16_t>(void*, void*, uint16_t, aclrtStream);
+template void launchTSUBSTestCase<9, int8_t>(void*, void*, int8_t, aclrtStream);
+template void launchTSUBSTestCase<10, uint8_t>(void*, void*, uint8_t, aclrtStream);
+template void launchTSUBSTestCase<11, uint8_t>(void*, void*, uint8_t, aclrtStream);
+template void launchTSUBSTestCase<12, int64_t>(void*, void*, int64_t, aclrtStream);
+template void launchTSUBSTestCase<13, uint64_t>(void*, void*, uint64_t, aclrtStream);

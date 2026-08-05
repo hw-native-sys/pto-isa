@@ -23,7 +23,13 @@ def gen_golden_data(case_name, param):
     height, width = param.valid_row, param.valid_col
 
     # Generate random input arrays
-    if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
+    if dtype == np.int64:
+        input1 = np.arange(src_tile_row * src_tile_col, dtype=dtype).reshape(src_tile_row, src_tile_col) - 100
+        input2 = np.array([777], dtype=dtype)
+    elif dtype == np.uint64:
+        input1 = np.arange(src_tile_row * src_tile_col, dtype=dtype).reshape(src_tile_row, src_tile_col) + 100
+        input2 = np.array([777], dtype=dtype)
+    elif dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
         dtype_info = np.iinfo(dtype)
         input1 = np.random.randint(dtype_info.min, dtype_info.max, size=[src_tile_row, src_tile_col]).astype(dtype)
         input2 = np.random.randint(dtype_info.min, dtype_info.max, size=[1]).astype(dtype)
@@ -61,6 +67,8 @@ class TestParams:
         np.uint16: 'uint16',
         np.int8: 'int8',
         np.uint8: 'uint8',
+        np.int64: 'int64',
+        np.uint64: 'uint64',
     }
 
     def __init__(self, dtype, dtype_mask, dst_tile_row, dst_tile_col, mask_tile_row, mask_tile_col,
@@ -111,6 +119,8 @@ if __name__ == "__main__":
         TestParams(np.float16, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
         TestParams(np.float32, np.uint8, 32, 672, 32, 96, 32, 672, 32, 666),
         TestParams(np.float32, np.uint8, 1, 8192, 1, 4096, 1, 8192, 1, 8192),
+        TestParams(np.int64, np.uint8, 4, 16, 4, 32, 4, 16, 4, 16),
+        TestParams(np.uint64, np.uint8, 4, 16, 4, 32, 4, 16, 4, 16),
     ]
 
     for param in case_list:

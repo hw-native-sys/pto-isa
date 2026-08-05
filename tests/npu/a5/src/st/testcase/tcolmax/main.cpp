@@ -58,6 +58,9 @@ protected:
         float eps = sizeof(T) == 4 ? 0.001f : 0.005f;
         ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
         ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, result.data(), dstByteSize);
+        if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+            return ResultCmpExact(golden, result.data());
+        }
         if (printAllEn) {
             return ResultCmp(golden, result, eps, 0, 1000, true);
         }
@@ -213,3 +216,5 @@ TEST_F(TCOLMAXTest, case73)
     bool ret = TCOLMAXTestFramework<73, uint32_t, 16, 15, 1, 256, 255>();
     EXPECT_TRUE(ret);
 }
+TEST_F(TCOLMAXTest, case_int64_4x16) { EXPECT_TRUE((TCOLMAXTestFramework<81, int64_t, 4, 4, 1, 16, 16>())); }
+TEST_F(TCOLMAXTest, case_uint64_4x16) { EXPECT_TRUE((TCOLMAXTestFramework<82, uint64_t, 4, 4, 1, 16, 16>())); }

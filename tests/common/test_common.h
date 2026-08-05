@@ -211,6 +211,24 @@ void PrintData(const void* data, size_t count, printDataType dataType, size_t el
 #define BOLD_RED "\033[1;31m"
 
 template <typename T>
+bool ResultCmpExact(const std::vector<T>& expected, const T* actual)
+{
+    static_assert(std::is_integral_v<T>, "ResultCmpExact only supports integral types.");
+    size_t errCount = 0;
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (expected[i] != actual[i]) {
+            if (errCount == 0) {
+                std::cout << BOLD_RED << "idx: 0x" << std::hex << i << std::dec << ", exp->" << expected[i] << ", act->"
+                          << actual[i] << " [ERROR]" RESET << std::endl;
+            }
+            ++errCount;
+        }
+    }
+    std::cout << "exact compare err count: " << errCount << ", element count: " << expected.size() << std::endl;
+    return errCount == 0;
+}
+
+template <typename T>
 bool ResultCmp(
     const std::vector<T>& outDataValExp, const T* outDataValAct, float eps, size_t threshold = 0,
     size_t zeroCountThreshold = 1000, bool printAll = false, bool printErr = false, size_t testNum = 0)

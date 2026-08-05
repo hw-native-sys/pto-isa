@@ -43,7 +43,9 @@ class TColExpandParam:
             np.float16: 'half',
             np.int8: 'int8',
             np.int16: 'int16',
-            np.int32: 'int32'
+            np.int32: 'int32',
+            np.int64: 'int64',
+            np.uint64: 'uint64',
         }[self.datatype]
         return f"TCOLEXPANDTest.case_{dtype_str}_{self.src_row}_{self.dst_row}_{self.col}_{self.valid_col}"
 
@@ -60,6 +62,8 @@ if __name__ == "__main__":
         TColExpandParam(np.float16, 1, 33, 512, 512),
         TColExpandParam(np.int8, 2, 17, 256, 44),
         TColExpandParam(np.float32, 1, 54, 64, 63),
+        TColExpandParam(np.int64, 1, 4, 16, 16),
+        TColExpandParam(np.uint64, 1, 4, 16, 16),
     ]
 
     for i, param in enumerate(case_params_list):

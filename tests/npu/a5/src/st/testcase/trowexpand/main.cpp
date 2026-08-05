@@ -18,7 +18,6 @@ using namespace PtoTestCommon;
 namespace TRowExpandTest {
 template <typename T, uint32_t rows, uint32_t srcCols, uint32_t dstValidCols, uint32_t dstCols>
 void launchTROWEXPAND(T* out, T* src, void* stream);
-
 class TROWEXPANDTest : public testing::Test {
 protected:
     void SetUp() override {}
@@ -74,11 +73,16 @@ void test_trowexpand()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(outputFileSize);
-    std::vector<T> devFinal(outputFileSize);
+    std::vector<T> golden(outputFileSize / sizeof(T));
+    std::vector<T> devFinal(outputFileSize / sizeof(T));
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -89,4 +93,6 @@ TEST_F(TROWEXPANDTest, case2_float_16_8_16_128) { test_trowexpand<float, 16, 8, 
 TEST_F(TROWEXPANDTest, case3_half_16_16_16_511) { test_trowexpand<aclFloat16, 16, 16, 511, 512>(); }
 TEST_F(TROWEXPANDTest, case4_int8_16_32_16_255) { test_trowexpand<int8_t, 16, 32, 255, 256>(); }
 TEST_F(TROWEXPANDTest, case5_float_16_8_16_127) { test_trowexpand<float, 16, 8, 127, 128>(); }
+TEST_F(TROWEXPANDTest, case6_int64_4_16_4_16) { test_trowexpand<int64_t, 4, 16, 16, 16>(); }
+TEST_F(TROWEXPANDTest, case7_uint64_4_16_4_16) { test_trowexpand<uint64_t, 4, 16, 16, 16>(); }
 } // namespace TRowExpandTest
