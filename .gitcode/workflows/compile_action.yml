@@ -33,8 +33,6 @@ on:
 jobs:
   JOB_compile:
     name: Compile
-    select: selected_by_default
-    needs: []
     steps:
       -
         name: Checkout
@@ -103,6 +101,6 @@ jobs:
     runs-on:
       - dedicate-hosted
       - ${{ inputs.arch }}
-      - ${{ inputs.spec }}
+      - xlarge
     container:
       image: swr.cn-north-4.myhuaweicloud.com/ci_cann/${{ inputs.image_version }}
