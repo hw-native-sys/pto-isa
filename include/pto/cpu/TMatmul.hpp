@@ -162,7 +162,7 @@ void TMatmulMX(
     });
 }
 
-template <typename TileAcc, typename TileLeft, typename TileRight>
+template <AccPhase Phase = AccPhase::Unspecified, typename TileAcc, typename TileLeft, typename TileRight>
 PTO_INTERNAL void TMATMUL_IMPL(TileAcc& cMatrix, TileLeft& aMatrix, TileRight& bMatrix)
 {
     TMatmulNzZn(cMatrix, static_cast<TileAcc*>(nullptr), aMatrix, bMatrix);

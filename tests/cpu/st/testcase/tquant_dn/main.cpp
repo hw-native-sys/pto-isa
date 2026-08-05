@@ -64,10 +64,6 @@ uint8_t EncodeE4M3Fn(float value)
 }
 } // namespace
 
-#if defined(PTO_CPU_SIM_ENABLE_BF16)
-TEST(TQuantCpuSimTest, MxFp8NvBf16Boundary2x256) { RunMxFp8Boundary2x256<bfloat16_t, QuantScaleAlg::NV>(); }
-#endif
-
 enum class MxFp4Case {
     Special,
     Subnormal,

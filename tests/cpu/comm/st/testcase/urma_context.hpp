@@ -31,6 +31,7 @@ struct UrmaTestContext {
     void* devBuf{nullptr};
     aclrtStream stream{nullptr};
     UrmaWorkspaceManager urmaMgr;
+    void* stream{nullptr}; // Dummy placeholder for compatibility
 
     bool AllocHugePageBuffer(size_t commBytesNeeded) { return true; }
 

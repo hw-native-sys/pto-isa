@@ -26,11 +26,6 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
     } else {
         assert(src.GetValidRow() == dst.GetValidRow() && src.GetValidRow() == dst.GetValidRow());
         for (size_t c = 0; c < src.GetValidCol(); c++) {
-            size_t subTileSrcC = c / SrcTileData::InnerCols;
-            size_t innerSrcC = c % SrcTileData::InnerCols;
-            size_t subTileDstC = c / DstTileData::InnerCols;
-            size_t innerDstC = c % DstTileData::InnerCols;
-
             for (size_t r = 0; r < src.GetValidRow(); r++) {
                 dst.SetElement(r, c, src.GetElement(r, c));
             }
