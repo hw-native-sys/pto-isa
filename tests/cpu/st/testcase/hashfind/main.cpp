@@ -94,3 +94,7 @@ void test_hashfind()
 }
 
 TEST_F(HASHFINDTest, case_int32_16x16_cap512) { test_hashfind<16, 16, 512, 64>(); }
+
+TEST_F(HASHFINDTest, case_int32_64x64_cap4096) { test_hashfind<64, 64, 4096, 64>(); }
+
+TEST_F(HASHFINDTest, case_int32_128x128_cap16384) { test_hashfind<128, 128, 16384, 64>(); }

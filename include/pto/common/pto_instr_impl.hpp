@@ -377,6 +377,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/TColMax.hpp"
 #include "pto/cpu/TSel.hpp"
 #include "pto/cpu/TCmps.hpp"
+#include "pto/cpu/TCmp.h"
 #include "pto/cpu/TGatherB.hpp"
 #include "pto/cpu/TSort32.hpp"
 #include "pto/cpu/TPartAdd.hpp"
