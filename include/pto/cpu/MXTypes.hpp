@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef MXTYPES_HPP
 #define MXTYPES_HPP
 #include <cstring>
+#include <ostream>
 
 constexpr unsigned int MAN_DBL = 52;
 constexpr unsigned int EXP_DBL = 11;

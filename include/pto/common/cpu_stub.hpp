@@ -7,7 +7,7 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
-#include <pto/pto-inst.hpp>
+
 #ifndef PTO_CPUSTUB_HPP
 #define PTO_CPUSTUB_HPP
 
@@ -29,6 +29,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <dlfcn.h>
 #include <string>
 #include "type.hpp"
+
+#include <pto/cpu/MXTypes.hpp>
+#include <pto/cpu/Hifloat8.hpp>
 
 #define __global__
 #define AICORE

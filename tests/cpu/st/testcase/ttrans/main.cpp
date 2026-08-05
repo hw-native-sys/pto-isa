@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <int32_t tilingKey>
-void launchTTRANS(uint8_t* out, uint8_t* src, void* stream);
+template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+AICORE void runTTRANS(__gm__ T __out__* out, __gm__ T __in__* src);
 
 class TTRANSTest : public testing::Test {
 protected:
@@ -33,13 +33,14 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-TEST_F(TTRANSTest, case1)
+template <typename DType>
+void LaunchTest()
 {
-    uint32_t M = 128;
-    uint32_t N = 128;
+    constexpr uint32_t M = 128;
+    constexpr uint32_t N = 128;
 
-    size_t srcFileSize = M * N * sizeof(float);
-    size_t dstFileSize = M * N * sizeof(float);
+    size_t srcFileSize = M * N * sizeof(DType);
+    size_t dstFileSize = M * N * sizeof(DType);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -55,10 +56,19 @@ TEST_F(TTRANSTest, case1)
     aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
 
-    ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
+    auto readResult = ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
+
+    if (!readResult && std::string(testing::UnitTest::GetInstance()->current_test_info()->name()) == "case_hifloat8") {
+        GTEST_SKIP() << "Skipping case hifloat8: "
+                     << "Source data was not generated, probably because en_dtypes package is missing.";
+        return;
+    }
+
+    CHECK_RESULT_GTEST(readResult);
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTTRANS<1>(dstDevice, srcDevice, stream);
+    runTTRANS<DType, M, N, M, N>(
+        reinterpret_cast<__gm__ DType*>(dstDevice), reinterpret_cast<__gm__ DType*>(srcDevice));
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -75,12 +85,16 @@ TEST_F(TTRANSTest, case1)
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<float> golden(dstFileSize);
-    std::vector<float> devFinal(dstFileSize);
-    ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
-    ReadFile(GetGoldenDir() + "/output_z.bin", dstFileSize, devFinal.data(), dstFileSize);
+    std::vector<DType> golden(dstFileSize);
+    std::vector<DType> devFinal(dstFileSize);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output_z.bin", dstFileSize, devFinal.data(), dstFileSize));
 
     bool ret = ResultCmp(golden, devFinal, 0.001f);
 
     EXPECT_TRUE(ret);
 }
+
+TEST_F(TTRANSTest, case_float32) { LaunchTest<float>(); }
+
+TEST_F(TTRANSTest, case_hifloat8) { LaunchTest<hifloat8_t>(); }

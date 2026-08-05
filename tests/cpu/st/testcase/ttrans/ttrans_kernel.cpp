@@ -58,21 +58,5 @@ inline AICORE void runTTRANS(__gm__ T __out__* out, __gm__ T __in__* src)
     out = dstGlobal.data();
 }
 
-extern "C" __global__ AICORE void launchTTRANS_1(__gm__ uint8_t* out, __gm__ uint8_t* src)
-{
-    constexpr uint32_t M = 128;
-    constexpr uint32_t N = 128;
-    constexpr uint32_t K = 128;
-    constexpr uint32_t L = 128;
-    runTTRANS<float, M, N, K, L>(reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src));
-}
-
-template <int32_t tilingKey>
-void launchTTRANS(uint8_t* out, uint8_t* src, void* stream)
-{
-    if constexpr (tilingKey == 1) {
-        launchTTRANS_1(out, src);
-    }
-}
-
-template void launchTTRANS<1>(uint8_t* out, uint8_t* src, void* stream);
+template AICORE void runTTRANS<float, 128, 128, 128, 128>(__gm__ float __out__*, __gm__ float __in__*);
+template AICORE void runTTRANS<hifloat8_t, 128, 128, 128, 128>(__gm__ hifloat8_t __out__*, __gm__ hifloat8_t __in__*);
