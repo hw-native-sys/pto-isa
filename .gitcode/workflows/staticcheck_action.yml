@@ -12,9 +12,7 @@ on:
 
 jobs:
   JOB_staticcheck:
-    name: StaticCheck
-    select: selected_by_default
-    needs: []
+    name: CodeCheck_staticcheck
     steps:
       -
         name: Checkout
@@ -35,6 +33,7 @@ jobs:
             ${{ env.obs_path }}/pr_filelist.txt
             ${{ env.obs_path }}/pr_filelist_mod.txt
             ${{ env.obs_path }}/update_file_detail.txt
+            ${{ env.obs_path }}/gitdiff.txt
           path: ${{ steps.process_checkout.outputs.path }}
       -
         name: staticcheck
@@ -44,11 +43,13 @@ jobs:
           check_type: ${{ inputs.check_type }}
           target_branch: ${{ env.TARGET_BRANCH }}
           repo_name: ${{ env.repo_name }}
+          org_name: ${{ env.org_name }}
           merge_id: ${{ env.MERGE_ID }}
           commit_id: '0'
           workspace: ${{ steps.process_checkout.outputs.path }}
       -
         name: upload
+        if: ${{ always() }}
         uses: obs-upload
         with:
           endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
@@ -60,6 +61,6 @@ jobs:
             ${{ steps.process_checkout.outputs.path }}/StaticCheck_*.json
           object-prefix: ${{ env.obs_path }}/
     if: "${{ default() }}"
-    runs-on: [dedicate-hosted, x64, small]
+    runs-on: [dedicate-hosted, x64, medium]
     container:
       image: swr.cn-north-4.myhuaweicloud.com/static_check/${{ inputs.image_version }}

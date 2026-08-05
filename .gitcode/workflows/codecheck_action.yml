@@ -40,6 +40,7 @@ jobs:
           workspace: ${{ steps.process_checkout.outputs.path }}
       -
         name: upload
+        if: ${{ always() }}
         uses: obs-upload
         with:
           endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
@@ -54,8 +55,6 @@ jobs:
       image: swr.cn-north-4.myhuaweicloud.com/ci_cann/${{ inputs.precommit_image_version }}
   Check_pr:
     name: CodeCheck_check-pr
-    select: selected_by_default
-    needs: []
     steps:
       -
         name: Checkout
@@ -86,8 +85,6 @@ jobs:
       image: swr.cn-north-4.myhuaweicloud.com/ci_cann/${{ inputs.codecheck_image_version }}
   SCA:
     name: SCA
-    select: selected_by_default
-    needs: []
     steps:
       -
         name: Checkout
@@ -109,15 +106,13 @@ jobs:
         run: |
           cd ${{ steps.process_checkout.outputs.path }}
           cd CI/scripts
-          python3 codescan_gitcode.py --access_key ${{secrets.SCA_AK}} --secret_access_key ${{secrets.SCA_SK}} --access_key_get ${{secrets.SCA_AK_GET}} --secret_access_key_get ${{secrets.SCA_SK_GET}} --org_name ${org_name} --pr_id ${MERGE_ID} --repo ${repo_name} --commit_id ${{ atomgit.event.pull_request.merge_commit_sha }}
+          python3 codescan_gitcode.py --access_key ${{secrets.SCA_AK}} --secret_access_key ${{secrets.SCA_SK}} --access_key_get ${{secrets.SCA_AK_GET}} --secret_access_key_get ${{secrets.SCA_SK_GET}} --org_name ${org_name} --pr_id ${MERGE_ID} --repo ${repo_name} --commit_id ${{ atomgit.event.pull_request.merge_commit_sha }} --online ${{ vars.APPLY_LABEL }}
     if: "${{ default() }}"
     runs-on: [dedicate-hosted, x64, small]
     container:
       image: swr.cn-north-4.myhuaweicloud.com/ci_cann/${{ inputs.codecheck_image_version }}
   Antiposion:
     name: Antiposion
-    select: selected_by_default
-    needs: []
     steps:
       -
         name: Checkout
@@ -139,15 +134,13 @@ jobs:
         run: |
           cd ${{ steps.process_checkout.outputs.path }}
           cd CI/scripts
-          python3 anti_virus_gitcode.py --access_key ${{secrets.ANTI_AK}} --secret_access_key ${{secrets.ANTI_SK}} --access_key_get ${{secrets.ANTI_AK_GET}} --secret_access_key_get ${{secrets.ANTI_SK_GET}} --org_name ${org_name} --pr_id ${MERGE_ID} --repo ${repo_name} --commit_id ${{ atomgit.event.pull_request.merge_commit_sha }}
+          python3 anti_virus_gitcode.py --access_key ${{secrets.ANTI_AK}} --secret_access_key ${{secrets.ANTI_SK}} --access_key_get ${{secrets.ANTI_AK_GET}} --secret_access_key_get ${{secrets.ANTI_SK_GET}} --org_name ${org_name} --pr_id ${MERGE_ID} --repo ${repo_name} --commit_id ${{ atomgit.event.pull_request.merge_commit_sha }} --online ${{ vars.APPLY_LABEL }}
     if: "${{ default() }}"
     runs-on: [dedicate-hosted, x64, small]
     container:
       image: swr.cn-north-4.myhuaweicloud.com/ci_cann/${{ inputs.codecheck_image_version }}
   CodeCheck:
     name: CodeCheck
-    select: selected_by_default
-    needs: []
     steps:
       -
         name: Checkout
@@ -169,7 +162,7 @@ jobs:
         run: |
           cd ${{ steps.process_checkout.outputs.path }}
           cd CI/scripts
-          python3 codecheck_gitcode.py --access_key ${{secrets.CODECHECK_AK}} --secret_access_key ${{secrets.CODECHECK_SK}} --access_key_get ${{secrets.CODECHECK_AK_GET}} --secret_access_key_get ${{secrets.CODECHECK_SK_GET}} --org_name ${org_name} --pr_id ${MERGE_ID} --repo ${repo_name} --commit_id ${{ atomgit.event.pull_request.merge_commit_sha }}
+          python3 codecheck_gitcode.py --access_key ${{secrets.CODECHECK_AK}} --secret_access_key ${{secrets.CODECHECK_SK}} --access_key_get ${{secrets.CODECHECK_AK_GET}} --secret_access_key_get ${{secrets.CODECHECK_SK_GET}} --org_name ${org_name} --pr_id ${MERGE_ID} --repo ${repo_name} --commit_id ${{ atomgit.event.pull_request.merge_commit_sha }} --online ${{ vars.APPLY_LABEL }}
     if: "${{ default() }}"
     runs-on: [dedicate-hosted, x64, small]
     container:

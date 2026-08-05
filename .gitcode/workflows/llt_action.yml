@@ -22,8 +22,6 @@ on:
 jobs:
   JOB_ut:
     name: UT
-    select: selected_by_default
-    needs: []
     steps:
       -
         name: Checkout
