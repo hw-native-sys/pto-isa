@@ -11,9 +11,9 @@ flowchart TB
     H2 --> H3[wait_flag_dev]
     H3 --> H4[屏障完成]
   end
-  subgraph soft [软件模式 Soft / GM 原子计数器]
-    S1[ld_dev 读共享计数器] --> S2[st_atomic +1]
-    S2 --> S3[轮询直至计数达到本轮 epoch 目标]
+  subgraph soft [软件模式 Soft / GM 共享计数器]
+    S1[各核报到：共享计数加一] --> S2[根据当前轮次得到放行条件]
+    S2 --> S3[等待计数满足本轮条件]
     S3 --> S4[屏障完成]
   end
 ```

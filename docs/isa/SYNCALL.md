@@ -11,9 +11,9 @@ flowchart TB
     H2 --> H3[wait_flag_dev]
     H3 --> H4[Barrier complete]
   end
-  subgraph soft [Soft Mode / GM Atomic Counter]
-    S1[ld_dev reads the shared counter] --> S2[st_atomic +1]
-    S2 --> S3[Poll until the count reaches this round's epoch target]
+  subgraph soft [Soft Mode / Shared GM Counter]
+    S1[Each core arrives: increment the shared counter] --> S2[Derive this round's release condition]
+    S2 --> S3[Wait until the counter meets that condition]
     S3 --> S4[Barrier complete]
   end
 ```

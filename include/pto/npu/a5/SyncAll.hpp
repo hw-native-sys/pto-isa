@@ -12,7 +12,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_NPU_A5_SYNCALL_HPP
 
 #include <pto/npu/a5/TSync.hpp>
-// Soft SYNCALL is backend-independent; only the FFTS path below is A5-specific.
 #include <pto/common/syncall_soft.hpp>
 
 namespace pto {
