@@ -40,6 +40,19 @@ template <
     bool sameTile>
 void LaunchTMinHalf(aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 
+template <typename T>
+void CheckTMinResult(size_t fileSizeDst)
+{
+    std::vector<T> golden(fileSizeDst / sizeof(T));
+    std::vector<T> devFinal(fileSizeDst / sizeof(T));
+    ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
+    ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>)
+        EXPECT_TRUE(ResultCmpExact(golden, devFinal.data()));
+    else
+        EXPECT_TRUE(ResultCmp<T>(golden, devFinal, 0.001f));
+}
+
 template <
     typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
     int vCols, bool isHalf = false,
@@ -95,14 +108,7 @@ void test_tmin()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSizeDst);
-    std::vector<T> devFinal(fileSizeDst);
-    ReadFile(GetGoldenDir() + "/golden.bin", fileSizeDst, golden.data(), fileSizeDst);
-    ReadFile(GetGoldenDir() + "/output.bin", fileSizeDst, devFinal.data(), fileSizeDst);
-
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
-
-    EXPECT_TRUE(ret);
+    CheckTMinResult<T>(fileSizeDst);
 }
 
 TEST_F(TMINTest, case_float_64x64_64x64_64x64_64x64) { test_tmin<float, 64, 64, 64, 64, 64, 64, 64, 64>(); }
@@ -126,3 +132,5 @@ TEST_F(TMINTest, case_half_16x64_16x128_16x128_16x63)
 TEST_F(TMINTest, case_float_16x32_16x64_16x32_16x31) { test_tmin<float, 16, 32, 16, 64, 16, 32, 16, 31>(); }
 TEST_F(TMINTest, case_int16_32x128_32x128_32x256_32x127) { test_tmin<int16_t, 32, 128, 32, 128, 32, 256, 32, 127>(); }
 TEST_F(TMINTest, case_int32_16x32_16x64_16x32_16x31) { test_tmin<int32_t, 16, 32, 16, 64, 16, 32, 16, 31>(); }
+TEST_F(TMINTest, case_int64_4x16_4x16_4x16_4x16) { test_tmin<int64_t, 4, 16, 4, 16, 4, 16, 4, 16>(); }
+TEST_F(TMINTest, case_uint64_4x16_4x16_4x16_4x16) { test_tmin<uint64_t, 4, 16, 4, 16, 4, 16, 4, 16>(); }

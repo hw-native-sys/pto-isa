@@ -100,7 +100,12 @@ protected:
         aclrtFreeHost(this->dstHost);
 
         ReadFile(GetGoldenDir() + "/golden.bin", this->dstFileSize, golden.data(), this->dstFileSize);
-        bool res = ResultCmp<T>(golden, devFinal, 0.0001f);
+        bool res;
+        if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+            res = ResultCmpExact(golden, devFinal.data());
+        } else {
+            res = ResultCmp<T>(golden, devFinal, 0.0001f);
+        }
         if (!res) {
             WriteFile(GetGoldenDir() + "/output.bin", devFinal.data(), this->dstFileSize);
         }
@@ -195,4 +200,12 @@ TEST_F(TSELSTest, case_float_uint8_32x672_32x96_32x672_32x666)
 TEST_F(TSELSTest, case_float_uint8_1x8192_1x4096_1x8192_1x8192)
 {
     this->Launch<float, uint8_t, 1, 8192, 1, 4096, 1, 8192, 1, 8192>();
+}
+TEST_F(TSELSTest, case_int64_uint8_4x16_4x32_4x16_4x16)
+{
+    this->Launch<int64_t, uint8_t, 4, 16, 4, 32, 4, 16, 4, 16>();
+}
+TEST_F(TSELSTest, case_uint64_uint8_4x16_4x32_4x16_4x16)
+{
+    this->Launch<uint64_t, uint8_t, 4, 16, 4, 32, 4, 16, 4, 16>();
 }

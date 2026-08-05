@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include "utils.hpp"
 #include "TBinSOp.hpp"
+#include "Int64Binary.hpp"
 
 namespace pto {
 
@@ -39,8 +40,14 @@ __tf__ PTO_INTERNAL OP_NAME(TSHLS) OP_TYPE(element_wise) void TShlS(
     using T = typename TileDataDst::DType;
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
-    BinaryInstr<ShlSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride>(
-        dstPtr, src0Ptr, src1, kValidRows, kValidCols, version);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Scalar<Int64Op::Shl, T, TileDataDst::Cols, TileDataSrc::Cols>(
+            dstPtr, src0Ptr, src1, kValidRows, kValidCols);
+    } else {
+        BinaryInstr<
+            ShlSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride>(
+            dstPtr, src0Ptr, src1, kValidRows, kValidCols, version);
+    }
 }
 
 template <typename TileDataDst, typename TileDataSrc>
@@ -48,8 +55,9 @@ PTO_INTERNAL void TSHLS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileD
 {
     using T = typename TileDataDst::DType;
     static_assert(
-        std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, int8_t>::value ||
-            std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value,
+        std::is_same<T, int64_t>::value || std::is_same<T, uint64_t>::value || std::is_same<T, int32_t>::value ||
+            std::is_same<T, int16_t>::value || std::is_same<T, int8_t>::value || std::is_same<T, uint32_t>::value ||
+            std::is_same<T, uint16_t>::value || std::is_same<T, uint8_t>::value,
         "TSHLS: Invalid data type");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of dst tiles must be TileType::Vec.");
     static_assert(

@@ -17,7 +17,6 @@ using namespace PtoTestCommon;
 
 template <typename T, int validRows, int validCols, int upperOrLower>
 void LaunchTTri(T* out, int diagonal, void* stream);
-
 template <typename T, int staticRows, int staticCols, int validRows, int validCols, int upperOrLower>
 void LaunchTTriDyn(T* out, int diagonal, void* stream);
 
@@ -65,12 +64,17 @@ void test_ttri(int diagonal)
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSize);
-    std::vector<T> devFinal(fileSize);
+    std::vector<T> golden(fileSize / sizeof(T));
+    std::vector<T> devFinal(fileSize / sizeof(T));
     ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -91,6 +95,8 @@ TEST_F(TTRITest, case_float_32x91_upper_diag_n3) { test_ttri<float, 32, 91, 1>(-
 TEST_F(TTRITest, case_float_128x128_upper_diag_n3) { test_ttri<float, 128, 128, 1>(-3); }
 TEST_F(TTRITest, case_float_763x32_lower_diag_n41) { test_ttri<float, 763, 32, 0>(-41); }
 TEST_F(TTRITest, case_float_763x32_upper_diag_n41) { test_ttri<float, 763, 32, 1>(-41); }
+TEST_F(TTRITest, case_int64_4x15_upper_diag_0) { test_ttri<int64_t, 4, 15, 1>(0); }
+TEST_F(TTRITest, case_uint64_4x15_lower_diag_n1) { test_ttri<uint64_t, 4, 15, 0>(-1); }
 
 // --- Dynamic (static != valid) test cases ---
 
@@ -123,12 +129,17 @@ void test_ttri_dyn(int diagonal)
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSize);
-    std::vector<T> devFinal(fileSize);
+    std::vector<T> golden(fileSize / sizeof(T));
+    std::vector<T> devFinal(fileSize / sizeof(T));
     ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
     ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }

@@ -103,3 +103,7 @@ template void LaunchTDiv<int32_t, 16, 32, 16, 64, 16, 32, 16, 31, false>(
 template void LaunchTDiv<float, 2, 16, 2, 16, 2, 16, 2, 16, true>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTDivHalf<2, 32, 2, 32, 2, 32, 2, 32, true>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
+template void LaunchTDiv<int64_t, 4, 16, 4, 16, 4, 16, 4, 16, false>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTDiv<uint64_t, 4, 16, 4, 16, 4, 16, 4, 16, false>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);

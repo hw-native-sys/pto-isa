@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 #include "common.hpp"
 #include "utils.hpp"
+#include "Int64Rearrange.hpp"
 
 namespace pto {
 
@@ -25,8 +26,8 @@ PTO_INTERNAL void TRowExpandCheck(unsigned srcValidRow, unsigned srcValidCol, un
         TileDataIn::ValidCol == 1 || TileDataIn::ValidCol == -1, "Fix: TROWEXPAND Src ValidCol must be 1 or -1");
     static_assert(
         (sizeof(typename TileDataIn::DType) == 1) || (sizeof(typename TileDataIn::DType) == 2) ||
-            (sizeof(typename TileDataIn::DType) == 4),
-        "Fix: TROWEXPAND data type must be b8/b16/b32");
+            (sizeof(typename TileDataIn::DType) == 4) || (sizeof(typename TileDataIn::DType) == 8),
+        "Fix: TROWEXPAND data type must be b8/b16/b32/b64");
     static_assert(TileDataIn::Loc == pto::TileType::Vec, "Fix: TROWEXPAND Src TileType must be Vec Tile!");
     static_assert(TileDataOut::Loc == pto::TileType::Vec, "Fix: TROWEXPAND Dst TileType must be Vec Tile!");
     static_assert(TileDataIn::SFractal == SLayout::NoneBox, "Fix: TROWEXPAND only support Nd or Dn fractal Tile");
@@ -221,10 +222,14 @@ __tf__ PTO_INTERNAL OP_NAME(TROWEXPAND) OP_TYPE(broadcast) void TRowExpand_ColMa
 template <typename TileDataOut, typename TileDataIn>
 PTO_INTERNAL void TROWEXPAND_IMPL(TileDataOut& dst, TileDataIn& src)
 {
+    using T = typename TileDataOut::DType;
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
     TRowExpandCheck<TileDataOut, TileDataIn>(src.GetValidRow(), src.GetValidCol(), dstValidRow);
-    if constexpr (TileDataIn::isRowMajor) {
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64RowExpand<T, TileDataOut::Cols, TileDataIn::RowStride>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ T*)src.data(), dstValidRow, dstValidCol);
+    } else if constexpr (TileDataIn::isRowMajor) {
         TRowExpand<TileDataOut, TileDataIn>(dst.data(), src.data(), dstValidRow, dstValidCol);
     } else {
         TRowExpand_ColMajor<TileDataOut, TileDataIn>(dst.data(), src.data(), dstValidRow, dstValidCol);

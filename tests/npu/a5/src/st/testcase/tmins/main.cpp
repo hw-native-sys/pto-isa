@@ -80,12 +80,17 @@ void test_tmins()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(dstfileSize);
-    std::vector<T> devFinal(dstfileSize);
+    std::vector<T> golden(dstfileSize / sizeof(T));
+    std::vector<T> devFinal(dstfileSize / sizeof(T));
     ReadFile(GetGoldenDir() + "/golden.bin", dstfileSize, golden.data(), dstfileSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstfileSize, devFinal.data(), dstfileSize);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.0001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, 0.0001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -109,3 +114,5 @@ TEST_F(TMINSTest, case_half_16x256_20x224_16x200)
     test_tmins<aclFloat16, 16, 256, 20, 224, 16, 200, PAD_VALUE_MAX>();
 }
 TEST_F(TMINSTest, case_half_1x256_1x224_1x200) { test_tmins<aclFloat16, 1, 256, 1, 224, 1, 200, PAD_VALUE_MAX>(); }
+TEST_F(TMINSTest, case_int64_4x16_4x16_4x16) { test_tmins<int64_t, 4, 16, 4, 16, 4, 16, PAD_VALUE_NULL>(); }
+TEST_F(TMINSTest, case_uint64_4x16_4x16_4x16) { test_tmins<uint64_t, 4, 16, 4, 16, 4, 16, PAD_VALUE_NULL>(); }

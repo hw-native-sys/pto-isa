@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
 #include "utils.hpp"
+#include "Int64Binary.hpp"
 
 namespace pto {
 template <
@@ -117,9 +118,9 @@ template <typename DstTile, typename MaskTile, typename Src0Tile, typename Src1T
 PTO_INTERNAL void TSEL_IMPL(DstTile& dst, MaskTile& selMask, Src0Tile& src0, Src1Tile& src1, TmpTile& tmp)
 {
     static_assert(
-        sizeof(typename DstTile::DType) == 4 || sizeof(typename DstTile::DType) == 2 ||
-            sizeof(typename DstTile::DType) == 1,
-        "Fix: TSEL only support 8B, 16B and 32B data type.");
+        sizeof(typename DstTile::DType) == 8 || sizeof(typename DstTile::DType) == 4 ||
+            sizeof(typename DstTile::DType) == 2 || sizeof(typename DstTile::DType) == 1,
+        "Fix: TSEL only support 8B, 16B, 32B and 64B data type.");
     static_assert(
         std::is_same_v<typename DstTile::DType, typename Src0Tile::DType> ||
             std::is_same_v<typename DstTile::DType, typename Src1Tile::DType>,
@@ -130,7 +131,13 @@ PTO_INTERNAL void TSEL_IMPL(DstTile& dst, MaskTile& selMask, Src0Tile& src0, Src
     constexpr unsigned nRepeatElem = CCE_VL / sizeof(typename DstTile::DType);
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
-    if constexpr (sizeof(typename DstTile::DType) == 4) {
+    if constexpr (sizeof(typename DstTile::DType) == 8) {
+        using T = typename DstTile::DType;
+        constexpr unsigned maskRowBytes = MaskTile::RowStride * sizeof(typename MaskTile::DType);
+        Int64Select<T, DstTile::Cols, maskRowBytes, Src0Tile::Cols, Src1Tile::Cols>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ uint8_t*)selMask.data(), (__ubuf__ T*)src0.data(),
+            (__ubuf__ T*)src1.data(), validRow, validCol);
+    } else if constexpr (sizeof(typename DstTile::DType) == 4) {
         TSel_b32<
             typename DstTile::DType, typename DstTile::TileDType, typename MaskTile::TileDType, DstTile::RowStride,
             MaskTile::RowStride, Src0Tile::RowStride, Src1Tile::RowStride, nRepeatElem>(

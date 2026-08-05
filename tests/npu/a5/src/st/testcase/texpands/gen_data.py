@@ -34,6 +34,10 @@ def gen_golden_data(param):
         scalar = np.random.randint(-30_000, 30_000, size=1).astype(dtype)
     elif dtype == np.int32:
         scalar = np.random.randint(-2_000_000_000, 2_000_000_000, size=1).astype(dtype)
+    elif dtype == np.int64:
+        scalar = np.array([-4_000_000_007], dtype=dtype)
+    elif dtype == np.uint64:
+        scalar = np.array([10_000_000_019], dtype=dtype)
     elif dtype == np.float16:
         scalar = np.random.uniform(-8, 8, size=1).astype(dtype)
     elif dtype == bfloat16:
@@ -77,7 +81,9 @@ def generate_case_name(param):
         np.int8: 'int8',
         np.int32: 'int32',
         bfloat16: 'bfloat16',
-        np.int16: 'int16'
+        np.int16: 'int16',
+        np.int64: 'int64',
+        np.uint64: 'uint64',
     }[param.dtype]
     return (
         f"TEXPANDSTest.case_{dtype_str}_"
@@ -109,6 +115,8 @@ if __name__ == "__main__":
         TestParams(np.float16, 1, 3600, 2, 4096, 1, 3600, PAD_VALUE_MAX),
         TestParams(np.int16, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX),
         TestParams(np.int16, 1, 200, 1, 512, 1, 200, PAD_VALUE_MAX),
+        TestParams(np.int64, 5, 16, 5, 16, 5, 16),
+        TestParams(np.uint64, 5, 16, 5, 16, 5, 16),
     ]
 
     for i, param in enumerate(case_params_list):

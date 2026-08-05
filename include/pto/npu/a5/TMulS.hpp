@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include "utils.hpp"
 #include "TBinSOp.hpp"
+#include "Int64Binary.hpp"
 
 namespace pto {
 
@@ -39,8 +40,14 @@ __tf__ PTO_INTERNAL OP_NAME(TMULS) OP_TYPE(element_wise) void TMulS(
     using T = typename TileDataDst::DType;
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
-    BinaryInstr<MulSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, srcRowStride>(
-        dstPtr, src0Ptr, src1, kValidRows, kValidCols, version);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Scalar<Int64Op::Mul, T, TileDataDst::Cols, TileDataSrc::Cols>(
+            dstPtr, src0Ptr, src1, kValidRows, kValidCols);
+    } else {
+        BinaryInstr<
+            MulSOp<T>, TileDataDst, TileDataSrc, T, elementsPerRepeat, blockSizeElem, dstRowStride, srcRowStride>(
+            dstPtr, src0Ptr, src1, kValidRows, kValidCols, version);
+    }
 }
 
 template <typename TileDataDst, typename TileDataSrc>
@@ -48,9 +55,9 @@ PTO_INTERNAL void TMULS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileD
 {
     using T = typename TileDataDst::DType;
     static_assert(
-        std::is_same<T, int32_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, uint32_t>::value ||
-            std::is_same<T, uint16_t>::value || std::is_same<T, half>::value || std::is_same<T, float>::value ||
-            std::is_same<T, bfloat16_t>::value,
+        std::is_same<T, int64_t>::value || std::is_same<T, uint64_t>::value || std::is_same<T, int32_t>::value ||
+            std::is_same<T, int16_t>::value || std::is_same<T, uint32_t>::value || std::is_same<T, uint16_t>::value ||
+            std::is_same<T, half>::value || std::is_same<T, float>::value || std::is_same<T, bfloat16_t>::value,
         "TMULS: Invalid data type");
     static_assert(TileDataDst::Loc == TileType::Vec, "TileType of dst tiles must be TileType::Vec.");
     static_assert(

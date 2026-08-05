@@ -121,3 +121,7 @@ template void TPartMinTest::LaunchTPartMin<float, 8, 8, 8, 8, 8, 0, 8, 8, 8, 8, 
     float* out, float* src0, float* src1, void* stream);
 template void TPartMinTest::LaunchTPartMin<float, 8, 8, 8, 8, 0, 8, 8, 8, 8, 8, 1, 8>(
     float* out, float* src0, float* src1, void* stream);
+template void TPartMinTest::LaunchTPartMin<int64_t, 4, 16, 2, 16, 4, 16>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void TPartMinTest::LaunchTPartMin<uint64_t, 4, 16, 2, 16, 4, 16>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);

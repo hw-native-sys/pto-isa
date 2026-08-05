@@ -99,7 +99,12 @@ void TDivSTestFramework()
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
 
     constexpr auto resPrecision = highPrecision ? 0.0000001f : 0.001f;
-    bool ret = ResultCmp<T>(golden, devFinal, resPrecision);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, resPrecision);
+    }
     EXPECT_TRUE(ret);
 }
 
@@ -111,3 +116,5 @@ TEST_F(TDIVSTest, case6) { TDivSTestFramework<float, 256, 32, 256, 16, 256, 16>(
 TEST_F(TDIVSTest, case7) { TDivSTestFramework<float, 1, 32, 1, 16, 1, 16>(); }
 TEST_F(TDIVSTest, caseHP1) { TDivSTestFramework<float, 2, 16, 2, 16, 2, 16, false, true>(); }
 TEST_F(TDIVSTest, caseHP2) { TDivSTestFramework<aclFloat16, 2, 32, 2, 32, 2, 32, true, true>(); }
+TEST_F(TDIVSTest, case_int64_4x16) { TDivSTestFramework<int64_t, 4, 16, 4, 16, 4, 16>(); }
+TEST_F(TDIVSTest, case_uint64_4x16) { TDivSTestFramework<uint64_t, 4, 16, 4, 16, 4, 16>(); }

@@ -22,10 +22,14 @@ def gen_golden_data(case_name, param):
     src0_tile_row, src0_tile_col = param.src0_tile_row, param.src0_tile_col
     h_valid, w_valid = param.valid_row, param.valid_col
 
-    dtype_info = np.iinfo(dtype)
-
     # Generate random input arrays
-    input1 = np.random.randint(dtype_info.min, dtype_info.max, size=[src0_tile_row, src0_tile_col]).astype(dtype)
+    if dtype == np.int64:
+        input1 = np.random.randint(-1000000, 1000000, size=[src0_tile_row, src0_tile_col]).astype(dtype)
+    elif dtype == np.uint64:
+        input1 = np.random.randint(0, 2000000, size=[src0_tile_row, src0_tile_col]).astype(dtype)
+    else:
+        dtype_info = np.iinfo(dtype)
+        input1 = np.random.randint(dtype_info.min, dtype_info.max, size=[src0_tile_row, src0_tile_col]).astype(dtype)
     input2 = np.random.randint(1, 7, size=[1, 1]).astype(dtype)
 
     # Perform the operation
@@ -58,7 +62,9 @@ def generate_case_name(param):
         np.int16: 'int16',
         np.uint8: 'uint8',
         np.uint32: 'uint32',
-        np.uint16: 'uint16'
+        np.uint16: 'uint16',
+        np.int64: 'int64',
+        np.uint64: 'uint64'
     }[param.dtype]
     return f"TSHLSTest.case_{dtype_str}_{param.dst_tile_row}x{param.dst_tile_col}_\
 {param.src0_tile_row}x{param.src0_tile_col}_{param.valid_row}x{param.valid_col}"
@@ -80,6 +86,8 @@ if __name__ == "__main__":
         TShlSParams(np.uint16, 32, 128, 32, 128, 32, 128),
         TShlSParams(np.uint16, 32, 112, 32, 128, 32, 111),
         TShlSParams(np.uint16, 1, 112, 1, 128, 1, 111),
+        TShlSParams(np.int64, 4, 16, 4, 16, 4, 16),
+        TShlSParams(np.uint64, 4, 16, 4, 16, 4, 16),
     ]
 
     for param in case_params_list:

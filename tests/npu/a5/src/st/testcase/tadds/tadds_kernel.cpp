@@ -87,9 +87,17 @@ extern "C" __global__ AICORE void launchTADDSCase11(__gm__ uint8_t* out, __gm__ 
 {
     runTAddS<uint8_t, 1, 64, 1, 1, 32, 32>(out, src, scalar);
 }
+extern "C" __global__ AICORE void launchTADDSCase12(__gm__ int64_t* out, __gm__ int64_t* src, int64_t scalar)
+{
+    runTAddS<int64_t, 4, 16, 4, 4, 16, 16>(out, src, scalar);
+}
+extern "C" __global__ AICORE void launchTADDSCase13(__gm__ uint64_t* out, __gm__ uint64_t* src, uint64_t scalar)
+{
+    runTAddS<uint64_t, 4, 16, 4, 4, 16, 16>(out, src, scalar);
+}
 
-template <uint32_t caseId>
-void launchTADDSTestCase(void* out, void* src, float scalar, aclrtStream stream)
+template <uint32_t caseId, typename T>
+void launchTADDSTestCase(void* out, void* src, T scalar, aclrtStream stream)
 {
     switch (caseId) {
         case 1: {
@@ -136,19 +144,29 @@ void launchTADDSTestCase(void* out, void* src, float scalar, aclrtStream stream)
             launchTADDSCase11<<<1, nullptr, stream>>>((uint8_t*)out, (uint8_t*)src, scalar);
             break;
         }
+        case 12: {
+            launchTADDSCase12<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src, (int64_t)scalar);
+            break;
+        }
+        case 13: {
+            launchTADDSCase13<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src, (uint64_t)scalar);
+            break;
+        }
         default: {
         }
     }
 }
 
-template void launchTADDSTestCase<1>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<2>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<3>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<4>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<5>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<6>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<7>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<8>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<9>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<10>(void* out, void* src, float scalar, aclrtStream stream);
-template void launchTADDSTestCase<11>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTADDSTestCase<1, float>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTADDSTestCase<2, aclFloat16>(void* out, void* src, aclFloat16 scalar, aclrtStream stream);
+template void launchTADDSTestCase<3, int32_t>(void* out, void* src, int32_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<4, int16_t>(void* out, void* src, int16_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<5, float>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTADDSTestCase<6, float>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTADDSTestCase<7, uint32_t>(void* out, void* src, uint32_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<8, uint16_t>(void* out, void* src, uint16_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<9, int8_t>(void* out, void* src, int8_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<10, uint8_t>(void* out, void* src, uint8_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<11, uint8_t>(void* out, void* src, uint8_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<12, int64_t>(void* out, void* src, int64_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<13, uint64_t>(void* out, void* src, uint64_t scalar, aclrtStream stream);

@@ -11,8 +11,6 @@
 # --------------------------------------------------------------------------------
 
 import os
-import struct
-import ctypes
 import numpy as np
 
 
@@ -32,11 +30,25 @@ def gen_golden_data(param):
         value_max = np.finfo(data_type).max / 100
         value_min = np.finfo(data_type).min / 100
 
-    input_arr = np.random.uniform(low=value_min, high=value_max,
-        size=(src_tile_row, src_tile_col)).astype(data_type)
-    divider = np.random.uniform(low=value_min, high=value_max, size=1).astype(data_type)
+    if data_type == np.int64:
+        input_arr = np.random.randint(-1000000, 1000000, size=(src_tile_row, src_tile_col)).astype(data_type)
+        divider = np.array([97], dtype=data_type)
+    elif data_type == np.uint64:
+        input_arr = np.random.randint(0, 2000000, size=(src_tile_row, src_tile_col)).astype(data_type)
+        divider = np.array([0 if param.zero_divisor else 97], dtype=data_type)
+    else:
+        input_arr = np.random.uniform(low=value_min, high=value_max,
+            size=(src_tile_row, src_tile_col)).astype(data_type)
+        divider = np.random.uniform(low=value_min, high=value_max, size=1).astype(data_type)
     output_arr = np.zeros((dst_tile_row, dst_tile_col), dtype=data_type)
-    output_arr[:rows, :cols] = input_arr[:rows, :cols] % divider[0]
+    if data_type == np.int64:
+        values = input_arr[:rows, :cols]
+        quotient = np.trunc(values.astype(np.float64) / float(divider[0])).astype(data_type)
+        output_arr[:rows, :cols] = values - quotient * divider[0]
+    elif divider[0] == 0:
+        output_arr[:rows, :cols] = 0
+    else:
+        output_arr[:rows, :cols] = input_arr[:rows, :cols] % divider[0]
 
     input_arr.tofile('input.bin')
     divider.tofile('divider.bin')
@@ -44,7 +56,8 @@ def gen_golden_data(param):
 
 
 class TestParams:
-    def __init__(self, name, data_type, dst_tile_row, dst_tile_col, src_tile_row, src_tile_col, row, col):
+    def __init__(self, name, data_type, dst_tile_row, dst_tile_col, src_tile_row, src_tile_col, row, col,
+                 zero_divisor=False):
         self.name = name
         self.data_type = data_type
         self.dst_tile_row = dst_tile_row
@@ -53,6 +66,7 @@ class TestParams:
         self.src_tile_col = src_tile_col
         self.row = row
         self.col = col
+        self.zero_divisor = zero_divisor
 
 
 if __name__ == "__main__":
@@ -65,6 +79,9 @@ if __name__ == "__main__":
         TestParams("TREMSTest.case6", np.float32, 256, 32, 256, 32, 256, 31),
         TestParams("TREMSTest.caseHP1", np.float32, 64, 64, 64, 64, 64, 64),
         TestParams("TREMSTest.caseHP2", np.float32, 64, 64, 64, 64, 64, 61),
+        TestParams("TREMSTest.case_int64_4x16", np.int64, 4, 16, 4, 16, 4, 16),
+        TestParams("TREMSTest.case_uint64_4x16", np.uint64, 4, 16, 4, 16, 4, 16),
+        TestParams("TREMSTest.case_uint64_zero_divisor_4x16", np.uint64, 4, 16, 4, 16, 4, 16, True),
     ]
 
     for case in case_params_list:

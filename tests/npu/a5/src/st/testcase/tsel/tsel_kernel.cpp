@@ -95,3 +95,7 @@ template void LaunchTSel<int8_t, 2, 128, 2, 128>(int8_t* out, uint8_t* mask, int
 template void LaunchTSel<int8_t, 2, 32, 2, 32>(int8_t* out, uint8_t* mask, int8_t* src0, int8_t* src1, void* stream);
 template void LaunchTSel<int8_t, 2, 160, 2, 160>(int8_t* out, uint8_t* mask, int8_t* src0, int8_t* src1, void* stream);
 template void LaunchTSel<float, 2, 512, 2, 512>(float* out, uint8_t* mask, float* src0, float* src1, void* stream);
+template void LaunchTSel<int64_t, 4, 16, 4, 16>(
+    int64_t* out, uint8_t* mask, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTSel<uint64_t, 4, 16, 4, 16>(
+    uint64_t* out, uint8_t* mask, uint64_t* src0, uint64_t* src1, void* stream);

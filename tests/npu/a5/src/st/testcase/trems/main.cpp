@@ -98,7 +98,12 @@ inline void TRemSTestFramework()
     ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
 
-    bool res = ResultCmp<T>(golden, devFinal, 0.001f);
+    bool res;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        res = ResultCmpExact(golden, devFinal.data());
+    } else {
+        res = ResultCmp<T>(golden, devFinal, 0.001f);
+    }
     EXPECT_TRUE(res);
 }
 
@@ -117,3 +122,6 @@ TEST_F(TREMSTest, case6) { TRemSTestFramework<float, 256, 32, 256, 32, 256, 31>(
 TEST_F(TREMSTest, caseHP1) { TRemSTestFramework<float, 64, 64, 64, 64, 64, 64, false, true>(); }
 
 TEST_F(TREMSTest, caseHP2) { TRemSTestFramework<float, 64, 64, 64, 64, 64, 61, false, true>(); }
+TEST_F(TREMSTest, case_int64_4x16) { TRemSTestFramework<int64_t, 4, 16, 4, 16, 4, 16>(); }
+TEST_F(TREMSTest, case_uint64_4x16) { TRemSTestFramework<uint64_t, 4, 16, 4, 16, 4, 16>(); }
+TEST_F(TREMSTest, case_uint64_zero_divisor_4x16) { TRemSTestFramework<uint64_t, 4, 16, 4, 16, 4, 16>(); }

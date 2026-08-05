@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TPARTMIN_HPP
 
 #include "TPartBinOps.hpp"
+#include "Int64Reduce.hpp"
 
 namespace pto {
 
@@ -31,11 +32,18 @@ PTO_INTERNAL void TPARTMIN_IMPL(DstTileData& dst, Src0TileData& src0, Src1TileDa
         std::is_same_v<T, typename Src0TileData::DType> && std::is_same_v<T, typename Src1TileData::DType>,
         "Fix: TPARTMIN Input and output types should match");
     static_assert(
-        std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> || std::is_same_v<T, uint16_t> ||
-            std::is_same_v<T, int16_t> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> ||
-            std::is_same_v<T, half> || std::is_same_v<T, float> || std::is_same_v<T, bfloat16_t>,
+        std::is_same_v<T, uint64_t> || std::is_same_v<T, int64_t> || std::is_same_v<T, uint8_t> ||
+            std::is_same_v<T, int8_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, int16_t> ||
+            std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, half> ||
+            std::is_same_v<T, float> || std::is_same_v<T, bfloat16_t>,
         "Fix: TPARTMIN Invalid data type.");
-    TPARTOP_IMPL<TPartMinOp<T>, DstTileData, Src0TileData, Src1TileData>(dst, src0, src1);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Part<Int64Op::Min, T, DstTileData::Cols, Src0TileData::Cols, Src1TileData::Cols>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ T*)src0.data(), (__ubuf__ T*)src1.data(), src0.GetValidRow(),
+            src0.GetValidCol(), src1.GetValidRow(), src1.GetValidCol(), dst.GetValidRow(), dst.GetValidCol());
+    } else {
+        TPARTOP_IMPL<TPartMinOp<T>, DstTileData, Src0TileData, Src1TileData>(dst, src0, src1);
+    }
 }
 } // namespace pto
 #endif

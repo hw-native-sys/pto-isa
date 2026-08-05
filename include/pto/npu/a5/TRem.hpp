@@ -18,6 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/TBinOp.hpp>
 #include <pto/common/debug.h>
 #include "custom/TFmodRemHp.hpp"
+#include "Int64Div.hpp"
 
 namespace pto {
 
@@ -89,8 +90,13 @@ __tf__ PTO_INTERNAL OP_NAME(TREM) OP_TYPE(element_wise) void TRem(
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
     // Note: tmp parameter is not used in a5 implementation (no sign correction needed)
-    BinaryInstr<RemOp<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
-        dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64Rem<T, TileDataDst::Cols, TileDataSrc0::Cols, TileDataSrc1::Cols>(
+            dstPtr, src0Ptr, src1Ptr, validRows, validCols);
+    } else {
+        BinaryInstr<RemOp<PrecisionType, T>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
+            dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
+    }
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp>
@@ -99,8 +105,9 @@ PTO_INTERNAL void TRemCheck(
 {
     using T = typename TileDataDst::DType;
     static_assert(
-        std::is_same<T, half>::value || std::is_same<T, float>::value || std::is_same<T, uint16_t>::value ||
-            std::is_same<T, int16_t>::value || std::is_same<T, uint32_t>::value || std::is_same<T, int32_t>::value,
+        std::is_same<T, int64_t>::value || std::is_same<T, uint64_t>::value || std::is_same<T, half>::value ||
+            std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, uint32_t>::value || std::is_same<T, int32_t>::value,
         "Fix: TREM has invalid data type.");
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,

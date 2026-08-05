@@ -21,6 +21,8 @@ TYPE_MAP = {
     np.int16: "int16",
     np.uint16: "uint16",
     np.uint32: "uint32",
+    np.int64: "int64",
+    np.uint64: "uint64",
 }
 
 TIMES_TWO = 2
@@ -124,9 +126,13 @@ if __name__ == "__main__":
         TScatterParams(np.float32, np.int32, 7, 448, 7, 448),
         TScatterParams(np.int8, np.uint16, 256, 32, 256, 32),
         TScatterParams(np.float32, np.uint32, 32, 64, 32, 64),
+        TScatterParams(np.int64, np.uint32, 4, 16, 4, 16),
+        TScatterParams(np.uint64, np.uint32, 4, 16, 4, 16),
         TScatterMaskParams(np.float16, 16, 64, 64, "P1111"),
         TScatterMaskParams(np.float32, 16, 64, 64, "P1111"),
         TScatterMaskParams(np.int32, 16, 64, 64, "P1111"),
+        TScatterMaskParams(np.int64, 4, 16, 32, "P1010"),
+        TScatterMaskParams(np.uint64, 4, 16, 64, "P0001"),
         TScatterMaskParams(np.float16, 16, 64, 128, "P1010"),
         TScatterMaskParams(np.float16, 16, 64, 128, "P0101"),
         TScatterMaskParams(np.float32, 16, 64, 128, "P1010"),

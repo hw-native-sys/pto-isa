@@ -67,6 +67,9 @@ template void LaunchTAdd<float, 64, 64, 64, 64, 64, 64, 64, 64>(float* out, floa
 template void LaunchTAdd<float, 64, 128, 64, 128, 64, 128, 64, 128>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTAdd<int32_t, 64, 64, 64, 64, 64, 64, 64, 64>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTAdd<int64_t, 4, 16, 4, 16, 4, 16, 4, 15>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTAdd<uint64_t, 4, 16, 4, 16, 4, 16, 4, 15>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
 template void LaunchTAdd<int16_t, 64, 64, 64, 64, 64, 64, 64, 64>(
     int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 template void LaunchTAddHalf<16, 256, 16, 256, 16, 256, 16, 256>(

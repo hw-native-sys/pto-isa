@@ -23,7 +23,16 @@ def gen_golden_data(case_name, param):
     h_valid, w_valid = param.valid_row, param.valid_col
 
     # Generate random input arrays
-    if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
+    if dtype in (np.int64, np.uint64):
+        input1 = np.random.randint(1, 1000, size=[src0_tile_row, src0_tile_col]).astype(dtype)
+        input2 = np.random.randint(1, 20, size=[src1_tile_row, src1_tile_col]).astype(dtype)
+        if dtype == np.int64:
+            input1.flat[:4] = [np.iinfo(np.int64).min, -7, 7, np.iinfo(np.int64).max]
+            input2.flat[:4] = [-1, 3, -3, 0]
+        else:
+            input1.flat[:3] = [np.iinfo(np.uint64).max, 7, 0]
+            input2.flat[:3] = [3, 0, np.iinfo(np.uint64).max]
+    elif dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
         dtype_info = np.iinfo(dtype)
         input1 = np.random.randint(dtype_info.min, dtype_info.max,
             size=[src0_tile_row, src0_tile_col]).astype(dtype)
@@ -38,7 +47,21 @@ def gen_golden_data(case_name, param):
 
     # Perform the operation
     golden = np.zeros([dst_tile_row, dst_tile_col]).astype(dtype)
-    golden[0:h_valid, 0:w_valid] = input1[0:h_valid, 0:w_valid] / input2[0:h_valid, 0:w_valid]
+    if dtype in (np.int64, np.uint64):
+        for i in range(h_valid):
+            for j in range(w_valid):
+                lhs = int(input1[i, j])
+                rhs = int(input2[i, j])
+                if rhs == 0:
+                    value = 0
+                elif dtype == np.int64 and lhs == np.iinfo(np.int64).min and rhs == -1:
+                    value = lhs
+                else:
+                    quotient = abs(lhs) // abs(rhs)
+                    value = -quotient if (lhs < 0) != (rhs < 0) else quotient
+                golden[i, j] = value
+    else:
+        golden[0:h_valid, 0:w_valid] = input1[0:h_valid, 0:w_valid] / input2[0:h_valid, 0:w_valid]
 
     # Save the input and golden data to binary files
     input1.tofile("input1.bin")
@@ -67,6 +90,8 @@ def generate_case_name(param):
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
+        np.int64: 'int64',
+        np.uint64: 'uint64',
         np.int16: 'int16'
     }[param.dtype]
     if param.high_precision:
@@ -99,6 +124,8 @@ if __name__ == "__main__":
         TDivParams(np.int32, 16, 32, 16, 64, 16, 32, 16, 31),
         TDivParams(np.float32, 2, 16, 2, 16, 2, 16, 2, 16, True),
         TDivParams(np.float16, 2, 32, 2, 32, 2, 32, 2, 32, True),
+        TDivParams(np.int64, 4, 16, 4, 16, 4, 16, 4, 16),
+        TDivParams(np.uint64, 4, 16, 4, 16, 4, 16, 4, 16),
     ]
 
     for param in case_params_list:

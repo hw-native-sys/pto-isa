@@ -72,4 +72,6 @@ template void launchTROWEXPAND<float, 16, 8, 128, 128>(float* out, float* src, v
 template void launchTROWEXPAND<aclFloat16, 16, 16, 511, 512>(aclFloat16* out, aclFloat16* src, void* stream);
 template void launchTROWEXPAND<int8_t, 16, 32, 255, 256>(int8_t* out, int8_t* src, void* stream);
 template void launchTROWEXPAND<float, 16, 8, 127, 128>(float* out, float* src, void* stream);
+template void launchTROWEXPAND<int64_t, 4, 16, 16, 16>(int64_t* out, int64_t* src, void* stream);
+template void launchTROWEXPAND<uint64_t, 4, 16, 16, 16>(uint64_t* out, uint64_t* src, void* stream);
 } // namespace TRowExpandTest

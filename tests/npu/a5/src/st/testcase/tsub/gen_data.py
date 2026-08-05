@@ -56,6 +56,8 @@ def generate_case_name(param):
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
+        np.int64: 'int64',
+        np.uint64: 'uint64',
         np.int16: 'int16'
     }[param.dtype]
     return f"TSUBTest.case_{dtype_str}_{param.dst_tile_row}x{param.dst_tile_col}_\
@@ -84,6 +86,8 @@ if __name__ == "__main__":
         TSubParams(np.float32, 16, 32, 16, 64, 16, 32, 16, 31),
         TSubParams(np.int16, 32, 128, 32, 128, 32, 256, 32, 127),
         TSubParams(np.int32, 16, 32, 16, 64, 16, 32, 16, 31),
+        TSubParams(np.int64, 4, 16, 4, 16, 4, 16, 4, 16),
+        TSubParams(np.uint64, 4, 16, 4, 16, 4, 16, 4, 16),
     ]
 
     for param in case_params_list:

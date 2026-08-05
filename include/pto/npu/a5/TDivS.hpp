@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils.hpp"
 #include "TBinSOp.hpp"
 #include "custom/Div754.hpp"
+#include "Int64Div.hpp"
 
 namespace pto {
 
@@ -98,7 +99,9 @@ __tf__ PTO_INTERNAL OP_NAME(TDIVS) OP_TYPE(element_wise) void TDivS(
     using T = typename TileDataDst::DType;
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
-    if constexpr (std::is_integral_v<T>) {
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64DivScalar<false, T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
+    } else if constexpr (std::is_integral_v<T>) {
         TDivs_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
     } else {
         BinaryInstr<
@@ -118,7 +121,9 @@ __tf__ PTO_INTERNAL OP_NAME(TDIVS) OP_TYPE(element_wise) void TDivS(
     using T = typename TileDataDst::DType;
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
-    if constexpr (std::is_integral_v<T>) {
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64DivScalar<true, T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
+    } else if constexpr (std::is_integral_v<T>) {
         TSDiv_naive<T, TileDataDst::Cols, TileDataSrc::Cols>(dstPtr, src0Ptr, src1, validRow, validCol);
     } else {
         BinaryInstr<
@@ -131,7 +136,9 @@ template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, type
 PTO_INTERNAL void TDIVS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileDataSrc::DType scalar)
 {
     static_assert(
-        std::is_same<typename TileDataDst::DType, uint32_t>::value ||
+        std::is_same<typename TileDataDst::DType, uint64_t>::value ||
+            std::is_same<typename TileDataDst::DType, int64_t>::value ||
+            std::is_same<typename TileDataDst::DType, uint32_t>::value ||
             std::is_same<typename TileDataDst::DType, int32_t>::value ||
             std::is_same<typename TileDataDst::DType, uint16_t>::value ||
             std::is_same<typename TileDataDst::DType, int16_t>::value ||

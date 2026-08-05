@@ -25,9 +25,9 @@ def gen_golden_data_tmaxs(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    if dtype in (np.int8, np.int16, np.int32, np.uint8, np.uint16, np.uint32):
-        input1 = np.random.randint(1, 10, size=[height, width]).astype(dtype)
-        input2 = np.random.randint(1, 10, size=[1]).astype(dtype)
+    if np.issubdtype(dtype, np.integer):
+        input1 = np.random.randint(1, 100, size=[height, width]).astype(dtype)
+        input2 = np.array([50], dtype=dtype)
     else:
         input1 = np.random.uniform(low=-13.013, high=130.013, size=[height, width]).astype(dtype)
         input2 = np.random.uniform(low=-13.013, high=130.013, size=[1]).astype(dtype)
@@ -67,6 +67,8 @@ def generate_case_name(param):
         np.uint16: 'uint16',
         np.int8: 'int8',
         np.uint8: 'uint8',
+        np.int64: 'int64',
+        np.uint64: 'uint64',
     }[param.dtype]
     return f"TMAXSTest.case_{dtype_str}_{param.dst_row}x{param.dst_col}_{param.tile_row}x{param.tile_col}"\
         f"_{param.valid_row}x{param.valid_col}"
@@ -95,6 +97,8 @@ if __name__ == "__main__":
         TestParams(np.uint16, 32, 128, 32, 128, 32, 128),
         TestParams(np.int8, 32, 128, 32, 128, 32, 128),
         TestParams(np.uint8, 32, 128, 32, 128, 32, 128),
+        TestParams(np.int64, 4, 16, 4, 16, 4, 16),
+        TestParams(np.uint64, 4, 16, 4, 16, 4, 16),
     ]
 
     for _, param in enumerate(case_params_list):

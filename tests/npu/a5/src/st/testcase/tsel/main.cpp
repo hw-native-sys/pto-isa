@@ -33,6 +33,19 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
+template <typename T>
+void CheckTSelResult(size_t fileSize)
+{
+    std::vector<T> golden(fileSize / sizeof(T));
+    std::vector<T> devFinal(fileSize / sizeof(T));
+    ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>)
+        EXPECT_TRUE(ResultCmpExact(golden, devFinal.data()));
+    else
+        EXPECT_TRUE(ResultCmp<T>(golden, devFinal, 0.001f));
+}
+
 template <typename T, int Rows, int Cols, int ValidRows, int ValidCols>
 void test_tsel()
 {
@@ -86,14 +99,7 @@ void test_tsel()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<T> golden(fileSize);
-    std::vector<T> devFinal(fileSize);
-    ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize);
-    ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize);
-
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
-
-    EXPECT_TRUE(ret);
+    CheckTSelResult<T>(fileSize);
 }
 
 TEST_F(TSELTest, case1) { test_tsel<float, 2, 128, 2, 128>(); }
@@ -106,3 +112,5 @@ TEST_F(TSELTest, case7) { test_tsel<int8_t, 2, 128, 2, 128>(); }
 TEST_F(TSELTest, case8) { test_tsel<int8_t, 2, 32, 2, 32>(); }
 TEST_F(TSELTest, case9) { test_tsel<int8_t, 2, 160, 2, 160>(); }
 TEST_F(TSELTest, case10) { test_tsel<float, 2, 512, 2, 512>(); }
+TEST_F(TSELTest, case_int64_4x16) { test_tsel<int64_t, 4, 16, 4, 16>(); }
+TEST_F(TSELTest, case_uint64_4x16) { test_tsel<uint64_t, 4, 16, 4, 16>(); }

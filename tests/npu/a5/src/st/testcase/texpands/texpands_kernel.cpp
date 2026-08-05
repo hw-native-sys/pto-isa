@@ -82,3 +82,7 @@ template void LaunchTExpandS<int16_t, 16, 200, 20, 512, 16, 200, PAD_VALUE_MAX, 
     void* out, void* scalar, void* stream);
 template void LaunchTExpandS<int16_t, 1, 200, 1, 512, 1, 200, PAD_VALUE_MAX, false>(
     void* out, void* scalar, void* stream);
+template void LaunchTExpandS<int64_t, 5, 16, 5, 16, 5, 16, PAD_VALUE_NULL, false>(
+    void* out, void* scalar, void* stream);
+template void LaunchTExpandS<uint64_t, 5, 16, 5, 16, 5, 16, PAD_VALUE_NULL, false>(
+    void* out, void* scalar, void* stream);

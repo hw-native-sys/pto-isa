@@ -55,6 +55,8 @@ def generate_case_name(param):
         np.float16: 'half',
         np.int8: 'int8',
         np.int32: 'int32',
+        np.int64: 'int64',
+        np.uint64: 'uint64',
         np.int16: 'int16'
     }[param.dtype]
     return f"TADDTest.case_{dtype_str}_{param.dst_tile_row}x{param.dst_tile_col}_\
@@ -74,6 +76,8 @@ if __name__ == "__main__":
         TAddParams(np.float32, 64, 128, 64, 128, 64, 128, 64, 128),
         TAddParams(np.float32, 64, 64, 64, 64, 64, 64, 64, 64),
         TAddParams(np.int32, 64, 64, 64, 64, 64, 64, 64, 64),
+        TAddParams(np.int64, 4, 16, 4, 16, 4, 16, 4, 15),
+        TAddParams(np.uint64, 4, 16, 4, 16, 4, 16, 4, 15),
         TAddParams(np.int16, 64, 64, 64, 64, 64, 64, 64, 64),
         TAddParams(np.float16, 16, 256, 16, 256, 16, 256, 16, 256),
         TAddParams(np.float16, 16, 64, 16, 128, 16, 128, 16, 64),

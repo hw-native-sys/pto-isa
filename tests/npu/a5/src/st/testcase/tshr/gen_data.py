@@ -24,8 +24,13 @@ def gen_golden_data_tshr(case_name, param):
     input1 = np.random.randint(-100, 100, size=h_valid * w_valid).astype(dtype)
     input2 = np.random.randint(0, 32, size=h_valid * w_valid).astype(dtype)
 
+    if dtype in (np.int64, np.uint64):
+        edge = np.iinfo(dtype).min if dtype == np.int64 else np.iinfo(dtype).max
+        input1[:4] = [edge, edge, edge, 1]
+        input2[:4] = [0, 63, 64, 65]
+
     # Perform the andbtraction
-    golden = input1 >> input2
+    golden = input1 >> (input2 & 63 if dtype in (np.int64, np.uint64) else input2)
 
     # Apply valid region constraints
     output = np.zeros(h_valid * w_valid).astype(dtype)
@@ -66,6 +71,8 @@ if __name__ == "__main__":
         TShrParams("TSHRTest.case7", np.int8, 32, 32, 32, 32),
         TShrParams("TSHRTest.case8", np.int16, 16, 16, 16, 16),
         TShrParams("TSHRTest.case9", np.int32, 8, 8, 8, 8),
+        TShrParams("TSHRTest.case_int64_4x16", np.int64, 4, 16, 4, 16),
+        TShrParams("TSHRTest.case_uint64_4x16", np.uint64, 4, 16, 4, 16),
     ]
 
     for param in case_params_list:

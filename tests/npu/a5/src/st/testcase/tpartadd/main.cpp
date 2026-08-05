@@ -84,7 +84,12 @@ void test_tpartadd()
     ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstFileSize, devFinal.data(), dstFileSize);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -98,3 +103,6 @@ TEST_F(TPARTADDTest, case_half_8x48_8x16_8x48) { test_tpartadd<aclFloat16, 8, 48
 TEST_F(TPARTADDTest, case_half_8x768_8x512_8x768) { test_tpartadd<aclFloat16, 8, 768, 8, 512, 8, 768>(); }
 TEST_F(TPARTADDTest, case_int16_8x48_8x48_8x16) { test_tpartadd<int16_t, 8, 48, 8, 48, 8, 16>(); }
 TEST_F(TPARTADDTest, case_int32_64x64_8x64_64x64) { test_tpartadd<int32_t, 64, 64, 8, 64, 64, 64>(); }
+TEST_F(TPARTADDTest, case_int64_4x16_2x16_4x16) { test_tpartadd<int64_t, 4, 16, 2, 16, 4, 16>(); }
+TEST_F(TPARTADDTest, case_uint64_4x16_2x16_4x16) { test_tpartadd<uint64_t, 4, 16, 2, 16, 4, 16>(); }
+TEST_F(TPARTADDTest, case_int64_4x16_4x8_4x16) { test_tpartadd<int64_t, 4, 16, 4, 8, 4, 16>(); }

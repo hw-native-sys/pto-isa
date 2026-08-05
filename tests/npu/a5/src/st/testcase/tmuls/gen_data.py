@@ -11,8 +11,6 @@
 # --------------------------------------------------------------------------------
 
 import os
-import struct
-import ctypes
 import numpy as np
 np.random.seed(23)
 
@@ -24,16 +22,19 @@ def gen_golden_data(param):
     dst_tile_row = param.dst_tile_row
     dst_tile_col = param.dst_tile_col
 
-    input_arr = np.random.uniform(low=-8, high=8, size=(rows, cols)).astype(data_type)
-    divider = np.random.uniform(low=-8, high=8, size=(1, 1)).astype(data_type)
+    if data_type in (np.int64, np.uint64):
+        input_arr = np.random.randint(1, 1000, size=(rows, cols)).astype(data_type)
+        divider = np.array([[7]], dtype=data_type)
+    else:
+        input_arr = np.random.uniform(low=-8, high=8, size=(rows, cols)).astype(data_type)
+        divider = np.random.uniform(low=-8, high=8, size=(1, 1)).astype(data_type)
     output_arr = np.zeros((dst_tile_row, dst_tile_col), dtype=data_type)
     for i in range(rows):
         for j in range(cols):
             output_arr[i, j] = input_arr[i, j] * divider[0, 0]
 
     input_arr.tofile('input.bin')
-    with open("divider.bin", 'wb') as f:
-        f.write(struct.pack('f', np.float32(divider[0, 0])))
+    divider.tofile("divider.bin")
     output_arr.tofile('golden.bin')
 
 
@@ -55,6 +56,8 @@ if __name__ == "__main__":
         TAddsParams("TMULSTest.case5", np.float32, 7, 512, 7, 64 * 7),
         TAddsParams("TMULSTest.case6", np.float32, 256, 32, 256, 16),
         TAddsParams("TMULSTest.case7", np.float32, 1, 32, 1, 16),
+        TAddsParams("TMULSTest.case_int64_4x16", np.int64, 4, 16, 4, 16),
+        TAddsParams("TMULSTest.case_uint64_4x16", np.uint64, 4, 16, 4, 16),
     ]
 
     for _, case in enumerate(case_params_list):

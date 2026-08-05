@@ -58,6 +58,9 @@ protected:
         float eps = sizeof(T) == 4 ? 0.001f : 0.005f;
         ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
         ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, result.data(), dstByteSize);
+        if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+            return ResultCmpExact(golden, result.data());
+        }
         if (printAllEn) {
             return ResultCmp(golden, result, eps, 0, 1000, true);
         }
@@ -172,3 +175,5 @@ TEST_F(TCOLSUMTest, case31)
     bool ret = TCOLSUMTestFramework<31, float, 1, 1, 1, 512, 511>();
     EXPECT_TRUE(ret);
 }
+TEST_F(TCOLSUMTest, case_int64_4x16) { EXPECT_TRUE((TCOLSUMTestFramework<41, int64_t, 4, 4, 1, 16, 16>())); }
+TEST_F(TCOLSUMTest, case_uint64_4x16) { EXPECT_TRUE((TCOLSUMTestFramework<42, uint64_t, 4, 4, 1, 16, 16>())); }

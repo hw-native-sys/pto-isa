@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include "utils.hpp"
 #include "TBinSOp.hpp"
+#include "Int64Rearrange.hpp"
 
 namespace pto {
 inline namespace TExpandsInternal {
@@ -41,7 +42,10 @@ __tf__ OP_NAME(TEXPANDS) OP_TYPE(broadcast) PTO_INTERNAL void TExpandS(
 
     __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
 
-    if constexpr (TileData::isRowMajor) {
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        static_assert(TileData::isRowMajor, "TEXPANDS B64 currently requires row-major layout.");
+        Int64Fill<T, TileData::Cols>(dstPtr, scalar, kValidRows, kValidCols);
+    } else if constexpr (TileData::isRowMajor) {
         constexpr unsigned stride = TileData::RowStride;
         BinaryInstr<ExpandSOp<T>, TileData, TileData, T, elementsPerRepeat, blockSizeElem, stride, stride>(
             dstPtr, dstPtr, scalar, kValidRows, kValidCols, version);
@@ -143,10 +147,11 @@ PTO_INTERNAL void TEXPANDS_IMPL(TileData& dst, typename TileData::DType scalar)
 {
     using T = typename TileData::DType;
     static_assert(
-        std::is_same<T, int32_t>::value || std::is_same<T, uint32_t>::value || std::is_same<T, int>::value ||
-            std::is_same<T, int16_t>::value || std::is_same<T, uint16_t>::value || std::is_same<T, int8_t>::value ||
-            std::is_same<T, uint8_t>::value || std::is_same<T, half>::value || std::is_same<T, float16_t>::value ||
-            std::is_same<T, float>::value || std::is_same<T, float32_t>::value || std::is_same<T, bfloat16_t>::value,
+        std::is_same<T, int64_t>::value || std::is_same<T, uint64_t>::value || std::is_same<T, int32_t>::value ||
+            std::is_same<T, uint32_t>::value || std::is_same<T, int>::value || std::is_same<T, int16_t>::value ||
+            std::is_same<T, uint16_t>::value || std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value ||
+            std::is_same<T, half>::value || std::is_same<T, float16_t>::value || std::is_same<T, float>::value ||
+            std::is_same<T, float32_t>::value || std::is_same<T, bfloat16_t>::value,
         "TEXPANDS: Invalid data type");
     static_assert(
         TileData::Loc == TileType::Vec || TileData::Loc == TileType::Mat,

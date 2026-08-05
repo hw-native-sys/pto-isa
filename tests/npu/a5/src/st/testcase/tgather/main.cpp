@@ -28,6 +28,9 @@ template <
     typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, pto::MaskPattern maskPattern>
 void LaunchTGATHER(dstT* out, srcT* src, void* stream);
 
+template <typename T, int staticRows, int staticCols, int validRows, int validCols, pto::MaskPattern maskPattern>
+void LaunchTGATHERDynamic(T* out, T* src, void* stream);
+
 template <
     typename srcT, typename src1T, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int K,
     pto::CmpMode cmpMode>
@@ -102,12 +105,17 @@ void test_gather_index()
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<float> golden(dstFileSize);
-    std::vector<float> devFinal(dstFileSize);
+    std::vector<dstT> golden(DSTROW * DSTCOL);
+    std::vector<dstT> devFinal(DSTROW * DSTCOL);
     ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstFileSize, devFinal.data(), dstFileSize);
 
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<dstT, int64_t> || std::is_same_v<dstT, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -133,6 +141,10 @@ TEST_F(TGATHERTest, case6_f8e5m2_i16_16x128_16x64)
 TEST_F(TGATHERTest, case7_i8_u16_16x128_16x64) { test_gather_index<int8_t, uint16_t, int8_t, 16, 128, 16, 64>(); }
 
 TEST_F(TGATHERTest, case8_u8_u16_16x128_16x64) { test_gather_index<uint8_t, uint16_t, uint8_t, 16, 128, 16, 64>(); }
+
+TEST_F(TGATHERTest, case9_int64_u32_4x16_4x16) { test_gather_index<int64_t, uint32_t, int64_t, 4, 16, 4, 16>(); }
+
+TEST_F(TGATHERTest, case10_uint64_u32_4x16_4x16) { test_gather_index<uint64_t, uint32_t, uint64_t, 4, 16, 4, 16>(); }
 
 template <typename T, pto::MaskPattern PATTERN, uint32_t ROW, uint32_t COL, typename dstT = T>
 void test_gather()
@@ -182,7 +194,12 @@ void test_gather()
     ReadFile(GetGoldenDir() + "/golden.bin", dstsize, golden.data(), dstsize);
     ReadFile(GetGoldenDir() + "/output_z.bin", dstsize, devFinal.data(), dstsize);
 
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        ret = ResultCmpExact(golden, devFinal.data());
+    } else {
+        ret = ResultCmp(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -296,6 +313,48 @@ TEST_F(TGATHERTest, case1_I32_P1111)
 {
     test_gather<int32_t, pto::MaskPattern::P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>();
 }
+
+TEST_F(TGATHERTest, case_int64_4x16_P1010) { test_gather<int64_t, pto::MaskPattern::P1010, 4, 16>(); }
+
+TEST_F(TGATHERTest, case_uint64_4x16_P0001) { test_gather<uint64_t, pto::MaskPattern::P0001, 4, 16>(); }
+
+template <typename T>
+void test_gather_dynamic_b64()
+{
+    constexpr size_t srcElements = 3 * 15;
+    constexpr size_t dstElements = 3 * 7;
+    constexpr size_t srcBytes = srcElements * sizeof(T);
+    constexpr size_t dstBytes = dstElements * sizeof(T);
+    size_t srcFileSize = srcBytes;
+    size_t dstFileSize = dstBytes;
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+    T *srcHost, *dstHost, *srcDevice, *dstDevice;
+    aclrtMallocHost((void**)&srcHost, srcBytes);
+    aclrtMallocHost((void**)&dstHost, dstBytes);
+    aclrtMalloc((void**)&srcDevice, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDevice, dstBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcBytes);
+    aclrtMemcpy(srcDevice, srcBytes, srcHost, srcBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    LaunchTGATHERDynamic<T, 4, 24, 3, 15, pto::MaskPattern::P1010>(dstDevice, srcDevice, stream);
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstBytes, dstDevice, dstBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+    std::vector<T> golden(dstElements);
+    ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstBytes);
+    EXPECT_TRUE(ResultCmpExact(golden, dstHost));
+    aclrtFree(dstDevice);
+    aclrtFree(srcDevice);
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(srcHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+}
+
+TEST_F(TGATHERTest, case_int64_dynamic_3x15_static_4x24_P1010) { test_gather_dynamic_b64<int64_t>(); }
+TEST_F(TGATHERTest, case_uint64_dynamic_3x15_static_4x24_P1010) { test_gather_dynamic_b64<uint64_t>(); }
 
 TEST_F(TGATHERTest, case1_b8_P0101) { test_gather<int8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL>(); }
 

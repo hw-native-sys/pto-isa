@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
 #include "utils.hpp"
+#include "Int64Binary.hpp"
 
 namespace pto {
 template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, unsigned elementsPerRepeat>
@@ -121,14 +122,15 @@ PTO_INTERNAL void TSELS_IMPL(
         std::is_same_v<typename TileDataSrc::DType, typename TileDataDst::DType>,
         "TileType of dst and src must be the same.");
     static_assert(
-        std::is_same<T, int8_t>::value || std::is_same<T, int16_t>::value || std::is_same<T, int32_t>::value ||
-            std::is_same<T, half>::value || std::is_same<T, float32_t>::value || std::is_same<T, uint8_t>::value ||
-            std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value,
+        std::is_same<T, int64_t>::value || std::is_same<T, uint64_t>::value || std::is_same<T, int8_t>::value ||
+            std::is_same<T, int16_t>::value || std::is_same<T, int32_t>::value || std::is_same<T, half>::value ||
+            std::is_same<T, float32_t>::value || std::is_same<T, uint8_t>::value || std::is_same<T, uint16_t>::value ||
+            std::is_same<T, uint32_t>::value,
         "TSELS: Invalid data type");
     static_assert(
         TileDataDst::isRowMajor && TileDataMask::isRowMajor && TileDataSrc::isRowMajor,
         "TSELS: not supported Layout type");
-    static_assert(sizeof(T) == 4 || sizeof(T) == 2 || sizeof(T) == 1, "TSELS: Invalid data type.");
+    static_assert(sizeof(T) == 8 || sizeof(T) == 4 || sizeof(T) == 2 || sizeof(T) == 1, "TSELS: Invalid data type.");
 
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
@@ -138,7 +140,12 @@ PTO_INTERNAL void TSELS_IMPL(
     PTO_ASSERT(src.GetValidCol() == dst.GetValidCol(), "Number of columns of src and dst must be the same.");
     PTO_ASSERT(src.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
 
-    if (sizeof(T) == 4) {
+    if constexpr (sizeof(T) == 8) {
+        constexpr unsigned maskRowBytes = TileDataMask::RowStride * sizeof(typename TileDataMask::DType);
+        Int64SelectScalar<T, TileDataDst::Cols, maskRowBytes, TileDataSrc::Cols>(
+            (__ubuf__ T*)dst.data(), (__ubuf__ uint8_t*)mask.data(), (__ubuf__ T*)src.data(), scalar, validRow,
+            validCol);
+    } else if (sizeof(T) == 4) {
         TSels_b32<TileDataDst, TileDataMask, TileDataSrc, elementsPerRepeat>(
             dst.data(), mask.data(), src.data(), scalar, validRow, validCol);
     } else {

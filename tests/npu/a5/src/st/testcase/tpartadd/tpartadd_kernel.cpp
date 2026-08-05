@@ -67,3 +67,7 @@ template void LaunchTPartAdd<aclFloat16, 8, 768, 8, 512, 8, 768>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 template void LaunchTPartAdd<int16_t, 8, 48, 8, 48, 8, 16>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 template void LaunchTPartAdd<int32_t, 64, 64, 8, 64, 64, 64>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTPartAdd<int64_t, 4, 16, 2, 16, 4, 16>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTPartAdd<uint64_t, 4, 16, 2, 16, 4, 16>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
+template void LaunchTPartAdd<int64_t, 4, 16, 4, 8, 4, 16>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
