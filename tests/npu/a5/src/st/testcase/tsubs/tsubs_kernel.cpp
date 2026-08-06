@@ -153,6 +153,12 @@ void launchTSUBSTestCase(void* out, void* src, T scalar, aclrtStream stream)
     }
 }
 
+template <uint32_t caseId>
+void launchTSUBSTestCase(void* out, void* src, float scalar, aclrtStream stream)
+{
+    launchTSUBSTestCase<caseId, float>(out, src, scalar, stream);
+}
+
 template void launchTSUBSTestCase<1, float>(void*, void*, float, aclrtStream);
 template void launchTSUBSTestCase<2, aclFloat16>(void*, void*, aclFloat16, aclrtStream);
 template void launchTSUBSTestCase<3, int32_t>(void*, void*, int32_t, aclrtStream);
@@ -166,3 +172,14 @@ template void launchTSUBSTestCase<10, uint8_t>(void*, void*, uint8_t, aclrtStrea
 template void launchTSUBSTestCase<11, uint8_t>(void*, void*, uint8_t, aclrtStream);
 template void launchTSUBSTestCase<12, int64_t>(void*, void*, int64_t, aclrtStream);
 template void launchTSUBSTestCase<13, uint64_t>(void*, void*, uint64_t, aclrtStream);
+template void launchTSUBSTestCase<1>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<2>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<3>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<4>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<5>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<6>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<7>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<8>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<9>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<10>(void*, void*, float, aclrtStream);
+template void launchTSUBSTestCase<11>(void*, void*, float, aclrtStream);

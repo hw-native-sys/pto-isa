@@ -157,6 +157,12 @@ void launchTADDSTestCase(void* out, void* src, T scalar, aclrtStream stream)
     }
 }
 
+template <uint32_t caseId>
+void launchTADDSTestCase(void* out, void* src, float scalar, aclrtStream stream)
+{
+    launchTADDSTestCase<caseId, float>(out, src, scalar, stream);
+}
+
 template void launchTADDSTestCase<1, float>(void* out, void* src, float scalar, aclrtStream stream);
 template void launchTADDSTestCase<2, aclFloat16>(void* out, void* src, aclFloat16 scalar, aclrtStream stream);
 template void launchTADDSTestCase<3, int32_t>(void* out, void* src, int32_t scalar, aclrtStream stream);
@@ -170,3 +176,14 @@ template void launchTADDSTestCase<10, uint8_t>(void* out, void* src, uint8_t sca
 template void launchTADDSTestCase<11, uint8_t>(void* out, void* src, uint8_t scalar, aclrtStream stream);
 template void launchTADDSTestCase<12, int64_t>(void* out, void* src, int64_t scalar, aclrtStream stream);
 template void launchTADDSTestCase<13, uint64_t>(void* out, void* src, uint64_t scalar, aclrtStream stream);
+template void launchTADDSTestCase<1>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<2>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<3>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<4>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<5>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<6>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<7>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<8>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<9>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<10>(void*, void*, float, aclrtStream);
+template void launchTADDSTestCase<11>(void*, void*, float, aclrtStream);

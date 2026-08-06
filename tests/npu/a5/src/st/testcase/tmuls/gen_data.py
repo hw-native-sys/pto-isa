@@ -11,6 +11,7 @@
 # --------------------------------------------------------------------------------
 
 import os
+import struct
 import numpy as np
 np.random.seed(23)
 
@@ -34,7 +35,11 @@ def gen_golden_data(param):
             output_arr[i, j] = input_arr[i, j] * divider[0, 0]
 
     input_arr.tofile('input.bin')
-    divider.tofile("divider.bin")
+    if data_type in (np.int64, np.uint64):
+        divider.tofile("divider.bin")
+    else:
+        with open("divider.bin", 'wb') as f:
+            f.write(struct.pack('f', np.float32(divider[0, 0])))
     output_arr.tofile('golden.bin')
 
 

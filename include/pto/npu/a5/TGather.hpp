@@ -251,6 +251,10 @@ __tf__ AICORE void TGather(
                 }
             }
         } else {
+            constexpr uint8_t SPR_AR_VALUE = 74;
+            constexpr auto sprValue = std::integral_constant<::Spr, static_cast<::Spr>(SPR_AR_VALUE)>();
+            sprclr(sprValue);
+
             MaskReg dstPg0 = GetMaskVal<T, maskPattern>();
             RegTensor<T> dstReg;
             MaskReg executeMask;
