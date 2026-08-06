@@ -25,7 +25,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <dlfcn.h>
 
 #include "acl/acl.h"
-#include "pto/comm/async_common/async_types.hpp"
+#include "pto/comm/async_common/sdma_constants.hpp"
 
 #ifndef ACL_STREAM_DEVICE_USE_ONLY
 #define ACL_STREAM_DEVICE_USE_ONLY 0x00000020U

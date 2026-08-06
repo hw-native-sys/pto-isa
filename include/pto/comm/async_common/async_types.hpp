@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 #include <climits>
+#include "pto/comm/async_common/sdma_constants.hpp"
 #include "pto/comm/comm_types.hpp"
 
 namespace pto {
@@ -26,12 +27,6 @@ constexpr uint32_t kSdmaFlagLength = 128U;
 constexpr uint32_t kUbAlignSize = 256U;
 constexpr uint32_t kSdmaEventRecordBytes = 16U;
 constexpr uint32_t kSdmaEventSlotCount = kSdmaFlagLength / kSdmaEventRecordBytes;
-constexpr uint32_t kSdmaContextWorkspaceBytes = 16U * 1024U;
-constexpr uint32_t kSdmaFlagPayloadBytesPerGroup = 512U;
-constexpr uint32_t kSdmaMaxChannelGroups = 48U;
-constexpr uint32_t kSdmaWorkspaceBytes =
-    kSdmaContextWorkspaceBytes + kSdmaMaxChannelGroups * kSdmaFlagPayloadBytesPerGroup;
-
 constexpr uint32_t SDMA_FLAG_LENGTH = kSdmaFlagLength;
 constexpr uint32_t UB_ALIGN_SIZE = kUbAlignSize;
 constexpr uint32_t SDMA_EVENT_RECORD_BYTES = kSdmaEventRecordBytes;

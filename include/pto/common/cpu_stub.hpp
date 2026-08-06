@@ -129,6 +129,9 @@ struct cache_line_t {
     static constexpr int ENTIRE_DATA_CACHE = 0;
     static constexpr int CACHELINE_OUT = 0;
 };
+struct dcci_dst_t {
+    static constexpr int CACHELINE_OUT = 0;
+};
 inline constexpr mem_dsb_t DSB_DDR = 0;
 inline constexpr mem_dsb_t DSB_ALL = 0;
 inline constexpr mem_dsb_t DSB_UB = 0;
