@@ -31,7 +31,6 @@ struct UrmaTestContext {
     void* devBuf{nullptr};
     void* stream{nullptr}; // dummy for tests backward compatibility with NPU
     UrmaWorkspaceManager urmaMgr;
-    void* stream{nullptr}; // Dummy placeholder for compatibility
 
     bool AllocHugePageBuffer(size_t commBytesNeeded) { return true; }
 
