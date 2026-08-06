@@ -462,6 +462,20 @@ struct TPipe {
     PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
     {
+        // Bidirectional: the two rings must NOT overlap. Both directions index the shared GM
+        // buffer as (tileIndex % SlotNum) * SlotSize, so without a per-direction base the C2V
+        // and V2C rings alias the same slots and silently corrupt each other's tiles. Place
+        // V2C after C2V, exactly as the ISA reference specifies
+        // (`v2c_ring_buf = GM_SLOT_BUFFER + SLOT_NUM * SLOT_SIZE`).
+        if constexpr (is_both) {
+            constexpr int V2C_ENTRY_OFFSET = static_cast<int>(SlotNum) * static_cast<int>(SlotSize);
+#ifdef __DAV_CUBE__
+            cons.setEntryOffset(V2C_ENTRY_OFFSET); // Cube consumes V2C
+#endif
+#ifdef __DAV_VEC__
+            prod.setEntryOffset(V2C_ENTRY_OFFSET); // Vector produces V2C
+#endif
+        }
         for (uint32_t i = 0; i < SyncPeriod; ++i) {
             cons.free();
         }
