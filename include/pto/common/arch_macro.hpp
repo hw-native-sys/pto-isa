@@ -11,13 +11,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef ARCH_MACRO_HPP
 #define ARCH_MACRO_HPP
 
-#if defined(__CPU_SIM)
-#ifndef __DAV_CUBE__
+#if defined(__CPU_SIM) && !defined(__DAV_CUBE__) && !defined(__DAV_VEC__)
 #define __DAV_CUBE__
-#endif
-#ifndef __DAV_VEC__
 #define __DAV_VEC__
-#endif
 #endif
 
 #if __NPU_ARCH__ == 2201
