@@ -22,7 +22,7 @@ fi
 source "${ASCEND_CANN_PATH}"
 
 SHORT=r:,v:,d:
-LONG=run-mode:,soc-version:,device-id:,grid-rows:,grid-cols:,src:,span-col:,token-tile:,model-tile:,build-only
+LONG=run-mode:,soc-version:,device-id:,grid-rows:,grid-cols:,src:,all-src:,span-col:,token-tile:,model-tile:,build-only
 OPTS=$(getopt -a --options $SHORT --longoptions $LONG -- "$@")
 eval set -- "$OPTS"
 
@@ -35,6 +35,7 @@ while :; do
         (--grid-rows)        BCAST_ROWS="$2"; shift 2;;
         (--grid-cols)        BCAST_COLS="$2"; shift 2;;
         (--src)              BCAST_SRC="$2"; shift 2;;
+        (--all-src)          BCAST_ALL_SRC="$2"; shift 2;;
         (--span-col)         BCAST_SPAN_COL="$2"; shift 2;;
         (--token-tile)       BCAST_T="$2"; shift 2;;
         (--model-tile)       BCAST_W="$2"; shift 2;;
@@ -49,6 +50,7 @@ done
 : "${BCAST_ROWS:=1}"
 : "${BCAST_COLS:=5}"
 : "${BCAST_SRC:=2}"
+: "${BCAST_ALL_SRC:=0}"
 : "${BCAST_SPAN_COL:=0}"
 : "${BCAST_T:=16}"
 : "${BCAST_W:=64}"
@@ -62,9 +64,9 @@ fi
 rm -rf /dev/shm/sem.hccl* 2>/dev/null
 ipcrm -a 2>/dev/null
 
-echo "=== GridPipe single-source broadcast smoke ==="
+echo "=== GridPipe group broadcast smoke ==="
 echo "  RUN_MODE: ${RUN_MODE}  SOC_VERSION: ${SOC_VERSION}  DEVICE_ID: ${DEVICE_ID}"
-echo "  Grid: ${BCAST_ROWS}x${BCAST_COLS}  SRC: ${BCAST_SRC}  SPAN_COL: ${BCAST_SPAN_COL}  Tile: ${BCAST_T}x${BCAST_W}"
+echo "  Grid: ${BCAST_ROWS}x${BCAST_COLS}  SRC: ${BCAST_SRC}  ALL_SRC: ${BCAST_ALL_SRC}  SPAN_COL: ${BCAST_SPAN_COL}  Tile: ${BCAST_T}x${BCAST_W}"
 echo "=============================================="
 
 # CMakeLists.txt lives in the parent demo directory; build from there.
@@ -81,7 +83,9 @@ set -euo pipefail
 
 cmake -DRUN_MODE=${RUN_MODE} -DSOC_VERSION=${SOC_VERSION} \
       -DBCAST_ROWS=${BCAST_ROWS} -DBCAST_COLS=${BCAST_COLS} -DBCAST_SRC=${BCAST_SRC} \
-      -DBCAST_SPAN_COL=${BCAST_SPAN_COL} -DBCAST_T=${BCAST_T} -DBCAST_W=${BCAST_W} \
+      -DBCAST_ALL_SRC=${BCAST_ALL_SRC} \
+      -DBCAST_SPAN_COL=${BCAST_SPAN_COL} \
+      -DBCAST_T=${BCAST_T} -DBCAST_W=${BCAST_W} \
       ..
 make -j16 bcast_smoke
 
@@ -91,5 +95,5 @@ if [ "${BUILD_ONLY}" -eq 1 ]; then
 fi
 
 echo ""
-echo "=== Running GridPipe single-source broadcast smoke ==="
+echo "=== Running GridPipe group broadcast smoke ==="
 ./bcast_smoke --device-id "${DEVICE_ID}"

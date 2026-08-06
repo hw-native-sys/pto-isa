@@ -8,26 +8,34 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-// GridPipe single-source row/column broadcast smoke kernel (Tier 1).
+// GridPipe TBROADCAST smoke kernel (Tier 1).
 //
 // Pure data movement, Vector-only (no Cube / matmul).  Every cell loads its own
-// stamped [T, W] fp32 tile, then:
-//   - the single source cell (index BCAST_SRC along the active span axis) issues
-//     ONE TPUSH<Span> (broadcast overload) delivering its tile to every other cell on its span
-//     (row for ROW, column for COL).  This is a true multicast: the per-target
-//     writes are batched with NO inter-target fence, the whole broadcast pays a
-//     single publish fence, then all ready doorbells fire -- it is NOT lowered to
-//     a per-hop TPUSH<Dir, k> loop.
-//   - every other cell drains the broadcast with the ordinary TPOP<dir, dist>
-//     toward the source (EAST/WEST for ROW, NORTH/SOUTH for COL) and stores it.
+// stamped [T, W] fp32 tile; what happens next depends on BCAST_ALL_SRC.
 //
-// Fan-in is 1 (one source per span), so no slot/flag (Scheme B) expansion is
-// needed.  The host verifies out[cell] == in[source-of-its-span]; the source
-// itself writes nothing (stays zero).
+// BCAST_ALL_SRC == 0 -- SINGLE SOURCE.  The cell whose rank-in-group is
+// BCAST_SRC issues ONE TBROADCAST<GridGroup> delivering its tile to every other
+// member of its group (its row for ROW, its column for COL): batched writes into
+// each receiver's directional ring, a single publish fence, then one increment
+// on each receiver's ready_scb.  This is NOT a per-hop TPUSH loop.  Every other
+// cell drains it with TPOP<GridGroup>(pipe, tile, BCAST_SRC) and stores it; the
+// host verifies out[cell] == in[source].  With one publisher there is no next
+// source, so no turn is passed and neither TBWAIT nor TBNOTIFY is called.
 //
-// The receiver distance is a runtime value but TPOP<Dir, Dist> takes Dist as a
-// template parameter, so PopAtDist<MaxDist> unrolls a compile-time dispatch over
-// the (small, grid-bounded) distance set.
+// BCAST_ALL_SRC == 1 -- EVERY MEMBER BROADCASTS (an AllGather), which is the
+// multi-source case the turn-taking exists for.  The group walks its members in
+// one ascending loop: on your own turn you publish, on everyone else's you TPOP
+// -- and TPOP is the ONLY consumption.  Two rules keep the one shared ring slot
+// per direction safe:
+//   (1) TBROADCAST returns only once ALL receivers have TPOPed it, and
+//   (2) TBNOTIFY<Group> then hands that verdict to the next source, which is
+//       blocked in TBWAIT<Group> because it cannot derive the fact locally.
+// Ascending rank+1 is this kernel's schedule, not the instruction's: TBNOTIFY
+// names its target by block id, and since TBWAIT consumes exactly one
+// notification with no exemption, the walk's two ends are open here -- member 0
+// does not wait, the last member does not notify.
+// The host verifies out[cell][src] == in[src cell] for every (receiver, source)
+// pair, so a slot overwritten by a late source shows up immediately.
 
 #include <cstddef>
 #include <cstdint>
@@ -50,58 +58,30 @@ constexpr bool DAV_VEC = false;
 #endif
 
 using SmokeTile = Tile<TileType::Vec, float, BCAST_T, BCAST_W, BLayout::RowMajor>;
-using SmokePipe = GridPipe<SmokeTile, BCAST_SLOT_BYTES, BCAST_SLOT_COUNT>;
+// The group rides the DIRECTIONAL rings, so DirMask names the two directions the
+// group spans; one slot each (with several sources on a direction the sender's
+// prod_idx and the receiver's cons_idx agree on no other depth).
+constexpr int kSmokeDirMask = (BCAST_SPAN_COL != 0) ?
+                                  (pto::GridDirBit(GridDirection::NORTH) | pto::GridDirBit(GridDirection::SOUTH)) :
+                                  (pto::GridDirBit(GridDirection::EAST) | pto::GridDirBit(GridDirection::WEST));
+using SmokePipe = GridPipe<SmokeTile, BCAST_SLOT_BYTES, BCAST_SLOT_COUNT, kSmokeDirMask>;
+
+// The publish turn needs no channel of its own: it rides the scoreboard of the
+// axis this group does NOT span, inside the pipe above (GroupTurnDirection).
 
 using ShapeTW = Shape<1, 1, 1, BCAST_T, BCAST_W>;
 using StrideTW = Stride<BCAST_T * BCAST_W, BCAST_T * BCAST_W, BCAST_T * BCAST_W, BCAST_W, 1>;
 using GSmoke = GlobalTensor<float, ShapeTW, StrideTW, Layout::ND>;
 
-constexpr GridSpan kSpan = (BCAST_SPAN_COL != 0) ? GridSpan::COL : GridSpan::ROW;
-// Largest receiver distance along the active axis (grid extent - 1).
-constexpr int kMaxDist = (BCAST_SPAN_COL != 0) ? (BCAST_ROWS - 1) : (BCAST_COLS - 1);
+constexpr GridGroup kGroup = (BCAST_SPAN_COL != 0) ? GridGroup::COL : GridGroup::ROW;
 
 constexpr int kUbSend = 0x0000;
 constexpr int kUbRecv = 0x4000;
-
-// Compile-time dispatch: pick the TPOP<dir, D> whose D matches the runtime
-// distance.  Instantiates only the four real directions x dist in [1, MaxDist];
-// at run time exactly one branch (the receiver's own dir/dist) executes, so the
-// off-span directions never reach a boundary fault.
-template <int D>
-AICORE void PopAtDist(SmokePipe &pipe, SmokeTile &tile, GridDirection dir, int dist)
-{
-    if constexpr (D >= 1) {
-        if (dist == D) {
-            switch (dir) {
-                case GridDirection::EAST:
-                    TPOP<GridDirection::EAST, D>(pipe, tile);
-                    break;
-                case GridDirection::WEST:
-                    TPOP<GridDirection::WEST, D>(pipe, tile);
-                    break;
-                case GridDirection::NORTH:
-                    TPOP<GridDirection::NORTH, D>(pipe, tile);
-                    break;
-                case GridDirection::SOUTH:
-                    TPOP<GridDirection::SOUTH, D>(pipe, tile);
-                    break;
-                default:
-                    break;
-            }
-            return;
-        }
-        PopAtDist<D - 1>(pipe, tile, dir, dist);
-    } else {
-        (void)pipe;
-        (void)tile;
-        (void)dir;
-        (void)dist;
-    }
-}
 #endif
 
-__global__ AICORE void BcastSmokeKernel(__gm__ uint8_t *fftsAddr, __gm__ uint8_t *windows, __gm__ uint8_t *inBuf,
-                                        __gm__ uint8_t *outBuf, __gm__ uint8_t *hcclCtxRaw, int gridRows, int gridCols)
+__global__ AICORE void BcastSmokeKernel(
+    __gm__ uint8_t* fftsAddr, __gm__ uint8_t* windows, __gm__ uint8_t* inBuf, __gm__ uint8_t* outBuf,
+    __gm__ uint8_t* hcclCtxRaw, int gridRows, int gridCols)
 {
 #ifdef __CCE_AICORE__
     set_ffts_base_addr(reinterpret_cast<uint64_t>(fftsAddr));
@@ -121,17 +101,25 @@ __global__ AICORE void BcastSmokeKernel(__gm__ uint8_t *fftsAddr, __gm__ uint8_t
         SmokePipe pipe;
         GridShape shape{gridRows, gridCols};
         GridCoord coord{blockIdx / gridCols, blockIdx - (blockIdx / gridCols) * gridCols};
-        __gm__ uint8_t *window = windows + blockIdx * BCAST_WINDOW_BYTES;
-        a2a3_grid::InitGridPipeFromWindow(pipe, shape, coord, window, reinterpret_cast<__gm__ void *>(hcclCtxRaw),
-                                          /*pipeId=*/0);
+        __gm__ uint8_t* window = windows + blockIdx * BCAST_WINDOW_BYTES;
+        a2a3_grid::InitGridPipeFromWindow(
+            pipe, shape, coord, window, reinterpret_cast<__gm__ void*>(hcclCtxRaw),
+            /*pipeId=*/0);
 
-        // Index of this cell along the active span axis, and the source index.
-        const int myIdx = (kSpan == GridSpan::COL) ? coord.row : coord.col;
-        const bool isSource = (myIdx == BCAST_SRC);
+        // This cell's index within its group (ROW varies along col, COL along
+        // row) and the source's index-in-group.  These are walk POSITIONS, not
+        // addresses: TPOP<Group> is handed the source's block id below.
+        const int myIdx = IndexInGroup(kGroup, coord);
+        const int srcIdx = BCAST_SRC;
+        const bool isSource = (myIdx == srcIdx);
+        const int groupSize = GridGroupSize(kGroup, shape);
+        (void)srcIdx;
+        (void)isSource;
+        (void)groupSize;
 
-        if (isSource) {
-            // Source: load its stamped tile and broadcast it across the span.
-            GSmoke inG(reinterpret_cast<__gm__ float *>(inBuf + blockIdx * BCAST_TILE_BYTES));
+        if constexpr (BCAST_ALL_SRC != 0) {
+            // ---- multi-source AllGather: every member publishes in turn ----
+            GSmoke inG(reinterpret_cast<__gm__ float*>(inBuf + blockIdx * BCAST_TILE_BYTES));
             TLOAD(sendTile, inG);
 #ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
@@ -140,33 +128,83 @@ __global__ AICORE void BcastSmokeKernel(__gm__ uint8_t *fftsAddr, __gm__ uint8_t
 #endif
             dsb(DSB_DDR);
 
-            // Broadcast overload of TPUSH (first template arg is a GridSpan, not
-            // a GridDirection -- that type alone selects the multicast overload).
-            TPUSH<kSpan>(pipe, sendTile);
+            for (int src = 0; src < groupSize; ++src) {
+                if (src == myIdx) {
+                    // Our turn -- TBWAIT returns only once the previous source's
+                    // tile has been TPOPed by the whole group, and writes
+                    // nothing.  TBROADCAST in turn returns only once every
+                    // receiver has TPOPed OURS; TBNOTIFY then forwards that
+                    // verdict to the next member of this ascending walk, named by
+                    // block id (GroupMemberBlockId converts the position).  The
+                    // two ends of the walk are the caller's to leave open, since
+                    // TBWAIT has no exemption and an unconsumed token persists:
+                    // member 0 waits for nobody, the last member releases nobody.
+                    if (myIdx != 0) {
+                        TBWAIT<kGroup>(pipe);
+                    }
 #ifndef __PTO_AUTO__
-            pipe_barrier(PIPE_ALL);
+                    pipe_barrier(PIPE_ALL);
 #endif
-            dsb(DSB_DDR);
-        } else {
-            // Receiver: direction + distance toward the source along the span.
-            GridDirection dir;
-            int dist;
-            if (myIdx > BCAST_SRC) {
-                dir = (kSpan == GridSpan::COL) ? GridDirection::SOUTH : GridDirection::EAST;
-                dist = myIdx - BCAST_SRC;
-            } else {
-                dir = (kSpan == GridSpan::COL) ? GridDirection::NORTH : GridDirection::WEST;
-                dist = BCAST_SRC - myIdx;
+                    TBROADCAST<kGroup>(pipe, sendTile);
+                    if (myIdx + 1 < groupSize) {
+                        TBNOTIFY<kGroup>(pipe, GroupMemberBlockId(kGroup, coord, shape, myIdx + 1));
+                    }
+#ifndef __PTO_AUTO__
+                    pipe_barrier(PIPE_ALL);
+#endif
+                    dsb(DSB_DDR);
+                } else {
+                    // The consumption itself, and the only one there is.  The
+                    // source is addressed by block id; GroupMemberBlockId is the
+                    // conversion from a walk position to that address.
+                    TPOP<kGroup>(pipe, recvTile, GroupMemberBlockId(kGroup, coord, shape, src));
+#ifndef __PTO_AUTO__
+                    set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+                    wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+                    pipe_barrier(PIPE_ALL);
+#endif
+                    dsb(DSB_DDR);
+                    // out[cell][src] -- one landing tile per (receiver, source).
+                    GSmoke outG(reinterpret_cast<__gm__ float*>(
+                        outBuf + (static_cast<size_t>(blockIdx) * BCAST_GROUP_MAX + src) * BCAST_TILE_BYTES));
+                    TSTORE(outG, recvTile);
+#ifndef __PTO_AUTO__
+                    pipe_barrier(PIPE_ALL);
+#endif
+                    dsb(DSB_DDR);
+                }
             }
-
-            PopAtDist<kMaxDist>(pipe, recvTile, dir, dist);
+        } else if (isSource) {
+            // Source: load its stamped tile and broadcast it across the group.
+            GSmoke inG(reinterpret_cast<__gm__ float*>(inBuf + blockIdx * BCAST_TILE_BYTES));
+            TLOAD(sendTile, inG);
 #ifndef __PTO_AUTO__
             set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
             wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
             pipe_barrier(PIPE_ALL);
 #endif
             dsb(DSB_DDR);
-            GSmoke outG(reinterpret_cast<__gm__ float *>(outBuf + blockIdx * BCAST_TILE_BYTES));
+
+            // TBROADCAST send: the GridGroup first template argument selects
+            // this overload.  The tile lands in every receiver's directional
+            // ring and the call returns once all of them have TPOPed it.
+            TBROADCAST<kGroup>(pipe, sendTile);
+#ifndef __PTO_AUTO__
+            pipe_barrier(PIPE_ALL);
+#endif
+            dsb(DSB_DDR);
+        } else {
+            // Receiver: drain the source's shard from the shared ring.  BCAST_SRC
+            // is a position along the group axis, so convert it to the source's
+            // block id -- that is what the instruction addresses by.
+            TPOP<kGroup>(pipe, recvTile, GroupMemberBlockId(kGroup, coord, shape, srcIdx));
+#ifndef __PTO_AUTO__
+            set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+            wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+            pipe_barrier(PIPE_ALL);
+#endif
+            dsb(DSB_DDR);
+            GSmoke outG(reinterpret_cast<__gm__ float*>(outBuf + blockIdx * BCAST_TILE_BYTES));
             TSTORE(outG, recvTile);
 #ifndef __PTO_AUTO__
             pipe_barrier(PIPE_ALL);
@@ -185,8 +223,9 @@ __global__ AICORE void BcastSmokeKernel(__gm__ uint8_t *fftsAddr, __gm__ uint8_t
 #endif
 }
 
-void launchBcastSmokeKernel(uint8_t *ffts, uint8_t *windows, uint8_t *inBuf, uint8_t *outBuf, uint8_t *hcclCtx,
-                            int gridRows, int gridCols, void *stream)
+void launchBcastSmokeKernel(
+    uint8_t* ffts, uint8_t* windows, uint8_t* inBuf, uint8_t* outBuf, uint8_t* hcclCtx, int gridRows, int gridCols,
+    void* stream)
 {
     int totalBlocks = gridRows * gridCols;
     if (totalBlocks <= 0) {
