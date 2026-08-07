@@ -22,9 +22,16 @@ def gen_golden_data(case_name, param):
     src1_tile_row, src1_tile_col = param.src1_tile_row, param.src1_tile_col
     h_valid, w_valid = param.valid_row, param.valid_col
 
-    # Generate random input arrays
-    input1 = np.random.randint(1, 10, size=[src0_tile_row, src0_tile_col]).astype(dtype)
-    input2 = np.random.randint(1, 10, size=[src1_tile_row, src1_tile_col]).astype(dtype)
+    if case_name in (
+        "TADDTest.case_int64_32x32_32x32_32x32_32x32",
+        "TADDTest.case_int64_1x1024_1x1024_1x1024_1x1024",
+    ):
+        rng = np.random.default_rng(5)
+        input1 = rng.integers(-10, 11, size=[src0_tile_row, src0_tile_col], dtype=np.int64)
+        input2 = rng.integers(-10, 11, size=[src1_tile_row, src1_tile_col], dtype=np.int64)
+    else:
+        input1 = np.random.randint(1, 10, size=[src0_tile_row, src0_tile_col]).astype(dtype)
+        input2 = np.random.randint(1, 10, size=[src1_tile_row, src1_tile_col]).astype(dtype)
 
     # Perform the operation
     golden = np.zeros([dst_tile_row, dst_tile_col]).astype(dtype)
@@ -78,6 +85,8 @@ if __name__ == "__main__":
         TAddParams(np.int32, 64, 64, 64, 64, 64, 64, 64, 64),
         TAddParams(np.int64, 4, 16, 4, 16, 4, 16, 4, 15),
         TAddParams(np.uint64, 4, 16, 4, 16, 4, 16, 4, 15),
+        TAddParams(np.int64, 32, 32, 32, 32, 32, 32, 32, 32),
+        TAddParams(np.int64, 1, 1024, 1, 1024, 1, 1024, 1, 1024),
         TAddParams(np.int16, 64, 64, 64, 64, 64, 64, 64, 64),
         TAddParams(np.float16, 16, 256, 16, 256, 16, 256, 16, 256),
         TAddParams(np.float16, 16, 64, 16, 128, 16, 128, 16, 64),

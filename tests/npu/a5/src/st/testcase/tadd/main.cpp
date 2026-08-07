@@ -116,6 +116,8 @@ TEST_F(TADDTest, case_float_64x128_64x128_64x128_64x128) { test_tadd<float, 64, 
 TEST_F(TADDTest, case_int32_64x64_64x64_64x64_64x64) { test_tadd<int32_t, 64, 64, 64, 64, 64, 64, 64, 64>(); }
 TEST_F(TADDTest, case_int64_4x16_4x16_4x16_4x15) { test_tadd<int64_t, 4, 16, 4, 16, 4, 16, 4, 15>(); }
 TEST_F(TADDTest, case_uint64_4x16_4x16_4x16_4x15) { test_tadd<uint64_t, 4, 16, 4, 16, 4, 16, 4, 15>(); }
+TEST_F(TADDTest, case_int64_32x32_32x32_32x32_32x32) { test_tadd<int64_t, 32, 32, 32, 32, 32, 32, 32, 32>(); }
+TEST_F(TADDTest, case_int64_1x1024_1x1024_1x1024_1x1024) { test_tadd<int64_t, 1, 1024, 1, 1024, 1, 1024, 1, 1024>(); }
 TEST_F(TADDTest, case_int16_64x64_64x64_64x64_64x64) { test_tadd<int16_t, 64, 64, 64, 64, 64, 64, 64, 64>(); }
 TEST_F(TADDTest, case_half_16x256_16x256_16x256_16x256)
 {
