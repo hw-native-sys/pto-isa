@@ -8,7 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-set_cann_package(pto_isa VERSION "9.1.0")
+set_cann_package(pto-isa VERSION "9.1.0")
 
 set_cann_run_dependencies(runtime "CUR_MAJOR_MINOR_VER")
 set_cann_run_dependencies(opbase "CUR_MAJOR_MINOR_VER")

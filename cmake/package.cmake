@@ -22,10 +22,10 @@ function(pack_built_in)
       message(WARNING "Unknown architecture: ${CMAKE_SYSTEM_PROCESSOR}")
   endif ()
 
-  set(script_prefix ${CMAKE_SOURCE_DIR}/scripts/package/pto_isa/scripts)
+  set(script_prefix ${CMAKE_CURRENT_SOURCE_DIR}/scripts/package/pto_isa/scripts)
   install(DIRECTORY ${script_prefix}/
       DESTINATION share/info/pto_isa/script
-      COMPONENT pto_isa
+      COMPONENT pto-isa
       FILE_PERMISSIONS
       OWNER_READ OWNER_WRITE OWNER_EXECUTE  # 文件权限
       GROUP_READ GROUP_EXECUTE
@@ -48,7 +48,7 @@ function(pack_built_in)
 
   install(FILES ${SCRIPTS_FILES}
       DESTINATION share/info/pto_isa/script
-      COMPONENT pto_isa
+      COMPONENT pto-isa
   )
   set(COMMON_FILES
       ${CANN_CMAKE_DIR}/scripts/install/install_common_parser.sh
@@ -62,20 +62,20 @@ function(pack_built_in)
       ${COMMON_FILES}
       ${CANN_CMAKE_DIR}/scripts/install/multi_version.inc
   )
-  install(FILES ${CMAKE_BINARY_DIR}/version.pto_isa.info
+  install(FILES ${CMAKE_BINARY_DIR}/version.pto-isa.info
       DESTINATION share/info/pto_isa
       RENAME version.info
-      COMPONENT pto_isa
+      COMPONENT pto-isa
   )
   install(FILES ${PACKAGE_FILES}
       DESTINATION share/info/pto_isa/script
-      COMPONENT pto_isa
+      COMPONENT pto-isa
   )
 
-  set(pto_source ${CMAKE_SOURCE_DIR}/include)
+  set(pto_source ${CMAKE_CURRENT_SOURCE_DIR}/include)
   install(DIRECTORY ${pto_source}/
       DESTINATION ${CMAKE_SYSTEM_PROCESSOR}-linux/include
-      COMPONENT pto_isa
+      COMPONENT pto-isa
       FILE_PERMISSIONS
       OWNER_READ OWNER_WRITE
       GROUP_READ GROUP_EXECUTE
@@ -115,10 +115,10 @@ function(pack_built_in)
       set(RUN_DEPENDENCIES_LIST "${_patched_deps}")
   endif()
 
-  # cann-cmake sets CPACK_PACKAGE_NAME to "cann-${component}" = "cann-pto_isa".
+  # cann-cmake sets CPACK_PACKAGE_NAME to "cann-${component}" = "cann-pto-isa".
   # With CPACK_RPM_COMPONENT_INSTALL/CPACK_DEB_COMPONENT_INSTALL ON, CPack appends
-  # the component name ("pto_isa") to the package name AND to the file name,
-  # producing the duplicated "cann-pto_isa-pto_isa". Set the per-component package
+  # the component name ("pto-isa") to the package name AND to the file name,
+  # producing the duplicated "cann-pto-isa-pto-isa". Set the per-component package
   # name and file name explicitly before set_cann_cpack_config so the cann-cmake
   # include(CPack) picks them up. The <COMPONENT> part must be UPPER-CASE per CMake
   # docs (CPackDeb only honors the upper-case form; CPackRPM accepts both).
@@ -127,17 +127,17 @@ function(pack_built_in)
   set(CPACK_RPM_PTO_ISA_PACKAGE_NAME "cann-pto-isa")
   set(CPACK_DEBIAN_PTO_ISA_PACKAGE_NAME "cann-pto-isa")
   string(TOLOWER "${CMAKE_SYSTEM_NAME}" _sys_name_lower)
-  set(_file_name_base "cann-pto-isa_${CANN_VERSION_pto_isa_VERSION}_${_sys_name_lower}-${CMAKE_SYSTEM_PROCESSOR}")
+  set(_file_name_base "cann-pto-isa_${CANN_VERSION_pto-isa_VERSION}_${_sys_name_lower}-${CMAKE_SYSTEM_PROCESSOR}")
   set(CPACK_RPM_PTO_ISA_FILE_NAME "${_file_name_base}.rpm")
   set(CPACK_DEBIAN_PTO_ISA_FILE_NAME "${_file_name_base}.deb")
   # DEB control "Package" field also honors the non-component variable when the
   # generator builds a single component; set it to the same value to be sure.
   set(CPACK_DEBIAN_PACKAGE_NAME "cann-pto-isa")
 
-  set_cann_cpack_config(pto_isa
+  set_cann_cpack_config(pto-isa
       COMPUTE_UNIT "${compute_unit}"
       SHARE_INFO_NAME pto_isa
-      OUTPUT "${CMAKE_SOURCE_DIR}/build_out"
+      OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/build_out"
       PACKAGE_TYPE "${PACKAGE_TYPE}"
   )
 endfunction()
