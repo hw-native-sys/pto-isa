@@ -41,13 +41,18 @@ python3 tests/script/run_st.py -r sim -v a3 -a -t tadd -g TADDTest.case_float_64
 ```
 
 ### Lint / Format Commands
+
+**Tool versions (pinned):**
+- clang-format: **v18.1.8** (`~/.local/bin/clang-format`, already first in PATH)
+- ruff: **v0.14.14** — system `ruff` on PATH may be newer; always invoke via absolute path `~/.local/bin/ruff`
+
 ```bash
 # Format C++ code (Google style, 120 char limit)
 clang-format -i -style=file <file>
 
-# Format Python code (Ruff)
-ruff format <file>
-ruff check <file>
+# Format Python code (Ruff) — use absolute path to ensure v0.14.14
+~/.local/bin/ruff format <file>
+~/.local/bin/ruff check <file>
 ```
 
 ## Code Style Guidelines
