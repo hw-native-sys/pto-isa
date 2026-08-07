@@ -41,14 +41,14 @@ AICORE void runTPow(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in_
     if constexpr (kVRows_ < kTRows_) {
         for (int r = kVRows_; r < kTRows_; ++r) {
             for (int c = 0; c < kTCols_; ++c) {
-                dstTile.data()[r * kTCols_ + c] = 0;
+                dstGlobal.SetElement(r * kTCols_ + c, 0);
             }
         }
     }
     if constexpr (kVCols_ < kTCols_) {
         for (int r = 0; r < kVRows_; ++r) {
             for (int c = kVCols_; c < kTCols_; ++c) {
-                dstTile.data()[r * kTCols_ + c] = 0;
+                dstGlobal.SetElement(r * kTCols_ + c, 0);
             }
         }
     }

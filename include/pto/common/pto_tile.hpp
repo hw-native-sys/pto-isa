@@ -590,6 +590,8 @@ struct GlobalTensor {
         return GetProperDataPart(data_, offset);
     }
 
+    void SetElement(const size_t offset, const DType& val) { SetProperDataPart(data(), offset, val); }
+
     void SetElement(int64_t i0, int64_t i1, int64_t i2, int64_t i3, int64_t i4, const DType& val)
     {
         const auto offset = i0 * GetStride(GlobalTensorDim::DIM_0) + i1 * GetStride(GlobalTensorDim::DIM_1) +
@@ -598,11 +600,8 @@ struct GlobalTensor {
         SetProperDataPart(data(), offset, val);
     }
 
-    void AddToElement(int64_t i0, int64_t i1, int64_t i2, int64_t i3, int64_t i4, const DType& summand)
+    void AddToElement(const size_t offset, const DType& summand)
     {
-        const auto offset = i0 * GetStride(GlobalTensorDim::DIM_0) + i1 * GetStride(GlobalTensorDim::DIM_1) +
-                            i2 * GetStride(GlobalTensorDim::DIM_2) + i3 * GetStride(GlobalTensorDim::DIM_3) +
-                            i4 * GetStride(GlobalTensorDim::DIM_4);
         std::lock_guard<std::mutex> lock(cpu::AtomicAddMutex());
         if constexpr (IsTwinType<DType>()) {
             const auto val = GetProperDataPart(data(), offset);
@@ -610,6 +609,14 @@ struct GlobalTensor {
         } else {
             data()[offset] += summand;
         }
+    }
+
+    void AddToElement(int64_t i0, int64_t i1, int64_t i2, int64_t i3, int64_t i4, const DType& summand)
+    {
+        const auto offset = i0 * GetStride(GlobalTensorDim::DIM_0) + i1 * GetStride(GlobalTensorDim::DIM_1) +
+                            i2 * GetStride(GlobalTensorDim::DIM_2) + i3 * GetStride(GlobalTensorDim::DIM_3) +
+                            i4 * GetStride(GlobalTensorDim::DIM_4);
+        AddToElement(offset, summand);
     }
 #endif
 
@@ -1351,6 +1358,7 @@ public:
     PTO_INTERNAL void SetDstMposition(uint16_t dstMposition) { dstMposition_ = dstMposition; }
     PTO_INTERNAL uint16_t GetDstMposition() const { return dstMposition_; }
 #endif
+
 private:
     AICORE void assignData(TileDType data) { data_ = data; }
     TileDType data_;

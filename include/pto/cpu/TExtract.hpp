@@ -80,7 +80,7 @@ __tf__ PTO_INTERNAL void TExtractToBConv(
     uint16_t mStep = dstValidColAlign >> SHIFT_BLOCK_LEN;
     uint16_t kStep = (dstValidRowAlign * sizeof(DataType)) >> SHIFT_BLOCK_BYTE;
     uint16_t srcStride = srcCol >> SHIFT_BLOCK_LEN;
-    uint16_t dstStride = dstValidColAlign >> SHIFT_BLOCK_LEN;
+    uint16_t dstStride = DstTileData::Cols >> SHIFT_BLOCK_LEN;
 
     copy_fractal_shapes<DataType>(dstAddr, srcAddr, mStartPosition, kStartPosition, mStep, kStep, srcStride, dstStride);
 }

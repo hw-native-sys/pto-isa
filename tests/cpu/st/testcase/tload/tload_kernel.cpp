@@ -66,13 +66,13 @@ AICORE __inline__ auto getGlobalTensor(__gm__ T* addr, int gShape0, int gShape1,
         using DynStrideDim5 = pto::Stride<-1, -1, -1, -1, -1>;
         auto dynShape =
             getOptDynShape<shape0, shape1, shape2, shape3, shape4>(gShape0, gShape1, gShape2, gShape3, gShape4);
-        using GlobalData = GlobalTensor<T, decltype(dynShape), DynStrideDim5>;
+        using GlobalData = GlobalTensor<T, decltype(dynShape), DynStrideDim5, pto::Layout::DN>;
 
         if constexpr (major == BLayout::RowMajor) {
             GlobalData srcGlobal(addr, dynShape, DynStrideDim5(stride0, stride1, stride2, shape4, 1));
             return srcGlobal;
         } else {
-            GlobalData srcGlobal(addr, dynShape, DynStrideDim5(stride0, stride1, stride2, 1, shape4));
+            GlobalData srcGlobal(addr, dynShape, DynStrideDim5(stride0, stride1, stride2, 1, shape3));
             return srcGlobal;
         }
     } else // static
@@ -88,7 +88,7 @@ AICORE __inline__ auto getGlobalTensor(__gm__ T* addr, int gShape0, int gShape1,
             GlobalData srcGlobal(addr);
             return srcGlobal;
         } else {
-            using StaticStrideDim5 = pto::Stride<stride0, stride1, stride2, 1, shape4>;
+            using StaticStrideDim5 = pto::Stride<stride0, stride1, stride2, 1, shape3>;
             using GlobalData = GlobalTensor<T, StaticShapeDim5, StaticStrideDim5>;
             GlobalData srcGlobal(addr);
             return srcGlobal;

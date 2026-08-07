@@ -69,11 +69,11 @@ AICORE inline void RunTStoreRowMajorQuant(
 }
 
 template <
-    typename Dst, typename SrcT, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
+    typename DstT, typename SrcT, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4, int gWholeShape0,
     int gWholeShape1, int gWholeShape2, int gWholeShape3, int gWholeShape4, bool is_v_quant, bool saturate_inf,
     bool apply_relu>
 AICORE inline void RunTStoreColMajorQuant(
-    __gm__ Dst __out__* out, __gm__ SrcT __in__* src, __gm__ uint64_t __in__* fbQuant)
+    __gm__ DstT __out__* out, __gm__ SrcT __in__* src, __gm__ uint64_t __in__* fbQuant)
 {
     constexpr int gStride[5] = {
         gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape2 * gWholeShape3 * gWholeShape4,
@@ -87,8 +87,8 @@ AICORE inline void RunTStoreColMajorQuant(
 
     using DynShapeDim5 = Shape<gShape0, gShape1, gShape2, gShape3, gShape4>;
     using DynStridDim5 = pto::Stride<gStride[0], gStride[1], gStride[2], gStride[3], gStride[4]>;
-    using GlobalDataDst = GlobalTensor<Dst, DynShapeDim5, DynStridDim5>;
-    using GlobalDataSrc = GlobalTensor<SrcT, DynShapeDim5, DynStridDim5>;
+    using GlobalDataDst = GlobalTensor<DstT, DynShapeDim5, DynStridDim5, pto::Layout::DN>;
+    using GlobalDataSrc = GlobalTensor<SrcT, DynShapeDim5, DynStridDim5, pto::Layout::DN>;
     using TileData = Tile<TileType::Vec, SrcT, Rows, Cols, BLayout::ColMajor, -1, -1>;
 
     constexpr ReluPreMode reluPreMode = apply_relu ? ReluPreMode::NormalRelu : ReluPreMode::NoRelu;
