@@ -17,6 +17,7 @@ namespace pto {
 
 enum class Int64Op { Add, Sub, Mul, Shl, Shr, Max, Min };
 
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 PTO_INTERNAL void Int64AddRegs(
     vector_s32& dstLow, vector_s32& dstHigh, vector_s32& lhsLow, vector_s32& lhsHigh, vector_s32& rhsLow,
     vector_s32& rhsHigh, MaskReg& mask)
@@ -135,6 +136,7 @@ PTO_INTERNAL void Int64DivSign(
     pxor(sameSign, lhsNonNegative, rhsNonNegative, mask);
     pnot(sameSign, sameSign, mask);
 }
+#endif
 
 } // namespace pto
 

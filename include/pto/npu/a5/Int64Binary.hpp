@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <typename T>
 PTO_INTERNAL void Int64CompareRelationalRegs(
     MaskReg& dst, vector_s32& lhsLow, vector_s32& lhsHigh, vector_s32& rhsLow, vector_s32& rhsHigh, CmpMode mode,
@@ -361,6 +362,35 @@ PTO_INTERNAL void Int64SelectScalar(
         }
     }
 }
+#else
+// Declaration-only stubs for kirin9030/kirinX90 (no 64-bit intrinsics).
+// The A5 instruction headers call these templates from discarded if-constexpr
+// branches; they are never instantiated on architectures without 64-bit
+// vector support, so a declaration is sufficient for phase-1 name lookup.
+template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
+PTO_INTERNAL void Int64Binary(
+    __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned validRows, unsigned validCols);
+
+template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols>
+PTO_INTERNAL void Int64Scalar(__ubuf__ T* dst, __ubuf__ T* src, T scalar, unsigned validRows, unsigned validCols);
+
+template <typename T, unsigned DstRowBytes, unsigned Src0Cols, unsigned Src1Cols>
+PTO_INTERNAL void Int64Compare(
+    __ubuf__ uint8_t* dst, __ubuf__ T* src0, __ubuf__ T* src1, CmpMode mode, unsigned validRows, unsigned validCols);
+
+template <typename T, unsigned DstRowBytes, unsigned SrcCols>
+PTO_INTERNAL void Int64CompareScalar(
+    __ubuf__ uint8_t* dst, __ubuf__ T* src, T scalar, CmpMode mode, unsigned validRows, unsigned validCols);
+
+template <typename T, unsigned DstCols, unsigned MaskRowBytes, unsigned Src0Cols, unsigned Src1Cols>
+PTO_INTERNAL void Int64Select(
+    __ubuf__ T* dst, __ubuf__ uint8_t* packedMask, __ubuf__ T* src0, __ubuf__ T* src1, unsigned validRows,
+    unsigned validCols);
+
+template <typename T, unsigned DstCols, unsigned MaskRowBytes, unsigned SrcCols>
+PTO_INTERNAL void Int64SelectScalar(
+    __ubuf__ T* dst, __ubuf__ uint8_t* packedMask, __ubuf__ T* src, T scalar, unsigned validRows, unsigned validCols);
+#endif
 
 } // namespace pto
 

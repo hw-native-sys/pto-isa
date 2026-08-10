@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <typename T, unsigned DstCols>
 PTO_INTERNAL void Int64Fill(__ubuf__ T* dst, T scalar, unsigned validRows, unsigned validCols)
 {
@@ -192,6 +193,28 @@ PTO_INTERNAL void Int64ColExpand(__ubuf__ T* dst, __ubuf__ T* src, unsigned vali
         }
     }
 }
+#else
+// Declaration-only stubs for kirin9030/kirinX90 (no 64-bit intrinsics).
+// See Int64Binary.hpp for details.
+template <typename T, unsigned DstCols>
+PTO_INTERNAL void Int64Fill(__ubuf__ T* dst, T scalar, unsigned validRows, unsigned validCols);
+
+template <typename T, unsigned DstCols>
+PTO_INTERNAL void Int64Tri(__ubuf__ T* dst, unsigned validRows, unsigned validCols, int diagonal, bool upper);
+
+template <typename T, unsigned DstCols>
+PTO_INTERNAL void Int64ColExpand(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols);
+
+template <typename T, unsigned DstCols, unsigned SrcRowStride>
+PTO_INTERNAL void Int64RowExpand(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols);
+
+template <typename T, typename I, unsigned DstNumel, unsigned SrcCols, unsigned IdxCols>
+PTO_INTERNAL void Int64Scatter(
+    __ubuf__ T* dst, __ubuf__ T* src, __ubuf__ I* index, unsigned validRows, unsigned validCols);
+
+template <MaskPattern Pattern, ScatterAxis Axis, typename T, unsigned DstNumel, unsigned DstCols, unsigned SrcCols>
+PTO_INTERNAL void Int64ScatterPattern(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols);
+#endif
 
 } // namespace pto
 
