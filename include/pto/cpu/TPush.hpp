@@ -967,11 +967,18 @@ PTO_INTERNAL void TPush_gm(Pipe& pipe, TileProd& tile, size_t entryBase)
     using SrcT = typename TileProd::DType;
     constexpr int rows = TileProd::Rows;
     constexpr int cols = TileProd::Cols;
+    constexpr bool isSplitV2CProducer =
+        Pipe::is_v2c && cpu_pipe::IsV2CProducerTile<TileProd>() && Split != TileSplitAxis::TILE_NO_SPLIT;
+    constexpr int gmStrideR = (isSplitV2CProducer && Split == TileSplitAxis::TILE_LEFT_RIGHT) ? cols * 2 : cols;
     std::size_t subOffset = 0;
-    if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
+    if constexpr (isSplitV2CProducer && Split == TileSplitAxis::TILE_UP_DOWN) {
+        subOffset = static_cast<std::size_t>(get_subblockid()) * rows * cols * sizeof(DstT);
+    } else if constexpr (isSplitV2CProducer && Split == TileSplitAxis::TILE_LEFT_RIGHT) {
+        subOffset = static_cast<std::size_t>(get_subblockid()) * cols * sizeof(DstT);
+    } else if constexpr (Split != TileSplitAxis::TILE_NO_SPLIT) {
         subOffset = static_cast<std::size_t>(get_subblockid()) * rows * cols * sizeof(DstT);
     }
-    using GlobalData = GlobalTensor<DstT, Shape<1, 1, 1, rows, cols>, Stride<1, 1, 1, cols, 1>>;
+    using GlobalData = GlobalTensor<DstT, Shape<1, 1, 1, rows, cols>, Stride<1, 1, 1, gmStrideR, 1>>;
     auto* addr = reinterpret_cast<__gm__ DstT*>(
         reinterpret_cast<std::uintptr_t>(pipe.fifo.GM_SLOT_BUFFER) + entryBase + subOffset);
     if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {

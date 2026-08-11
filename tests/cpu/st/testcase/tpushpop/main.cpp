@@ -181,6 +181,56 @@ void testDirBothConsumerWaitsForMatchingDirection()
         TFREE<Pipe, SplitAxis>(vecConsumer1);
     }
 }
+
+template <TileSplitAxis SplitAxis, uint8_t FlagId>
+void testGmFifoPreservesV2CSplitLayout()
+{
+    using VecTile = DirBothVecTile<SplitAxis>;
+    using MatTile = Tile<TileType::Mat, float, 16, 16, BLayout::RowMajor, 16, 16>;
+    using Pipe = TPipe<FlagId, Direction::DIR_V2C, sizeof(float) * MatTile::Numel, 2>;
+
+    std::vector<float> fifoStorage(MatTile::Numel * Pipe::RingFiFo::SLOT_NUM, 0.0f);
+    Pipe::reset_for_cpu_sim();
+    Pipe producer0(fifoStorage.data(), 0x0, 0x10000);
+    Pipe producer1(fifoStorage.data(), 0x0, 0x10000);
+    Pipe consumer(fifoStorage.data(), 0x0, 0x10000);
+
+    VecTile src0;
+    VecTile src1;
+    MatTile dst;
+    TASSIGN(src0, 0x0);
+    TASSIGN(src1, VecTile::GetSizeInBytes());
+    TASSIGN(dst, 2 * VecTile::GetSizeInBytes());
+    fillTileSequence(src0, 1.0f);
+    fillTileSequence(src1, 1001.0f);
+    std::fill(dst.data(), dst.data() + dst.Numel, 0.0f);
+
+    {
+        cpu_sim::ScopedExecutionContext ctx(0, 0, 2);
+        TPUSH<Pipe, VecTile, SplitAxis>(producer0, src0);
+    }
+    {
+        cpu_sim::ScopedExecutionContext ctx(0, 1, 2);
+        TPUSH<Pipe, VecTile, SplitAxis>(producer1, src1);
+    }
+    {
+        cpu_sim::ScopedExecutionContext ctx(0, 0, 1);
+        TPOP<Pipe, MatTile, SplitAxis>(consumer, dst);
+        TFREE<Pipe, SplitAxis>(consumer);
+    }
+
+    for (int r = 0; r < dst.GetValidRow(); ++r) {
+        for (int c = 0; c < dst.GetValidCol(); ++c) {
+            const int lane = (SplitAxis == TileSplitAxis::TILE_UP_DOWN) ? r / VecTile::Rows : c / VecTile::Cols;
+            const int laneRow = (SplitAxis == TileSplitAxis::TILE_UP_DOWN) ? r % VecTile::Rows : r;
+            const int laneCol = (SplitAxis == TileSplitAxis::TILE_LEFT_RIGHT) ? c % VecTile::Cols : c;
+            const auto& src = (lane == 0) ? src0 : src1;
+            EXPECT_FLOAT_EQ(
+                dst.data()[GetTileElementOffset<MatTile>(r, c)],
+                src.data()[GetTileElementOffset<VecTile>(laneRow, laneCol)]);
+        }
+    }
+}
 } // namespace
 
 template <typename T, int rows, int cols, TileType srcLoc>
@@ -482,6 +532,12 @@ TEST_F(TPushPopTest, v2c_split_with_injected_pipe_hook_waits_for_both_lanes_befo
     EXPECT_GT(g_pipe_hook_call_count.load(std::memory_order_relaxed), 0u);
     EXPECT_EQ(g_pipe_hook_size, sizeof(HookedV2CPipe::SharedStateStorage));
     EXPECT_NE(g_pipe_hook_last_key, 0u);
+}
+
+TEST_F(TPushPopTest, v2c_gm_fifo_preserves_updown_and_leftright_layout)
+{
+    testGmFifoPreservesV2CSplitLayout<TileSplitAxis::TILE_UP_DOWN, 10>();
+    testGmFifoPreservesV2CSplitLayout<TileSplitAxis::TILE_LEFT_RIGHT, 11>();
 }
 
 TEST_F(TPushPopTest, a5_style_dir_both_updown_waits_for_matching_direction)
