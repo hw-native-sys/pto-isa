@@ -61,10 +61,7 @@ struct TPipe {
         return (tileIndex % SyncPeriod) == 0;
     }
 
-    PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
-    {
-        return ((tileIndex + 1) % SyncPeriod) == 0;
-    }
+    PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex) { return ((tileIndex + 1) % SyncPeriod) == 0; }
 
     struct Producer {
         uint32_t tileIndex = 0;
@@ -482,7 +479,20 @@ struct TPipe {
     // Initial TPUSH calls skip allocate() via shouldWaitFree (tileIndex < SlotNum, or 0 for depth 1).
     PTO_INTERNAL ~TPipe()
     {
-        for (uint32_t i = 0; i < SyncPeriod; ++i) {
+        const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
+        uint32_t numPushWait = 0;
+        if constexpr (SlotNum == 1) {
+            numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
+        } else if (prod.tileIndex > SlotNum) {
+            constexpr uint32_t firstAligned =
+                (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
+            const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
+            if (lastAligned >= firstAligned) {
+                numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
+            }
+        }
+        const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
+        for (uint32_t i = 0; i < drainCount; ++i) {
             prod.allocate();
         }
     }
