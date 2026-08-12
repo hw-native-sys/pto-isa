@@ -2,49 +2,63 @@
 
 ## Goal
 
-`distributed_ffn_grid_reducesum` validates a single-device logical FFN grid on A2/A3. The host runs one process on the selected device and launches `gridRows * gridCols` blocks. Each block owns one logical cell:
+This demo validates the three distributed-FFN GridPipe collective interfaces — **TPUSH**, **TBROADCAST**, **TREDUCE** — on a single-device logical FFN grid on A2/A3. The host runs one process on the selected device and launches `gridRows * gridCols` blocks; each block owns one logical cell. There are **four examples**, one per (interface, FFN pattern), all on the same pure 1D N-cut 4×8 = 32-cell topology with the real DeepSeek-v4 Pro shapes (M=T=8, H=7168, I=3072):
 
-- Rows are data-parallel token slices.
-- Columns are model-parallel FFN intermediate shards.
-- The mixed Cube/Vec kernel computes gate/up, activation, down projection, and row-local `EAST` reduce in one launch.
-- The last column in each row writes the final fp32 `[T, H]` output tile, which the host compares with `golden.bin` using `1e-3` tolerance.
+| Example (run script / executable) | Interface verified | FFN pattern | Cross-cell collective |
+| --- | --- | --- | --- |
+| `run_tpush_reducesum.sh` / `distributed_ffn_grid_tpush_reducesum` | **TPUSH** | ReduceSum | explicit `TPOP(pipe, ..., prodId)` + `TADD` + `TPUSH(pipe, ..., consId, isLastTransfer)` relay |
+| `run_tpush_allgather.sh` / `distributed_ffn_grid_tpush_allgather` | **TPUSH** | AllGather | nearest-neighbor `TPUSH`/`TPOP` relay gather (fan-in-1 DAG) |
+| `run_tbroadcast_allgather.sh` / `distributed_ffn_grid_tbroadcast_allgather` | **TBROADCAST** | AllGather | `TBROADCAST<GridGroup>` MPSC group broadcast |
+| `run_treduce_reducesum.sh` / `distributed_ffn_grid_treduce_reducesum` | **TREDUCE** | ReduceSum | channelised `TREDUCE<GridGroup, Sum>` N→1 fan-in (4+3 source batching) |
 
-The `EAST` reduce uses the A2/A3 GridPipe mock backend: local SRAM windows backed by GM in the mock, fake `HcclDeviceContext` window pointers, ready/free counters, `dcci/dsb` fences, and spin waits. This validates the programming model and same-device mock path; it is not multi-card communication validation.
+Each example compares its `[T, H]` output with `golden.bin` using a `1e-3` tolerance. All four pass **bit-exact** on the NPU (`max diff = 0`, run with `-r npu`); see [Bit-exactness notes](#bit-exactness-notes).
 
-An AllGather variant is also provided in `run_allgather.sh` / `distributed_ffn_grid_allgather`. It gathers hidden shards across columns before down projection, so the post-down ReduceSum is removed and each column writes its own output-H shard.
+The cross-cell collectives use the A2/A3 GridPipe mock backend: local SRAM windows backed by GM in the mock, fake `HcclDeviceContext` window pointers, per-channel ready/free/close counters, `dcci/dsb` fences, and spin waits. This validates the programming model and same-device mock path; it is not multi-card communication validation.
 
-Beyond the nearest-neighbor FFN demos, GridPipe also supports routed K-hop unicast (`TPUSH<dir, dist>` / `TPOP<dir, dist>`) and single-source row/column broadcast (`TPUSH<GridSpan>`). Each capability has a standalone Vec-only smoke test under `smoke/` (see [Smoke tests](#gridpipe-smoke-tests)).
+Unicast names peers at runtime (`consId` on TPUSH and `prodId` on TPOP), while concurrent group broadcast keeps its `TBROADCAST<GridGroup>` / `TPOP<GridGroup>` interface. The standalone broadcast smoke test lives under `smoke/`.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
 | `README.md` / `README_zh.md` | English / Chinese documentation. |
-| `CMakeLists.txt` | Builds the host executables and mixed Cube/Vec device kernel shared libraries. |
-| `run_reducesum.sh` | Sets up CANN, generates ReduceSum data, configures CMake, builds, and runs the ReduceSum demo. |
-| `run_allgather.sh` | Sets up CANN, generates AllGather data, configures CMake, builds, and runs the AllGather demo. |
-| `ffn_config.hpp` | Compile-time grid shape, tile shape, GridPipe window sizes, buffer sizes, and PReLU alpha. |
-| `kernel_launch.hpp` | Host-side mixed kernel launch declaration. |
-| `main_reducesum.cpp` | ReduceSum host driver: ACL setup, fake HCCL context/local GridPipe windows, device buffers, data loading, kernel launch, golden comparison, and cleanup. |
-| `distributed_ffn_grid_reducesum_compute_kernel.cpp` | ReduceSum mixed Cube/Vec kernel. Cube computes GEMMs; Vec computes activation/cast and GridPipe `EAST` reduce. |
-| `main_allgather.cpp` | AllGather host driver. |
-| `distributed_ffn_grid_allgather_compute_kernel.cpp` | AllGather mixed Cube/Vec kernel. Vec gathers hidden shards; Cube writes output-H shards. |
+| `CMakeLists.txt` | Builds the four host executables and their mixed Cube/Vec device kernel shared libraries. |
+| `run_treduce_reducesum.sh` / `run_tpush_reducesum.sh` | Set up CANN, generate data, configure CMake, build, and run the TREDUCE / TPUSH ReduceSum examples. |
+| `run_tbroadcast_allgather.sh` / `run_tpush_allgather.sh` | Set up CANN, generate data, configure CMake, build, and run the TBROADCAST / TPUSH AllGather examples. |
+| `ffn_config.hpp` | Compile-time grid shape, tile shape, GridPipe window sizes, buffer sizes, SwiGLU clamp bounds, the A3 precision-mapping table, and Batcher GM arena byte sizes. |
+| `kernel_launch.hpp` | Host-side mixed kernel launch declarations (one per example). |
+| `main_treduce_reducesum.cpp` / `main_tpush_reducesum.cpp` | ReduceSum host drivers: ACL setup, fake HCCL context / local GridPipe windows, working buffers, Batcher load/distribute, kernel launch, golden comparison, cleanup. |
+| `distributed_ffn_grid_treduce_reducesum_compute_kernel.cpp` | TREDUCE ReduceSum kernel: EAST+SOUTH fan-in uses C TPUSH-compatible rings, absolute forward counts, and reverse atomic FREE relay. |
+| `distributed_ffn_grid_tpush_reducesum_compute_kernel.cpp` | TPUSH ReduceSum kernel: EAST and SOUTH share one channel across launches, exercising close + relay-count rebinding with explicit TPOP + TADD + TPUSH. |
+| `main_tbroadcast_allgather.cpp` / `main_tpush_allgather.cpp` | AllGather host drivers. |
+| `distributed_ffn_grid_tbroadcast_allgather_compute_kernel.cpp` | TBROADCAST AllGather kernel: the two gather phases use `TBROADCAST<GridGroup>` + `TPOP<GridGroup>`. |
+| `distributed_ffn_grid_tpush_allgather_compute_kernel.cpp` | TPUSH AllGather kernel: the two gather phases use a bidirectional `TPUSH`/`TPOP` relay. |
+| `batcher.hpp` | Host-side GM-simulated **Batcher**: owns the full input + the full DRAM-resident weights in GM, splits them column-parallel into per-cell shards, broadcasts x, and exposes the output-collection region. |
 | `tpipe_tmov_inl.hpp` | Directional `TMOV` overloads that lower Cube↔Vec C2V/V2C transfers to the existing `TPUSH`/`TPOP`, so the kernel body never spells out the handshake. |
-| `gridpipe_payload_inl.hpp` | Local GridPipe payload hooks and fake-window remote pointer adapter. |
-| `smoke/` | Standalone GridPipe feature smoke tests. `khop_smoke_{config,kernel,launch}` + `main_khop_smoke.cpp` + `run_khop_smoke.sh` cover routed K-hop unicast; `bcast_smoke_*` + `run_bcast_smoke.sh` cover single-source row/column broadcast. Both build through the parent `CMakeLists.txt`. |
-| `../../../../include/pto/common/grid_counter_intrinsic.hpp` | CCE-intrinsic-style neighbor counter API used by GridPipe ready/free waits and notifications. |
-| `../../../../include/pto/common/grid_sram_intrinsic.hpp` | CCE-intrinsic-style neighbor SRAM address and payload transfer API used by GridPipe payload movement. Also declares the `GmSramArena` address-segment SRAM model and the `sram_pop_is_local` TPOP read-locality guard. |
-| `scripts/gen_data.py` | Generates per-cell fp16 X/weight shards and an fp32 golden reference. |
+| `gridpipe_payload_inl.hpp` | Local GridPipe payload hooks and fake-window adapter: peer-slot/SCB resolution, tile-to-producer-L1 staging, producer-L1-to-peer-ring copies, local receive-ring drains, and the TPOP locality guard. |
+| `smoke/` | Standalone Vec-only GridPipe broadcast smoke test (`bcast_smoke_*` + `run_bcast_smoke.sh`). |
+| `../../../../include/pto/npu/a2a3/grid_cce_intrinsic.hpp` | Grid CCE facades: unified-L1 copies, absolute `sync_hscb`, reverse-fan-in `atom_add_hscb`, and blocking `wait_ipc_scb`. The A3 mock represents L1 ranges with GM windows. |
+| `../../../../include/pto/npu/a2a3/grid_intrinsic.hpp` | GridPipe A2/A3 data model + mock support: per-channel ready/free/close SCBs, producer/consumer bindings, the three-state per-consumer FSM, durable relay counters, mesh/group resolvers, fault sentinels, and the `GmSramArena` TPOP locality guard. |
+| `scripts/gen_data.py` | Generates the FULL fp16 X/weight tensors (`x_full`, `w_gate_full`, `w_up_full`, `w_down_full`) the Batcher consumes, plus an fp32 SwiGLU `golden` reference. |
 | `build/` | Ignored generated build directory. |
 | `out/` | Ignored generated data directory. |
 
+## Bit-exactness notes
+
+Run with `-r npu` (the `sim`/`camodel` modes fail `aclrtSetDevice` 507033); on a shared host every run goes through `task-submit`. All four examples produce `max diff = 0` vs `golden.bin` — bit-exact, not merely within the `1e-3` tolerance. Two real bugs once masked that, both now fixed:
+
+- **Channelised collective handoff (TBROADCAST/TREDUCE).** Payload is no longer rank-slotted. Source ordinal `s` uses the normal GridPipe ring `slotBase[s%C]`; therefore at most C sources write concurrently and never share a payload address or forward scoreboard. Sources beyond C reuse the channel only after its predecessor has closed and reverse FREE credits prove the ring drained. READY/CLOSE use monotone absolute `sync_hscb` stores; only reverse FREE fan-in uses `atom_add_hscb`.
+- **Phase-D output T-stride (both AllGather kernels).** The AllGather y-shard `[T, Hc]` is written into the *full* `[T, H]` output, so its row stride must be the full output width `kHfull` (= `H` = 7168). A copy-paste from the `hidden_full` store had left it at `kIfull` (= `I` = 3072), scrambling y rows 1–7 (≈50 % zero output / large drift). One-line fix `kIfull` → `kHfull` in the `GY` store of both AllGather kernels.
+
+The `treduce` ReduceSum additionally requires its per-cell partial buffers (`partialBuf` / `rowPartialBuf`) to be laid out **segment-major** — each `[T, kHBase]` H-segment contiguous at offset `h*(T*kHBase)` — so a contributor can stage one contiguous segment into its selected channel ring; only the final `yFull` keeps the strided `[T, H]` golden layout.
+
+A 32-block launch still cannot run in one wave on 24 physical AICores — a single-wave launch oversubscription-deadlocks phase C, whose COL groups span all 4 rows (first-batch cells spin on second-batch row-3 doorbells that never get a core). The host therefore launches in waves sized from `--phys-cores` (`rowsPerWave = physCores/cols`, `colsPerWave = physCores/rows` → 2 waves each for phases B and C, 6 launches total, ~5 ms). With the stride fix the wave split is purely a scheduling concern, not a reliability problem.
+
 ## Execution Flow
 
-1. `run_reducesum.sh` parses arguments. Defaults are `gridRows=2`, `gridCols=2`, `T=16`, `H=64`, `Fi=64`, and `n-ranks=1`.
-2. Unless `--build-only` is set, `scripts/gen_data.py` generates per-cell input and weight files plus `golden.bin`.
-3. CMake builds two targets:
-   - `distributed_ffn_grid_reducesum_mixed_kernel`: `dav-c220` mixed Cube/Vec.
-   - `distributed_ffn_grid_reducesum`: host executable.
+1. Each `run_*.sh` parses arguments. Defaults are the real DeepSeek-v4 Pro shapes on a 4×8 = 32-cell mesh: `gridRows=4`, `gridCols=8`, `T=8` (token tile), `H=7168`, `Fi=96` (per-cell I shard; full `I = Fi * cells = 3072`), `n-ranks=1`, and `phys-cores=24`.
+2. Unless `--build-only` is set, `scripts/gen_data.py --pure-ncut` generates the flat full-tensor Batcher inputs (`x_full`, `w_gate_full`, `w_up_full`, `w_down_full`) plus the SwiGLU `golden.bin`.
+3. CMake builds two targets per example — a `..._mixed_kernel` `dav-c220` shared library and the matching host executable (e.g. `distributed_ffn_grid_treduce_reducesum_mixed_kernel` + `distributed_ffn_grid_treduce_reducesum`). The two AllGather kernels are additionally compiled with `-DCONFIG_FFN_GRID_ALLGATHER`.
 4. The host initializes ACL on the selected device.
 5. The host allocates contiguous device buffers for `gridRows * gridCols` cells.
 6. The host allocates one local GridPipe SRAM window per cell, backed by GM in the mock, and builds a fake `HcclDeviceContext`:
@@ -55,7 +69,7 @@ rankNum = gridRows * gridCols
 winSize = FFN_GRID_WINDOW_BYTES
 ```
 
-7. The host loads X and weights into row-major per-cell buffers.
+7. The host **Batcher** (`batcher.hpp`) loads the full input + full DRAM-resident weights into GM, splits the weights column-parallel into per-col shards, and broadcasts x per-row (see [Batcher (GM-simulated)](#batcher-gm-simulated)).
 8. The host obtains the FFTS base address with `rtGetC2cCtrlAddr()` and launches `DistributedFfnGridMixedKernel` once with `gridRows * gridCols` blocks.
 9. Inside each block, Cube and Vec branches exchange intermediate tiles through A2/A3 `TPipe` FIFOs. The kernel issues these C2V/V2C transfers as a directional `TMOV` (`TMOV(pipe, tile)` to produce, `TMOV(tile, pipe)` to consume); the underlying `TPUSH`/`TPOP` stays implicit (see `tpipe_tmov_inl.hpp`):
 
@@ -65,7 +79,7 @@ Cube:
   X[row] @ W_up[col]   -> upPartial[row,col]   --TMOV C2V-->
 
 Vec:
-  hidden[row,col] = fp16(PReLU(gatePartial) * upPartial)
+  hidden[row,col] = fp16(SwiGLU(gatePartial) * upPartial)   # SiLU(clamp(gate)) * up
   hidden[row,col] --TMOV V2C-->
 
 Cube:
@@ -80,6 +94,21 @@ The cross-cell `EAST`/`WEST` reduce and gather keep their explicit GridPipe `TPU
 10. The host synchronizes the stream, checks GridPipe fault flags, copies `yOutput` back, and compares it with `golden.bin`.
 
 ## Key Designs
+
+### Batcher (GM-simulated), SwiGLU, and the A3 precision map
+
+This demo is aligned to the WSE-FFN tile-level expansion (`WSE-FFN-tile级全展开图.svg`), which casts an external **Batcher** as the owner of the full input and the full DRAM-resident weights, responsible for splitting/distributing them to cores and collecting the output. A2/A3 has no such hardware, so `batcher.hpp` simulates the Batcher entirely in GM:
+
+- **Full weights resident in GM** (`w_gate_full`/`w_up_full` `[H,F]`, `w_down_full` `[F,H]`), mirroring the SVG's `DRAM 常驻` store.
+- **Distribute** slices those full weights column-parallel and writes a contiguous per-col shard (`[H,Fi]` gate/up; `[F,Hc]` AllGather or `[Fi,H]` ReduceSum for down) into a per-col GM region. Each core then TLOADs its own shard (DRAM→L1 stream), exactly like a core streaming its Batcher-delivered weight tile.
+- **Broadcast** writes the full `x` into GM; every column in a row reads the same `x` (broadcast, "复制 broadcast → N 核"). This also drops the legacy per-cell duplication: `x` is per-row, weights are per-col.
+- **Collect**: cores write their y shards (AllGather) / the EAST reduce writes the per-row sum (ReduceSum) straight into the Batcher `y` region of GM.
+
+The kernel addresses Batcher storage by `(row, col)`: `x = xFull + row*…`, `w = wShards + col*…`, `y = yFull + row*… (+ col*Hc)`.
+
+The SVG activation is **SwiGLU = SiLU(clamp(gate)) · up** ("SiLU + clamp(max=10)"). The Vec branch composes SiLU from existing intrinsics in fp32: `SiLU(g) = g / (1 + e^-g)` via `TMAXS`/`TMINS` (clamp ±10), `TMULS(-1)` → `TEXP` → `TADDS(1)` (denominator), `TDIV`, then `TMUL` with `up`. `gen_data.py` uses the identical clamp+SiLU for the golden reference.
+
+The SVG also carries low precisions A3 does not support (FP4 weights, FP8 activations, BF16 I/O). Per the extension design every tile-graph precision is mapped to **one A3-supported dtype** (see the table in `ffn_config.hpp`): FP4/FP8/BF16 → `half`, FP32 accumulators/output stay `float`. The `act_quant` and weight-`unpack` stages therefore exist as named, zero-cost identity points in the kernel — they document where the SVG casts would live without adding any A3-unsupported conversion. The fp16/fp32 data path already *is* the mapped result.
 
 ### Mixed Cube/Vec launch
 
@@ -108,7 +137,7 @@ All cells run on one device. `gridRows` controls data-parallel token tiles, and 
 
 ### Local GridPipe mock
 
-The host allocates `gridRows * gridCols` local SRAM windows, backed by GM in the mock. `TPUSH<EAST>` resolves the east neighbor's SRAM slot with `get_neighbor_sram_addr`, writes the payload, then publishes the ready counter; `TPOP<EAST>` waits on the local ready counter, loads the local SRAM slot, and returns free credit to the west neighbor.
+The host allocates `gridRows * gridCols` local SRAM windows, backed by GM in the mock. `TPUSH(..., consId)` resolves that consumer's SRAM slot with `ResolvePeerSlotAddr`, writes the payload, then publishes READY; `TPOP(..., prodId)` waits on local READY, loads the local slot, and returns FREE credit to that producer.
 
 The mock uses GM flag polling and cache maintenance to emulate the intended LPU WSE `SPR` / `WFE` behavior on A2/A3.
 
@@ -120,121 +149,139 @@ To stay close to real silicon, the mock models future-hardware per-core SRAM as 
 segment c = [base + c*winSize, base + (c+1)*winSize)   // base == windowsIn[0]
 ```
 
-`GmSramArena` (in `include/pto/common/grid_sram_intrinsic.hpp`) carries `{base, segBytes, numSegs}` plus the `SegmentOf` / `InSegment` classifiers; the demo builds it on-device from the fake `HcclDeviceContext` window table (`SramArenaFromCtx`). It is the single source of truth for "which core owns this address".
+Each segment keeps receive and producer storage distinct:
+
+```text
+control + record | unicast receive rings | optional broadcast receive ring | producer staging slot
+                                                                             [SlotStride bytes]
+```
+
+The producer slot is appended after every receive-side region. `TPUSH` and `TBROADCAST` first stage the tile there, then map that local L1 source to the selected peer payload-ring address. This models real WSE, where vector data and L1 share one SRAM address space, without allowing the producer source to alias a receive ring.
+
+`GmSramArena` (in `include/pto/npu/a2a3/grid_intrinsic.hpp`) carries `{base, segBytes, numSegs}` plus the `SegmentOf` / `InSegment` classifiers; the demo builds it on-device from the fake `HcclDeviceContext` window table (`SramArenaFromCtx`). It is the single source of truth for "which core owns this address".
 
 This makes the NoC contract explicit and **enforced**: the fabric can only *write* across cores, never *read*.
 
-- `TPUSH<dir>` writes a payload into the **neighbor's** segment — a cross-segment write, exactly what the fabric does.
-- `TPOP<dir>` may only drain **this core's own** segment. `GRID_TRY_TPOP_IMPL` calls the `sram_pop_is_local` guard before the payload read; on a cross-segment read it raises `kFaultPopNonLocal` (`0x205`, "pop non-local segment") and aborts the pop. The host's `CheckGridPipeFaults` surfaces it.
+- `TPUSH(pipe, tile, consId, ...)` reads this core's dedicated producer slot and writes the payload into the **consumer's receive ring** — a cross-segment write, exactly what the fabric does.
+- `TPOP(pipe, tile, prodId)` may only drain **this core's own** segment. `GRID_TRY_TPOP_IMPL` calls the `PopSlotIsLocal` guard before the payload read; on a cross-segment read it raises `kFaultPopNonLocal` (`0x205`, "pop non-local segment") and aborts the pop. The host's `CheckGridPipeFaults` surfaces it.
 
-On native hardware `sram_pop_is_local` is a no-op (`true`): a TPOP read address is local by construction because the fabric has no remote-read path. The guard exists only because the A2/A3 mock backs SRAM with a GM window that *can* physically read any address, so without it a demo could silently rely on a remote read the silicon cannot perform. A compile-time `static_assert(GmSramArenaSelfCheck())` is built into every A2/A3 kernel, so a regression in the segment math fails the build rather than mis-routing a pop.
+On native hardware `PopSlotIsLocal` is a no-op (`true`): a TPOP read address is local by construction because the fabric has no remote-read path. The guard exists only because the A2/A3 mock backs SRAM with a GM window that *can* physically read any address, so without it a demo could silently rely on a remote read the silicon cannot perform. A compile-time `static_assert(GmSramArenaSelfCheck())` is built into every A2/A3 kernel, so a regression in the segment math fails the build rather than mis-routing a pop.
 
 > The `pto::comm` variants (`TREDUCE` / `TGATHER`) intentionally do **not** follow this rule: they are a root-pulls-from-every-rank collective (HCCL/RDMA-style remote reads), a different memory model from the WSE NoC. Only the GridPipe `TPUSH`/`TPOP` path is constrained to write-only.
 
-### Neighbor counter intrinsic API
+### IPC_SCB scoreboard intrinsic API
 
-GridPipe ready/free synchronization goes through two CCE-intrinsic-style APIs in `include/pto/common/grid_counter_intrinsic.hpp`. The canonical call form keeps hardware semantic operands first and the mock backend operand last:
+GridPipe ready/free/close synchronization follows the V8 IPC_SCB scoreboard route. Each channel owns one SCB of each kind. The handshake intrinsics live in `include/pto/npu/a2a3/grid_cce_intrinsic.hpp` as a thin CCE facade layer — each facade forwards 1:1 to a `__builtin_cce_*` under `PTO_GRID_CCE_NATIVE`, and otherwise emulates the same semantics in the A2/A3 mock with a GM word + cache maintenance (`dcci`/`dsb`):
 
-- `mtspr_neighbor_counter(kind, dir, value, operand)` publishes a monotonic `Ready` or `Free` counter to the neighbor-visible counter for `dir`.
-- `wfe_neighbor_counter(kind, dir, threshold, operand, maxSpins)` waits until the local mirror of that counter reaches `threshold`.
+- `copy_l1_to_neighbor_l1(dstNeighborSlot, srcProducerSlot, transferScratch, bytes)` (G1 / HW-DEP-0) writes the isolated local producer L1 slot into the resolved neighbor receive-ring slot. `transferScratch` exists only for the A3 GM-backed DMA pump; it is not an architectural source address. The operation is not self-synchronizing; the following `sync_hscb(READY)` publishes data-ready.
+- `sync_hscb(peerScb, absCount)` (V8 `SYNC_HSCB`/`ST_HSCB`, G2 — reused HSCB store + neighbor IPC_SCB addressing / HW-DEP-1) stores an absolute count into the peer's `ready_scb`, `free_scb`, or `close_scb`. The target kind and peer are resolved into `peerScb` by `RemoteScbPtr`.
+- `atom_add_hscb(peerScb, delta)` atomically increments a peer scoreboard for reverse FREE fan-in. Forward READY/CLOSE never use it. The A3 mock lowers it to atomic s32 accumulation; the native facade maps to `__atom_add_hscb` and requires peer IPC_SCB targeting/wakeup support from the final WSE ISA.
+- `wait_ipc_scb(localScb, threshold, slot)` (V8 `WAIT_SPR`, G3 — reused IPC_SCB blocking wait) reads + blocks in **one** instruction: the entry reads the local IPC_SCB and proceeds if it is already `>= threshold`, else blocks the current pipe until the peer's `sync_hscb` store raises it. V8 dropped the V7 `MOV_SPR2X` non-blocking peek — there is no separate read step. The demo calls the `wait_ipc_scb_sim(..., maxSpins)` mock wrapper, which adds a spin-timeout fault sentinel so a handshake deadlock fails the test instead of hanging; the documented hardware interface is the void `wait_ipc_scb`.
 
-GridPipe payload address resolution goes through `include/pto/common/grid_sram_intrinsic.hpp`:
+Payload destination resolution (turning a local receive-ring slot / scoreboard word into the same byte offset in a peer's GM window) is a plain runtime helper in `gridpipe_payload_inl.hpp` (`ResolvePeerSlotAddr` / `RemoteScbPtr`), not an intrinsic. The source is separately fixed at `producerSlotBase`. TPOP's local drain reuses `copy_gm_to_ubuf`; the NoC is write-only, so there is deliberately **no cross-core read** of payload. `PopSlotIsLocal` rejects a mis-wired cross-segment read.
 
-- `get_neighbor_sram_addr(dst, src, dir, peerRank, operand)` resolves a local slot offset to the same offset in a neighbor SRAM slot address register.
-- `copy_sram_to_neighbor_sram(dst, src, bytes, config)` writes local SRAM payloads to a neighbor SRAM slot.
-- `copy_neighbor_sram_to_sram(dst, src, bytes, config)` is the read-side interface counterpart. Native lowering is intentionally only an interface placeholder for now; the A2/A3 mock uses it for TPOP-side validation against the GM-backed slot.
-- `sram_pop_is_local(slot, bytes, callerRank, operand)` is the TPOP read-locality guard (see the address-segment model above): native lowering returns `true`, while the A2/A3 mock checks `slot` against `callerRank`'s `GmSramArena` segment so a cross-segment read is rejected instead of silently serviced.
+Native lowering targets the real CCE HSCB/IPC_SCB stack. The compiler-facing copy builtin retains its historical `ubuf` spelling, but the facade always passes the dedicated unified-L1 producer address; the caller's tile address is never used as the NoC source mapping. The A3 mock represents scoreboards and both L1 ranges with GM plus cache maintenance.
 
-The current A2/A3 mock implements the SRAM write/read path with MTE copies through the GM-backed fake window. Once native hardware provides the corresponding write builtin, GridPipe call sites do not need to change.
+`TPUSH(pipe, tile, consId)` waits the selected local producer channel's `free_scb`, stages the tile in `producerSlotBase`, copies that L1 range to the independently selected consumer channel's ring, then publishes `prod_idx`. `TPOP(pipe, tile, prodId)` waits its local consumer channel's `ready_scb`, reads only that local receive ring, then publishes `cons_idx` to the negotiated producer channel's `free_scb` at the peer. The two channel indices need not be equal.
 
-`TPUSH<EAST>` waits on `Free` with `wfe_neighbor_counter`, writes the payload slot, then publishes `Ready` with `mtspr_neighbor_counter`. `TPOP<EAST>` waits on `Ready`, reads the payload slot, then publishes `Free` back upstream.
+### Time-division MPSC relay counting
 
-On current A2/A3 boards, `NeighborCounterOperand::addr` points to a GM-backed counter in the local/fake peer GridPipe window, and `NeighborSramOperand::runtimeCtx` points to the fake HCCL context. When real hardware supports neighbor SPR/WFE counters and neighbor SRAM address registers, this demo should be adapted by compiling GridPipe with `PTO_GRID_COUNTER_NATIVE_INTRINSIC` and `PTO_GRID_SRAM_NATIVE_INTRINSIC` and providing the compiler builtins. In that mode the mock operands are ignored, and the host/device setup should move from fake GM windows to hardware-provided per-neighbor counter/event registers and SRAM slot bases while keeping the GridPipe `TPUSH/TPOP` call sites unchanged.
+The producer keeps one FSM entry per consumer (`UNBOUND`, `ACTIVE`, or `CLOSED`) plus a local producer-channel table (`UNBOUND`, `ACTIVE`, or producer-`CLOSED`). An `ACTIVE` consumer uses the normal TPUSH fast path. For an `UNBOUND` or `CLOSED` consumer, the producer first reserves an unused or producer-`CLOSED` local channel, waiting if none is available. It enqueues `[producer block id, local producer channel, generation token]` into the consumer's source-indexed bind-request area; it does not wait for the consumer to choose the producer-side resource.
 
-### fp32 EAST reduction
+The request area has one cache-line entry per logical producer (up to the runtime's 64 logical windows), so simultaneous producers have different remote writers and cannot overwrite one another during line-granular cache writeback. The consumer selects pending entries round-robin (an explicitly requested TPOP producer has priority), completes exactly one bind—including its reply—before selecting another, and writes the reply into the producer's consumer-indexed response area. A persistent generation token prevents a delayed reply from satisfying a later request.
 
-The reduce slot carries fp32 `[T, H]`, so `FFN_SLOT_BYTES = T * H * 4`. This keeps `downPartial`, `yOutput`, and `golden.bin` in fp32 for direct tolerance-based comparison.
+For the selected request, the consumer independently scans its receive channels, preferring never-used entries and otherwise requiring only `close_scb > closeBaseline`. It does not require `cons_idx >= close_scb`: undrained turns retain their producer identity/end boundary in the persistent record. Bind returns the old end as the new `prod_idx` baseline and the current `cons_idx` as the absolute FREE baseline, so ordinary ring backpressure prevents overwrite. The request and response commit words are each written last. Counts continue monotonically across producer turns; no SCB is reset.
 
-### Routed K-hop unicast
+The public A2/A3 API is `TPUSH(pipe, tile, consId, isLastTransfer, events...)`; omitting the Boolean is equivalent to `isLastTransfer == false`. Set it to `true` only on the last tile of that producer→consumer turn. The final TPUSH publishes the same absolute count to the remote consumer channel's `close_scb` after payload and READY, then transitions both that consumer FSM entry and the local producer channel to `CLOSED`. This remains time-division MPSC for payload ownership, while multiple bind requests may be pending concurrently and are serialized by the consumer.
 
-`TPUSH<dir, dist>` / `TPOP<dir, dist>` extend the nearest-neighbor pipe to a routed unicast `dist` hops along `dir` (Scheme A). The payload write resolves the slot in the `dist`-hop neighbor's segment, and the ready/free doorbells carry the same `dist` operand through `mtspr_neighbor_counter` / `wfe_neighbor_counter`, so the receiver `dist` hops downstream pops the tile with no relays in between. `dist == 1` reproduces the original nearest-neighbor behavior. Fan-in stays 1 (one upstream per direction/distance), so no slot/flag expansion is needed.
+### Group broadcast and reduce data movement
 
-### Single-source row/column broadcast
+`GRID_TBROADCAST` stages once, then writes the chosen channel/slot with `copy_l1_to_group` for an affine group arena or per-member `copy_l1_to_neighbor_l1` otherwise. Each receiver waits that channel's absolute READY/CLOSE sequence, drains locally, and atomically credits the next owner. Group `TREDUCE` is called by every member: up to C contributors push into distinct sink rings, the sink drains and combines them in source order, and its reverse atomic FREE releases the next source on each channel.
 
-`TPUSH<GridSpan>` (`ROW` or `COL` as the first template argument selects the multicast overload) lets one source cell broadcast its tile to every other cell in its row or column as one op: the per-target writes are batched with no inter-target fence, the whole broadcast pays a single publish fence, then all ready doorbells fire. It is not lowered to a per-hop `TPUSH` loop. Receivers drain with the ordinary `TPOP<dir, dist>` toward the source (`EAST`/`WEST` for a row span, `NORTH`/`SOUTH` for a column span).
+### fp32 reduction
+
+The reduce slot carries fp32 `[T, H]`, so `FFN_SLOT_BYTES = T * H * 4`. This keeps `downPartial`, `yOutput`, and `golden.bin` in fp32 for direct tolerance-based comparison. The ReduceSum reduce is H-chunked (`kHSegs` = 7): the `treduce` example stages each segment through its assigned sink ring, while the `tpush` example relays segments hop-by-hop with peer-id TPOP + TADD + TPUSH. ROW and COL TREDUCE reuse one window; fixed-channel bind relays the absolute READY/FREE baselines when the producer identities change between phases.
+
+### Peer-id unicast
+
+Unicast direction is derived by the schedule, not encoded in the instruction type. TPUSH receives the destination logical block id (`consId`), TPOP receives the source logical block id (`prodId`), and `RemoteScbPtr` resolves the symmetric slot/SCB offset in that peer's window. This keeps one GridPipe usable when the peer changes between phases.
+
+### Concurrent group broadcast (TBROADCAST)
+
+`TBROADCAST<GridGroup>` (`ROW`, `COL`, or `SUBRECT`) maps source ordinal `s` to channel `s%C` and writes `(sequence%SlotCount)` in that ordinary GridPipe ring. The whole fan-out pays one publish fence, then the source overwrites that channel's READY and CLOSE with `sequence+1`. It is not lowered to a per-hop `TPUSH` loop.
+
+At most C sources are live at once. If a group has more sources, callers execute them in per-channel owner order. CLOSE permits the next source to bind immediately; bind relays the old end sequence and current consumer index, and reverse atomic FREE credits keep that source from overwriting an undrained slot. The source set is exactly the ranks that invoke TBROADCAST; no extra source-range side configuration is needed. The 8-way row AllGather runs 4+4 and the 4-way column gather runs once. All members required by a batch must be resident in the same hardware wave.
 
 ### GridPipe smoke tests
 
-The two capabilities above each have a Vec-only data-movement smoke test under `smoke/` (no Cube, no matmul, no data files; in-process verification on the same GM-backed mock as the FFN demos):
-
-- `khop_smoke` — a `1 x cols` row; each cell pushes a stamped fp32 `[T, W]` tile `DIST` hops east, the receiver pops and stores it; the host checks `out[c] == in[c-DIST]`.
-- `bcast_smoke` — one source cell (`--src`) broadcasts its stamped tile to its whole row (or column with `--span-col 1`); every other cell pops at its own direction/distance and stores it; the host checks `out[cell] == in[source]`. The default 1x5 row with the source at col 2 exercises both arms in one run.
+`bcast_smoke` is a Vec-only data-movement smoke test (no Cube, no matmul, no data files) on the same GM-backed mock. One source cell broadcasts a stamped fp32 `[T, W]` tile to its row, column, or sub-rectangle; each receiver drains and stores it, and the host checks `out[cell] == in[source]`.
 
 ### AllGather variant
 
-`run_allgather.sh` uses `scripts/gen_data.py --split-mode allgather` to generate data. In this mode, `W_down` is split as `[F, Hc]`, GridPipe carries fp16 `hidden [T, Fi]`, and each column writes one `Y[:, Hc]` output shard. The host still compares the stitched full output with `golden.bin`. AllGather requires `--model-tile` to be divisible by `--grid-cols` so `Hc = H / gridCols` is an integer tile width.
+The two AllGather examples (`run_tbroadcast_allgather.sh`, `run_tpush_allgather.sh`) share the same pure-N-cut data (`scripts/gen_data.py --pure-ncut`) as the ReduceSum examples; the kernel is compiled with `-DCONFIG_FFN_GRID_ALLGATHER`, which makes the host Batcher slice `W_down` along the output **H** (each cell gets an `[I_full, Hc]` shard, `Hc = H / cells`) and turns the cross-cell work into a two-phase gather that rebuilds the full fp16 `hidden [T, I_full]` on every cell before the down GEMM — each cell then writes one `Y[:, Hc]` output shard, so there is no post-down ReduceSum. The host stitches the shards and compares with `golden.bin`. Pure-N-cut requires `--model-tile` (H) divisible by the cell count (`grid-rows * grid-cols`) so `Hc` is an integer width, and full `I` (`ffn-tile * cells`) divisible by the cell count.
 
 ## How to Run
 
 ### Build only
 
 ```bash
-bash run_reducesum.sh --build-only -v Ascend910B1 --grid-rows 2 --grid-cols 2
-bash run_allgather.sh --build-only -v Ascend910B1 --grid-rows 2 --grid-cols 2
+bash run_treduce_reducesum.sh    --build-only
+bash run_tbroadcast_allgather.sh --build-only
 ```
 
 ### Run on NPU
 
+The scripts default to the DeepSeek-v4 Pro shapes (4×8 = 32 cells), so a plain invocation runs the real shape:
+
 ```bash
-bash run_reducesum.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-cols 3
-bash run_allgather.sh -r npu -v Ascend910B1 --device-id 0 --grid-rows 3 --grid-cols 3 --model-tile 96
+bash run_treduce_reducesum.sh    -r npu -v Ascend910B1 --device-id 0
+bash run_tpush_reducesum.sh      -r npu -v Ascend910B1 --device-id 0
+bash run_tbroadcast_allgather.sh -r npu -v Ascend910B1 --device-id 0
+bash run_tpush_allgather.sh      -r npu -v Ascend910B1 --device-id 0
 ```
+
+On a shared host, wrap each run in `task-submit` (e.g. `task-submit bash run_treduce_reducesum.sh -r npu --device-id 0`).
 
 ### GridPipe smoke tests
 
 ```bash
-# Routed K-hop unicast: 1x4 row, shift-by-2
-bash smoke/run_khop_smoke.sh -r npu -v Ascend910B1 --device-id 0 --grid-cols 4 --dist 2
 # Single-source broadcast: 1x5 row, source at col 2 (use --span-col 1 + Rx1 grid for a column broadcast)
 bash smoke/run_bcast_smoke.sh -r npu -v Ascend910B1 --device-id 0 --grid-cols 5 --src 2
 ```
 
-Both accept `--build-only` and need no data generation.
+The smoke script accepts `--build-only` and needs no data generation.
 
 ### Common arguments
 
 ```text
--r, --run-mode      sim or npu, default npu
+-r, --run-mode      sim or npu, default npu (sim/camodel fail aclrtSetDevice 507033)
 -v, --soc-version   default Ascend910B1
 -n, --n-ranks       fixed to 1
--d, --device-id     selected ACL device id; defaults to FFN_GRID_DEVICE_ID, ASCEND_DEVICE_ID, DEVICE_ID, then 0
---grid-rows         logical grid row count, default 2
---grid-cols         logical grid column count, default 2
---token-tile        token tile T per cell, default 16
---model-tile        hidden dim H, default 64; AllGather requires H % gridCols == 0
---ffn-tile          intermediate dim Fi per column, default 64
+-d, --device-id     selected ACL device id; defaults to TASK_DEVICE, FFN_GRID_DEVICE_ID, ASCEND_DEVICE_ID, DEVICE_ID, then 0
+--grid-rows         logical grid row count, default 4
+--grid-cols         logical grid column count, default 8
+--token-tile        token tile T (M) per cell, default 8
+--model-tile        hidden dim H, default 7168; pure-N-cut requires H % (grid-rows*grid-cols) == 0
+--ffn-tile          per-cell intermediate dim I_shard, default 96 (full I = ffn-tile*cells = 3072; must divide evenly by cells)
+--phys-cores        physical AICores to emulate on, default 24 (waves are sized from this; <32 forces a multi-wave launch)
 --build-only        build only; skip data generation and execution
 ```
 
-The smoke scripts reuse `-r/-v/-d`, `--grid-rows/--grid-cols`, `--token-tile/--model-tile` (tile `[T, W]`), and `--build-only`; `run_khop_smoke.sh` adds `--dist` (hop count, default 2) and `run_bcast_smoke.sh` adds `--src` (source index, default 2) and `--span-col` (1 = column broadcast, default 0).
+The broadcast smoke script reuses `-r/-v/-d`, `--grid-rows/--grid-cols`, `--token-tile/--model-tile` (tile `[T, W]`), and `--build-only`; it adds `--src`, `--span-col`, and `--subrect` with `--rect-r0/r1/c0/c1` / `--rect-src` to scope a sub-rectangle.
 
 ## Expected Result
 
-On success, the ReduceSum executable prints:
+On success, each FFN executable prints its bit-exact verdict:
 
 ```text
-[SUCCESS] Single-device multi-block FFN GridPipe PASS.
-```
-
-On success, the AllGather executable prints:
-
-```text
-[SUCCESS] Single-device multi-block FFN GridPipe AllGather PASS.
+[SUCCESS] 32-cell N-cut FFN GridPipe TREDUCE ReduceSum PASS.
+[SUCCESS] 32-cell N-cut FFN GridPipe TPUSH ReduceSum PASS.
+[SUCCESS] 32-cell N-cut FFN GridPipe TBROADCAST AllGather PASS.
+[SUCCESS] 32-cell N-cut FFN GridPipe TPUSH AllGather PASS.
 ```
 
 The smoke tests print:
 
 ```text
-[SUCCESS] GridPipe K-hop unicast smoke PASS.
 [SUCCESS] GridPipe single-source broadcast smoke PASS.
 ```

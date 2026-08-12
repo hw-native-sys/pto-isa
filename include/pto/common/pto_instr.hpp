@@ -2619,25 +2619,32 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut& dst, TileDataIn& src, WaitEven
 // ---------------------------------------------------------------------------
 // GridPipe TPUSH / TPOP overloads (design doc section 4.1, "neighbor-core
 // FIFO" form).  These coexist with the cluster-local TPipe overloads above:
-// SFINAE on is_grid_pipe_v keeps overload resolution unambiguous.  The
-// `Direction` non-type template parameter is constant-folded by the compiler,
-// matching design doc section 4.2's requirement that direction be a constant
-// at lowering time.
+// SFINAE on is_grid_pipe_v keeps overload resolution unambiguous.
+//
+// A grid transfer names the PEER it talks to -- `consId` for a push, `prodId` for a
+// pop -- as an ordinary mesh rank the call site derived from the topology
+// (GridPeerBlockIdForPush / GridPeerBlockIdForPop) or from its own schedule.  A
+// producer-side table maps each downstream `consId` to this core's local producer
+// channel and to the independently selected consumer channel at the peer.  Direction
+// is gone from the instruction surface: it describes the mesh, not the pipe, and
+// lives only in the constexpr topology helpers the caller uses to compute these ids.
+//
+// The pair is negotiated lazily.  An UNBOUND/CLOSED TPUSH first reserves an unused
+// or producer-CLOSED local channel, then sends its producer id plus that channel to
+// the consumer.  TPOP independently selects an unused or closed-and-drained receive
+// channel and returns its ready baseline, channel index, and an explicit completion
+// commit; it also relays cons_idx into the selected producer free_scb.  ACTIVE
+// transfers stay on the negotiated pair.
 // ---------------------------------------------------------------------------
 
 template <
-    pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileProd,
-    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
+    typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents,
+    std::enable_if_t<(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<WaitEvents>>, bool> && ...), int> = 0>
+PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, uint32_t consId, WaitEvents&... events)
 {
-    static_assert(
-        Direction != pto::GridDirection::SOURCE, "GridPipe TPUSH<SOURCE> is illegal (design doc section 4.3): "
-                                                 "SOURCE is only valid for TPOP.");
-    // Dist is the routed-unicast hop count; Dist == 1 (default) is the original
-    // nearest-neighbor push.  TPUSH<EAST, 2>(pipe, tile) pushes 2 hops east.
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPUSH_IMPL<Direction, Dist, Pipe, TileProd>(pipe, tile);
+    GRID_TPUSH_IMPL<Pipe, TileProd>(pipe, tile, consId, false);
 #else
     static_assert(
         sizeof(Pipe) == 0, "GridPipe TPUSH not supported on this target profile "
@@ -2646,16 +2653,31 @@ PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
     return {};
 }
 
-template <
-    pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileCons,
-    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
-PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, WaitEvents&... events)
+// `isLastTransfer` closes this producer->consumer binding after publishing the
+// tile.  It defaults to false through the overload above; pass true only for the
+// final transfer in the current time-division MPSC turn.  The explicit `is...`
+// spelling follows the public C++ naming convention and makes the Boolean's
+// meaning clear at call sites.
+template <typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, uint32_t consId, bool isLastTransfer, WaitEvents&... events)
 {
-    // Dist must match the producer's TPUSH distance for this logical edge so the
-    // free-credit doorbell routes back to the K-hop producer; Dist == 1 default.
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPOP_IMPL<Direction, Dist, Pipe, TileCons>(pipe, tile);
+    GRID_TPUSH_IMPL<Pipe, TileProd>(pipe, tile, consId, isLastTransfer);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TPUSH not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+template <typename Pipe, typename TileCons, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, uint32_t prodId, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TPOP_IMPL<Pipe, TileCons>(pipe, tile, prodId);
 #else
     static_assert(
         sizeof(Pipe) == 0, "GridPipe TPOP not supported on this target profile "
@@ -2665,30 +2687,120 @@ PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, WaitEvents&... events)
 }
 
 // ---------------------------------------------------------------------------
-// GridPipe TPUSH broadcast overload: single-source row/column multicast.  This
-// is the SAME verb as the unicast TPUSH above, distinguished purely by the type
-// of the first explicit template argument -- a GridSpan (ROW/COL) selects this
-// overload, a GridDirection selects the unicast one.  The two scoped enums never
-// interconvert, so overload resolution is unambiguous and folds at compile time.
+// GridPipe TREDUCE overload: one fused "receive-combine-forward" reduce hop
+// (design doc section 5, worked ReduceSum example).  It is the AllGather relay hop
+// (TPOP + TPUSH) with a combine folded in between: an interior/sink cell drains the
+// transiting partial from `prodId`, folds its own `acc` in with `Op` (Sum/Max/Min),
+// and forwards the running reduction to `consId`; a source cell (prodId ==
+// kGridNoPeer) only forwards; a sink cell (consId == kGridNoPeer) keeps the
+// complete result in `acc` for the caller to store.  No explicit root flag -- the
+// chain ends where a peer id says there is no peer.  `Op` is the SAME
+// pto::comm::ReduceOp the collective TREDUCE uses.  SFINAE on is_grid_pipe_v keeps
+// it distinct from the collective pto::comm::TREDUCE (whose first argument is a
+// ParallelGroup).
 //
-// One source fans `tile` to every other cell on its row (GridSpan::ROW) or
-// column (GridSpan::COL) in a single op -- a true multicast with ONE publish
-// fence, not a per-hop TPUSH<Dir, k> loop (see GRID_TRY_TPUSH_BCAST_IMPL).
-// Fan-in stays 1, so receivers drain it with the ordinary TPOP<EAST/WEST, dist>
-// (ROW) or TPOP<NORTH/SOUTH, dist> (COL).  There is no Dist parameter: a span
-// always fans to the grid boundary on both of its arms.
+// This is the ISA surface for hardware that can combine ON TRANSIT (随路/过路
+// compute): such a fabric lowers the whole hop to one routed reduce-forward and
+// `recv` is unused.  On A2/A3 there is no on-transit compute and the adder is
+// core-local, so it lowers to the local TPOP + combine + TPUSH sequence in
+// GRID_TREDUCE_IMPL; `recv` is the mandatory landing tile for the in-core add.
 // ---------------------------------------------------------------------------
 template <
-    pto::GridSpan Span, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
-    typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
+    pto::comm::ReduceOp Op, typename Pipe, typename TileAcc, typename TileRecv,
+    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent
+TREDUCE(Pipe& pipe, TileAcc& acc, TileRecv& recv, uint32_t prodId, uint32_t consId, WaitEvents&... events)
 {
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPUSH_BCAST_IMPL<Span, Pipe, TileProd>(pipe, tile);
+    GRID_TREDUCE_IMPL<Op, Pipe, TileAcc, TileRecv>(pipe, acc, recv, prodId, consId);
 #else
     static_assert(
-        sizeof(Pipe) == 0, "GridPipe TPUSH<GridSpan> broadcast not supported on this target profile "
+        sizeof(Pipe) == 0, "GridPipe TREDUCE not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// GridPipe group TREDUCE overload: every member of `Group` calls the same
+// operation.  Contributors are mapped onto the pipe's C ordinary channel rings;
+// at most C publish concurrently and sources beyond C reuse a channel only after
+// its reverse FREE relay credit arrives.  READY/CLOSE are absolute per-channel
+// stores.  The sink returns reverse FREE with atomic add and combines the rings in
+// deterministic source order.
+template <
+    pto::GridGroup Group, pto::comm::ReduceOp Op, typename T, typename Pipe, typename TileAcc, typename TileScratch,
+    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TREDUCE(
+    Pipe& pipe, TileAcc& acc, TileScratch& scratch, __gm__ const T* groupSlot, uint32_t bytes, uint32_t sinkBlockId,
+    uint32_t blockStride, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    const pto::GridBlockRect group = pto::GridBlockRectOfGroup(Group, pipe.coord, pipe.shape, pipe.groupRect);
+    GRID_TREDUCE_GROUP_IMPL<Op, T, Pipe, TileAcc, TileScratch>(
+        pipe, acc, scratch, groupSlot, bytes, group, sinkBlockId, blockStride);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe group TREDUCE not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// GridPipe TBROADCAST overload: channelised group broadcast.  The first explicit
+// template argument is a GridGroup (ROW/COL) -- the participant set -- which
+// also selects this overload against the unicast TPUSH above (a GridGroup
+// template argument cannot bind the unicast form's leading `typename Pipe`, so
+// resolution is unambiguous and folds at compile time).
+//
+// Source ordinal s uses channel s%C and its normal TPUSH-compatible payload ring.
+// Up to C sources may publish simultaneously because their rings and forward
+// scoreboards are disjoint.  More than C sources execute in batches: the next
+// owner of a channel binds after the previous owner publishes CLOSE and inherits its
+// absolute sequence plus current FREE baseline.  It may wake before old payload
+// drains; ordinary ring backpressure prevents overwrite.
+//
+// Receivers drain member `srcRank`'s shard with the TPOP<GridGroup> overload
+// below.  The ranks that actually call TBROADCAST are the source set; no separate
+// source-range configuration exists.  When the source count exceeds C, callers
+// issue batches in per-channel owner order.  See GRID_TBROADCAST_IMPL /
+// GRID_TBPOP_IMPL for the bind-relay protocol.
+// ---------------------------------------------------------------------------
+template <
+    pto::GridGroup Group, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+    typename... WaitEvents>
+PTO_INST RecordEvent TBROADCAST(Pipe& pipe, TileProd& tile, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TBROADCAST_IMPL<Group, Pipe, TileProd>(pipe, tile);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TBROADCAST not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// GridPipe TPOP<GridGroup> overload: drain ONE shard that source `srcRank`
+// broadcast into this receiver's assigned channel ring.
+// The GridGroup first template argument selects this overload against the
+// unicast TPOP above.  `srcRank` is the broadcasting
+// member's rank-in-group.  Sources sharing a channel must be drained in owner
+// order; different channels may be interleaved.
+template <
+    pto::GridGroup Group, typename Pipe, typename TileCons, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+    typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, int srcRank, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TBPOP_IMPL<Group, Pipe, TileCons>(pipe, tile, srcRank);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TPOP<GridGroup> not supported on this target profile "
                            "(design doc section 5.4 forbids silent GM fallback).");
 #endif
     return {};
