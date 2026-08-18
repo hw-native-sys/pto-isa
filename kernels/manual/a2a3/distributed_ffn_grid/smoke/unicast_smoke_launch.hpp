@@ -8,18 +8,16 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef KHOP_SMOKE_LAUNCH_HPP
-#define KHOP_SMOKE_LAUNCH_HPP
+#ifndef UNICAST_SMOKE_LAUNCH_HPP
+#define UNICAST_SMOKE_LAUNCH_HPP
 
 #include <cstdint>
 
-// GridPipe routed K-hop unicast smoke kernel.
-//
-// gridRows*gridCols blocks form a single-device logical grid.  Each cell loads
-// its stamped input tile, pushes it KHOP_DIST hops EAST (if a target exists) and
-// pops/stores a tile from its KHOP_DIST-hop EAST upstream (if one exists).  The
-// hop distance is the compile-time KHOP_DIST constant baked into the kernel.
-void launchKHopSmokeKernel(uint8_t *ffts, uint8_t *windows, uint8_t *inBuf, uint8_t *outBuf, uint8_t *hcclCtx,
-                           int gridRows, int gridCols, void *stream);
+// GridPipe unicast time-division handover smoke kernel.  Three blocks form a
+// 1 x 3 row: two producers take turns on the SAME consumer channel, and the second
+// one takes it over while the first one's tiles are still undrained.  See
+// unicast_smoke_config.hpp for the schedule and what it proves.
+void launchUnicastSmokeKernel(
+    uint8_t* ffts, uint8_t* windows, uint8_t* inBuf, uint8_t* outBuf, uint8_t* hcclCtx, void* stream);
 
-#endif // KHOP_SMOKE_LAUNCH_HPP
+#endif // UNICAST_SMOKE_LAUNCH_HPP

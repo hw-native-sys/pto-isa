@@ -32,7 +32,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // TMOV(dst, src, events...) overload: overload resolution therefore prefers
 // these for any (TPipe, Tile) / (Tile, TPipe) pair and still falls back to the
 // generic tile-to-tile TMOV for everything else.  The GridDirection-based
-// GridPipe TPUSH/TPOP (neighbor-cell reduce/gather) are unaffected: GridPipe is
+// GridPipe TPUSH/TPOP (peer-cell reduce/gather) are unaffected: GridPipe is
 // not a cluster-local TPipe and is excluded by is_cube_vec_pipe_v below.
 
 #ifndef DISTRIBUTED_FFN_GRID_TPIPE_TMOV_INL_HPP
@@ -53,12 +53,13 @@ namespace pto {
 // SFINAE marker for the cluster-local Cube<->Vector TPipe (C2V / V2C / Both /
 // V2C_CTRL).  GridPipe and plain tiles are intentionally excluded so the TMOV
 // overloads below never shadow the generic tile-to-tile move or the GridPipe
-// neighbor TPUSH/TPOP.
+// peer TPUSH/TPOP.
 template <typename T>
 struct is_cube_vec_pipe : std::false_type {};
 
-template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum, bool IsNoSplit,
-          bool EN_UNIT_FLAG>
+template <
+    uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum, bool IsNoSplit,
+    bool EN_UNIT_FLAG>
 struct is_cube_vec_pipe<TPipe<FlagID, DirType, SlotSize, SlotNum, LocalSlotNum, IsNoSplit, EN_UNIT_FLAG>>
     : std::true_type {};
 
@@ -66,17 +67,19 @@ template <typename T>
 inline constexpr bool is_cube_vec_pipe_v = is_cube_vec_pipe<std::remove_cv_t<std::remove_reference_t<T>>>::value;
 
 // TMOV(pipe, tile): producer side.  Implicitly TPUSH tile into the C2V/V2C FIFO.
-template <TileSplitAxis Split = TileSplitAxis::TILE_NO_SPLIT, typename Pipe, typename TileProd,
-          std::enable_if_t<is_cube_vec_pipe_v<Pipe> && is_tile_data_v<TileProd>, int> = 0>
-PTO_INST RecordEvent TMOV(Pipe &pipe, TileProd &tile)
+template <
+    TileSplitAxis Split = TileSplitAxis::TILE_NO_SPLIT, typename Pipe, typename TileProd,
+    std::enable_if_t<is_cube_vec_pipe_v<Pipe> && is_tile_data_v<TileProd>, int> = 0>
+PTO_INST RecordEvent TMOV(Pipe& pipe, TileProd& tile)
 {
     return TPUSH<Pipe, TileProd, Split>(pipe, tile);
 }
 
 // TMOV(tile, pipe): consumer side.  Implicitly TPOP the next slot into tile.
-template <TileSplitAxis Split = TileSplitAxis::TILE_NO_SPLIT, typename TileCons, typename Pipe,
-          std::enable_if_t<is_tile_data_v<TileCons> && is_cube_vec_pipe_v<Pipe>, int> = 0>
-PTO_INST RecordEvent TMOV(TileCons &tile, Pipe &pipe)
+template <
+    TileSplitAxis Split = TileSplitAxis::TILE_NO_SPLIT, typename TileCons, typename Pipe,
+    std::enable_if_t<is_tile_data_v<TileCons> && is_cube_vec_pipe_v<Pipe>, int> = 0>
+PTO_INST RecordEvent TMOV(TileCons& tile, Pipe& pipe)
 {
     return TPOP<Pipe, TileCons, Split>(pipe, tile);
 }

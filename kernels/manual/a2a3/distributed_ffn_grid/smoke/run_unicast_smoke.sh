@@ -9,9 +9,10 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
-# GridPipe routed K-hop unicast smoke test.  A 1 x cols row of cells; each cell
-# pushes a stamped fp32 tile `dist` hops EAST and the +dist cell pops/stores it.
-# Verifies out[c] == in[c-dist] in-process (no data files).
+# GridPipe unicast time-division HANDOVER smoke test.  Two producers take turns on
+# one consumer channel and the second takes it over while the first one's tiles are
+# still undrained -- the case relay counting exists for.  See
+# smoke/unicast_smoke_config.hpp for the schedule and what each knob changes.
 
 : "${ASCEND_CANN_PATH:=$(ls -1d /usr/local/Ascend/cann-*/set_env.sh 2>/dev/null | sort -V | tail -1)}"
 if [ -z "${ASCEND_CANN_PATH}" ]; then
@@ -21,8 +22,10 @@ fi
 source "${ASCEND_CANN_PATH}"
 
 SHORT=r:,v:,d:
-LONG=run-mode:,soc-version:,device-id:,grid-rows:,grid-cols:,dist:,token-tile:,model-tile:,build-only
-OPTS=$(getopt -a --options $SHORT --longoptions $LONG -- "$@")
+LONG=run-mode:,soc-version:,device-id:,tiles:,slot-count:,max-spins:,token-tile:,model-tile:,build-only
+OPTS=$(getopt -a --options $SHORT --longoptions $LONG -- "$@") || {
+    echo "[ERROR] bad arguments"; exit 2;
+}
 eval set -- "$OPTS"
 
 BUILD_ONLY=0
@@ -31,11 +34,11 @@ while :; do
         (-r | --run-mode)    RUN_MODE="$2"; shift 2;;
         (-v | --soc-version) SOC_VERSION="$2"; shift 2;;
         (-d | --device-id)   DEVICE_ID="$2"; shift 2;;
-        (--grid-rows)        KHOP_ROWS="$2"; shift 2;;
-        (--grid-cols)        KHOP_COLS="$2"; shift 2;;
-        (--dist)             KHOP_DIST="$2"; shift 2;;
-        (--token-tile)       KHOP_T="$2"; shift 2;;
-        (--model-tile)       KHOP_W="$2"; shift 2;;
+        (--tiles)            UNICAST_TILES="$2"; shift 2;;
+        (--slot-count)       UNICAST_SLOT_COUNT="$2"; shift 2;;
+        (--max-spins)        UNICAST_MAX_SPINS="$2"; shift 2;;
+        (--token-tile)       UNICAST_T="$2"; shift 2;;
+        (--model-tile)       UNICAST_W="$2"; shift 2;;
         (--build-only)       BUILD_ONLY=1; shift;;
         (--) shift; break;;
         (*) echo "[ERROR] Unexpected option: $1"; exit 1;;
@@ -44,12 +47,18 @@ done
 
 : "${RUN_MODE:=npu}"
 : "${SOC_VERSION:=Ascend910B1}"
-: "${KHOP_ROWS:=1}"
-: "${KHOP_COLS:=4}"
-: "${KHOP_DIST:=2}"
-: "${KHOP_T:=16}"
-: "${KHOP_W:=64}"
-: "${DEVICE_ID:=${ASCEND_DEVICE_ID:-${DEVICE_ID:-0}}}"
+# Tiles each producer publishes on its turn; the last one carries CLOSE.
+: "${UNICAST_TILES:=2}"
+# Ring depth.  >= 2*TILES keeps the two turns in disjoint slots; == TILES makes the
+# ring wrap, so the new owner must wait on the credit baseline it was handed --
+# that variant is the payload-safety proof.
+: "${UNICAST_SLOT_COUNT:=4}"
+# 0 = block forever (the shipping path).  Non-zero bounds every wait, so a handover
+# that never happens reports a fault code instead of hanging.
+: "${UNICAST_MAX_SPINS:=0}"
+: "${UNICAST_T:=16}"
+: "${UNICAST_W:=64}"
+: "${DEVICE_ID:=${TASK_DEVICE:-${ASCEND_DEVICE_ID:-${DEVICE_ID:-0}}}}"
 
 if [[ ! "${SOC_VERSION}" =~ ^Ascend ]]; then
     echo "[ERROR] Unsupported SocVersion: ${SOC_VERSION}"
@@ -59,12 +68,11 @@ fi
 rm -rf /dev/shm/sem.hccl* 2>/dev/null
 ipcrm -a 2>/dev/null
 
-echo "=== GridPipe routed K-hop unicast smoke ==="
+echo "=== GridPipe unicast handover smoke ==="
 echo "  RUN_MODE: ${RUN_MODE}  SOC_VERSION: ${SOC_VERSION}  DEVICE_ID: ${DEVICE_ID}"
-echo "  Grid: ${KHOP_ROWS}x${KHOP_COLS}  DIST: ${KHOP_DIST}  Tile: ${KHOP_T}x${KHOP_W}"
-echo "==========================================="
+echo "  Tiles/turn: ${UNICAST_TILES}  Slots: ${UNICAST_SLOT_COUNT}  MaxSpins: ${UNICAST_MAX_SPINS}  Tile: ${UNICAST_T}x${UNICAST_W}"
+echo "======================================="
 
-# CMakeLists.txt lives in the parent demo directory; build from there.
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PROJECT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 cd "${PROJECT_DIR}"
@@ -77,10 +85,11 @@ export LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib:${
 set -euo pipefail
 
 cmake -DRUN_MODE=${RUN_MODE} -DSOC_VERSION=${SOC_VERSION} \
-      -DKHOP_ROWS=${KHOP_ROWS} -DKHOP_COLS=${KHOP_COLS} -DKHOP_DIST=${KHOP_DIST} \
-      -DKHOP_T=${KHOP_T} -DKHOP_W=${KHOP_W} \
+      -DUNICAST_TILES=${UNICAST_TILES} -DUNICAST_SLOT_COUNT=${UNICAST_SLOT_COUNT} \
+      -DUNICAST_MAX_SPINS=${UNICAST_MAX_SPINS} \
+      -DUNICAST_T=${UNICAST_T} -DUNICAST_W=${UNICAST_W} \
       ..
-make -j16 khop_smoke
+make -j16 unicast_smoke
 
 if [ "${BUILD_ONLY}" -eq 1 ]; then
     echo "[INFO] --build-only requested; skipping run."
@@ -88,5 +97,5 @@ if [ "${BUILD_ONLY}" -eq 1 ]; then
 fi
 
 echo ""
-echo "=== Running GridPipe routed K-hop unicast smoke ==="
-./khop_smoke --device-id "${DEVICE_ID}"
+echo "=== Running GridPipe unicast handover smoke ==="
+./unicast_smoke --device-id "${DEVICE_ID}"
