@@ -11,7 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Host driver for the GridPipe single-source broadcast smoke kernel.
 //
 // Layout: a gridRows x gridCols logical grid on one device, backed by per-cell
-// GM windows + a fake HcclDeviceContext (same mock as the FFN GridPipe demos).
+// GM windows + a fake CommDeviceContext (same mock as the FFN GridPipe demos).
 // Cell c is stamped with input value (c + 1).  The single source on each span
 // (index BCAST_SRC along the active axis) broadcasts its stamped tile to every
 // other cell on its span; after the kernel, every non-source cell must hold its
@@ -25,6 +25,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "runtime/rt.h"
@@ -41,17 +42,19 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define __gm__
 #endif
 
+// Skip SdmaWorkspaceManager pull-in from common.hpp (needs CCE attrs on host).
+#define PTO_COMM_ST_SKIP_SDMA_WORKSPACE_MANAGER
 #include "common.hpp"
 
 #include "bcast_smoke_config.hpp"
 #include "bcast_smoke_launch.hpp"
 
-static bool ParseDeviceIdValue(const char *value, int &deviceId)
+static bool ParseDeviceIdValue(const char* value, int& deviceId)
 {
     if (value == nullptr || value[0] == '\0') {
         return false;
     }
-    char *end = nullptr;
+    char* end = nullptr;
     long parsed = std::strtol(value, &end, 10);
     if (end == value || *end != '\0' || parsed < 0 || parsed > INT_MAX) {
         return false;
@@ -60,7 +63,7 @@ static bool ParseDeviceIdValue(const char *value, int &deviceId)
     return true;
 }
 
-static int GetDeviceId(int argc, char **argv)
+static int GetDeviceId(int argc, char** argv)
 {
     int deviceId = 0;
     for (int i = 1; i < argc; ++i) {
@@ -71,7 +74,7 @@ static int GetDeviceId(int argc, char **argv)
             }
             return deviceId;
         }
-        constexpr const char *kPrefix = "--device-id=";
+        constexpr const char* kPrefix = "--device-id=";
         constexpr size_t kPrefixLen = 12;
         if (std::strncmp(argv[i], kPrefix, kPrefixLen) == 0) {
             if (!ParseDeviceIdValue(argv[i] + kPrefixLen, deviceId)) {
@@ -81,7 +84,7 @@ static int GetDeviceId(int argc, char **argv)
             return deviceId;
         }
     }
-    if (const char *env = std::getenv("ASCEND_DEVICE_ID")) {
+    if (const char* env = std::getenv("ASCEND_DEVICE_ID")) {
         (void)ParseDeviceIdValue(env, deviceId);
     }
     return deviceId;
@@ -105,10 +108,10 @@ static bool InitAcl(int deviceId)
 
 struct Resources {
     aclrtStream stream = nullptr;
-    void *windows_dev = nullptr;
-    void *in_dev = nullptr;
-    void *out_dev = nullptr;
-    void *hccl_ctx_dev = nullptr;
+    void* windows_dev = nullptr;
+    void* in_dev = nullptr;
+    void* out_dev = nullptr;
+    void* hccl_ctx_dev = nullptr;
     uint64_t ffts = 0;
     uint32_t fftsLen = 0;
 
@@ -116,12 +119,13 @@ struct Resources {
     int cols = BCAST_COLS;
     size_t cells = static_cast<size_t>(BCAST_ROWS) * static_cast<size_t>(BCAST_COLS);
     size_t windowsBytes = 0;
-    size_t bufBytes = 0; // in / out, cells * tile
+    size_t bufBytes = 0;    // in, cells * tile
+    size_t outBufBytes = 0; // out, cells * BCAST_GROUP_MAX * tile (all-source lands one per source)
 };
 
-static bool BuildFakeHcclCtx(Resources &r)
+static bool BuildFakeHcclCtx(Resources& r)
 {
-    HcclDeviceContext hostCtx{};
+    CommDeviceContext hostCtx{};
     hostCtx.rankId = 0;
     hostCtx.rankNum = static_cast<uint32_t>(r.cells);
     hostCtx.winSize = static_cast<uint64_t>(BCAST_WINDOW_BYTES);
@@ -130,19 +134,20 @@ static bool BuildFakeHcclCtx(Resources &r)
         hostCtx.windowsIn[i] = base + i * static_cast<size_t>(BCAST_WINDOW_BYTES);
         hostCtx.windowsOut[i] = hostCtx.windowsIn[i];
     }
-    if (aclrtMalloc(&r.hccl_ctx_dev, sizeof(HcclDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+    if (aclrtMalloc(&r.hccl_ctx_dev, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMalloc(hccl_ctx) failed" << std::endl;
         return false;
     }
-    if (aclrtMemcpy(r.hccl_ctx_dev, sizeof(HcclDeviceContext), &hostCtx, sizeof(HcclDeviceContext),
-                    ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
+    if (aclrtMemcpy(
+            r.hccl_ctx_dev, sizeof(CommDeviceContext), &hostCtx, sizeof(CommDeviceContext),
+            ACL_MEMCPY_HOST_TO_DEVICE) != ACL_SUCCESS) {
         std::cerr << "[ERROR] aclrtMemcpy(hccl_ctx) failed" << std::endl;
         return false;
     }
     return true;
 }
 
-static bool Allocate(Resources &r)
+static bool Allocate(Resources& r)
 {
     if (r.cells == 0 || r.cells > HCCL_MAX_RANK_NUM) {
         std::cerr << "[ERROR] invalid cell count " << r.cells << std::endl;
@@ -155,22 +160,26 @@ static bool Allocate(Resources &r)
 
     r.windowsBytes = r.cells * static_cast<size_t>(BCAST_WINDOW_BYTES);
     r.bufBytes = r.cells * static_cast<size_t>(BCAST_TILE_BYTES);
+    // Single-source mode lands one tile per cell; the all-source mode lands one
+    // per (receiver, source), so the output arena carries BCAST_GROUP_MAX tiles
+    // per cell.  Sized for both -- the extra is a few tens of KB.
+    r.outBufBytes = r.cells * static_cast<size_t>(BCAST_GROUP_MAX) * static_cast<size_t>(BCAST_TILE_BYTES);
 
     aclrtMalloc(&r.windows_dev, r.windowsBytes, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc(&r.in_dev, r.bufBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc(&r.out_dev, r.bufBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc(&r.out_dev, r.outBufBytes, ACL_MEM_MALLOC_HUGE_FIRST);
     if (!r.windows_dev || !r.in_dev || !r.out_dev) {
         std::cerr << "[ERROR] aclrtMalloc failed" << std::endl;
         return false;
     }
     aclrtMemset(r.windows_dev, r.windowsBytes, 0, r.windowsBytes);
-    aclrtMemset(r.out_dev, r.bufBytes, 0, r.bufBytes);
+    aclrtMemset(r.out_dev, r.outBufBytes, 0, r.outBufBytes);
 
     // Stamp each cell's input tile with value (cell + 1).
     std::vector<float> hostIn(r.cells * static_cast<size_t>(BCAST_TILE_ELEMS));
     for (size_t cell = 0; cell < r.cells; ++cell) {
         float stamp = static_cast<float>(cell + 1);
-        float *dst = hostIn.data() + cell * static_cast<size_t>(BCAST_TILE_ELEMS);
+        float* dst = hostIn.data() + cell * static_cast<size_t>(BCAST_TILE_ELEMS);
         for (int e = 0; e < BCAST_TILE_ELEMS; ++e) {
             dst[e] = stamp;
         }
@@ -203,27 +212,82 @@ static size_t SpanSourceCell(int row, int col, int cols)
     return static_cast<size_t>(row) * cols + BCAST_SRC;
 }
 
-static bool Verify(Resources &r)
+static bool Verify(Resources& r)
 {
-    std::vector<float> outHost(r.cells * static_cast<size_t>(BCAST_TILE_ELEMS));
-    if (aclrtMemcpy(outHost.data(), r.bufBytes, r.out_dev, r.bufBytes, ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
+    std::vector<float> outHost(r.cells * static_cast<size_t>(BCAST_GROUP_MAX) * static_cast<size_t>(BCAST_TILE_ELEMS));
+    if (aclrtMemcpy(outHost.data(), r.outBufBytes, r.out_dev, r.outBufBytes, ACL_MEMCPY_DEVICE_TO_HOST) !=
+        ACL_SUCCESS) {
         std::cerr << "[ERROR] out D2H memcpy failed" << std::endl;
         return false;
     }
 
-    // Golden: every non-source cell holds its span source's stamp (source cell
-    // index + 1); the source cell itself stays zero (it does not store).
+    if (BCAST_ALL_SRC != 0) {
+        // All-source (AllGather) golden: out[cell][src] holds source cell's stamp
+        // for every src != this cell's own rank-in-group; the own slot stays
+        // zero.  Checking each (receiver, source) pair separately is what makes a
+        // slot overwritten by a late source visible -- a summed check could not
+        // tell "source 3 twice" from "sources 3 and 4 once each".
+        double maxDiff = 0.0;
+        size_t firstBadCell = SIZE_MAX;
+        int firstBadSrc = -1;
+        for (int row = 0; row < r.rows; ++row) {
+            for (int col = 0; col < r.cols; ++col) {
+                size_t cell = static_cast<size_t>(row) * r.cols + col;
+                int myIdx = (BCAST_SPAN_COL != 0) ? row : col;
+                int groupSize = (BCAST_SPAN_COL != 0) ? r.rows : r.cols;
+                for (int src = 0; src < groupSize; ++src) {
+                    // The group member whose rank-in-group is `src`.
+                    size_t srcCell = (BCAST_SPAN_COL != 0) ? static_cast<size_t>(src) * r.cols + col :
+                                                             static_cast<size_t>(row) * r.cols + src;
+                    float expected = (src == myIdx) ? 0.0f : static_cast<float>(srcCell + 1);
+                    const float* tile = outHost.data() + (cell * static_cast<size_t>(BCAST_GROUP_MAX) + src) *
+                                                             static_cast<size_t>(BCAST_TILE_ELEMS);
+                    for (int e = 0; e < BCAST_TILE_ELEMS; ++e) {
+                        double d = std::abs(static_cast<double>(tile[e]) - static_cast<double>(expected));
+                        if (d > maxDiff) {
+                            maxDiff = d;
+                            if (d > 0.0 && firstBadCell == SIZE_MAX) {
+                                firstBadCell = cell;
+                                firstBadSrc = src;
+                            }
+                        }
+                    }
+                }
+                std::cout << "[INFO] cell " << cell << " (r=" << row << ",c=" << col << ") gathered";
+                for (int src = 0; src < groupSize; ++src) {
+                    const float* tile = outHost.data() + (cell * static_cast<size_t>(BCAST_GROUP_MAX) + src) *
+                                                             static_cast<size_t>(BCAST_TILE_ELEMS);
+                    std::cout << " " << tile[0];
+                }
+                std::cout << std::endl;
+            }
+        }
+        std::cout << "[INFO] broadcast smoke: group=" << (BCAST_SPAN_COL != 0 ? "COL" : "ROW")
+                  << " src=ALL grid=" << r.rows << "x" << r.cols << " tile=" << BCAST_T << "x" << BCAST_W
+                  << " max diff=" << maxDiff << std::endl;
+        if (maxDiff != 0.0) {
+            std::cerr << "[ERROR] mismatch (max diff " << maxDiff << ", first bad cell " << firstBadCell << " src "
+                      << firstBadSrc << ")" << std::endl;
+            return false;
+        }
+        return true;
+    }
+
+    // Golden: every non-source participant holds the source's stamp (source cell
+    // index + 1); the source cell and any non-participant cell stay zero.
+    // A group is a whole row or a whole column, so every non-source cell on the
+    // span holds its span source's stamp.
     double maxDiff = 0.0;
     size_t firstBadCell = SIZE_MAX;
     for (int row = 0; row < r.rows; ++row) {
         for (int col = 0; col < r.cols; ++col) {
             size_t cell = static_cast<size_t>(row) * r.cols + col;
-            int myIdx = (BCAST_SPAN_COL != 0) ? row : col;
             float expected = 0.0f;
+            int myIdx = (BCAST_SPAN_COL != 0) ? row : col;
             if (myIdx != BCAST_SRC) {
                 expected = static_cast<float>(SpanSourceCell(row, col, r.cols) + 1);
             }
-            const float *tile = outHost.data() + cell * static_cast<size_t>(BCAST_TILE_ELEMS);
+            const float* tile = outHost.data() + cell * static_cast<size_t>(BCAST_TILE_ELEMS);
             for (int e = 0; e < BCAST_TILE_ELEMS; ++e) {
                 double d = std::abs(static_cast<double>(tile[e]) - static_cast<double>(expected));
                 if (d > maxDiff) {
@@ -238,9 +302,9 @@ static bool Verify(Resources &r)
         }
     }
 
-    std::cout << "[INFO] broadcast smoke: span=" << (BCAST_SPAN_COL != 0 ? "COL" : "ROW") << " src=" << BCAST_SRC
-              << " grid=" << r.rows << "x" << r.cols << " tile=" << BCAST_T << "x" << BCAST_W << " max diff=" << maxDiff
-              << std::endl;
+    std::cout << "[INFO] broadcast smoke: group=" << (BCAST_SPAN_COL != 0 ? "COL" : "ROW") << " src=" << BCAST_SRC
+              << " grid=" << r.rows << "x" << r.cols;
+    std::cout << " tile=" << BCAST_T << "x" << BCAST_W << " max diff=" << maxDiff << std::endl;
     if (maxDiff != 0.0) {
         std::cerr << "[ERROR] mismatch (max diff " << maxDiff << ", first bad cell " << firstBadCell << ")"
                   << std::endl;
@@ -249,22 +313,23 @@ static bool Verify(Resources &r)
     return true;
 }
 
-static bool CheckFaults(Resources &r)
+static bool CheckFaults(Resources& r)
 {
     constexpr size_t kFlagWords = static_cast<size_t>(BCAST_GRID_FLAGS_BYTES) / sizeof(uint32_t);
     std::vector<uint32_t> flags(r.cells * kFlagWords, 0);
     for (size_t cell = 0; cell < r.cells; ++cell) {
-        auto *src = reinterpret_cast<uint8_t *>(r.windows_dev) + cell * BCAST_WINDOW_BYTES;
-        auto *dst = flags.data() + cell * kFlagWords;
-        if (aclrtMemcpy(dst, kFlagWords * sizeof(uint32_t), src, kFlagWords * sizeof(uint32_t),
-                        ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
+        auto* src = reinterpret_cast<uint8_t*>(r.windows_dev) + cell * BCAST_WINDOW_BYTES;
+        auto* dst = flags.data() + cell * kFlagWords;
+        if (aclrtMemcpy(
+                dst, kFlagWords * sizeof(uint32_t), src, kFlagWords * sizeof(uint32_t), ACL_MEMCPY_DEVICE_TO_HOST) !=
+            ACL_SUCCESS) {
             std::cerr << "[ERROR] flag D2H memcpy failed for cell " << cell << std::endl;
             return false;
         }
     }
     bool ok = true;
     for (size_t cell = 0; cell < r.cells; ++cell) {
-        const uint32_t *cf = flags.data() + cell * kFlagWords;
+        const uint32_t* cf = flags.data() + cell * kFlagWords;
         for (size_t i = 0; i < kFlagWords; ++i) {
             if (cf[i] >= 0x100U) {
                 std::cerr << "[ERROR] GridPipe fault cell=" << cell << " flagWord=" << i << " code=0x" << std::hex
@@ -276,7 +341,7 @@ static bool CheckFaults(Resources &r)
     return ok;
 }
 
-static void Cleanup(Resources &r)
+static void Cleanup(Resources& r)
 {
     if (r.hccl_ctx_dev) {
         aclrtFree(r.hccl_ctx_dev);
@@ -304,9 +369,10 @@ static bool Run()
     }
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    launchBcastSmokeKernel(reinterpret_cast<uint8_t *>(r.ffts), reinterpret_cast<uint8_t *>(r.windows_dev),
-                           reinterpret_cast<uint8_t *>(r.in_dev), reinterpret_cast<uint8_t *>(r.out_dev),
-                           reinterpret_cast<uint8_t *>(r.hccl_ctx_dev), r.rows, r.cols, r.stream);
+    launchBcastSmokeKernel(
+        reinterpret_cast<uint8_t*>(r.ffts), reinterpret_cast<uint8_t*>(r.windows_dev),
+        reinterpret_cast<uint8_t*>(r.in_dev), reinterpret_cast<uint8_t*>(r.out_dev),
+        reinterpret_cast<uint8_t*>(r.hccl_ctx_dev), r.rows, r.cols, r.stream);
     aclError syncRet = aclrtSynchronizeStream(r.stream);
     auto t1 = std::chrono::high_resolution_clock::now();
     double us = std::chrono::duration<double, std::micro>(t1 - t0).count();
@@ -320,7 +386,7 @@ static bool Run()
     return ok;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     int deviceId = GetDeviceId(argc, argv);
     std::cout << "[INFO] using device " << deviceId << std::endl;
@@ -329,14 +395,17 @@ int main(int argc, char **argv)
     }
 
     std::cout << "\n================================================================" << std::endl;
-    std::cout << "  GridPipe single-source broadcast smoke test" << std::endl;
-    std::cout << "  span=" << (BCAST_SPAN_COL != 0 ? "COL" : "ROW") << " src=" << BCAST_SRC << " grid=" << BCAST_ROWS
-              << "x" << BCAST_COLS << " tile=" << BCAST_T << "x" << BCAST_W << std::endl;
+    std::cout << "  GridPipe group broadcast smoke test ("
+              << (BCAST_ALL_SRC != 0 ? "all-source AllGather" : "single source") << ")" << std::endl;
+    std::cout << "  group=" << (BCAST_SPAN_COL != 0 ? "COL" : "ROW")
+              << " src=" << (BCAST_ALL_SRC != 0 ? std::string("ALL") : std::to_string(BCAST_SRC))
+              << " grid=" << BCAST_ROWS << "x" << BCAST_COLS << " tile=" << BCAST_T << "x" << BCAST_W << std::endl;
     std::cout << "================================================================" << std::endl;
 
     bool ok = Run();
-    std::cout << (ok ? "[SUCCESS] GridPipe single-source broadcast smoke PASS." :
-                       "[FAILED] GridPipe single-source broadcast smoke FAILED.")
+    const char* kMode = (BCAST_ALL_SRC != 0) ? "all-source" : "single-source";
+    std::cout << (ok ? std::string("[SUCCESS] GridPipe ") + kMode + " broadcast smoke PASS." :
+                       std::string("[FAILED] GridPipe ") + kMode + " broadcast smoke FAILED.")
               << std::endl;
     aclrtResetDevice(deviceId);
     aclFinalize();

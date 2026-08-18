@@ -2635,21 +2635,27 @@ PTO_INST RecordEvent TGET_SCALE_ADDR(TileDataOut& dst, TileDataIn& src, WaitEven
 // `Direction` non-type template parameter is constant-folded by the compiler,
 // matching design doc section 4.2's requirement that direction be a constant
 // at lowering time.
+//
+// `Direction` is the ONLY channel argument: a grid transfer moves the tile
+// exactly one hop, to the ADJACENT cell along it.  There is no distance operand
+// to get wrong, and no producer/consumer binding either -- both peers are derived
+// from (Direction, coord, shape) at the call site, so the same pipe keeps serving
+// the same direction across phases even when the core on the other end changes.
+// A longer reach is a relay: one TPUSH per edge, each with its own credit.
 // ---------------------------------------------------------------------------
 
 template <
-    pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileProd,
-    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+    pto::GridDirection Direction, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+    typename... WaitEvents>
 PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
 {
     static_assert(
         Direction != pto::GridDirection::SOURCE, "GridPipe TPUSH<SOURCE> is illegal (design doc section 4.3): "
                                                  "SOURCE is only valid for TPOP.");
-    // Dist is the routed-unicast hop count; Dist == 1 (default) is the original
-    // nearest-neighbor push.  TPUSH<EAST, 2>(pipe, tile) pushes 2 hops east.
+    // TPUSH<EAST>(pipe, tile) publishes into the ring of the cell one hop east.
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPUSH_IMPL<Direction, Dist, Pipe, TileProd>(pipe, tile);
+    GRID_TPUSH_IMPL<Direction, Pipe, TileProd>(pipe, tile);
 #else
     static_assert(
         sizeof(Pipe) == 0, "GridPipe TPUSH not supported on this target profile "
@@ -2659,15 +2665,15 @@ PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
 }
 
 template <
-    pto::GridDirection Direction, int Dist = 1, typename Pipe, typename TileCons,
-    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+    pto::GridDirection Direction, typename Pipe, typename TileCons, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+    typename... WaitEvents>
 PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, WaitEvents&... events)
 {
-    // Dist must match the producer's TPUSH distance for this logical edge so the
-    // free-credit doorbell routes back to the K-hop producer; Dist == 1 default.
+    // Drains this core's own `Direction` ring and returns the free credit to the
+    // adjacent upstream cell -- the mirror of the producer's TPUSH<Direction>.
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPOP_IMPL<Direction, Dist, Pipe, TileCons>(pipe, tile);
+    GRID_TPOP_IMPL<Direction, Pipe, TileCons>(pipe, tile);
 #else
     static_assert(
         sizeof(Pipe) == 0, "GridPipe TPOP not supported on this target profile "
@@ -2677,30 +2683,296 @@ PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, WaitEvents&... events)
 }
 
 // ---------------------------------------------------------------------------
-// GridPipe TPUSH broadcast overload: single-source row/column multicast.  This
-// is the SAME verb as the unicast TPUSH above, distinguished purely by the type
-// of the first explicit template argument -- a GridSpan (ROW/COL) selects this
-// overload, a GridDirection selects the unicast one.  The two scoped enums never
-// interconvert, so overload resolution is unambiguous and folds at compile time.
+// GridPipe TREDUCE overload: one fused "receive-combine-forward" reduce hop
+// along `Direction` (design doc section 5, worked ReduceSum example).  It is the
+// AllGather relay hop (TPOP<Dir>+TPUSH<Dir>) with a combine folded in between:
+// an interior/sink cell drains the transiting partial from its upstream, folds
+// its own `acc` in with `Op` (Sum/Max/Min), and forwards the running reduction
+// downstream; a source cell only forwards; a sink cell keeps the complete result
+// in `acc` for the caller to store.  Roles are derived from (Direction, coord,
+// shape) -- no explicit root flag.  Being built out of TPOP + TPUSH, a reduce hop
+// spans exactly one edge like they do; a whole-row reduction is the chain of such
+// hops, which is what makes it systolic.  `Op` is the SAME pto::comm::ReduceOp
+// the collective TREDUCE uses.  SFINAE on is_grid_pipe_v keeps it distinct from
+// the collective pto::comm::TREDUCE (whose first argument is a ParallelGroup).
 //
-// One source fans `tile` to every other cell on its row (GridSpan::ROW) or
-// column (GridSpan::COL) in a single op -- a true multicast with ONE publish
-// fence, not a per-hop TPUSH<Dir, k> loop (see GRID_TRY_TPUSH_BCAST_IMPL).
-// Fan-in stays 1, so receivers drain it with the ordinary TPOP<EAST/WEST, dist>
-// (ROW) or TPOP<NORTH/SOUTH, dist> (COL).  There is no Dist parameter: a span
-// always fans to the grid boundary on both of its arms.
+// This is the ISA surface for hardware that can combine ON TRANSIT (随路/过路
+// compute): such a fabric lowers the whole hop to one routed reduce-forward and
+// `recv` is unused.  On A2/A3 there is no on-transit compute and the adder is
+// core-local, so it lowers to the local TPOP + combine + TPUSH sequence in
+// GRID_TREDUCE_IMPL; `recv` is the mandatory landing tile for the in-core add.
 // ---------------------------------------------------------------------------
 template <
-    pto::GridSpan Span, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
-    typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, WaitEvents&... events)
+    pto::GridDirection Direction, pto::comm::ReduceOp Op, typename Pipe, typename TileAcc, typename TileRecv,
+    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TREDUCE(Pipe& pipe, TileAcc& acc, TileRecv& recv, WaitEvents&... events)
+{
+    static_assert(
+        Direction != pto::GridDirection::SOURCE, "GridPipe TREDUCE<SOURCE> is illegal: SOURCE is only valid for TPOP.");
+    // TREDUCE<EAST, Sum>(pipe, acc, recv) folds `acc` into the EAST-flowing
+    // reduction and forwards it to the adjacent cell one hop east.
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TREDUCE_IMPL<Direction, Op, Pipe, TileAcc, TileRecv>(pipe, acc, recv);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TREDUCE not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// GridGroup TREDUCE overload: the N->1 group fan-in shape of the same reduce.
+// EVERY member of the group calls it and compares its own rank-in-group with the
+// `sinkBlockId` operand: the block it names collects, the rest contribute.  The sink
+// reads every member's resolved contribution out of a uniform-stride arena and
+// folds them with `Op` into `acc` -- ONE mov_ubuf_group(op = SUM/MAX/MIN) rather
+// than the hop-by-hop chain the relay expands to.  The other members contribute:
+// their data is already in the arena, so their half is the handshake alone
+// (GridTReduce.hpp section "GRID_TREDUCE_GROUP_IMPL").
+//
+// `sinkBlockId` is a RUNTIME operand, not the "last member" convention it
+// replaces: where the result is collected is a placement decision of the caller
+// (it is wherever the value is next needed), and the collecting core is by
+// construction the one that issues the gather.  It is a LOGICAL BLOCK ID -- the
+// integer get_block_idx() returns, `row * gridCols + col` -- because that is how
+// every peer operand in this family names a core; there is no device rank here,
+// only blocks of one launch.  Every member must pass the SAME value; the sink is
+// the member it points at.  A block outside the group traps as 0x405
+// kFaultGroupBadPeer on every member rather than resolving to a stranger.
+//
+// It DOES take a pipe: the fan-in is notified through the sink's own directional
+// scoreboards, the ones TPUSH would use.  Contributors on one side of the sink
+// all ring the same scoreboard at different moments; an interior sink therefore
+// waits on the two sides separately (empty side skipped), which is the same
+// back/forward split TBROADCAST has.  The two TREDUCE
+// overloads still cannot be confused: this one's first template argument is a
+// pto::GridGroup and the relay's is a pto::GridDirection, so each is discarded
+// during substitution into the other.
+//
+// `scratch` is the in-core combine scratch (one member's worth of UB, required by
+// the A3 mock's core-local adder).  `groupSlotBase` / `memberStride` /
+// `memberCount` describe the contribution arena (ROW/COL members occupy
+// consecutive grid ranks, so uniform stride is always the right model).  Members
+// fold in ascending index order, so an SPMD row/col fan-in matches the relay's
+// accumulation bit-for-bit.  Contributors
+// ignore `acc` / `scratch` / the arena operands, but still pass them so every
+// member issues the identical instruction under SPMD.
+// ---------------------------------------------------------------------------
+template <
+    pto::GridGroup Group, pto::comm::ReduceOp Op, typename T, typename Pipe, typename TileAcc, typename TileScratch,
+    std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TREDUCE(
+    Pipe& pipe, TileAcc& acc, TileScratch& scratch, __gm__ const T* groupSlotBase, uint32_t bytes, uint32_t memberCount,
+    int sinkBlockId, uint32_t memberStride = 0, WaitEvents&... events)
 {
 #if defined(PTO_NPU_ARCH_A2A3)
     TSYNC(events...);
-    GRID_TPUSH_BCAST_IMPL<Span, Pipe, TileProd>(pipe, tile);
+    GRID_TREDUCE_GROUP_IMPL<Group, Op, T, Pipe, TileAcc, TileScratch>(
+        pipe, acc, scratch, groupSlotBase, bytes, memberCount, sinkBlockId, memberStride);
 #else
     static_assert(
-        sizeof(Pipe) == 0, "GridPipe TPUSH<GridSpan> broadcast not supported on this target profile "
+        sizeof(T) == 0, "GridGroup TREDUCE not supported on this target profile "
+                        "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// GridPipe TBROADCAST overload: group broadcast.  The first explicit template
+// argument is a GridGroup -- the participant set, a whole row or a whole column
+// and nothing else -- which also selects this overload against the unicast
+// TPUSH<GridDirection> above (the two scoped enums never interconvert, so
+// resolution is unambiguous and folds at compile time).  A group collective
+// names its members outright, so there is no hop count here either.
+//
+// A source writes each receiver's ORDINARY directional ring at its own
+// prod_idx % SlotCount and then INCREMENTS that receiver's ready_scb_<dir> by
+// one (sync_hscb_add).  There is no group-private ring, no per-source slot
+// partition and no agreed count: an add carries no assumption about who else
+// writes the scoreboard, which is what lets one scoreboard serve a whole group
+// over time -- including a single-source broadcast, where only one member ever
+// publishes.
+//
+// IT RETURNS ONLY ONCE EVERY RECEIVER HAS TPOPed IT.  Consumption is the
+// receivers' TPOP and nothing else; this call blocks until all of their TPOPs
+// have completed (their free_scb increments are the proof), so on return this
+// source's tile occupies no undrained slot anywhere.  The threshold carries no
+// SlotCount term: the group contract is stricter than slot reuse, so a source
+// gives up cross-round pipelining -- the price of one shared ring.
+//
+// SOURCES TAKE TURNS, but this instruction does not schedule them.  The group
+// shares one ring slot per direction, so at any instant exactly one member may
+// be inside TBROADCAST.  The drain wait above is what PROVES the slot is clear
+// again; forwarding that verdict to whichever member should publish next is a
+// separate instruction, TBNOTIFY<Group>(pipe, dstBlockId), issued right after
+// this call, and the member it names is blocked in TBWAIT<Group> until it
+// arrives.  The verdict cannot be derived by the next source -- no counter of
+// its own moves when someone else's tile is drained, and it cannot read a peer's
+// state -- so it is a message, but a free one: ONE increment on the scoreboard
+// of the axis the group does not span, no payload and nothing for the receivers
+// to drain.  A single-source broadcast has no turn to pass and calls neither.
+// Publishing without taking the turn is a CALLER error, not a supported mode,
+// and the receive half traps what it can see locally (kFaultGroupOutOfOrder).
+//
+// Receivers drain a member's shard with the TPOP<GridGroup> overload below, one
+// shard per call, naming that member by its logical block id.  See GRID_TBROADCAST_IMPL / GRID_TBPOP_IMPL.
+// ---------------------------------------------------------------------------
+template <
+    pto::GridGroup Group, typename Pipe, typename TileProd, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+    typename... WaitEvents>
+PTO_INST RecordEvent TBROADCAST(Pipe& pipe, TileProd& tile, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TBROADCAST_IMPL<Group, Pipe, TileProd>(pipe, tile);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TBROADCAST not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// GridPipe TBWAIT<GridGroup>: block until this core may write the group's shared
+// ring slot -- and write nothing.
+//
+// It is the back-pressure half of TBROADCAST, on its own: the test that a second
+// publish by this core would have to pass, without the payload and without the
+// doorbells.  Because the group shares ONE ring slot per direction, that test is
+// about the PREVIOUS source's tile, and the previous source is the only core
+// that can evaluate it (the receivers credit ITS free_scb when they drain).  So
+// it evaluates it inside its own TBROADCAST and forwards the verdict with
+// TBNOTIFY<Group> below; TBWAIT consumes one such verdict.
+//
+// ONE TBWAIT IS ONE TBNOTIFY.  This call consumes exactly one turn token and has
+// no exemption for any member, any index or any round: both counts are simply the
+// number of calls, which is what lets the two sides stay in step without agreeing
+// on an absolute value and without either knowing the schedule.
+//
+// The whole caller-side obligation of a multi-source group collective is
+// therefore two calls around the publish -- take the turn, then pass it on --
+// with the two ENDS of the chain left open, since a token must be minted before
+// it can be consumed:
+//
+//     for (int src = 0; src < groupSize; ++src) {
+//         if (src == myRank) {
+//             if (!isFirstPublisher)                  // nobody notified it
+//                 TBWAIT<Group>(pipe);                // wait for the slot, write nothing
+//             TBROADCAST<Group>(pipe, myTile);        // publish; returns fully drained
+//             if (hasNextPublisher)                   // else the token is stranded
+//                 TBNOTIFY<Group>(pipe, nextBlockId); // hand the turn on
+//         } else {
+//             TPOP<Group>(pipe, recvTile, src);       // the consumption itself
+//         }
+//     }
+//
+// Receivers call NOTHING extra -- there is no barrier packet to drain.
+//
+// SCOPE: a waiter blocks until someone notifies it, and who that is comes
+// entirely from the caller's TBNOTIFY, so any publish order works -- the full
+// AllGather ring, a subset of the members, or an order picked at runtime.  A
+// schedule that keeps circulating over several rounds wraps instead of stopping:
+// its last publisher notifies the first, whose next TBWAIT consumes that token.
+// The first publisher may also mint its own token with
+// TBNOTIFY<Group>(pipe, ownBlockId) and then wait like everyone else.  A
+// single-source broadcast omits both halves -- with one publisher nothing else
+// can be holding the slot -- and so does a group of one member, which is both
+// the first and the last publisher.
+// ---------------------------------------------------------------------------
+template <pto::GridGroup Group, typename Pipe, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TBWAIT(Pipe& pipe, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TBWAIT_IMPL<Group, Pipe>(pipe);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TBWAIT not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// ---------------------------------------------------------------------------
+// GridPipe TBNOTIFY<GridGroup>: hand the publish turn to ONE member of the
+// group -- the send half of the TBWAIT handshake, and its only counterpart.
+//
+// It carries no payload and no ring slot: it adds 1 to the turn scoreboard of
+// the block named by `dstBlockId`, on the axis the group does NOT span (NORTH
+// for a ROW group, EAST for a COL group), which a group pipe leaves idle.  So
+// turn-taking costs no scoreboard, no ring, no window and no packet, and the
+// group's own counts are untouched -- the receive half's order check stays
+// exact.  There is nothing for the receivers to drain either; only the notified
+// member ever reads that word.
+//
+// WHAT IT MEANS is the verdict TBROADCAST just proved: every receiver has TPOPed
+// this source's tile, so the group's shared ring slot is clear.  Hence the one
+// ordering rule -- issue it AFTER the TBROADCAST it speaks for.  Issued before,
+// it releases a source into a slot that is still occupied.
+//
+// WHY IT IS SEPARATE from TBROADCAST: the publish establishes a FACT about this
+// source's tile, while who publishes next is a SCHEDULE, and the schedule is the
+// caller's.  Rank+1 with wrap-around is only the AllGather shape of it; a
+// collective where a subset publishes, or where the order is data-dependent, or
+// where the turn crosses a phase boundary, names its successor directly instead.
+//
+// `dstBlockId` names that successor the way every peer operand in this family
+// does -- the LOGICAL BLOCK ID `row * gridCols + col`, what get_block_idx()
+// returns, not a position within the group; GroupMemberBlockId(Group, coord,
+// shape, indexInGroup) is the conversion when a kernel walks the group by
+// position.  A block outside the group traps as 0x405 kFaultGroupBadPeer rather
+// than incrementing a stranger's word.  Naming THIS core is legal and is how the
+// first publisher mints its own token when a caller would rather every member
+// run the identical TBWAIT / TBROADCAST / TBNOTIFY sequence; used anywhere else
+// it releases the caller's own next TBWAIT, which the instruction cannot tell
+// apart from that deliberate self-hand-off.
+//
+// EVERY TOKEN MUST BE CONSUMED.  TBWAIT has no exemption of any kind, so a
+// notification with no matching wait is not merely wasted -- it sits in the
+// target's scoreboard and will satisfy the first TBWAIT of a later round, or of
+// a later launch that reuses the window.  The last publisher of a finite walk
+// therefore does not call this at all; only a schedule that genuinely wraps
+// round-to-round has its last publisher notify its first.
+// ---------------------------------------------------------------------------
+template <pto::GridGroup Group, typename Pipe, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TBNOTIFY(Pipe& pipe, int dstBlockId, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TBNOTIFY_IMPL<Group, Pipe>(pipe, dstBlockId);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TBNOTIFY not supported on this target profile "
+                           "(design doc section 5.4 forbids silent GM fallback).");
+#endif
+    return {};
+}
+
+// GridPipe TPOP<GridGroup> overload: drain ONE shard that the source with
+// logical block id `srcBlockId` broadcast into this receiver's shared ring (the
+// receive half of TBROADCAST).  The GridGroup first template argument selects
+// this overload against the unicast TPOP<GridDirection> above.  `srcBlockId`
+// names the broadcasting core the same way every peer operand here does -- the
+// integer get_block_idx() returns -- and it is used for exactly two things: the
+// DIRECTION that source's edge takes, and the address the retire credit goes
+// back to.  The wait threshold and the ring slot are this receiver's own
+// cons_idx, exactly as TPOP<dir> computes them.  A block outside this group
+// traps as 0x405 kFaultGroupBadPeer.  Walking a group by position instead?
+// pto::GroupMemberBlockId(Group, coord, shape, index) is the conversion.
+template <
+    pto::GridGroup Group, typename Pipe, typename TileCons, std::enable_if_t<is_grid_pipe_v<Pipe>, int> = 0,
+    typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, int srcBlockId, WaitEvents&... events)
+{
+#if defined(PTO_NPU_ARCH_A2A3)
+    TSYNC(events...);
+    GRID_TBPOP_IMPL<Group, Pipe, TileCons>(pipe, tile, srcBlockId);
+#else
+    static_assert(
+        sizeof(Pipe) == 0, "GridPipe TPOP<GridGroup> not supported on this target profile "
                            "(design doc section 5.4 forbids silent GM fallback).");
 #endif
     return {};

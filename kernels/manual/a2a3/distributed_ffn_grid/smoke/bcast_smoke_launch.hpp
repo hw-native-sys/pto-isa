@@ -19,7 +19,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // cell on each span (BCAST_SRC along the active axis) loads its stamped input
 // tile and TPUSH<Span>-es (broadcast overload) it to every other cell on the span in one multicast;
 // every other cell pops/stores the broadcast it received.
-void launchBcastSmokeKernel(uint8_t *ffts, uint8_t *windows, uint8_t *inBuf, uint8_t *outBuf, uint8_t *hcclCtx,
-                            int gridRows, int gridCols, void *stream);
+void launchBcastSmokeKernel(
+    uint8_t* ffts, uint8_t* windows, uint8_t* inBuf, uint8_t* outBuf, uint8_t* hcclCtx, int gridRows, int gridCols,
+    void* stream);
 
 #endif // BCAST_SMOKE_LAUNCH_HPP
