@@ -724,7 +724,11 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe& pipe, TileProd& tile)
     }
 
     // 2. Address Calculation
-    pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, get_subblockid());
+    if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+        pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, 0);
+    } else {
+        pipe.prod.template push<TileProd, Split>(pipe.fifo, tile, get_subblockid());
+    }
     pipe.prod.tileIndex++;
 
     // 3. Cross-Core: Commit & Signal

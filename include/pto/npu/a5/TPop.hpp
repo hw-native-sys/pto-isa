@@ -33,7 +33,12 @@ PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe& pi
     }
 
     // 2. Address Calculation & Pop
-    bool reqFree = pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, get_subblockid());
+    bool reqFree;
+    if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+        reqFree = pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, 0);
+    } else {
+        reqFree = pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile, get_subblockid());
+    }
 
     // 3. Cross-Core: Free Space
     bool isFree =
