@@ -179,7 +179,6 @@ PTO_INTERNAL void InitUBBuffer(__ubuf__ T* dst)
         preg = CreatePredicate<T>(num);
         vsts(v_zeros, dst, i * nElemPerVL, distValue, preg);
     }
-    mem_bar(VST_VLD);
     mem_bar(VST_VST);
 }
 
