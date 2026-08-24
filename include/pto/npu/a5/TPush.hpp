@@ -42,6 +42,10 @@ struct TPipe {
     static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat || is_v2c_ctrl;
     static_assert(
         is_c2v || is_v2c || is_both || is_both_gm, "Fix: TPipe only supports C2V or V2C or Both communication on A5.");
+    // Local no-split FIFOs get their initial capacity from shouldWaitFree's startup window.
+    // GM and split FIFOs use the explicit constructor/destructor credit protocol below.
+    static constexpr bool uses_local_no_split_credit_protocol =
+        IsNoSplit && (is_c2v_ub || is_v2c_mat || is_v2c_ctrl || is_both);
     static constexpr uint8_t VEC_CORE_ID_OFFSET = 16;
     static_assert(
         FlagIDPlusOne < 16, "Fix: With Both direction, FlagID + 1 must be less than 16 due to hardware limit.");
@@ -685,11 +689,13 @@ struct TPipe {
     PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
     {
-        for (uint32_t i = 0; i < SyncPeriod; ++i) {
-            if constexpr (IsNoSplit) {
-                cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
-            } else {
-                cons.template free<TileSplitAxis::TILE_UP_DOWN>();
+        if constexpr (!uses_local_no_split_credit_protocol) {
+            for (uint32_t i = 0; i < SyncPeriod; ++i) {
+                if constexpr (IsNoSplit) {
+                    cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
+                } else {
+                    cons.template free<TileSplitAxis::TILE_UP_DOWN>();
+                }
             }
         }
     }
@@ -697,11 +703,30 @@ struct TPipe {
     // Destructor for TPipe
     PTO_INTERNAL ~TPipe()
     {
-        for (uint32_t i = 0; i < SyncPeriod; ++i) {
-            if constexpr (IsNoSplit) {
+        if constexpr (uses_local_no_split_credit_protocol) {
+            const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
+            uint32_t numPushWait = 0;
+            if constexpr (SlotNum == 1) {
+                numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
+            } else if (prod.tileIndex > SlotNum) {
+                constexpr uint32_t firstAligned =
+                    (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
+                const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
+                if (lastAligned >= firstAligned) {
+                    numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
+                }
+            }
+            const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
+            for (uint32_t i = 0; i < drainCount; ++i) {
                 prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
-            } else {
-                prod.template allocate<TileSplitAxis::TILE_UP_DOWN>();
+            }
+        } else {
+            for (uint32_t i = 0; i < SyncPeriod; ++i) {
+                if constexpr (IsNoSplit) {
+                    prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
+                } else {
+                    prod.template allocate<TileSplitAxis::TILE_UP_DOWN>();
+                }
             }
         }
     }
