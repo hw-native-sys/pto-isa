@@ -366,14 +366,6 @@ PTO_INST RecordEvent TMADD(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& s
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TMULA(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMULA, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TMIN(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
 {
     detail::PtoWaitEvents(events...);

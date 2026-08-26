@@ -173,19 +173,6 @@
       "notes": []
     },
     {
-      "instruction": "TMULA",
-      "category": "Elementwise (Tile-Tile)",
-      "summary_en": "Elementwise ternary op: `src0 * src1 + dst`.",
-      "summary_zh": "三元逐元素运算：`src0 * src1 + dst`。",
-      "diagram_template": "elementwise",
-      "operands": [
-        "dst",
-        "src0",
-        "src1"
-      ],
-      "notes": []
-    },
-    {
       "instruction": "TMIN",
       "category": "Elementwise (Tile-Tile)",
       "summary_en": "Elementwise minimum of two tiles.",
@@ -451,6 +438,19 @@
       "category": "Elementwise (Tile-Tile)",
       "summary_en": "Elementwise fmod of two tiles.",
       "summary_zh": "两个 Tile 的逐元素余数，余数符号与被除数相同。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1"
+      ],
+      "notes": []
+    },
+    {
+      "instruction": "TMULADDDST",
+      "category": "Elementwise (Tile-Tile)",
+      "summary_en": "Elementwise ternary op: `src0 * src1 + dst`.",
+      "summary_zh": "三元逐元素运算：`src0 * src1 + dst`。",
       "diagram_template": "elementwise",
       "operands": [
         "dst",

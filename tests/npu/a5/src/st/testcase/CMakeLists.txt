@@ -165,7 +165,7 @@ set(ALL_TESTCASES
     tmov_mx
     tmul
     tmadd
-    tmula
+    tmuladddst
     tlrelu
     tdiv
     tcmps

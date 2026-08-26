@@ -45,7 +45,6 @@
 | 逐元素（Tile-Tile） | `TSUB` | `elementwise` | `dst, src0, src1` | `docs/isa/TSUB_zh.md` |
 | 逐元素（Tile-Tile） | `TMUL` | `elementwise` | `dst, src0, src1` | `docs/isa/TMUL_zh.md` |
 | 逐元素（Tile-Tile） | `TMADD` | `elementwise` | `dst, src0, src1` | `docs/isa/TMADD_zh.md` |
-| 逐元素（Tile-Tile） | `TMULA` | `elementwise` | `dst, src0, src1` | `docs/isa/TMULA_zh.md` |
 | 逐元素（Tile-Tile） | `TMIN` | `elementwise` | `dst, src0, src1` | `docs/isa/TMIN_zh.md` |
 | 逐元素（Tile-Tile） | `TMAX` | `elementwise` | `dst, src0, src1` | `docs/isa/TMAX_zh.md` |
 | 逐元素（Tile-Tile） | `TCMP` | `elementwise` | `dst, src0, src1` | `docs/isa/TCMP_zh.md` |
@@ -67,6 +66,7 @@
 | 逐元素（Tile-Tile） | `TNEG` | `elementwise` | `dst, src0, src1` | `docs/isa/TNEG_zh.md` |
 | 逐元素（Tile-Tile） | `TREM` | `elementwise` | `dst, src0, src1` | `docs/isa/TREM_zh.md` |
 | 逐元素（Tile-Tile） | `TFMOD` | `elementwise` | `dst, src0, src1` | `docs/isa/TFMOD_zh.md` |
+| 逐元素（Tile-Tile） | `TMULADDDST` | `elementwise` | `dst, src0, src1` | `docs/isa/TMULADDDST_zh.md` |
 | Tile-标量 / Tile-立即数 | `TEXPANDS` | `scalar` | `dst, src, scalar` | `docs/isa/TEXPANDS_zh.md` |
 | Tile-标量 / Tile-立即数 | `TCMPS` | `scalar` | `dst, src, scalar` | `docs/isa/TCMPS_zh.md` |
 | Tile-标量 / Tile-立即数 | `TSELS` | `scalar` | `dst, src, scalar` | `docs/isa/TSELS_zh.md` |

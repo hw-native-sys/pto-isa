@@ -33,7 +33,7 @@
 - 将 `TSYNC(events...)` 替换为普通 event 顺序表达：把 event 对象传给消费端 intrinsic，或在确需显式等待时调用 `WaitAllEvents(events...)`。
 - `TSUBVIEW` 不提供公开 ISA 替代接口。仓内实现可使用 `pto::detail::PtoSubTileView` 作为内部 helper；外部代码应通过受支持的 Tile 构造和公开数据搬运 API 表达数据视图。
 - 将三元/标量融合算术形式替换为对应基础算术序列，例如 `TADD`、`TSUB`、`TADDS`、`TSUBS`、`TMUL`、`TMADD` 和 `TRELU`。
-- 将历史融合乘加接口重命名：`TFUSEDMULADD` 改为 `TMADD`，`TMULADDDST` 改为 `TMULA`。
+- 将历史融合乘加接口重命名：`TFUSEDMULADD` 改为 `TMADD`。
 - 将融合 add/ReLU/convert 或 add/dequant/ReLU 形式拆分为显式算术、转换/反量化和 `TRELU` 步骤。
 - 将 `TPairReduceSum` 替换为与目标 layout 匹配的现有行/列归约原语。
 - 不再调用 `TGET_SCALE_ADDR`；AUTO 模式 MX 测试可在调用 MX matmul 原语前，在测试代码中根据数据 Tile 绑定 scale Tile 地址。
@@ -57,7 +57,6 @@
 - [TSUB](TSUB_zh.md) - 两个 Tile 的逐元素减法。
 - [TMUL](TMUL_zh.md) - 两个 Tile 的逐元素乘法。
 - [TMADD](TMADD_zh.md) - 三元逐元素运算：`src0 * dst + src1`。
-- [TMULA](TMULA_zh.md) - 三元逐元素运算：`src0 * src1 + dst`。
 - [TMIN](TMIN_zh.md) - 两个 Tile 的逐元素最小值。
 - [TMAX](TMAX_zh.md) - 两个 Tile 的逐元素最大值。
 - [TCMP](TCMP_zh.md) - 比较两个 Tile 并写入一个打包的谓词掩码。
@@ -79,6 +78,7 @@
 - [TNEG](TNEG_zh.md) - Tile 的逐元素取负。
 - [TREM](TREM_zh.md) - 两个 Tile 的逐元素余数，余数符号与除数相同。
 - [TFMOD](TFMOD_zh.md) - 两个 Tile 的逐元素余数，余数符号与被除数相同。
+- [TMULADDDST](TMULADDDST_zh.md) - 三元逐元素运算：`src0 * src1 + dst`。
 
 ## Tile-标量 / Tile-立即数
 - [TEXPANDS](TEXPANDS_zh.md) - 将标量广播到目标 Tile 中。

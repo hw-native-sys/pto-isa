@@ -100,7 +100,7 @@ tmins
 tmov
 tmrgsort
 tmul
-tmula
+tmuladddst
 tmuls
 tneg
 tnot

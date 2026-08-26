@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-class TMULATest : public testing::Test {
+class TMULADDDSTTest : public testing::Test {
 protected:
     void SetUp() override {}
     void TearDown() override {}
@@ -33,12 +33,12 @@ std::string GetGoldenDir()
 template <
     typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
     int vCols, bool isHalf = true>
-void LaunchTMULA(T* out, T* src0, T* src1, void* stream);
+void LaunchTMULADDDST(T* out, T* src0, T* src1, void* stream);
 
 template <
     typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
     int vCols, bool isHalf = false>
-void test_TMULA()
+void test_TMULADDDST()
 {
     size_t fileSizeDst = dstTileH * dstTileW * sizeof(T);
     size_t fileSizeSrc0 = src0TileH * src0TileW * sizeof(T);
@@ -68,7 +68,7 @@ void test_TMULA()
     aclrtMemcpy(src0Device, fileSizeSrc0, src0Host, fileSizeSrc0, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, fileSizeSrc1, src1Host, fileSizeSrc1, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTMULA<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>(
+    LaunchTMULADDDST<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>(
         dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
@@ -97,10 +97,16 @@ void test_TMULA()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TMULATest, case_float_64x64_64x64_64x64_64x64) { test_TMULA<float, 64, 64, 64, 64, 64, 64, 64, 64>(); }
-TEST_F(TMULATest, case_float_32x128_32x192_32x256_32x127) { test_TMULA<float, 32, 128, 32, 192, 32, 256, 32, 127>(); }
-TEST_F(TMULATest, case_half_64x64_64x64_64x64_64x64) { test_TMULA<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(); }
-TEST_F(TMULATest, case_half_32x128_32x192_32x256_32x127)
+TEST_F(TMULADDDSTTest, case_float_64x64_64x64_64x64_64x64) { test_TMULADDDST<float, 64, 64, 64, 64, 64, 64, 64, 64>(); }
+TEST_F(TMULADDDSTTest, case_float_32x128_32x192_32x256_32x127)
 {
-    test_TMULA<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>();
+    test_TMULADDDST<float, 32, 128, 32, 192, 32, 256, 32, 127>();
+}
+TEST_F(TMULADDDSTTest, case_half_64x64_64x64_64x64_64x64)
+{
+    test_TMULADDDST<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>();
+}
+TEST_F(TMULADDDSTTest, case_half_32x128_32x192_32x256_32x127)
+{
+    test_TMULADDDST<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>();
 }

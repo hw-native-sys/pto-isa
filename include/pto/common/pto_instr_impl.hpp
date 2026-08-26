@@ -25,7 +25,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TSubS.hpp"
 #include "pto/npu/a2a3/TMul.hpp"
 #include "pto/npu/a2a3/TMAdd.hpp"
-#include "pto/npu/a2a3/TMula.hpp"
 #include "pto/npu/a2a3/TMulS.hpp"
 #include "pto/npu/a2a3/TMin.hpp"
 #include "pto/npu/a2a3/TMins.hpp"
@@ -125,7 +124,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TMov.hpp"
 #include "pto/npu/a2a3/TMul.hpp"
 #include "pto/npu/a2a3/TMAdd.hpp"
-#include "pto/npu/a2a3/TMula.hpp"
 #include "pto/npu/a2a3/TSort32.hpp"
 #include "pto/npu/a2a3/TSel.hpp"
 #include "pto/npu/a2a3/TGather.hpp"
@@ -185,6 +183,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TAlloc.hpp"
 #include "pto/npu/a2a3/TFree.hpp"
 #include "pto/npu/a2a3/TColReduceIdx.hpp"
+#include "pto/npu/a2a3/TMulAddDst.hpp"
 #endif
 #endif
 
@@ -290,7 +289,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TDiv.hpp"
 #include "pto/npu/a5/TMul.hpp"
 #include "pto/npu/a5/TMAdd.hpp"
-#include "pto/npu/a5/TMula.hpp"
 #include "pto/npu/a5/TScatter.hpp"
 #include "pto/npu/a5/MGather.hpp"
 #include "pto/npu/a5/MScatter.hpp"
@@ -311,6 +309,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TColReduceIdx.hpp"
 #include "pto/npu/a5/TInterleave.hpp"
 #include "pto/npu/a5/TDeInterleave.hpp"
+#include "pto/npu/a5/TMulAddDst.hpp"
 #endif // __COSTMODEL
 #endif
 

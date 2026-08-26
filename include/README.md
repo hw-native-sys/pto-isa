@@ -102,7 +102,6 @@ This table tracks per-instruction backend availability:
 | [`TMOV_FP`](../docs/isa/TMOV_FP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TMRGSORT`](../docs/isa/TMRGSORT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMUL`](../docs/isa/TMUL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMULA`](../docs/isa/TMULA.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TMULS`](../docs/isa/TMULS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TNEG`](../docs/isa/TNEG.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TNOT`](../docs/isa/TNOT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
@@ -168,6 +167,7 @@ This table tracks per-instruction backend availability:
 | [`TWAIT`](../docs/isa/comm/TWAIT.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TXOR`](../docs/isa/TXOR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TXORS`](../docs/isa/TXORS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TMULADDDST`](../docs/isa/TMULADDDST_zh.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 
 Notes:
 

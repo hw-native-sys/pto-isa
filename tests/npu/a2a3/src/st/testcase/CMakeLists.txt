@@ -228,7 +228,7 @@ tpushpop_dir_both
 tpushpop_dir_both_concurrent
 tpushpop_subtile
 tmadd
-tmula
+tmuladddst
 syncall
 )
 

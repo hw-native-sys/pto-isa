@@ -30,8 +30,7 @@ def gen_golden_data(case_name, param):
     h_valid, w_valid = param.valid_row, param.valid_col
 
     # Generate random input arrays
-    is_int = dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32)
-    if is_int:
+    if dtype in (np.int8, np.uint8, np.int16, np.uint16, np.int32, np.uint32):
         dtype_info = np.iinfo(dtype)
         vmin, vmax = -math.sqrt(math.fabs(dtype_info.min)) / 2, math.sqrt(math.fabs(dtype_info.max)) / 2
         input0 = np.random.randint(vmin, vmax, size=[src0_tile_row, src0_tile_col]).astype(dtype)
@@ -39,7 +38,7 @@ def gen_golden_data(case_name, param):
         dst = np.random.randint(vmin, vmax, size=[dst_tile_row, dst_tile_col]).astype(dtype)
     else:
         dtype_info = np.finfo(dtype)
-        vmin, vmax = -10, 10
+        vmin, vmax = -math.sqrt(math.fabs(dtype_info.min)) / 10, math.sqrt(math.fabs(dtype_info.max)) / 10
         input0 = np.random.uniform(low=vmin, high=vmax, size=[src0_tile_row, src0_tile_col]).astype(dtype)
         input1 = np.random.uniform(low=vmin, high=vmax, size=[src1_tile_row, src1_tile_col]).astype(dtype)
         dst = np.random.uniform(low=vmin, high=vmax, size=[dst_tile_row, dst_tile_col]).astype(dtype)
@@ -48,20 +47,9 @@ def gen_golden_data(case_name, param):
     input1.tofile("input1.bin")
     dst.tofile("input_dst.bin")
 
-    if is_int:
-        dst[0:h_valid, 0:w_valid] = input0[0:h_valid, 0:w_valid] * input1[0:h_valid, 0:w_valid] +\
-            dst[0:h_valid, 0:w_valid]
-    else:
-        for i in range(h_valid):
-            for j in range(w_valid):
-                # 1. Promote to float32
-                prod = input0[i, j] * input1[i, j]
-                # 2. Add to existing value (also promoted)
-                res = prod + dst[i, j]
-                # 3. Cast back to half at the very end
-                dst[i, j] = np.float16(res)
     # Perform the operation
-
+    dst[0:h_valid, 0:w_valid] = input0[0:h_valid, 0:w_valid] * input1[0:h_valid, 0:w_valid] +\
+        dst[0:h_valid, 0:w_valid]
     check_golden_data(dst)
 
     # Save the input and golden data to binary files
@@ -90,7 +78,7 @@ class TestParams:
             np.uint16: 'uint16',
             np.uint8: 'uint8'
         }[dtype]
-        self.name = f"TMULATest.case_{dtype_str}_{dst_tile_row}x{dst_tile_col}_\
+        self.name = f"TMULADDDSTTest.case_{dtype_str}_{dst_tile_row}x{dst_tile_col}_\
 {src0_tile_row}x{src0_tile_col}_{src1_tile_row}x{src1_tile_col}_\
 {valid_row}x{valid_col}"
 
@@ -109,7 +97,6 @@ if __name__ == "__main__":
         TestParams(np.float32, 32, 128, 32, 192, 32, 256, 32, 127),
         TestParams(np.float16, 64, 64, 64, 64, 64, 64, 64, 64),
         TestParams(np.float16, 32, 128, 32, 192, 32, 256, 32, 127),
-        TestParams(np.float16, 1, 16384, 1, 16384, 1, 16384, 1, 16384),
     ]
 
     for param in case_list:

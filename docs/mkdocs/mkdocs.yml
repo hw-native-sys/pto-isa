@@ -140,7 +140,6 @@ nav:
           - TSUB: docs/isa/TSUB.md
           - TMUL: docs/isa/TMUL.md
           - TMADD: docs/isa/TMADD.md
-          - TMULA: docs/isa/TMULA.md
           - TMIN: docs/isa/TMIN.md
           - TMAX: docs/isa/TMAX.md
           - TCMP: docs/isa/TCMP.md
@@ -151,6 +150,7 @@ nav:
           - TLOG: docs/isa/TLOG.md
           - TRECIP: docs/isa/TRECIP.md
           - TPRELU: docs/isa/TPRELU.md
+          - TMULADDDST: docs/isa/TMULADDDST.md
           - TCVT: docs/isa/TCVT.md
           - TSEL: docs/isa/TSEL.md
           - TRSQRT: docs/isa/TRSQRT.md
