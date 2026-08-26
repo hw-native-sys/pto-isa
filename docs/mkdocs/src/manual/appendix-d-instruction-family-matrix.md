@@ -118,7 +118,7 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Memory (GM <-> Tile) | `TPREFETCH` | `memory` | `tile, global` | `docs/isa/TPREFETCH.md` |
 | Memory (GM <-> Tile) | `TPREFETCH_ASYNC` | `memory` | `global, context` | `docs/isa/TPREFETCH_ASYNC.md` |
 | Memory (GM <-> Tile) | `TSTORE` | `memory` | `tile, global` | `docs/isa/TSTORE.md` |
-| Memory (GM <-> Tile) | `TSTORE_FP` | `memory` | `tile, global` | `docs/isa/TSTORE_FP.md` |
+| Memory (GM <-> Tile) | `TSTORE_FP` | `memory` | `tile, fp, global` | `docs/isa/TSTORE_FP.md` |
 | Memory (GM <-> Tile) | `MGATHER` | `memory` | `tile, global` | `docs/isa/MGATHER.md` |
 | Memory (GM <-> Tile) | `MSCATTER` | `memory` | `tile, global` | `docs/isa/MSCATTER.md` |
 | Matrix Multiply | `TGEMV_MX` | `matmul` | `dst, lhs, rhs` | `docs/isa/TGEMV_MX.md` |
@@ -131,15 +131,15 @@ This appendix is generated from `docs/isa/manifest.yaml` and provides a source-s
 | Matrix Multiply | `TGEMV_ACC` | `matmul` | `dst, lhs, rhs` | `docs/isa/TGEMV_ACC.md` |
 | Matrix Multiply | `TGEMV_BIAS` | `matmul` | `dst, lhs, rhs` | `docs/isa/TGEMV_BIAS.md` |
 | Data Movement / Layout | `TEXTRACT` | `reshape_move` | `dst, src` | `docs/isa/TEXTRACT.md` |
-| Data Movement / Layout | `TEXTRACT_FP` | `reshape_move` | `dst, src` | `docs/isa/TEXTRACT_FP.md` |
+| Data Movement / Layout | `TEXTRACT_FP` | `reshape_move` | `dst, src, fp` | `docs/isa/TEXTRACT_FP.md` |
 | Data Movement / Layout | `TIMG2COL` | `reshape_move` | `dst, src` | `docs/isa/TIMG2COL.md` |
 | Data Movement / Layout | `TINSERT` | `reshape_move` | `dst, src` | `docs/isa/TINSERT.md` |
-| Data Movement / Layout | `TINSERT_FP` | `reshape_move` | `dst, src` | `docs/isa/TINSERT_FP.md` |
+| Data Movement / Layout | `TINSERT_FP` | `reshape_move` | `dst, src, fp` | `docs/isa/TINSERT_FP.md` |
 | Data Movement / Layout | `TFILLPAD` | `reshape_move` | `dst, src` | `docs/isa/TFILLPAD.md` |
 | Data Movement / Layout | `TFILLPAD_INPLACE` | `reshape_move` | `dst, src` | `docs/isa/TFILLPAD_INPLACE.md` |
 | Data Movement / Layout | `TFILLPAD_EXPAND` | `reshape_move` | `dst, src` | `docs/isa/TFILLPAD_EXPAND.md` |
 | Data Movement / Layout | `TMOV` | `reshape_move` | `dst, src` | `docs/isa/TMOV.md` |
-| Data Movement / Layout | `TMOV_FP` | `reshape_move` | `dst, src` | `docs/isa/TMOV_FP.md` |
+| Data Movement / Layout | `TMOV_FP` | `reshape_move` | `dst, src, fp` | `docs/isa/TMOV_FP.md` |
 | Data Movement / Layout | `TRESHAPE` | `reshape_move` | `dst, src` | `docs/isa/TRESHAPE.md` |
 | Data Movement / Layout | `TTRANS` | `reshape_move` | `dst, src` | `docs/isa/TTRANS.md` |
 | Data Movement / Layout | `TCONCAT` | `layout` | `dst, src0, src1` | `docs/isa/TCONCAT.md` |

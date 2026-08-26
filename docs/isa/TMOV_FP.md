@@ -7,9 +7,14 @@
 
 ## Introduction
 
-Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters.
+Move/convert from an accumulator tile into a destination tile, using an `fp` tile for vector quantization
+parameters.
 
-`TMOV_FP` is a named wrapper around the `TMOV_IMPL(..., fp)` path and is part of the `TMOV` family (see `docs/isa/TMOV.md`).
+`TMOV_FP(...)` is retained as a source-compatible C++ interface for the legacy no-mode fp move form,
+including the `STPhase` overload. It maps directly to the `TMOV_IMPL(dst, src, fp)` implementation path
+without an explicit mode template argument. The canonical `TMOV(..., fp, ...)` overload requires a
+`Scaling` tile at the facade layer; the legacy alias preserves the backend-specific `FpTileData` checks
+used by existing code.
 
 ## Math Interpretation
 
@@ -36,6 +41,18 @@ Synchronous form:
 ```text
 pto.tmov.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+### IR Level 1 (SSA)
+
+```text
+%dst = pto.tmov.fp %src, %fp : !pto.tile<...>, !pto.tile<...> -> !pto.tile<...>
+```
+
+### IR Level 2 (DPS)
+
+```text
+pto.tmov.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
+```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants.hpp`:
@@ -43,6 +60,18 @@ Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants
 ```cpp
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
           typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
+PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
 ```
 
@@ -50,11 +79,14 @@ PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp,
 
 - **Implementation checks (A2A3)**:
     - The fp path is only supported for accumulator conversion and is validated by internal compile-time checks in `TMOV_IMPL(dst, src, fp)`.
-    - `FpTileData::Loc` must be `TileType::Scaling` (`static_assert`).
+    - `FpTileData` legality is checked by the selected backend implementation.
+    - The `STPhase` fp alias is not exposed on A2A3 because the backend has no `TMOV_IMPL(..., fp)` phase form.
 - **Implementation checks (A5)**:
     - Validated by `CheckTMovAccValid(...)` and related compile-time checks in `TMOV_IMPL(dst, src, fp)`.
-    - `FpTileData::Loc` must be `TileType::Scaling` (`static_assert`).
+    - `FpTileData` legality is checked by the selected backend implementation.
     - Destination location is target-dependent (`Vec` or `Mat` are supported in the fp path).
+    - The `STPhase` fp alias is exposed on targets with backend support: A5, kirin9030, kirinX90,
+      kirinDev0000, and CPU simulator.
 
 ## Examples
 

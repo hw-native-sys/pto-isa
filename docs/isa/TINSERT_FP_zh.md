@@ -6,7 +6,12 @@
 
 ## 简介
 
-带 fp/缩放 Tile 的插入（向量量化参数）。
+带 `fp` Tile 的插入（向量量化参数）。
+
+`TINSERT_FP(...)` 保留为历史无 mode fp 插入形态的源码兼容 C++ 调用入口。它直接映射到
+不显式传入 mode 模板参数的 `TINSERT_IMPL(dst, src, fp, indexRow, indexCol)`。规范同名
+`TINSERT(..., fp, ...)` facade 要求 `FpTileData::Loc == TileType::Scaling`；历史
+`TINSERT_FP(...)` alias 由所选后端实现继续检查合法性。
 
 ## 数学语义
 
@@ -34,12 +39,17 @@ pto.tinsert_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_b
 ```cpp
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
           typename... WaitEvents>
+PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
+
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
 PTO_INST RecordEvent TINSERT_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
 ```
 
 ## 约束
 
 类型/布局/位置/形状的合法性取决于后端；将实现特定的说明视为该后端的规范。
+`FpTileData` 的合法性由所选后端实现检查。
 
 ## 示例
 

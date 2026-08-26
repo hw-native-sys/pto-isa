@@ -82,6 +82,13 @@ PTO_INTERNAL void TINSERT_IMPL(
     TInsert_Impl<DstTileData, SrcTileData, quantMode, useRelu>(dst, src, indexRow, indexCol, scalars);
 }
 
+template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode, ReluPreMode reluMode>
+PTO_INTERNAL void TINSERT_IMPL(
+    DstTileData& dst, SrcTileData& src, FpTileData& fp, uint16_t indexRow = 0, uint16_t indexCol = 0)
+{
+    TINSERT_IMPL<DstTileData, SrcTileData, FpTileData, reluMode>(dst, src, fp, indexRow, indexCol);
+}
+
 template <auto mode, typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {

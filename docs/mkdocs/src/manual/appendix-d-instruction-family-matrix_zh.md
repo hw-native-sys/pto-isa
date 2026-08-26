@@ -118,7 +118,7 @@
 | 内存（GM <-> Tile） | `TPREFETCH` | `memory` | `tile, global` | `docs/isa/TPREFETCH_zh.md` |
 | 内存（GM <-> Tile） | `TPREFETCH_ASYNC` | `memory` | `global, context` | `docs/isa/TPREFETCH_ASYNC_zh.md` |
 | 内存（GM <-> Tile） | `TSTORE` | `memory` | `tile, global` | `docs/isa/TSTORE_zh.md` |
-| 内存（GM <-> Tile） | `TSTORE_FP` | `memory` | `tile, global` | `docs/isa/TSTORE_FP_zh.md` |
+| 内存（GM <-> Tile） | `TSTORE_FP` | `memory` | `tile, fp, global` | `docs/isa/TSTORE_FP_zh.md` |
 | 内存（GM <-> Tile） | `MGATHER` | `memory` | `tile, global` | `docs/isa/MGATHER_zh.md` |
 | 内存（GM <-> Tile） | `MSCATTER` | `memory` | `tile, global` | `docs/isa/MSCATTER_zh.md` |
 | 矩阵乘 | `TGEMV_MX` | `matmul` | `dst, lhs, rhs` | `docs/isa/TGEMV_MX_zh.md` |
@@ -131,15 +131,15 @@
 | 矩阵乘 | `TGEMV_ACC` | `matmul` | `dst, lhs, rhs` | `docs/isa/TGEMV_ACC_zh.md` |
 | 矩阵乘 | `TGEMV_BIAS` | `matmul` | `dst, lhs, rhs` | `docs/isa/TGEMV_BIAS_zh.md` |
 | 数据搬运 / 布局 | `TEXTRACT` | `reshape_move` | `dst, src` | `docs/isa/TEXTRACT_zh.md` |
-| 数据搬运 / 布局 | `TEXTRACT_FP` | `reshape_move` | `dst, src` | `docs/isa/TEXTRACT_FP_zh.md` |
+| 数据搬运 / 布局 | `TEXTRACT_FP` | `reshape_move` | `dst, src, fp` | `docs/isa/TEXTRACT_FP_zh.md` |
 | 数据搬运 / 布局 | `TIMG2COL` | `reshape_move` | `dst, src` | `docs/isa/TIMG2COL_zh.md` |
 | 数据搬运 / 布局 | `TINSERT` | `reshape_move` | `dst, src` | `docs/isa/TINSERT_zh.md` |
-| 数据搬运 / 布局 | `TINSERT_FP` | `reshape_move` | `dst, src` | `docs/isa/TINSERT_FP_zh.md` |
+| 数据搬运 / 布局 | `TINSERT_FP` | `reshape_move` | `dst, src, fp` | `docs/isa/TINSERT_FP_zh.md` |
 | 数据搬运 / 布局 | `TFILLPAD` | `reshape_move` | `dst, src` | `docs/isa/TFILLPAD_zh.md` |
 | 数据搬运 / 布局 | `TFILLPAD_INPLACE` | `reshape_move` | `dst, src` | `docs/isa/TFILLPAD_INPLACE_zh.md` |
 | 数据搬运 / 布局 | `TFILLPAD_EXPAND` | `reshape_move` | `dst, src` | `docs/isa/TFILLPAD_EXPAND_zh.md` |
 | 数据搬运 / 布局 | `TMOV` | `reshape_move` | `dst, src` | `docs/isa/TMOV_zh.md` |
-| 数据搬运 / 布局 | `TMOV_FP` | `reshape_move` | `dst, src` | `docs/isa/TMOV_FP_zh.md` |
+| 数据搬运 / 布局 | `TMOV_FP` | `reshape_move` | `dst, src, fp` | `docs/isa/TMOV_FP_zh.md` |
 | 数据搬运 / 布局 | `TRESHAPE` | `reshape_move` | `dst, src` | `docs/isa/TRESHAPE_zh.md` |
 | 数据搬运 / 布局 | `TTRANS` | `reshape_move` | `dst, src` | `docs/isa/TTRANS_zh.md` |
 | 数据搬运 / 布局 | `TCONCAT` | `layout` | `dst, src0, src1` | `docs/isa/TCONCAT_zh.md` |

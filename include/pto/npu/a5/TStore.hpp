@@ -384,6 +384,7 @@ template <
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, FpTileData& fp)
 {
     static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only support Acc!");
+    static_assert(FpTileData::Loc == pto::TileType::Scaling, "Fp only support Scaling.");
     using DstT = typename GlobalData::RawDType;
     using L0cT = typename TileData::DType;
     CheckStaticAcc<TileData, GlobalData, true>();

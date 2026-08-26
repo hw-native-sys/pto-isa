@@ -7,7 +7,13 @@
 
 ## Introduction
 
-Vector-quantization variant of `TINSERT` that also takes an `fp` (scaling) tile.
+Vector-quantization variant of `TINSERT` that also takes an `fp` tile.
+
+`TINSERT_FP(...)` is retained as a source-compatible C++ interface for the legacy no-mode fp insertion
+form. It maps directly to the `TINSERT_IMPL(dst, src, fp, indexRow, indexCol)` implementation path
+without an explicit mode template argument. The canonical `TINSERT(..., fp, ...)` overload requires a
+`Scaling` tile at the facade layer; the legacy alias preserves the backend-specific `FpTileData` checks
+used by existing code.
 
 ## See also
 
@@ -18,6 +24,10 @@ Vector-quantization variant of `TINSERT` that also takes an `fp` (scaling) tile.
 Declared in `include/pto/common/pto_instr.hpp`:
 
 ```cpp
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
+PTO_INST RecordEvent TINSERT(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
+
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
           typename... WaitEvents>
 PTO_INST RecordEvent TINSERT_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
@@ -40,9 +50,24 @@ Unless otherwise specified, semantics are defined over the valid region and targ
 ```text
 pto.tinsert_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
+
+### IR Level 1 (SSA)
+
+```text
+%dst = pto.tinsert_fp %src, %fp, %idxrow, %idxcol : (!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>
+```
+
+### IR Level 2 (DPS)
+
+```text
+pto.tinsert_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
+```
 ## Constraints
 
-Type/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative for that backend.
+Type/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative
+for that backend. The canonical same-name `TINSERT(..., fp, ...)` facade requires
+`FpTileData::Loc == TileType::Scaling`; the legacy `TINSERT_FP(...)` alias is checked by the selected
+backend implementation.
 
 ## Examples
 

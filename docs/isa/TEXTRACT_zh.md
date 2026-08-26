@@ -54,14 +54,29 @@ PTO_INST RecordEvent TEXTRACT(DstTileData &dst, SrcTileData &src, uint64_t preQu
 
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
           typename... WaitEvents>
+PTO_INST RecordEvent TEXTRACT(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
+
+template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TEXTRACT(DstTileData &dst, SrcTileData &src, FpTileData &fp,
+                              uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
+
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
 PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
 ```
+
+`TEXTRACT_FP(...)` 为历史 fp 量化形式保留源码兼容入口，并直接映射到无 `mode` 的
+`TEXTRACT_IMPL(dst, src, fp, indexRow, indexCol)` 路径。规范同名 `TEXTRACT(..., fp, ...)`
+重载仅在 `FpTileData::Loc == TileType::Scaling` 时参与匹配。
+规范接口还提供显式 `AccToVecMode` 形式，用于目标支持的 Acc-to-Vec 路由。
 
 ## 约束
 
 ### 通用约束或检查
 
-- `DstTileData::DType` 必须等于 `SrcTileData::DType`。
+- 对于同 dtype 抽取/布局路径，`DstTileData::DType` 必须等于 `SrcTileData::DType`。
+  Acc 转换和量化路径使用下述后端特定 dtype 组合。
 - 运行时边界检查：
     - `indexRow + DstTileData::Rows <= SrcTileData::Rows`
     - `indexCol + DstTileData::Cols <= SrcTileData::Cols`
@@ -84,7 +99,11 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
     - 对于 `ScaleRight`：`(SFractal == ColMajor && !isRowMajor)`
 - 在以 `Left` 为目标的GEMV场景中，已检查到的源布局还允许 `(SrcTileData::Rows == 1 && SrcTileData::isRowMajor)`。
 - 目标支持 `TileType::Mat -> TileType::Left/Right/Scale`、`TileType::Acc -> TileType::Mat`（含relu、标量量化、向量量化形式）、`TileType::Acc -> TileType::Vec`，以及特定的 `TileType::Vec -> TileType::Mat` 提取路径。
-- 向量量化形式额外要求提供 `FpTileData` 缩放操作数，对应 `TEXTRACT_FP(...)` 接口。
+- 规范向量量化 `TEXTRACT(..., fp, ...)` 形式额外要求提供 `FpTileData` Scaling 操作数。
+  `TEXTRACT_FP(...)` 仍作为源码兼容历史 alias 保留，并由所选后端实现继续检查合法性。
+- 向量量化 Acc-to-Vec 形式仅在存在对应后端实现的目标上暴露
+  （A5、kirin9030、kirinX90 和 CPU 模拟器），接受
+  `mode = AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`。
 - 对于 `TileType::Acc -> TileType::Vec`，当目标为32位类型（`float`/`int32_t`）且使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
 
 ### Vec → Vec 抽取路径

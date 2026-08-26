@@ -136,7 +136,7 @@
 - [TPREFETCH](TPREFETCH_zh.md) - 将数据从全局内存预取到 Tile 本地缓存/缓冲区（提示）。
 - [TPREFETCH_ASYNC](TPREFETCH_ASYNC_zh.md) - 通过 SDMA CMO 将 GlobalTensor 区域从 GM 异步预取到 L2 Cache。
 - [TSTORE](TSTORE_zh.md) - 将 Tile 中的数据存储到 GlobalTensor (GM)，可选使用原子写入或量化参数。
-- [TSTORE_FP](TSTORE_FP_zh.md) - 使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 存储到全局内存。
+- [TSTORE_FP](TSTORE_FP_zh.md) - 历史 fp 量化存储形式的源码兼容 C++ 别名。
 - [MGATHER](MGATHER_zh.md) - 使用逐元素索引从全局内存收集加载元素到 Tile 中。
 - [MSCATTER](MSCATTER_zh.md) - 使用逐元素索引将 Tile 中的元素散播存储到全局内存。
 
@@ -153,15 +153,15 @@
 
 ## 数据搬运 / 布局
 - [TEXTRACT](TEXTRACT_zh.md) - 从源 Tile 中提取子 Tile。
-- [TEXTRACT_FP](TEXTRACT_FP_zh.md) - 带 fp/缩放 Tile 的提取（向量量化参数）。
+- [TEXTRACT_FP](TEXTRACT_FP_zh.md) - 历史 fp 量化提取形式的源码兼容 C++ 别名。
 - [TIMG2COL](TIMG2COL_zh.md) - 用于类卷积工作负载的图像到列变换。
 - [TINSERT](TINSERT_zh.md) - 在 (indexRow, indexCol) 偏移处将子 Tile 插入到目标 Tile 中。
-- [TINSERT_FP](TINSERT_FP_zh.md) - 带 fp/缩放 Tile 的插入（向量量化参数）。
+- [TINSERT_FP](TINSERT_FP_zh.md) - 历史 fp 量化插入形式的源码兼容 C++ 别名。
 - [TFILLPAD](TFILLPAD_zh.md) - 复制 Tile 并在有效区域外使用编译时填充值进行填充。
 - [TFILLPAD_INPLACE](TFILLPAD_INPLACE_zh.md) - 原地填充/填充变体。
 - [TFILLPAD_EXPAND](TFILLPAD_EXPAND_zh.md) - 填充/填充时允许目标大于源。
 - [TMOV](TMOV_zh.md) - 在 Tile 之间移动/复制，可选应用实现定义的转换模式。
-- [TMOV_FP](TMOV_FP_zh.md) - 使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 移动/转换到目标 Tile。
+- [TMOV_FP](TMOV_FP_zh.md) - 历史 fp 量化移动形式的源码兼容 C++ 别名。
 - [TRESHAPE](TRESHAPE_zh.md) - 将 Tile 重新解释为另一种 Tile 类型/形状，同时保留底层字节。
 - [TTRANS](TTRANS_zh.md) - 使用实现定义的临时 Tile 进行转置。
 - [TCONCAT](TCONCAT_zh.md) - 将两个 Tile 沿列维度水平拼接。

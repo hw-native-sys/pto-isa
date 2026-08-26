@@ -1097,11 +1097,13 @@
     {
       "instruction": "TSTORE_FP",
       "category": "Memory (GM <-> Tile)",
-      "summary_en": "Store an accumulator tile into global memory using a scaling (`fp`) tile for vector quantization parameters.",
-      "summary_zh": "使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 存储到全局内存。",
+      "summary_en": "Source-compatible C++ alias for the legacy fp-quantized store form.",
+      "summary_zh": "历史 fp 量化存储形式的源码兼容 C++ 别名。",
+      "alias_of": "TSTORE",
       "diagram_template": "memory",
       "operands": [
         "tile",
+        "fp",
         "global"
       ],
       "notes": []
@@ -1263,12 +1265,14 @@
     {
       "instruction": "TEXTRACT_FP",
       "category": "Data Movement / Layout",
-      "summary_en": "Extract with fp/scaling tile (vector-quantization parameters).",
-      "summary_zh": "带 fp/缩放 Tile 的提取（向量量化参数）。",
+      "summary_en": "Source-compatible C++ alias for the legacy fp-quantized extraction form.",
+      "summary_zh": "历史 fp 量化提取形式的源码兼容 C++ 别名。",
+      "alias_of": "TEXTRACT",
       "diagram_template": "reshape_move",
       "operands": [
         "dst",
-        "src"
+        "src",
+        "fp"
       ],
       "notes": []
     },
@@ -1299,12 +1303,14 @@
     {
       "instruction": "TINSERT_FP",
       "category": "Data Movement / Layout",
-      "summary_en": "Insert with fp/scaling tile (vector-quantization parameters).",
-      "summary_zh": "带 fp/缩放 Tile 的插入（向量量化参数）。",
+      "summary_en": "Source-compatible C++ alias for the legacy fp-quantized insertion form.",
+      "summary_zh": "历史 fp 量化插入形式的源码兼容 C++ 别名。",
+      "alias_of": "TINSERT",
       "diagram_template": "reshape_move",
       "operands": [
         "dst",
-        "src"
+        "src",
+        "fp"
       ],
       "notes": []
     },
@@ -1359,12 +1365,14 @@
     {
       "instruction": "TMOV_FP",
       "category": "Data Movement / Layout",
-      "summary_en": "Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters.",
-      "summary_zh": "使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 移动/转换到目标 Tile。",
+      "summary_en": "Source-compatible C++ alias for the legacy fp-quantized move form.",
+      "summary_zh": "历史 fp 量化移动形式的源码兼容 C++ 别名。",
+      "alias_of": "TMOV",
       "diagram_template": "reshape_move",
       "operands": [
         "dst",
-        "src"
+        "src",
+        "fp"
       ],
       "notes": []
     },

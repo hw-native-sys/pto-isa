@@ -68,7 +68,7 @@ PTO Tile Lib 对外的 C/C++ 头文件（以模板化、基本 header-only 为�
 | [`TEXP`](../docs/isa/TEXP_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TEXPANDS`](../docs/isa/TEXPANDS_zh.md) | 是 | TODO | 是 | 是 | 是 | 是 |
 | [`TEXTRACT`](../docs/isa/TEXTRACT_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
-| [`TEXTRACT_FP`](../docs/isa/TEXTRACT_FP_zh.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TEXTRACT_FP`](../docs/isa/TEXTRACT_FP_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TFILLPAD`](../docs/isa/TFILLPAD_zh.md) | 是 | TODO | 是 | 是 | 是 | 是 |
 | [`TFILLPAD_EXPAND`](../docs/isa/TFILLPAD_EXPAND_zh.md) | TODO | TODO | 是 | 是 | 是 | 是 |
 | [`TFILLPAD_INPLACE`](../docs/isa/TFILLPAD_INPLACE_zh.md) | TODO | TODO | 是 | 是 | 是 | 是 |
@@ -85,7 +85,7 @@ PTO Tile Lib 对外的 C/C++ 头文件（以模板化、基本 header-only 为�
 | [`THISTOGRAM`](../docs/isa/THISTOGRAM_zh.md) | 是 | TODO | 否 | 否 | 是 | 是 |
 | [`TIMG2COL`](../docs/isa/TIMG2COL_zh.md) | TODO | TODO | 是 | 是 | 是 | TODO |
 | [`TINSERT`](../docs/isa/TINSERT_zh.md) | TODO | TODO | TODO | TODO | 是 | TODO |
-| [`TINSERT_FP`](../docs/isa/TINSERT_FP_zh.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TINSERT_FP`](../docs/isa/TINSERT_FP_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TLOAD`](../docs/isa/TLOAD_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TLOG`](../docs/isa/TLOG_zh.md) | 是 | TODO | 是 | 是 | 是 | 是 |
 | [`TLRELU`](../docs/isa/TLRELU_zh.md) | 是 | TODO | 是 | 是 | 是 | 是 |
@@ -99,7 +99,7 @@ PTO Tile Lib 对外的 C/C++ 头文件（以模板化、基本 header-only 为�
 | [`TMIN`](../docs/isa/TMIN_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TMINS`](../docs/isa/TMINS_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TMOV`](../docs/isa/TMOV_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
-| [`TMOV_FP`](../docs/isa/TMOV_FP_zh.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TMOV_FP`](../docs/isa/TMOV_FP_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TMRGSORT`](../docs/isa/TMRGSORT_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TMUL`](../docs/isa/TMUL_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TMULS`](../docs/isa/TMULS_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
@@ -157,7 +157,7 @@ PTO Tile Lib 对外的 C/C++ 头文件（以模板化、基本 header-only 为�
 | [`TSORT32`](../docs/isa/TSORT32_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TSQRT`](../docs/isa/TSQRT_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TSTORE`](../docs/isa/TSTORE_zh.md) | 是 | 是 | 是 | 是 | 是 | TODO |
-| [`TSTORE_FP`](../docs/isa/TSTORE_FP_zh.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TSTORE_FP`](../docs/isa/TSTORE_FP_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TSUB`](../docs/isa/TSUB_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TSUBS`](../docs/isa/TSUBS_zh.md) | 是 | 是 | 是 | 是 | 是 | 是 |
 | [`TTEST`](../docs/isa/comm/TTEST_zh.md) | 是 | TODO | 是 | 是 | 是 | TODO |

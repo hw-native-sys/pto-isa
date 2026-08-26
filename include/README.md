@@ -68,7 +68,7 @@ This table tracks per-instruction backend availability:
 | [`TEXP`](../docs/isa/TEXP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TEXPANDS`](../docs/isa/TEXPANDS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TEXTRACT`](../docs/isa/TEXTRACT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TEXTRACT_FP`](../docs/isa/TEXTRACT_FP.md) | TODO | TODO | Yes | Yes | Yes | Yes |
+| [`TEXTRACT_FP`](../docs/isa/TEXTRACT_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TFILLPAD`](../docs/isa/TFILLPAD.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TFILLPAD_EXPAND`](../docs/isa/TFILLPAD_EXPAND.md) | TODO | TODO | Yes | Yes | Yes | Yes |
 | [`TFILLPAD_INPLACE`](../docs/isa/TFILLPAD_INPLACE.md) | TODO | TODO | Yes | Yes | Yes | Yes |
@@ -85,7 +85,7 @@ This table tracks per-instruction backend availability:
 | [`THISTOGRAM`](../docs/isa/THISTOGRAM.md) | Yes | TODO | No | No | Yes | Yes |
 | [`TIMG2COL`](../docs/isa/TIMG2COL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TINSERT`](../docs/isa/TINSERT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
-| [`TINSERT_FP`](../docs/isa/TINSERT_FP.md) | TODO | TODO | Yes | Yes | Yes | Yes |
+| [`TINSERT_FP`](../docs/isa/TINSERT_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TLOAD`](../docs/isa/TLOAD.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TLOG`](../docs/isa/TLOG.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TLRELU`](../docs/isa/TLRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
@@ -99,7 +99,7 @@ This table tracks per-instruction backend availability:
 | [`TMIN`](../docs/isa/TMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMINS`](../docs/isa/TMINS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMOV`](../docs/isa/TMOV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMOV_FP`](../docs/isa/TMOV_FP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TMOV_FP`](../docs/isa/TMOV_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMRGSORT`](../docs/isa/TMRGSORT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMUL`](../docs/isa/TMUL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TMULS`](../docs/isa/TMULS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -158,7 +158,7 @@ This table tracks per-instruction backend availability:
 | [`TSORT32`](../docs/isa/TSORT32.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSQRT`](../docs/isa/TSQRT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSTORE`](../docs/isa/TSTORE.md) | Yes | Yes | Yes | Yes | Yes | TODO |
-| [`TSTORE_FP`](../docs/isa/TSTORE_FP.md) | Yes | TODO | Yes | Yes | Yes | Yes |
+| [`TSTORE_FP`](../docs/isa/TSTORE_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSUB`](../docs/isa/TSUB.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSUBS`](../docs/isa/TSUBS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TTEST`](../docs/isa/comm/TTEST.md) | Yes | TODO | Yes | Yes | Yes | TODO |

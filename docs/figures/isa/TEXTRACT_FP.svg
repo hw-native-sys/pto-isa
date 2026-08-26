@@ -33,45 +33,79 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel"/>
 <text x="40" y="46" class="title">TEXTRACT_FP</text>
-<text x="40" y="72" class="subtitle">Extract with fp/scaling tile (vector-quantization parameters).</text>
+<text x="40" y="72" class="subtitle">Source-compatible C++ alias for the fp/scaling-tile `TEXTRACT(..., fp, indexRow, indexCol, ...)` form.</text>
 <text x="40" y="92" class="meta">Template: reshape_move</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
-<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#515151">dst = slice(src, offset)</text>
-<text x="600" y="168" class="tileLabel" text-anchor="middle">src</text>
-<rect x="545" y="178" width="110" height="110" class="tileBorder" />
-<rect x="545" y="178" width="22" height="22" class="cell cellHL" stroke="#515151" />
-<rect x="567" y="178" width="22" height="22" class="cell" />
-<rect x="589" y="178" width="22" height="22" class="cell" />
-<rect x="611" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="178" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="200" width="22" height="22" class="cell" />
-<rect x="567" y="200" width="22" height="22" class="cell" />
-<rect x="589" y="200" width="22" height="22" class="cell" />
-<rect x="611" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="200" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="222" width="22" height="22" class="cell" />
-<rect x="567" y="222" width="22" height="22" class="cell" />
-<rect x="589" y="222" width="22" height="22" class="cell" />
-<rect x="611" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="222" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="567" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="589" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="611" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="244" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="567" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="589" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="611" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="633" y="266" width="22" height="22" class="cell cellMasked" />
-<rect x="545" y="178" width="66" height="66" class="validBox" stroke="#515151" />
-<text x="549" y="240" class="axisText">Rv</text>
-<text x="607" y="190" class="axisText" text-anchor="end">Cv</text>
-<path d="M 555 188 L 589 188" class="axisLine" marker-end="url(#axisArrow)" />
-<path d="M 555 188 L 555 222" class="axisLine" marker-end="url(#axisArrow)" />
-<text x="593" y="192" class="axisText">c</text>
-<text x="553" y="226" class="axisText" text-anchor="end">r</text>
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#515151">dst = quantize(slice(src), fp)</text>
+<text x="505" y="168" class="tileLabel" text-anchor="middle">src</text>
+<rect x="450" y="178" width="110" height="110" class="tileBorder" />
+<rect x="450" y="178" width="22" height="22" class="cell cellHL" stroke="#515151" />
+<rect x="472" y="178" width="22" height="22" class="cell" />
+<rect x="494" y="178" width="22" height="22" class="cell" />
+<rect x="516" y="178" width="22" height="22" class="cell cellMasked" />
+<rect x="538" y="178" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="200" width="22" height="22" class="cell" />
+<rect x="472" y="200" width="22" height="22" class="cell" />
+<rect x="494" y="200" width="22" height="22" class="cell" />
+<rect x="516" y="200" width="22" height="22" class="cell cellMasked" />
+<rect x="538" y="200" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="222" width="22" height="22" class="cell" />
+<rect x="472" y="222" width="22" height="22" class="cell" />
+<rect x="494" y="222" width="22" height="22" class="cell" />
+<rect x="516" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="538" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="472" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="494" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="516" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="538" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="472" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="494" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="516" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="538" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="450" y="178" width="66" height="66" class="validBox" stroke="#515151" />
+<text x="454" y="240" class="axisText">Rv</text>
+<text x="512" y="190" class="axisText" text-anchor="end">Cv</text>
+<path d="M 460 188 L 494 188" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 460 188 L 460 222" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="498" y="192" class="axisText">c</text>
+<text x="458" y="226" class="axisText" text-anchor="end">r</text>
+<text x="695" y="168" class="tileLabel" text-anchor="middle">fp/scale</text>
+<rect x="640" y="178" width="110" height="110" class="tileBorder" />
+<rect x="640" y="178" width="22" height="22" class="cell cellHL" stroke="#515151" />
+<rect x="662" y="178" width="22" height="22" class="cell" />
+<rect x="684" y="178" width="22" height="22" class="cell" />
+<rect x="706" y="178" width="22" height="22" class="cell" />
+<rect x="728" y="178" width="22" height="22" class="cell cellMasked" />
+<rect x="640" y="200" width="22" height="22" class="cell" />
+<rect x="662" y="200" width="22" height="22" class="cell" />
+<rect x="684" y="200" width="22" height="22" class="cell" />
+<rect x="706" y="200" width="22" height="22" class="cell" />
+<rect x="728" y="200" width="22" height="22" class="cell cellMasked" />
+<rect x="640" y="222" width="22" height="22" class="cell" />
+<rect x="662" y="222" width="22" height="22" class="cell" />
+<rect x="684" y="222" width="22" height="22" class="cell" />
+<rect x="706" y="222" width="22" height="22" class="cell" />
+<rect x="728" y="222" width="22" height="22" class="cell cellMasked" />
+<rect x="640" y="244" width="22" height="22" class="cell" />
+<rect x="662" y="244" width="22" height="22" class="cell" />
+<rect x="684" y="244" width="22" height="22" class="cell" />
+<rect x="706" y="244" width="22" height="22" class="cell" />
+<rect x="728" y="244" width="22" height="22" class="cell cellMasked" />
+<rect x="640" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="662" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="684" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="706" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="728" y="266" width="22" height="22" class="cell cellMasked" />
+<rect x="640" y="178" width="88" height="88" class="validBox" stroke="#515151" />
+<text x="644" y="262" class="axisText">Rv</text>
+<text x="724" y="190" class="axisText" text-anchor="end">Cv</text>
+<path d="M 650 188 L 684 188" class="axisLine" marker-end="url(#axisArrow)" />
+<path d="M 650 188 L 650 222" class="axisLine" marker-end="url(#axisArrow)" />
+<text x="688" y="192" class="axisText">c</text>
+<text x="648" y="226" class="axisText" text-anchor="end">r</text>
 <text x="600" y="350" class="tileLabel" text-anchor="middle">dst (window)</text>
 <rect x="545" y="360" width="110" height="110" class="tileBorder" />
 <rect x="545" y="360" width="22" height="22" class="cell cellHL" stroke="#515151" />
@@ -106,12 +140,13 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <path d="M 555 370 L 555 404" class="axisLine" marker-end="url(#axisArrow)" />
 <text x="593" y="374" class="axisText">c</text>
 <text x="553" y="408" class="axisText" text-anchor="end">r</text>
-<path d="M 556 300 L 556 324 L 556 324 L 556 348" class="arrow" stroke="#515151" marker-end="url(#arrow)" />
+<path d="M 461 300 L 461 324 L 556 324 L 556 348" class="arrow" stroke="#515151" marker-end="url(#arrow)" />
+<path d="M 651 300 L 651 338 L 556 338 L 556 348" class="arrow" stroke="#515151" marker-end="url(#arrow)" />
 <rect x="40" y="502" width="1120" height="194" class="procBox" />
 <text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
 <text x="56" y="554" class="procText" xml:space="preserve">
   <tspan x="56" dy="0">for r,c in valid(dst):</tspan>
-  <tspan x="56" dy="16">  dst[r,c] = src[r + row_off, c + col_off]</tspan>
+  <tspan x="56" dy="16">  dst[r,c] = convert(src[r + row_off, c + col_off], fp)</tspan>
 </text>
 <text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
 </svg>

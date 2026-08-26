@@ -153,8 +153,8 @@ __global__ AICORE void runTMOV_nz2nz(__gm__ outType* out, __gm__ aType* src0, __
     constexpr uint16_t kGRows_ = CeilDiv<uint16_t>(copyOutM, sGRows_);
     constexpr uint16_t kGCols_ = CeilDiv<uint16_t>(copyOutN, sGCols_);
     using DynShapeDim5 = Shape<1, kGCols_, kGRows_, sGRows_, sGCols_>;
-    constexpr uint16_t gStride0 = kGCols_ * kGRows_ * sGCols_ * sGRows_;
-    constexpr uint16_t gStride1 = kGRows_ * sGCols_ * sGRows_;
+    constexpr int gStride0 = kGCols_ * kGRows_ * sGCols_ * sGRows_;
+    constexpr int gStride1 = kGRows_ * sGCols_ * sGRows_;
     using DynStridDim5 = pto::Stride<gStride0, gStride1, sGCols_ * sGRows_, sGCols_, 1>;
     using GlobalDataOut = GlobalTensor<outType, DynShapeDim5, DynStridDim5, Layout::NZ>;
     GlobalDataOut dstGlobal(out);
@@ -217,8 +217,8 @@ __global__ AICORE void runVectorQuantTMOV_nz2nz(
     constexpr uint16_t kGRows_ = CeilDiv<uint16_t>(copyOutM, sGRows_);
     constexpr uint16_t kGCols_ = CeilDiv<uint16_t>(copyOutN, sGCols_);
     using DynShapeDim5 = Shape<1, kGCols_, kGRows_, sGRows_, sGCols_>;
-    constexpr uint16_t gStride0 = kGCols_ * kGRows_ * sGCols_ * sGRows_;
-    constexpr uint16_t gStride1 = kGRows_ * sGCols_ * sGRows_;
+    constexpr int gStride0 = kGCols_ * kGRows_ * sGCols_ * sGRows_;
+    constexpr int gStride1 = kGRows_ * sGCols_ * sGRows_;
     using DynStridDim5 = pto::Stride<gStride0, gStride1, sGCols_ * sGRows_, sGCols_, 1>;
     using GlobalDataOut = GlobalTensor<outType, DynShapeDim5, DynStridDim5, Layout::NZ>;
     GlobalDataOut dstGlobal(out);
@@ -290,8 +290,8 @@ __global__ AICORE void runScalarQuantTMOV_nz2nz(
     constexpr uint16_t kGRows_ = CeilDiv<uint16_t>(copyOutM, sGRows_);
     constexpr uint16_t kGCols_ = CeilDiv<uint16_t>(copyOutN, sGCols_);
     using DynShapeDim5 = Shape<1, kGCols_, kGRows_, sGRows_, sGCols_>;
-    constexpr uint16_t gStride0 = kGCols_ * kGRows_ * sGCols_ * sGRows_;
-    constexpr uint16_t gStride1 = kGRows_ * sGCols_ * sGRows_;
+    constexpr int gStride0 = kGCols_ * kGRows_ * sGCols_ * sGRows_;
+    constexpr int gStride1 = kGRows_ * sGCols_ * sGRows_;
     using DynStridDim5 = pto::Stride<gStride0, gStride1, sGCols_ * sGRows_, sGCols_, 1>;
     using GlobalDataOut = GlobalTensor<outType, DynShapeDim5, DynStridDim5, Layout::NZ>;
     GlobalDataOut dstGlobal(out);

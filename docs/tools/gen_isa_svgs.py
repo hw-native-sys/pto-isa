@@ -908,14 +908,24 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
     y_dst = DST_Y
 
     if instr.startswith("TEXTRACT"):
-        expr = "dst = slice(src, offset)"
-        proc = ["for r,c in valid(dst):", "  dst[r,c] = src[r + row_off, c + col_off]"]
+        is_fp = instr == "TEXTRACT_FP"
+        expr = "dst = quantize(slice(src), fp)" if is_fp else "dst = slice(src, offset)"
+        update = (
+            "  dst[r,c] = convert(src[r + row_off, c + col_off], fp)"
+            if is_fp
+            else "  dst[r,c] = src[r + row_off, c + col_off]"
+        )
+        proc = ["for r,c in valid(dst):", update]
         _draw_expr(out, expr, accent)
-        x_src = (CANVAS_W - tile_w) // 2
+        xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 80) if is_fp else [(CANVAS_W - tile_w) // 2]
+        x_src = xs[0]
         x_dst = (CANVAS_W - tile_w) // 2
         _draw_tile_grid(
             out, x=x_src, y=y_src, label="src", prefix="a", valid_box=(3, 3), highlight_cells=[(0, 0)], accent=accent
         )
+        if is_fp:
+            x_fp = xs[1]
+            _draw_tile_grid(out, x=x_fp, y=y_src, label="fp/scale", prefix="s", highlight_cells=[(0, 0)], accent=accent)
         _draw_tile_grid(
             out, x=x_dst, y=y_dst, label="dst (window)", prefix="d", highlight_cells=[(0, 0)], accent=accent
         )
@@ -923,14 +933,24 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
         dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=0)
         via_y = int((sy + dy) / 2)
         _draw_ortho_arrow(out, x1=sx, y1=sy, x2=dx, y2=dy, via_y=via_y, accent=accent)
+        if is_fp:
+            fx, fy = _tile_port_bottom(x=x_fp, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=0)
+            _draw_ortho_arrow(out, x1=fx, y1=fy, x2=dx, y2=dy, via_y=via_y + 14, accent=accent)
         _draw_procedure(out, lines=proc, accent=accent)
         return _end_svg(out)
 
     if instr.startswith("TINSERT"):
-        expr = "dst[off + (r,c)] = src[r,c]"
-        proc = ["for r,c in valid(src):", "  dst[r + row_off, c + col_off] = src[r,c]"]
+        is_fp = instr == "TINSERT_FP"
+        expr = "dst[off + (r,c)] = convert(src[r,c], fp)" if is_fp else "dst[off + (r,c)] = src[r,c]"
+        update = (
+            "  dst[r + row_off, c + col_off] = convert(src[r,c], fp)"
+            if is_fp
+            else "  dst[r + row_off, c + col_off] = src[r,c]"
+        )
+        proc = ["for r,c in valid(src):", update]
         _draw_expr(out, expr, accent)
-        xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 120)
+        widths = [tile_w, tile_w, tile_w] if is_fp else [tile_w, tile_w]
+        xs = _layout_row_lefts(CANVAS_W // 2, widths, 65 if is_fp else 120)
         x_dst_in, x_src_win = xs[0], xs[1]
         x_dst_out = (CANVAS_W - tile_w) // 2
         _draw_tile_grid(
@@ -946,6 +966,9 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
             highlight_cells=[(0, 0)],
             accent=accent,
         )
+        if is_fp:
+            x_fp = xs[2]
+            _draw_tile_grid(out, x=x_fp, y=y_src, label="fp/scale", prefix="s", highlight_cells=[(0, 0)], accent=accent)
         _draw_tile_grid(
             out, x=x_dst_out, y=y_dst, label="dst (out)", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent
         )
@@ -961,6 +984,9 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
             accent=accent,
             op_cx=CANVAS_W // 2,
         )
+        if is_fp:
+            f_x, f_y = _tile_port_bottom(x=x_fp, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=0)
+            _draw_ortho_arrow(out, x1=f_x, y1=f_y, x2=dx, y2=dy, via_y=int((f_y + dy) / 2) + 14, accent=accent)
         _draw_procedure(out, lines=proc, accent=accent)
         return _end_svg(out)
 
@@ -1019,17 +1045,32 @@ def _render_reshape_move(instr: str, summary: str, accent: str, bg: str) -> str:
         return _end_svg(out)
 
     # Default: movement/reshape
-    expr = "dst = move/reshape(src)"
-    proc = ["for r,c in valid(dst):", "  dst[r,c] = transform(src[r,c])   (layout/location dependent)"]
+    is_fp = instr == "TMOV_FP"
+    expr = "dst = convert(src, fp)" if is_fp else "dst = move/reshape(src)"
+    update = (
+        "  dst[r,c] = convert(src[r,c], fp)"
+        if is_fp
+        else "  dst[r,c] = transform(src[r,c])   (layout/location dependent)"
+    )
+    proc = ["for r,c in valid(dst):", update]
     _draw_expr(out, expr, accent)
-    x_src = (CANVAS_W - tile_w) // 2
+    xs = _layout_row_lefts(CANVAS_W // 2, [tile_w, tile_w], 80) if is_fp else [(CANVAS_W - tile_w) // 2]
+    x_src = xs[0]
     x_dst = (CANVAS_W - tile_w) // 2
     _draw_tile_grid(out, x=x_src, y=y_src, label="src", prefix="a", highlight_cells=[(EX_R, EX_C)], accent=accent)
+    if is_fp:
+        x_fp = xs[1]
+        _draw_tile_grid(
+            out, x=x_fp, y=y_src, label="fp/scale", prefix="s", highlight_cells=[(EX_R, EX_C)], accent=accent
+        )
     _draw_tile_grid(out, x=x_dst, y=y_dst, label="dst", prefix="d", highlight_cells=[(EX_R, EX_C)], accent=accent)
     sx, sy = _tile_port_bottom(x=x_src, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
     dx, dy = _tile_port_top(x=x_dst, y=y_dst, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
     via_y = int((sy + dy) / 2)
     _draw_ortho_arrow(out, x1=sx, y1=sy, x2=dx, y2=dy, via_y=via_y, accent=accent)
+    if is_fp:
+        fx, fy = _tile_port_bottom(x=x_fp, y=y_src, rows=TILE_ROWS, cols=TILE_COLS, c=EX_C)
+        _draw_ortho_arrow(out, x1=fx, y1=fy, x2=dx, y2=dy, via_y=via_y + 14, accent=accent)
     _draw_procedure(out, lines=proc, accent=accent)
     return _end_svg(out)
 

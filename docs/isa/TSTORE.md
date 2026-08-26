@@ -34,6 +34,18 @@ pto.tstore %src, %mem : (!pto.tile<...>, !pto.partition_tensor_view<MxNxdtype>) 
 ```text
 pto.tstore ins(%src : !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
 ```
+
+### IR Level 1 (SSA)
+
+```text
+pto.tstore %t1, %sv_out[%c0, %c0]
+```
+
+### IR Level 2 (DPS)
+
+```text
+pto.tstore ins(%t1, %sv_out[%c0, %c0]) outs()
+```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants.hpp`:
@@ -48,9 +60,19 @@ template <typename TileData, typename GlobalData, AtomicType atomicType = Atomic
 PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, uint64_t preQuantScalar, WaitEvents&... events);
 
 template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
-          typename... WaitEvents>
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, FpTileData& fp, WaitEvents&... events);
+
+template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, WaitEvents&... events);
 ```
+
+`TSTORE_FP(...)` is retained for source compatibility with the legacy fp-quantized form and maps directly to
+`TSTORE_IMPL(dst, src, fp)`. The canonical `TSTORE(..., fp, ...)` overload is selected only for
+`FpTileData::Loc == TileType::Scaling`; backend implementations may apply additional legality checks.
+The vector-quantized `STPhase` form is exposed only on targets with matching backend support
+(A5, kirin9030, kirinDev0000, and CPU simulator).
 
 ## Constraints
 
@@ -73,8 +95,8 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
         | --- | --- | --- |
         | `TSTORE(dst, acc)` | `float` | `float`, `half`, `bfloat16_t` |
         | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
-        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`, `uint8_t` |
-        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`, `uint8_t`, `half` |
+        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`, `uint8_t` |
+        | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`, `uint8_t`, `half` |
 
         Other cross-type combinations are not supported.
     - Static shape constraints: `1 <= TileData::Cols <= 4095`; if ND then `1 <= TileData::Rows <= 8192`; if NZ, NC1HWC0, or NDC1HWC0 then `1 <= TileData::Rows <= 65535` and `TileData::Cols % 16 == 0`.
@@ -96,8 +118,8 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
       | --- | --- | --- |
       | `TSTORE(dst, acc)` | `float` | `float`, `half`, `bfloat16_t` |
       | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
-      | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`, `uint8_t`, `half`, `bfloat16_t`, `hifloat8_t`, `float8_e4m3_t`, `float` |
-      | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`, `uint8_t`, `half`, `bfloat16_t` |
+      | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`, `uint8_t`, `half`, `bfloat16_t`, `hifloat8_t`, `float8_e4m3_t`, `float` |
+      | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`, `uint8_t`, `half`, `bfloat16_t` |
 
       Other cross-type combinations are not supported.
     - Static shape constraints match A2A3 for rows/cols; `AtomicAdd` additionally restricts destination dtype to supported atomic types.

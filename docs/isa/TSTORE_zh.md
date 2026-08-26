@@ -49,9 +49,19 @@ template <typename TileData, typename GlobalData, AtomicType atomicType = Atomic
 PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, uint64_t preQuantScalar, WaitEvents&... events);
 
 template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
-          typename... WaitEvents>
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, FpTileData& fp, WaitEvents&... events);
+
+template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, WaitEvents&... events);
 ```
+
+`TSTORE_FP(...)` 为历史 fp 量化形式保留源码兼容入口，并直接映射到 `TSTORE_IMPL(dst, src, fp)`。
+规范同名 `TSTORE(..., fp, ...)` 重载仅在 `FpTileData::Loc == TileType::Scaling` 时参与匹配；
+后端实现仍可继续检查额外合法性。
+向量量化 `STPhase` 形式仅在存在对应后端实现的目标上暴露
+（A5、kirin9030、kirinDev0000 和 CPU 模拟器）。
 
 ## 约束
 
@@ -74,8 +84,8 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
           | --- | --- | --- |
           | `TSTORE(dst, acc)` | `float` | `float`、`half`、`bfloat16_t` |
           | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
-          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`、`uint8_t` |
-          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half` |
+          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`、`uint8_t` |
+          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half` |
 
           其它未列出的跨类型组合不属于支持范围。
 
@@ -98,8 +108,8 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
           | --- | --- | --- |
           | `TSTORE(dst, acc)` | `float` | `float`、`half`、`bfloat16_t` |
           | `TSTORE(dst, acc)` | `int32_t` | `int32_t` |
-          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`、`uint8_t`、`half`、`bfloat16_t`、`hifloat8_t`、`float8_e4m3_t`、`float` |
-          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half`、`bfloat16_t` |
+          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `float` | `int8_t`、`uint8_t`、`half`、`bfloat16_t`、`hifloat8_t`、`float8_e4m3_t`、`float` |
+          | `TSTORE(dst, acc, preQuantScalar)` / `TSTORE(dst, acc, fp)` / `TSTORE_FP(dst, acc, fp)` | `int32_t` | `int8_t`、`uint8_t`、`half`、`bfloat16_t` |
 
           其它未列出的跨类型组合不属于支持范围。
 

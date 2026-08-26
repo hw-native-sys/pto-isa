@@ -38,8 +38,15 @@ _LEVEL_ALIAS = {
 
 _EXPLICIT_FALLBACK_FORMS: Dict[str, Dict[str, str]] = {
     "TEXTRACT_FP": {
-        "level1": "%dst = pto.textract_fp %src, %idxrow, %idxcol : (!pto.tile<...>, dtype, dtype) -> !pto.tile<...>",
-        "level2": "pto.textract_fp ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)",
+        "level1": (
+            "%dst = pto.textract_fp %src, %fp, %idxrow, %idxcol : "
+            "(!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>"
+        ),
+        "level2": (
+            "pto.textract_fp ins(%src, %fp, %idxrow, %idxcol : "
+            "!pto.tile_buf<...>, !pto.tile_buf<...>, dtype, dtype) "
+            "outs(%dst : !pto.tile_buf<...>)"
+        ),
     },
     "TFILLPAD_EXPAND": {
         "level1": "%dst = pto.tfillpad_expand %src : !pto.tile<...> -> !pto.tile<...>",
@@ -54,8 +61,15 @@ _EXPLICIT_FALLBACK_FORMS: Dict[str, Dict[str, str]] = {
         "level2": "pto.timg2col ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)",
     },
     "TINSERT_FP": {
-        "level1": "%dst = pto.tinsert_fp %src, %fp, %idxrow, %idxcol : (!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>",
-        "level2": "pto.tinsert_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)",
+        "level1": (
+            "%dst = pto.tinsert_fp %src, %fp, %idxrow, %idxcol : "
+            "(!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>"
+        ),
+        "level2": (
+            "pto.tinsert_fp ins(%src, %fp, %idxrow, %idxcol : "
+            "!pto.tile_buf<...>, !pto.tile_buf<...>, dtype, dtype) "
+            "outs(%dst : !pto.tile_buf<...>)"
+        ),
     },
     "TQUANT": {
         "level1": "%dst = pto.tquant %src, %qp : (!pto.tile<...>, !pto.tile<...>) -> !pto.tile<...>",

@@ -6,7 +6,12 @@
 
 ## 简介
 
-带 fp/缩放 Tile 的提取（向量量化参数）。
+带 `fp` Tile 的提取（向量量化参数）。
+
+`TEXTRACT_FP(...)` 保留为历史无 mode fp 提取形态的源码兼容 C++ 调用入口。它直接映射到
+不显式传入 mode 模板参数的 `TEXTRACT_IMPL(dst, src, fp, indexRow, indexCol)`。规范同名
+`TEXTRACT(..., fp, ...)` facade 要求 `FpTileData::Loc == TileType::Scaling`；历史
+`TEXTRACT_FP(...)` alias 由所选后端实现继续检查合法性。
 
 ## 数学语义
 
@@ -17,13 +22,13 @@
 ### AS Level 1（SSA）
 
 ```text
-%dst = pto.textract_fp %src, %idxrow, %idxcol : (!pto.tile<...>, dtype, dtype) -> !pto.tile<...>
+%dst = pto.textract_fp %src, %fp, %idxrow, %idxcol : (!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>
 ```
 
 ### AS Level 2（DPS）
 
 ```text
-pto.textract_fp ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
+pto.textract_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```
 
 ## C++ 内建接口
@@ -34,12 +39,17 @@ pto.textract_fp ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) o
 ```cpp
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
           typename... WaitEvents>
+PTO_INST RecordEvent TEXTRACT(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
+
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
 PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, uint16_t indexRow, uint16_t indexCol, WaitEvents &... events);
 ```
 
 ## 约束
 
 类型/布局/位置/形状的合法性取决于后端；将实现特定的说明视为该后端的规范。
+`FpTileData` 的合法性由所选后端实现检查。
 
 ## 示例
 
@@ -51,7 +61,7 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 
 ```text
 # 自动模式：由编译器/运行时负责资源放置与调度。
-%dst = pto.textract_fp %src, %idxrow, %idxcol : (!pto.tile<...>, dtype, dtype) -> !pto.tile<...>
+%dst = pto.textract_fp %src, %fp, %idxrow, %idxcol : (!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>
 ```
 
 ### 手动模式
@@ -61,13 +71,13 @@ PTO_INST RecordEvent TEXTRACT_FP(DstTileData &dst, SrcTileData &src, FpTileData 
 # 可选（当该指令包含 tile 操作数时）：
 # pto.tassign %arg0, @tile(0x1000)
 # pto.tassign %arg1, @tile(0x2000)
-%dst = pto.textract_fp %src, %idxrow, %idxcol : (!pto.tile<...>, dtype, dtype) -> !pto.tile<...>
+%dst = pto.textract_fp %src, %fp, %idxrow, %idxcol : (!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>
 ```
 
 ### PTO 汇编形式
 
 ```text
-%dst = pto.textract_fp %src, %idxrow, %idxcol : (!pto.tile<...>, dtype, dtype) -> !pto.tile<...>
+%dst = pto.textract_fp %src, %fp, %idxrow, %idxcol : (!pto.tile<...>, !pto.tile<...>, dtype, dtype) -> !pto.tile<...>
 # AS Level 2 (DPS)
-pto.textract_fp ins(%src, %idxrow, %idxcol : !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
+pto.textract_fp ins(%src, %fp, %idxrow, %idxcol : !pto.tile_buf<...>, !pto.tile_buf<...>, dtype, dtype) outs(%dst : !pto.tile_buf<...>)
 ```

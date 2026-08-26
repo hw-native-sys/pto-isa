@@ -136,7 +136,7 @@ Migration guidance:
 - [TPREFETCH](TPREFETCH.md) - Prefetch data from global memory into a tile-local cache/buffer (hint).
 - [TPREFETCH_ASYNC](TPREFETCH_ASYNC.md) - Asynchronously prefetch a GlobalTensor region from GM into L2 cache via SDMA CMO.
 - [TSTORE](TSTORE.md) - Store data from a Tile into a GlobalTensor (GM), optionally using atomic write or quantization parameters.
-- [TSTORE_FP](TSTORE_FP.md) - Store an accumulator tile into global memory using a scaling (`fp`) tile for vector quantization parameters.
+- [TSTORE_FP](TSTORE_FP.md) - Source-compatible C++ alias for the legacy fp-quantized store form.
 - [MGATHER](MGATHER.md) - Gather-load elements from global memory into a tile using per-element indices.
 - [MSCATTER](MSCATTER.md) - Scatter-store elements from a tile into global memory using per-element indices.
 
@@ -153,15 +153,15 @@ Migration guidance:
 
 ## Data Movement / Layout
 - [TEXTRACT](TEXTRACT.md) - Extract a sub-tile from a source tile.
-- [TEXTRACT_FP](TEXTRACT_FP.md) - Extract with fp/scaling tile (vector-quantization parameters).
+- [TEXTRACT_FP](TEXTRACT_FP.md) - Source-compatible C++ alias for the legacy fp-quantized extraction form.
 - [TIMG2COL](TIMG2COL.md) - Image-to-column transform for convolution-like workloads.
 - [TINSERT](TINSERT.md) - Insert a sub-tile into a destination tile at an (indexRow, indexCol) offset.
-- [TINSERT_FP](TINSERT_FP.md) - Insert with fp/scaling tile (vector-quantization parameters).
+- [TINSERT_FP](TINSERT_FP.md) - Source-compatible C++ alias for the legacy fp-quantized insertion form.
 - [TFILLPAD](TFILLPAD.md) - Copy+pad a tile outside the valid region with a compile-time pad value.
 - [TFILLPAD_INPLACE](TFILLPAD_INPLACE.md) - In-place fill/pad variant.
 - [TFILLPAD_EXPAND](TFILLPAD_EXPAND.md) - Fill/pad while allowing dst to be larger than src.
 - [TMOV](TMOV.md) - Move/copy between tiles, optionally applying implementation-defined conversion modes.
-- [TMOV_FP](TMOV_FP.md) - Move/convert from an accumulator tile into a destination tile, using a scaling (`fp`) tile for vector quantization parameters.
+- [TMOV_FP](TMOV_FP.md) - Source-compatible C++ alias for the legacy fp-quantized move form.
 - [TRESHAPE](TRESHAPE.md) - Reinterpret a tile as another tile type/shape while preserving the underlying bytes.
 - [TTRANS](TTRANS.md) - Transpose with an implementation-defined temporary tile.
 - [TCONCAT](TCONCAT.md) - Concatenate two tiles horizontally along the column dimension.

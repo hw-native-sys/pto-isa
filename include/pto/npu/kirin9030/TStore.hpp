@@ -288,6 +288,7 @@ template <
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, FpTileData& fp)
 {
     static_assert(TileData::Loc == pto::TileType::Acc, "Source TileType only support Acc!");
+    static_assert(FpTileData::Loc == pto::TileType::Scaling, "Fp only support Scaling.");
     static_assert(atomicType == AtomicType::AtomicNone, "Fix: AtomicAdd is not supported on kirin9030.");
     using DstT = typename GlobalData::RawDType;
     using L0cT = typename TileData::DType;

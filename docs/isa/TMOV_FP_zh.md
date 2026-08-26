@@ -6,7 +6,12 @@
 
 ## 简介
 
-使用缩放 (`fp`) Tile 作为向量量化参数，将累加器 Tile 移动/转换到目标 Tile。
+使用 `fp` Tile 作为向量量化参数，将累加器 Tile 移动/转换到目标 Tile。
+
+`TMOV_FP(...)` 保留为历史无 mode fp 移动形态的源码兼容 C++ 调用入口，并包含
+`STPhase` 重载。它直接映射到不显式传入 mode 模板参数的 `TMOV_IMPL(dst, src, fp)`。
+规范同名 `TMOV(..., fp, ...)` facade 要求 `FpTileData::Loc == TileType::Scaling`；历史
+`TMOV_FP(...)` alias 由所选后端实现继续检查合法性。
 
 ## 数学语义
 
@@ -42,6 +47,18 @@ pto.tmov.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%dst : 
 ```cpp
 template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
           typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <typename DstTileData, typename SrcTileData, typename FpTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
+PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
 ```
 
@@ -49,11 +66,14 @@ PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp,
 
 - **实现检查 (A2A3)**:
     - fp 路径仅支持累加器转换，并通过 `TMOV_IMPL(dst, src, fp)` 中的内部编译时检查进行验证。
-    - `FpTileData::Loc` 必须是 `TileType::Scaling`（`static_assert`）。
+    - `FpTileData` 的合法性由所选后端实现检查。
+    - A2A3 后端没有 `TMOV_IMPL(..., fp)` phase 形态，因此不暴露 `STPhase` fp 别名。
 - **实现检查 (A5)**:
     - 通过 `CheckTMovAccValid(...)` 和 `TMOV_IMPL(dst, src, fp)` 中的相关编译时检查进行验证。
+    - `FpTileData` 的合法性由所选后端实现检查。
     - 目标位置取决于目标（fp 路径支持 `Vec` 或 `Mat`）。
-    - 目标位置取决于目标（fp 路径支持 `Vec` 或 `Mat`）。
+    - `STPhase` fp 别名仅在存在对应后端实现的目标上暴露：
+      A5、kirin9030、kirinX90、kirinDev0000 和 CPU 模拟器。
 
 ## 示例
 

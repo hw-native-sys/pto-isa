@@ -7,9 +7,13 @@
 
 ## Introduction
 
-Store an accumulator tile into global memory using a scaling (`fp`) tile for vector quantization parameters.
+Store an accumulator tile into global memory using an `fp` tile for vector quantization parameters.
 
-`TSTORE_FP` is the fp-quantization overload of `TSTORE` (see `docs/isa/TSTORE.md`).
+`TSTORE_FP(...)` is retained as a source-compatible C++ interface for the legacy fp-quantized store form.
+It maps directly to the `TSTORE_IMPL(dst, src, fp)` implementation path. The canonical
+`TSTORE(..., fp, ...)` overload requires a `Scaling` tile at the facade layer; the legacy alias preserves
+the backend-specific `FpTileData` checks used by existing code.
+The `STPhase` alias is exposed only on targets with backend support.
 
 ## Math Interpretation
 
@@ -36,12 +40,33 @@ pto.tstore.fp %src, %fp, %mem : (!pto.tile<...>, !pto.tile<...>, !pto.partition_
 ```text
 pto.tstore.fp ins(%src, %fp : !pto.tile_buf<...>, !pto.tile_buf<...>) outs(%mem : !pto.partition_tensor_view<MxNxdtype>)
 ```
+
+### IR Level 1 (SSA)
+
+```text
+pto.tstore.fp %src, %fp, %sv_out[%c0, %c0]
+```
+
+### IR Level 2 (DPS)
+
+```text
+pto.tstore.fp ins(%src, %fp, %sv_out[%c0, %c0]) outs()
+```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants.hpp`:
 
 ```cpp
 template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TSTORE(GlobalData &dst, TileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <typename TileData, typename GlobalData, typename FpTileData, AtomicType atomicType = AtomicType::AtomicNone,
+          ReluPreMode reluPreMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename TileData, typename GlobalData, typename FpTileData,
+          AtomicType atomicType = AtomicType::AtomicNone,
           ReluPreMode reluPreMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp, WaitEvents &... events);
 ```
@@ -50,14 +75,16 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData &dst, TileData &src, FpTileData &fp, W
 
 - **Implementation checks (A2A3)**:
     - The fp store path is implemented via `TSTORE_IMPL(dst, src, fp)` and uses the same accumulator-to-GM legality checks as quantized accumulator stores:
+    - `FpTileData` legality is checked by the selected backend implementation.
     - Destination layout must be ND, NZ, NC1HWC0, or NDC1HWC0.
     - Source dtype must be `int32_t` or `float`.
     - Static shape constraints: `1 <= TileData::Cols <= 4095`; if ND then `1 <= TileData::Rows <= 8192`; if NZ, NC1HWC0, or NDC1HWC0 then `1 <= TileData::Rows <= 65535` and `TileData::Cols % 16 == 0`.
     - Runtime: `1 <= src.GetValidCol() <= 4095`.
-    - No explicit `static_assert` is enforced on `FpTileData` (the implementation uses `fp` to set FPC state).
 - **Implementation checks (A5)**:
     - Implemented via `TSTORE_IMPL(dst, src, fp)` and validated by `CheckStaticAcc<..., true>()` for the accumulator path (ND/NZ/NHWC/NCHW/NCDHW only, `int32_t/float` source dtype, rows/cols ranges).
-    - No explicit `static_assert` is enforced on `FpTileData` (the implementation uses `fp` to set FPC state).
+    - `FpTileData` legality is checked by the selected backend implementation.
+    - The `STPhase` fp alias is exposed on targets with backend support: A5, kirin9030,
+      kirinDev0000, and CPU simulator.
 
 ## Examples
 

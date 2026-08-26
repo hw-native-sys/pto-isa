@@ -363,6 +363,7 @@ template <
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, FpTileData& fp)
 {
     static_assert(TileData::Loc == TileType::Acc, "Source TileType only support Acc!");
+    static_assert(FpTileData::Loc == TileType::Scaling, "Fp only support Scaling.");
     CheckAcc2gm<TileData, GlobalData, true>(dst, src);
     static_assert(currentAtomicType == AtomicType::AtomicNone, "Fix: AtomicAdd is not supported on kirinX90.");
     constexpr QuantMode_t quantMode = GetVectorPreQuantModeGm<typename TileData::DType, typename GlobalData::DType>();

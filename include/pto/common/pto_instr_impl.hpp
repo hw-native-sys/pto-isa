@@ -39,6 +39,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TStore.hpp"
 #include "pto/npu/a2a3/TMrgSort.hpp"
 #include "pto/npu/a2a3/TExtract.hpp"
+#include "pto/npu/a2a3/TInsert.hpp"
 #include "pto/npu/a2a3/TMov.hpp"
 #include "pto/npu/a2a3/TScatter.hpp"
 #include "pto/npu/a2a3/TTrans.hpp"

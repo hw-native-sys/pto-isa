@@ -133,6 +133,28 @@ The PTO AS design recommends splitting `TMOV` into a family of ops:
 ```text
 pto.tmov ins(%src : !pto.tile_buf<...>) outs(%dst : !pto.tile_buf<...>)
 ```
+
+### IR Level 1 (SSA)
+
+```text
+%left  = pto.tmov.m2l %mat  : !pto.tile<...> -> !pto.tile<...>
+%right = pto.tmov.m2r %mat  : !pto.tile<...> -> !pto.tile<...>
+%bias  = pto.tmov.m2b %mat  : !pto.tile<...> -> !pto.tile<...>
+%scale = pto.tmov.m2s %mat  : !pto.tile<...> -> !pto.tile<...>
+%vec   = pto.tmov.a2v %acc  : !pto.tile<...> -> !pto.tile<...>
+%v1    = pto.tmov.v2v %v0   : !pto.tile<...> -> !pto.tile<...>
+```
+
+### IR Level 2 (DPS)
+
+```text
+pto.tmov.m2l ins(%mat : !pto.tile_buf<...>) outs(%left : !pto.tile_buf<...>)
+pto.tmov.m2r ins(%mat : !pto.tile_buf<...>) outs(%right : !pto.tile_buf<...>)
+pto.tmov.m2b ins(%mat : !pto.tile_buf<...>) outs(%bias : !pto.tile_buf<...>)
+pto.tmov.m2s ins(%mat : !pto.tile_buf<...>) outs(%scale : !pto.tile_buf<...>)
+pto.tmov.a2v ins(%acc : !pto.tile_buf<...>) outs(%vec : !pto.tile_buf<...>)
+pto.tmov.v2v ins(%v0 : !pto.tile_buf<...>) outs(%v1 : !pto.tile_buf<...>)
+```
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/constants.hpp`:
@@ -152,6 +174,27 @@ template <typename DstTileData, typename SrcTileData, typename FpTileData, AccTo
           ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
 
+template <typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename DstTileData, typename SrcTileData, typename FpTileData,
+          AccToVecMode mode, ReluPreMode reluMode = ReluPreMode::NoRelu,
+          typename... WaitEvents>
+PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
+template <STPhase Phase, typename DstTileData, typename SrcTileData, typename FpTileData,
+          ReluPreMode reluMode = ReluPreMode::NoRelu, typename... WaitEvents>
+PTO_INST RecordEvent TMOV_FP(DstTileData &dst, SrcTileData &src, FpTileData &fp, WaitEvents &... events);
+
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode = ReluPreMode::NoRelu,
           typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, WaitEvents &... events);
@@ -160,6 +203,10 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
           typename... WaitEvents>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, uint64_t preQuantScalar, WaitEvents &... events);
 ```
+
+`TMOV_FP(...)` is retained for source compatibility with the legacy fp-quantized form and maps directly
+to the no-`mode` `TMOV_IMPL(dst, src, fp)` path. The canonical `TMOV(..., fp, ...)` overload is
+selected only for `FpTileData::Loc == TileType::Scaling`.
 
 ### ND → NZ / X → ZZ overloads
 
@@ -170,13 +217,15 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, WaitEvents &...eve
 
 // X -> ZZ (3-arg, with tmp). grp_axis=1 (default) = ND->ZZ; grp_axis=0 = DN->ZZ.
 template <typename DstTileData, typename SrcTileData, typename TmpTileData, typename... WaitEvents,
-          std::enable_if_t<is_tile_data_v<TmpTileData>, int> = 0>
+          std::enable_if_t<is_tile_data_v<TmpTileData> && (TmpTileData::Loc != TileType::Scaling), int> = 0>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, WaitEvents &...events);
 
 template <int grp_axis, typename DstTileData, typename SrcTileData, typename TmpTileData, typename... WaitEvents,
-          std::enable_if_t<is_tile_data_v<TmpTileData>, int> = 0>
+          std::enable_if_t<is_tile_data_v<TmpTileData> && (TmpTileData::Loc != TileType::Scaling), int> = 0>
 PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, WaitEvents &...events);
 ```
+
+The 3-argument `tmp` overloads exclude `TileType::Scaling`; a `Scaling` third operand selects the no-`mode` fp `TMOV(..., fp, ...)` overload.
 
 | Overload | `grp_axis` | Transform | `tmp` used? |
 |----------|-----------|-----------|-------------|
@@ -192,10 +241,20 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, 
     - plain move: `TMOV(dst, src)`
     - relu form: `TMOV<..., reluMode>(dst, src)`
     - accumulator-to-vector form: `TMOV<..., mode, reluMode>(dst, src)`
-    - vector-quant form: `TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)`
+    - vector-quant forms:
+      canonical `TMOV<..., FpTileData, reluMode>(dst, src, fp)`,
+      `TMOV<Phase, ..., FpTileData, reluMode>(dst, src, fp)`,
+      legacy `TMOV_FP<..., reluMode>(dst, src, fp)`,
+      and target-supported Acc-to-Vec forms
+      `TMOV<..., FpTileData, mode, reluMode>(dst, src, fp)` and
+      `TMOV<Phase, ..., FpTileData, mode, reluMode>(dst, src, fp)`
     - scalar-quant form: `TMOV<..., reluMode>(dst, src, preQuantScalar)` and `TMOV<..., mode, reluMode>(dst, src, preQuantScalar)`
 - `reluMode` is `ReluPreMode::{NoRelu, NormalRelu}`.
 - `mode` is `AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`.
+- The fp `STPhase` overloads are exposed only on targets with backend support
+  (A5, kirin9030, kirinX90, kirinDev0000, and CPU simulator).
+- The vector-quantized `fp + AccToVecMode` overloads are exposed only on targets with backend support
+  (A5, kirin9030, kirinDev0000, and CPU simulator).
 
 ### A2A3 implementation checks
 
@@ -216,7 +275,8 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, 
     - additional `CheckTMovAccToMat<...>` compile-time checks are enforced
     - plain/relu forms use cast pre-quant mode derived by `GetCastPreQuantMode<SrcDType, DstDType>()`
     - scalar-quant forms use `GetScalarPreQuantMode<SrcDType, DstDType>()`
-    - vector-quant forms require an `FpTileData` operand with `FpTileData::Loc == TileType::Scaling`, and use `GetVectorPreQuantMode<SrcDType, DstDType>()`
+    - canonical vector-quant forms require an `FpTileData` operand with
+      `FpTileData::Loc == TileType::Scaling`, and use `GetVectorPreQuantMode<SrcDType, DstDType>()`
 
 ### A5 implementation checks
 
