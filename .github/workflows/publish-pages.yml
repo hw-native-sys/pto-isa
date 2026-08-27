@@ -1,20 +1,6 @@
-name: Publish GitHub Pages
+name: Legacy Pages rollback publisher
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "**/*.md"
-      - "**/*.svg"
-      - "**/*.png"
-      - "**/*.jpg"
-      - "**/*.jpeg"
-      - "**/*.gif"
-      - "**/*.webp"
-      - "**/*.bnf"
-      - "docs/mkdocs/**"
-      - ".github/workflows/publish-pages.yml"
   workflow_dispatch:
 
 permissions:
