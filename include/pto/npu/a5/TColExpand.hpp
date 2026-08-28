@@ -29,23 +29,13 @@ PTO_INTERNAL void Int64ColExpand(__ubuf__ T* dst, __ubuf__ T* src, unsigned vali
     {
         vector_s32 wordReg;
         uint16_t rows = validRows;
-        uint16_t fullRepeats = validCols / elementsPerRepeat;
-        uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
-        MaskReg allMask = pset_b32(PAT_ALL);
-        uint32_t tailMaskWords = tailCols * 2;
-        MaskReg tailMask = Int64TailMask(tailMaskWords, allMask);
-        for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
+        for (uint16_t colRepeat = 0; colRepeat < repeatTimes; ++colRepeat) {
             uint32_t colOffset = colRepeat * elementsPerRepeat;
+            uint32_t remainingWords = (validCols - colOffset) * 2;
+            MaskReg storeMask = plt_b32(remainingWords, POST_UPDATE);
             vlds(wordReg, (__ubuf__ int32_t*)src + colOffset * 2, 0, NORM);
             for (uint16_t row = 0; row < rows; ++row) {
-                vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, allMask);
-            }
-        }
-        if (tailCols != 0) {
-            uint32_t colOffset = fullRepeats * elementsPerRepeat;
-            vlds(wordReg, (__ubuf__ int32_t*)src + colOffset * 2, 0, NORM);
-            for (uint16_t row = 0; row < rows; ++row) {
-                vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, tailMask);
+                vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, storeMask);
             }
         }
     }

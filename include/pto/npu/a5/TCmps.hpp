@@ -20,9 +20,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
-template <typename T, unsigned DstRowBytes, unsigned SrcCols>
-PTO_INTERNAL void Int64CompareScalar(
-    __ubuf__ uint8_t* dst, __ubuf__ T* src, T scalar, CmpMode mode, unsigned validRows, unsigned validCols)
+template <CmpMode Mode, typename T, unsigned DstRowBytes, unsigned SrcCols>
+PTO_INTERNAL void Int64CompareScalarMode(
+    __ubuf__ uint8_t* dst, __ubuf__ T* src, T scalar, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = 64;
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat) + 1;
@@ -43,15 +43,42 @@ PTO_INTERNAL void Int64CompareScalar(
                 uint32_t colOffset0 = j * 2 * elementsPerRepeat;
                 vlds(lhsLow0, lhsHigh0, (__ubuf__ int32_t*)src, (row * SrcCols + colOffset0) * 2, DINTLV_B32);
                 preg = plt_b32(sreg, POST_UPDATE);
-                Int64CompareRegs<T>(result0, lhsLow0, lhsHigh0, rhsLow, rhsHigh, mode, preg);
+                Int64CompareRegs<Mode, T>(result0, lhsLow0, lhsHigh0, rhsLow, rhsHigh, preg);
                 uint32_t colOffset1 = (j * 2 + 1) * elementsPerRepeat;
                 vlds(lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src, (row * SrcCols + colOffset1) * 2, DINTLV_B32);
                 preg = plt_b32(sreg, POST_UPDATE);
-                Int64CompareRegs<T>(result1, lhsLow1, lhsHigh1, rhsLow, rhsHigh, mode, preg);
+                Int64CompareRegs<Mode, T>(result1, lhsLow1, lhsHigh1, rhsLow, rhsHigh, preg);
                 pdintlv_b8(dstReg, tmpMask, result0, result1);
                 psts(dstReg, rowDst + j * dstRepeatStride, 0, PK);
             }
         }
+    }
+}
+
+template <typename T, unsigned DstRowBytes, unsigned SrcCols>
+PTO_INTERNAL void Int64CompareScalar(
+    __ubuf__ uint8_t* dst, __ubuf__ T* src, T scalar, CmpMode mode, unsigned validRows, unsigned validCols)
+{
+    switch (mode) {
+        case CmpMode::NE:
+            Int64CompareScalarMode<CmpMode::NE, T, DstRowBytes, SrcCols>(dst, src, scalar, validRows, validCols);
+            break;
+        case CmpMode::LT:
+            Int64CompareScalarMode<CmpMode::LT, T, DstRowBytes, SrcCols>(dst, src, scalar, validRows, validCols);
+            break;
+        case CmpMode::GT:
+            Int64CompareScalarMode<CmpMode::GT, T, DstRowBytes, SrcCols>(dst, src, scalar, validRows, validCols);
+            break;
+        case CmpMode::GE:
+            Int64CompareScalarMode<CmpMode::GE, T, DstRowBytes, SrcCols>(dst, src, scalar, validRows, validCols);
+            break;
+        case CmpMode::LE:
+            Int64CompareScalarMode<CmpMode::LE, T, DstRowBytes, SrcCols>(dst, src, scalar, validRows, validCols);
+            break;
+        case CmpMode::EQ:
+        default:
+            Int64CompareScalarMode<CmpMode::EQ, T, DstRowBytes, SrcCols>(dst, src, scalar, validRows, validCols);
+            break;
     }
 }
 #else

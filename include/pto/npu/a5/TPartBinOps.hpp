@@ -56,14 +56,11 @@ PTO_INTERNAL void Int64PartCopyRow(__ubuf__ T* dst, __ubuf__ T* src, uint16_t ro
 }
 template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
 PTO_INTERNAL void Int64PartSameStrideOverlapRows(
-    __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned src0Rows, unsigned src1Rows, unsigned dstCols)
+    __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint16_t rows, unsigned dstCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
     __VEC_SCOPE__
     {
-        uint16_t rows = src0Rows;
-        if (src1Rows < rows)
-            rows = src1Rows;
         uint16_t colRepeats = CeilDivision(dstCols, elementsPerRepeat);
         for (uint16_t row = 0; row < rows; ++row) {
             uint32_t sreg = dstCols;
@@ -77,18 +74,11 @@ PTO_INTERNAL void Int64PartSameStrideOverlapRows(
 }
 template <typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
 PTO_INTERNAL void Int64PartSameStrideTailRows(
-    __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned src0Rows, unsigned src1Rows, unsigned dstRows,
-    unsigned dstCols)
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned firstRow, unsigned dstRows, unsigned dstCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
     __VEC_SCOPE__
     {
-        uint16_t firstRow = src0Rows;
-        if (src1Rows < firstRow)
-            firstRow = src1Rows;
-        __ubuf__ T* src = src0;
-        if (src1Rows >= src0Rows)
-            src = src1;
         uint16_t rows = dstRows;
         uint16_t colRepeats = CeilDivision(dstCols, elementsPerRepeat);
         for (uint16_t row = firstRow; row < rows; ++row) {
@@ -106,15 +96,15 @@ PTO_INTERNAL void Int64PartSameStride(
     __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned src0Rows, unsigned src0Cols, unsigned src1Rows,
     unsigned src1Cols, unsigned dstRows, unsigned dstCols)
 {
+    uint16_t overlapRows = min(src0Rows, src1Rows);
+    __ubuf__ T* tailSrc = src1Rows >= src0Rows ? src1 : src0;
     __VEC_SCOPE__
     {
-        Int64PartSameStrideOverlapRows<Op, T, DstCols, Src0Cols, Src1Cols>(
-            dst, src0, src1, src0Rows, src1Rows, dstCols);
+        Int64PartSameStrideOverlapRows<Op, T, DstCols, Src0Cols, Src1Cols>(dst, src0, src1, overlapRows, dstCols);
     }
     __VEC_SCOPE__
     {
-        Int64PartSameStrideTailRows<T, DstCols, Src0Cols, Src1Cols>(
-            dst, src0, src1, src0Rows, src1Rows, dstRows, dstCols);
+        Int64PartSameStrideTailRows<T, DstCols, Src0Cols, Src1Cols>(dst, tailSrc, overlapRows, dstRows, dstCols);
     }
 }
 template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
@@ -123,32 +113,18 @@ PTO_INTERNAL void Int64PartMergeOverlap(
     unsigned src1Cols, unsigned colOffset, unsigned cols)
 {
     bool useSrc0Base = src0Cols >= src1Cols;
-    if (useSrc0Base) {
-        dl = al;
-        dh = ah;
-    } else {
-        dl = bl;
-        dh = bh;
-    }
-    unsigned overlapCols = src0Cols;
-    if (src1Cols < overlapCols)
-        overlapCols = src1Cols;
-    if (colOffset >= overlapCols) {
-        return;
-    }
-    uint32_t overlap = overlapCols - colOffset;
-    if (overlap > cols)
-        overlap = cols;
+    uint32_t baseMaskCols = useSrc0Base * cols;
+    MaskReg baseMask = plt_b32(baseMaskCols, POST_UPDATE);
+    vsel(dl, al, bl, baseMask);
+    vsel(dh, ah, bh, baseMask);
+    unsigned overlapCols = min(src0Cols, src1Cols);
+    unsigned overlapOffset = min(colOffset, overlapCols);
+    uint32_t overlap = min(overlapCols - overlapOffset, cols);
     MaskReg opMask = plt_b32(overlap, POST_UPDATE);
     vector_s32 ol, oh;
     Int64PartCalcRegs<Op, T>(ol, oh, al, ah, bl, bh, opMask);
-    if (useSrc0Base) {
-        vsel(dl, ol, al, opMask);
-        vsel(dh, oh, ah, opMask);
-    } else {
-        vsel(dl, ol, bl, opMask);
-        vsel(dh, oh, bh, opMask);
-    }
+    vsel(dl, ol, dl, opMask);
+    vsel(dh, oh, dh, opMask);
 }
 template <typename T, unsigned SrcCols>
 PTO_INTERNAL void Int64PartLoadRegs(
@@ -156,6 +132,12 @@ PTO_INTERNAL void Int64PartLoadRegs(
 {
     vlds(low, high, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, 0, DINTLV_B32);
 }
+
+template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
+PTO_INTERNAL void Int64PartGeneralRepeat(
+    __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned src0Rows, unsigned src0Cols, unsigned src1Rows,
+    unsigned src1Cols, uint16_t row, uint32_t colOffset, uint32_t cols, MaskReg& storeMask);
+
 template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
 PTO_INTERNAL void Int64PartGeneralSingleRepeat(
     __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned src0Rows, unsigned src0Cols, unsigned src1Rows,
@@ -163,32 +145,12 @@ PTO_INTERNAL void Int64PartGeneralSingleRepeat(
 {
     __VEC_SCOPE__
     {
-        vector_s32 dl, dh, al, ah, bl, bh, half0, half1;
-        MaskReg lowMask, highMask;
         uint16_t rows = dstRows;
         for (uint16_t row = 0; row < rows; ++row) {
             uint32_t sreg = dstCols;
             MaskReg storeMask = CreatePredicate<uint32_t>(sreg);
-            bool hasSrc0 = row < src0Rows;
-            bool hasSrc1 = row < src1Rows;
-            if (hasSrc0)
-                Int64PartLoadRegs<T, Src0Cols>(al, ah, src0, row, 0);
-            if (hasSrc1)
-                Int64PartLoadRegs<T, Src1Cols>(bl, bh, src1, row, 0);
-            if (hasSrc0 && hasSrc1) {
-                Int64PartMergeOverlap<Op, T, DstCols, Src0Cols, Src1Cols>(
-                    dl, dh, al, ah, bl, bh, src0Cols, src1Cols, 0, dstCols);
-            } else if (hasSrc0) {
-                dl = al;
-                dh = ah;
-            } else {
-                dl = bl;
-                dh = bh;
-            }
-            pintlv_b32(lowMask, highMask, storeMask, storeMask);
-            vintlv(half0, half1, dl, dh);
-            vsts(half0, (__ubuf__ int32_t*)dst + row * DstCols * 2, 0, NORM_B32, lowMask);
-            vsts(half1, (__ubuf__ int32_t*)dst + row * DstCols * 2 + CCE_VL / sizeof(int32_t), 0, NORM_B32, highMask);
+            Int64PartGeneralRepeat<Op, T, DstCols, Src0Cols, Src1Cols>(
+                dst, src0, src1, src0Rows, src0Cols, src1Rows, src1Cols, row, 0, dstCols, storeMask);
         }
     }
 }
@@ -198,29 +160,38 @@ PTO_INTERNAL void Int64PartGeneralRepeat(
     unsigned src1Cols, uint16_t row, uint32_t colOffset, uint32_t cols, MaskReg& storeMask)
 {
     vector_s32 dl, dh, al, ah, bl, bh, half0, half1;
-    MaskReg lowMask, highMask;
-    bool hasSrc0 = row < src0Rows && colOffset < src0Cols;
-    bool hasSrc1 = row < src1Rows && colOffset < src1Cols;
-    if (hasSrc0)
-        Int64PartLoadRegs<T, Src0Cols>(al, ah, src0, row, colOffset);
-    if (hasSrc1)
-        Int64PartLoadRegs<T, Src1Cols>(bl, bh, src1, row, colOffset);
-    if (row < src0Rows && row < src1Rows) {
-        Int64PartMergeOverlap<Op, T, DstCols, Src0Cols, Src1Cols>(
-            dl, dh, al, ah, bl, bh, src0Cols, src1Cols, colOffset, cols);
-    } else if (hasSrc0) {
-        dl = al;
-        dh = ah;
-    } else {
-        dl = bl;
-        dh = bh;
-    }
+    MaskReg lowMask, highMask, src0Mask, src1Mask, overlapMask;
+    MaskReg allMask = pset_b32(PAT_ALL);
+    uint32_t src0RowValid = row < src0Rows;
+    uint32_t src1RowValid = row < src1Rows;
+    uint32_t src0ColValid = colOffset < src0Cols;
+    uint32_t src1ColValid = colOffset < src1Cols;
+    uint32_t src0Row = row * src0RowValid;
+    uint32_t src1Row = row * src1RowValid;
+    uint32_t src0ColOffset = colOffset * src0ColValid;
+    uint32_t src1ColOffset = colOffset * src1ColValid;
+    Int64PartLoadRegs<T, Src0Cols>(al, ah, src0, src0Row, src0ColOffset);
+    Int64PartLoadRegs<T, Src1Cols>(bl, bh, src1, src1Row, src1ColOffset);
+    uint32_t src0Remaining = (src0Cols - min(src0Cols, colOffset)) * src0RowValid;
+    uint32_t src1Remaining = (src1Cols - min(src1Cols, colOffset)) * src1RowValid;
+    MaskReg src0ValidMask = plt_b32(src0Remaining, POST_UPDATE);
+    MaskReg src1ValidMask = plt_b32(src1Remaining, POST_UPDATE);
+    pand(src0Mask, src0ValidMask, storeMask, allMask);
+    pand(src1Mask, src1ValidMask, storeMask, allMask);
+    pand(overlapMask, src0Mask, src1Mask, allMask);
+    vector_s32 overlapLow, overlapHigh;
+    Int64PartCalcRegs<Op, T>(overlapLow, overlapHigh, al, ah, bl, bh, overlapMask);
+    vsel(dl, al, bl, src0Mask);
+    vsel(dh, ah, bh, src0Mask);
+    vsel(dl, overlapLow, dl, overlapMask);
+    vsel(dh, overlapHigh, dh, overlapMask);
     pintlv_b32(lowMask, highMask, storeMask, storeMask);
     vintlv(half0, half1, dl, dh);
     vsts(half0, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, lowMask);
     vsts(
         half1, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2 + CCE_VL / sizeof(int32_t), 0, NORM_B32,
         highMask);
+    (void)cols;
 }
 template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
 PTO_INTERNAL void Int64PartGeneralMultiRepeat(

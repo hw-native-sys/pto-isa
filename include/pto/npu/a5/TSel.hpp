@@ -68,41 +68,12 @@ PTO_INTERNAL void Int64SelectScalarStore(
 }
 
 template <unsigned ElementsPerRepeat, unsigned MaskRowBytes>
-PTO_INTERNAL void Int64SelectPairMasks(
-    __ubuf__ uint8_t* packedMask, uint16_t row, uint16_t pairRepeat, uint32_t& colOffset, MaskReg& selectMask0,
-    MaskReg& selectMask1)
-{
-    colOffset = pairRepeat * ElementsPerRepeat * 2;
-    MaskReg packed;
-    plds(packed, (__ubuf__ uint32_t*)packedMask, row * MaskRowBytes + colOffset / 8, US);
-    MaskReg allMask = pset_b16(PAT_ALL);
-    pintlv_b16(selectMask0, selectMask1, packed, allMask);
-}
-
-template <unsigned ElementsPerRepeat>
-PTO_INTERNAL void Int64SelectValidMask(uint32_t remainingCols, uint32_t& cols, MaskReg& validMask)
-{
-    cols = remainingCols;
-    if (cols > ElementsPerRepeat)
-        cols = ElementsPerRepeat;
-    validMask = plt_b32(cols, POST_UPDATE);
-}
-
-template <unsigned ElementsPerRepeat, unsigned MaskRowBytes>
 PTO_INTERNAL void Int64SelectRepeatMask(
     __ubuf__ uint8_t* packedMask, uint16_t row, uint16_t repeat, uint32_t remainingCols, uint32_t& colOffset,
     MaskReg& selectMask, MaskReg& validMask)
 {
     colOffset = repeat * ElementsPerRepeat;
-    uint32_t cols;
-    Int64SelectValidMask<ElementsPerRepeat>(remainingCols, cols, validMask);
-
-    if (remainingCols <= ElementsPerRepeat) {
-        MaskReg packed;
-        plds(packed, (__ubuf__ uint32_t*)packedMask, row * MaskRowBytes + colOffset / 8, US);
-        punpack(selectMask, packed, LOWER);
-        return;
-    }
+    validMask = plt_b32(remainingCols, POST_UPDATE);
 
     vector_u32 lane, elementIndex, wordIndex, maskWord, one, thirtyOne, selectedBit, zero;
     vector_s32 bitIndex;
@@ -135,22 +106,6 @@ PTO_INTERNAL void Int64SelectStoreByMode(
             src1High);
 }
 
-template <
-    bool Scalar, typename T, unsigned DstCols, unsigned MaskRowBytes, unsigned Src0Cols, unsigned Src1Cols,
-    unsigned ElementsPerRepeat>
-PTO_INTERNAL void Int64SelectRepeat(
-    __ubuf__ T* dst, __ubuf__ uint8_t* packedMask, __ubuf__ T* src0, __ubuf__ T* src1, uint16_t row, uint16_t repeat,
-    uint32_t remainingCols, vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High,
-    vector_s32& src1Low, vector_s32& src1High)
-{
-    uint32_t colOffset;
-    MaskReg selectMask, validMask;
-    Int64SelectRepeatMask<ElementsPerRepeat, MaskRowBytes>(
-        packedMask, row, repeat, remainingCols, colOffset, selectMask, validMask);
-    Int64SelectStoreByMode<Scalar, T, DstCols, Src0Cols, Src1Cols>(
-        dst, src0, src1, row, colOffset, selectMask, validMask, dstLow, dstHigh, src0Low, src0High, src1Low, src1High);
-}
-
 template <bool Scalar, typename T, unsigned DstCols, unsigned MaskRowBytes, unsigned Src0Cols, unsigned Src1Cols>
 PTO_INTERNAL void Int64SelectImpl(
     __ubuf__ T* dst, __ubuf__ uint8_t* packedMask, __ubuf__ T* src0, __ubuf__ T* src1, T scalar, unsigned validRows,
@@ -167,17 +122,15 @@ PTO_INTERNAL void Int64SelectImpl(
         }
         uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
         for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
-            uint32_t remainingCols = validCols;
             for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
                 uint32_t colOffset;
                 MaskReg selectMask, validMask;
+                uint32_t remainingCols = validCols - colRepeat * elementsPerRepeat;
                 Int64SelectRepeatMask<elementsPerRepeat, MaskRowBytes>(
                     packedMask, row, colRepeat, remainingCols, colOffset, selectMask, validMask);
                 Int64SelectStoreByMode<Scalar, T, DstCols, Src0Cols, Src1Cols>(
                     dst, src0, src1, row, colOffset, selectMask, validMask, dstLow, dstHigh, src0Low, src0High, src1Low,
                     src1High);
-                if (remainingCols > elementsPerRepeat)
-                    remainingCols -= elementsPerRepeat;
             }
         }
     }

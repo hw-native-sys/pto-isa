@@ -25,46 +25,30 @@ PTO_INTERNAL void Int64ColReduce(__ubuf__ T* dst, __ubuf__ T* src, unsigned vali
     __VEC_SCOPE__
     {
         vector_s32 dl, dh, sl, sh, nl, nh;
-        uint16_t fullRepeats = validCols / elementsPerRepeat;
-        uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
-        MaskReg allMask = pset_b32(PAT_ALL);
-        uint32_t tailMaskCols = tailCols;
-        MaskReg tailMask = Int64TailMask(tailMaskCols, allMask);
-        for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
+        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+        uint32_t fullMaskCols = elementsPerRepeat;
+        MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
+        for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
             uint32_t colOffset = colRepeat * elementsPerRepeat;
+            uint32_t remainingCols = validCols - colOffset;
+            MaskReg validMask = plt_b32(remainingCols, POST_UPDATE);
+            MaskReg repeatMask;
+            pand(repeatMask, validMask, allMask, allMask);
             vlds(dl, dh, (__ubuf__ int32_t*)src + colOffset * 2, 0, DINTLV_B32);
             uint16_t rows = validRows;
             for (uint16_t row = 1; row < rows; ++row) {
                 vlds(sl, sh, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, 0, DINTLV_B32);
                 if constexpr (Op == Int64Op::Add) {
                     MaskReg carry, carryOut;
-                    vaddc(carry, nl, dl, sl, allMask);
-                    vaddcs(carryOut, nh, dh, sh, carry, allMask);
+                    vaddc(carry, nl, dl, sl, repeatMask);
+                    vaddcs(carryOut, nh, dh, sh, carry, repeatMask);
                 } else {
-                    Int64MinMax<Op, T>(nl, nh, dl, dh, sl, sh, allMask);
+                    Int64MinMax<Op, T>(nl, nh, dl, dh, sl, sh, repeatMask);
                 }
                 dl = nl;
                 dh = nh;
             }
-            vsts(dl, dh, (__ubuf__ int32_t*)dst + colOffset * 2, 0, INTLV_B32, allMask);
-        }
-        if (tailCols != 0) {
-            uint32_t colOffset = fullRepeats * elementsPerRepeat;
-            vlds(dl, dh, (__ubuf__ int32_t*)src + colOffset * 2, 0, DINTLV_B32);
-            uint16_t rows = validRows;
-            for (uint16_t row = 1; row < rows; ++row) {
-                vlds(sl, sh, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, 0, DINTLV_B32);
-                if constexpr (Op == Int64Op::Add) {
-                    MaskReg carry, carryOut;
-                    vaddc(carry, nl, dl, sl, tailMask);
-                    vaddcs(carryOut, nh, dh, sh, carry, tailMask);
-                } else {
-                    Int64MinMax<Op, T>(nl, nh, dl, dh, sl, sh, tailMask);
-                }
-                dl = nl;
-                dh = nh;
-            }
-            vsts(dl, dh, (__ubuf__ int32_t*)dst + colOffset * 2, 0, INTLV_B32, tailMask);
+            vsts(dl, dh, (__ubuf__ int32_t*)dst + colOffset * 2, 0, INTLV_B32, repeatMask);
         }
     }
 }

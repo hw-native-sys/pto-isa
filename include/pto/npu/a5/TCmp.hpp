@@ -20,15 +20,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
-template <typename T>
+template <CmpMode Mode, typename T>
 PTO_INTERNAL void Int64CompareRelationalRegs(
-    MaskReg& dst, vector_s32& lhsLow, vector_s32& lhsHigh, vector_s32& rhsLow, vector_s32& rhsHigh, CmpMode mode,
-    MaskReg& mask)
+    MaskReg& dst, vector_s32& lhsLow, vector_s32& lhsHigh, vector_s32& rhsLow, vector_s32& rhsHigh, MaskReg& mask)
 {
     MaskReg lowEq, highCmp, lowCmp;
     vcmp_eq(lowEq, lhsHigh, rhsHigh, mask);
-    if (mode == CmpMode::LT || mode == CmpMode::LE) {
-        if (mode == CmpMode::LT)
+    if constexpr (Mode == CmpMode::LT || Mode == CmpMode::LE) {
+        if constexpr (Mode == CmpMode::LT)
             vcmp_lt(lowCmp, (vector_u32&)lhsLow, (vector_u32&)rhsLow, mask);
         else
             vcmp_le(lowCmp, (vector_u32&)lhsLow, (vector_u32&)rhsLow, mask);
@@ -38,7 +37,7 @@ PTO_INTERNAL void Int64CompareRelationalRegs(
             vcmp_lt(highCmp, (vector_u32&)lhsHigh, (vector_u32&)rhsHigh, mask);
         }
     } else {
-        if (mode == CmpMode::GT)
+        if constexpr (Mode == CmpMode::GT)
             vcmp_gt(lowCmp, (vector_u32&)lhsLow, (vector_u32&)rhsLow, mask);
         else
             vcmp_ge(lowCmp, (vector_u32&)lhsLow, (vector_u32&)rhsLow, mask);
@@ -68,58 +67,22 @@ PTO_INTERNAL void Int64CompareNotEqualRegs(
     por(dst, lowNe, highNe, mask);
 }
 
-template <typename T>
+template <CmpMode Mode, typename T>
 PTO_INTERNAL void Int64CompareRegs(
-    MaskReg& dst, vector_s32& lhsLow, vector_s32& lhsHigh, vector_s32& rhsLow, vector_s32& rhsHigh, CmpMode mode,
-    MaskReg& mask)
+    MaskReg& dst, vector_s32& lhsLow, vector_s32& lhsHigh, vector_s32& rhsLow, vector_s32& rhsHigh, MaskReg& mask)
 {
-    if (mode == CmpMode::EQ) {
+    if constexpr (Mode == CmpMode::EQ) {
         Int64CompareEqualRegs(dst, lhsLow, lhsHigh, rhsLow, rhsHigh, mask);
-        return;
-    }
-    if (mode == CmpMode::NE) {
+    } else if constexpr (Mode == CmpMode::NE) {
         Int64CompareNotEqualRegs(dst, lhsLow, lhsHigh, rhsLow, rhsHigh, mask);
-        return;
+    } else {
+        Int64CompareRelationalRegs<Mode, T>(dst, lhsLow, lhsHigh, rhsLow, rhsHigh, mask);
     }
-    Int64CompareRelationalRegs<T>(dst, lhsLow, lhsHigh, rhsLow, rhsHigh, mode, mask);
 }
 
-template <unsigned ElementsPerRepeat>
-PTO_INTERNAL void Int64ComparePairArgs(
-    uint16_t pairRepeat, uint32_t remainingCols, uint32_t& colOffset0, uint32_t& colOffset1, MaskReg& mask0,
-    MaskReg& mask1)
-{
-    (void)remainingCols;
-    colOffset0 = pairRepeat * ElementsPerRepeat * 2;
-    colOffset1 = colOffset0 + ElementsPerRepeat;
-    mask0 = pset_b32(PAT_ALL);
-    mask1 = pset_b32(PAT_ALL);
-}
-
-PTO_INTERNAL void Int64CompareStorePairResult(
-    __ubuf__ uint32_t* rowDst, uint16_t pairRepeat, MaskReg& result0, MaskReg& result1)
-{
-    MaskReg packed, unused;
-    pdintlv_b8(packed, unused, result0, result1);
-    psts(packed, rowDst + pairRepeat * 2, 0, PK);
-}
-
-template <unsigned ElementsPerRepeat>
-PTO_INTERNAL void Int64CompareTailArgs(
-    uint16_t pairRepeatTimes, uint32_t remainingCols, uint32_t& colOffset, MaskReg& mask, MaskReg& packedMask)
-{
-    colOffset = pairRepeatTimes * ElementsPerRepeat * 2;
-    uint32_t cols = remainingCols;
-    if (cols > ElementsPerRepeat)
-        cols = ElementsPerRepeat;
-    uint32_t maskCols = cols * 4;
-    mask = plt_b32(maskCols, POST_UPDATE);
-    packedMask = plt_b8(cols, POST_UPDATE);
-}
-
-template <typename T, unsigned DstRowBytes, unsigned Src0Cols, unsigned Src1Cols>
-PTO_INTERNAL void Int64Compare(
-    __ubuf__ uint8_t* dst, __ubuf__ T* src0, __ubuf__ T* src1, CmpMode mode, unsigned validRows, unsigned validCols)
+template <CmpMode Mode, typename T, unsigned DstRowBytes, unsigned Src0Cols, unsigned Src1Cols>
+PTO_INTERNAL void Int64CompareMode(
+    __ubuf__ uint8_t* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = 64; // vlds+DINTLV_B32 loads 64 int64 elements (512B)
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat) + 1; // +1 to ensure even pair
@@ -141,18 +104,45 @@ PTO_INTERNAL void Int64Compare(
                 vlds(rhsLow0, rhsHigh0, (__ubuf__ int32_t*)src1, (row * Src1Cols + colOffset0) * 2, DINTLV_B32);
                 preg = plt_b32(sreg, POST_UPDATE);
 
-                Int64CompareRegs<T>(result0, lhsLow0, lhsHigh0, rhsLow0, rhsHigh0, mode, preg);
+                Int64CompareRegs<Mode, T>(result0, lhsLow0, lhsHigh0, rhsLow0, rhsHigh0, preg);
                 // batch 1
                 uint32_t colOffset1 = (j * 2 + 1) * elementsPerRepeat;
                 vlds(lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src0, (row * Src0Cols + colOffset1) * 2, DINTLV_B32);
                 vlds(rhsLow1, rhsHigh1, (__ubuf__ int32_t*)src1, (row * Src1Cols + colOffset1) * 2, DINTLV_B32);
                 preg = plt_b32(sreg, POST_UPDATE);
-                Int64CompareRegs<T>(result1, lhsLow1, lhsHigh1, rhsLow1, rhsHigh1, mode, preg);
+                Int64CompareRegs<Mode, T>(result1, lhsLow1, lhsHigh1, rhsLow1, rhsHigh1, preg);
                 // Same pattern as TCmp_32B: pdintlv_b8 + PK
                 pdintlv_b8(dstReg, tmpMask, result0, result1);
                 psts(dstReg, rowDst + j * dstRepeatStride, 0, PK);
             }
         }
+    }
+}
+
+template <typename T, unsigned DstRowBytes, unsigned Src0Cols, unsigned Src1Cols>
+PTO_INTERNAL void Int64Compare(
+    __ubuf__ uint8_t* dst, __ubuf__ T* src0, __ubuf__ T* src1, CmpMode mode, unsigned validRows, unsigned validCols)
+{
+    switch (mode) {
+        case CmpMode::NE:
+            Int64CompareMode<CmpMode::NE, T, DstRowBytes, Src0Cols, Src1Cols>(dst, src0, src1, validRows, validCols);
+            break;
+        case CmpMode::LT:
+            Int64CompareMode<CmpMode::LT, T, DstRowBytes, Src0Cols, Src1Cols>(dst, src0, src1, validRows, validCols);
+            break;
+        case CmpMode::GT:
+            Int64CompareMode<CmpMode::GT, T, DstRowBytes, Src0Cols, Src1Cols>(dst, src0, src1, validRows, validCols);
+            break;
+        case CmpMode::GE:
+            Int64CompareMode<CmpMode::GE, T, DstRowBytes, Src0Cols, Src1Cols>(dst, src0, src1, validRows, validCols);
+            break;
+        case CmpMode::LE:
+            Int64CompareMode<CmpMode::LE, T, DstRowBytes, Src0Cols, Src1Cols>(dst, src0, src1, validRows, validCols);
+            break;
+        case CmpMode::EQ:
+        default:
+            Int64CompareMode<CmpMode::EQ, T, DstRowBytes, Src0Cols, Src1Cols>(dst, src0, src1, validRows, validCols);
+            break;
     }
 }
 #else

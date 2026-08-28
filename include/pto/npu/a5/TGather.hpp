@@ -29,34 +29,24 @@ PTO_INTERNAL void Int64Gather(
     {
         vector_u32 idx, wordIdx, highIdx, low, high;
         uint16_t rows = validRows;
-        uint16_t fullRepeats = validCols / elementsPerRepeat;
-        uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
+        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
         uint32_t fullMaskCols = elementsPerRepeat;
         MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
-        uint32_t tailMaskCols = tailCols;
-        MaskReg tailMask = Int64TailMask(tailMaskCols, allMask);
         for (uint16_t row = 0; row < rows; ++row) {
-            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
+            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
+                uint32_t remainingCols = validCols - colOffset;
+                MaskReg validMask = plt_b32(remainingCols, POST_UPDATE);
+                MaskReg repeatMask;
+                pand(repeatMask, validMask, allMask, allMask);
                 vlds(idx, (__ubuf__ uint32_t*)index + row * IdxCols + colOffset, 0, NORM);
-                vadd(wordIdx, idx, idx, allMask, MODE_ZEROING);
-                vadds(highIdx, wordIdx, 1u, allMask, MODE_ZEROING);
-                vgather2(low, (__ubuf__ uint32_t*)src, wordIdx, allMask);
-                vgather2(high, (__ubuf__ uint32_t*)src, highIdx, allMask);
+                vadd(wordIdx, idx, idx, repeatMask, MODE_ZEROING);
+                vadds(highIdx, wordIdx, 1u, repeatMask, MODE_ZEROING);
+                vgather2(low, (__ubuf__ uint32_t*)src, wordIdx, repeatMask);
+                vgather2(high, (__ubuf__ uint32_t*)src, highIdx, repeatMask);
                 vsts(
                     (vector_s32&)low, (vector_s32&)high, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0,
-                    INTLV_B32, allMask);
-            }
-            if (tailCols != 0) {
-                uint32_t colOffset = fullRepeats * elementsPerRepeat;
-                vlds(idx, (__ubuf__ uint32_t*)index + row * IdxCols + colOffset, 0, NORM);
-                vadd(wordIdx, idx, idx, tailMask, MODE_ZEROING);
-                vadds(highIdx, wordIdx, 1u, tailMask, MODE_ZEROING);
-                vgather2(low, (__ubuf__ uint32_t*)src, wordIdx, tailMask);
-                vgather2(high, (__ubuf__ uint32_t*)src, highIdx, tailMask);
-                vsts(
-                    (vector_s32&)low, (vector_s32&)high, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0,
-                    INTLV_B32, tailMask);
+                    INTLV_B32, repeatMask);
             }
         }
     }
@@ -344,37 +334,25 @@ PTO_INTERNAL void Int64GatherPattern(__ubuf__ T* dst, __ubuf__ T* src, unsigned 
         uint16_t rows = validRows;
         for (uint16_t row = 0; row < rows; ++row) {
             __ubuf__ uint32_t* rowSrc = (__ubuf__ uint32_t*)src + row * SrcCols * 2;
-            uint16_t fullRepeats = outputValidCols / elementsPerRepeat;
-            uint32_t tailCols = outputValidCols - fullRepeats * elementsPerRepeat;
+            uint16_t colRepeats = CeilDivision(outputValidCols, elementsPerRepeat);
             uint32_t fullMaskCols = elementsPerRepeat;
             MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
-            uint32_t tailMaskCols = tailCols;
-            MaskReg tailMask = Int64TailMask(tailMaskCols, allMask);
-            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
+            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
-                vadds(elementIndex, lane, colOffset, allMask, MODE_ZEROING);
-                vmuls(elementIndex, elementIndex, static_cast<uint32_t>(times), allMask, MODE_ZEROING);
-                vadds(elementIndex, elementIndex, static_cast<uint32_t>(offset), allMask, MODE_ZEROING);
-                vadd(lowIndex, elementIndex, elementIndex, allMask, MODE_ZEROING);
-                vadds(highIndex, lowIndex, 1u, allMask, MODE_ZEROING);
-                vgather2(low, rowSrc, lowIndex, allMask);
-                vgather2(high, rowSrc, highIndex, allMask);
+                uint32_t remainingCols = outputValidCols - colOffset;
+                MaskReg validMask = plt_b32(remainingCols, POST_UPDATE);
+                MaskReg repeatMask;
+                pand(repeatMask, validMask, allMask, allMask);
+                vadds(elementIndex, lane, colOffset, repeatMask, MODE_ZEROING);
+                vmuls(elementIndex, elementIndex, static_cast<uint32_t>(times), repeatMask, MODE_ZEROING);
+                vadds(elementIndex, elementIndex, static_cast<uint32_t>(offset), repeatMask, MODE_ZEROING);
+                vadd(lowIndex, elementIndex, elementIndex, repeatMask, MODE_ZEROING);
+                vadds(highIndex, lowIndex, 1u, repeatMask, MODE_ZEROING);
+                vgather2(low, rowSrc, lowIndex, repeatMask);
+                vgather2(high, rowSrc, highIndex, repeatMask);
                 vsts(
                     (vector_s32&)low, (vector_s32&)high, (__ubuf__ int32_t*)dst + (row * outputCols + colOffset) * 2, 0,
-                    INTLV_B32, allMask);
-            }
-            if (tailCols != 0) {
-                uint32_t colOffset = fullRepeats * elementsPerRepeat;
-                vadds(elementIndex, lane, colOffset, tailMask, MODE_ZEROING);
-                vmuls(elementIndex, elementIndex, static_cast<uint32_t>(times), tailMask, MODE_ZEROING);
-                vadds(elementIndex, elementIndex, static_cast<uint32_t>(offset), tailMask, MODE_ZEROING);
-                vadd(lowIndex, elementIndex, elementIndex, tailMask, MODE_ZEROING);
-                vadds(highIndex, lowIndex, 1u, tailMask, MODE_ZEROING);
-                vgather2(low, rowSrc, lowIndex, tailMask);
-                vgather2(high, rowSrc, highIndex, tailMask);
-                vsts(
-                    (vector_s32&)low, (vector_s32&)high, (__ubuf__ int32_t*)dst + (row * outputCols + colOffset) * 2, 0,
-                    INTLV_B32, tailMask);
+                    INTLV_B32, repeatMask);
             }
         }
     }

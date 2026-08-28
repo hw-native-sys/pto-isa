@@ -25,18 +25,13 @@ PTO_INTERNAL void Int64ScatterZeroInit(__ubuf__ T* dst)
 {
     vector_u32 zero;
     vbr(zero, 0u);
-    uint32_t remaining = DstNumel * 2;
+    constexpr uint32_t totalWords = DstNumel * 2;
     constexpr uint16_t wordsPerRepeat = CCE_VL / sizeof(uint32_t);
-    MaskReg allMask = pset_b32(PAT_ALL);
-    uint16_t initFullRepeats = remaining / wordsPerRepeat;
-    uint32_t initTailWords = remaining - initFullRepeats * wordsPerRepeat;
-    uint32_t initTailMaskCols = initTailWords;
-    MaskReg initTailMask = Int64TailMask(initTailMaskCols, allMask);
-    for (uint16_t repeat = 0; repeat < initFullRepeats; ++repeat) {
-        vsts(zero, (__ubuf__ uint32_t*)dst + repeat * wordsPerRepeat, 0, NORM_B32, allMask);
-    }
-    if (initTailWords != 0) {
-        vsts(zero, (__ubuf__ uint32_t*)dst + initFullRepeats * wordsPerRepeat, 0, NORM_B32, initTailMask);
+    constexpr uint16_t initRepeats = (totalWords + wordsPerRepeat - 1) / wordsPerRepeat;
+    for (uint16_t repeat = 0; repeat < initRepeats; ++repeat) {
+        uint32_t remainingWords = totalWords - repeat * wordsPerRepeat;
+        MaskReg initMask = plt_b32(remainingWords, POST_UPDATE);
+        vsts(zero, (__ubuf__ uint32_t*)dst + repeat * wordsPerRepeat, 0, NORM_B32, initMask);
     }
 }
 
@@ -63,20 +58,17 @@ PTO_INTERNAL void Int64Scatter(
     {
         Int64ScatterZeroInit<T, I, DstNumel, SrcCols, IdxCols>(dst);
         uint16_t rows = validRows;
-        uint16_t fullRepeats = validCols / elementsPerRepeat;
-        uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
+        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
         uint32_t fullMaskCols = elementsPerRepeat;
         MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
-        uint32_t tailMaskCols = tailCols;
-        MaskReg tailMask = Int64TailMask(tailMaskCols, allMask);
         for (uint16_t row = 0; row < rows; ++row) {
-            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
-                Int64ScatterRepeat<T, I, SrcCols, IdxCols>(
-                    dst, src, index, row, colRepeat * elementsPerRepeat, allMask);
-            }
-            if (tailCols != 0) {
-                Int64ScatterRepeat<T, I, SrcCols, IdxCols>(
-                    dst, src, index, row, fullRepeats * elementsPerRepeat, tailMask);
+            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                uint32_t remainingCols = validCols - colOffset;
+                MaskReg validMask = plt_b32(remainingCols, POST_UPDATE);
+                MaskReg repeatMask;
+                pand(repeatMask, validMask, allMask, allMask);
+                Int64ScatterRepeat<T, I, SrcCols, IdxCols>(dst, src, index, row, colOffset, repeatMask);
             }
         }
     }
@@ -110,18 +102,13 @@ PTO_INTERNAL void Int64ScatterPatternZeroInit(__ubuf__ T* dst)
 {
     vector_s32 z;
     vbr(z, 0);
-    uint32_t rem = DstNumel * 2;
+    constexpr uint32_t totalWords = DstNumel * 2;
     constexpr uint16_t vl = CCE_VL / sizeof(uint32_t);
-    MaskReg allMask = pset_b32(PAT_ALL);
-    uint16_t initFullRepeats = rem / vl;
-    uint32_t initTailWords = rem - initFullRepeats * vl;
-    uint32_t initTailMaskCols = initTailWords;
-    MaskReg initTailMask = Int64TailMask(initTailMaskCols, allMask);
-    for (uint16_t r = 0; r < initFullRepeats; ++r) {
-        vsts(z, (__ubuf__ int32_t*)dst + r * vl, 0, NORM_B32, allMask);
-    }
-    if (initTailWords != 0) {
-        vsts(z, (__ubuf__ int32_t*)dst + initFullRepeats * vl, 0, NORM_B32, initTailMask);
+    constexpr uint16_t initRepeats = (totalWords + vl - 1) / vl;
+    for (uint16_t r = 0; r < initRepeats; ++r) {
+        uint32_t remainingWords = totalWords - r * vl;
+        MaskReg initMask = plt_b32(remainingWords, POST_UPDATE);
+        vsts(z, (__ubuf__ int32_t*)dst + r * vl, 0, NORM_B32, initMask);
     }
 }
 
@@ -135,20 +122,18 @@ PTO_INTERNAL void Int64ScatterPattern(__ubuf__ T* dst, __ubuf__ T* src, unsigned
         Int64ScatterPatternZeroInit<T, DstNumel>(dst);
         vci((vector_s32&)lane, 0, INC_ORDER);
         uint16_t rows = validRows;
-        uint16_t fullRepeats = validCols / elementsPerRepeat;
-        uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
+        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
         uint32_t fullMaskCols = elementsPerRepeat;
         MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
-        uint32_t tailMaskCols = tailCols;
-        MaskReg tailMask = Int64TailMask(tailMaskCols, allMask);
         for (uint16_t i = 0; i < rows; ++i) {
-            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
+            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                uint32_t remainingCols = validCols - colOffset;
+                MaskReg validMask = plt_b32(remainingCols, POST_UPDATE);
+                MaskReg repeatMask;
+                pand(repeatMask, validMask, allMask, allMask);
                 Int64ScatterPatternRepeat<Pattern, Axis, T, DstNumel, DstCols, SrcCols>(
-                    dst, src, lane, i, colRepeat * elementsPerRepeat, allMask);
-            }
-            if (tailCols != 0) {
-                Int64ScatterPatternRepeat<Pattern, Axis, T, DstNumel, DstCols, SrcCols>(
-                    dst, src, lane, i, fullRepeats * elementsPerRepeat, tailMask);
+                    dst, src, lane, i, colOffset, repeatMask);
             }
         }
     }

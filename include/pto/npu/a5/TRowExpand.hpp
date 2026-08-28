@@ -35,17 +35,11 @@ PTO_INTERNAL void Int64RowExpand(__ubuf__ T* dst, __ubuf__ T* src, unsigned vali
             vdup(lowReg, srcLow, allMask, POS_LOWEST, MODE_ZEROING);
             vdup(highReg, srcHigh, allMask, POS_LOWEST, MODE_ZEROING);
             vintlv(wordReg, dummy, lowReg, highReg);
-            uint16_t fullRepeats = validCols / elementsPerRepeat;
-            uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
-            uint32_t tailMaskWords = tailCols * 2;
-            MaskReg tailMask = Int64TailMask(tailMaskWords, allMask);
-            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
+            for (uint16_t colRepeat = 0; colRepeat < repeatTimes; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
-                vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, allMask);
-            }
-            if (tailCols != 0) {
-                uint32_t colOffset = fullRepeats * elementsPerRepeat;
-                vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, tailMask);
+                uint32_t remainingWords = (validCols - colOffset) * 2;
+                MaskReg storeMask = plt_b32(remainingWords, POST_UPDATE);
+                vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, storeMask);
             }
         }
     }
