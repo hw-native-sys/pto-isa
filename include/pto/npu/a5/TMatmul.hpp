@@ -18,9 +18,10 @@ namespace pto {
 
 inline namespace TMatmulInternal {
 constexpr const int MMAD_MAX_SUPPORT_LENGTH = 4095;
-// mad has no destination-stride operand: only Acc shapes whose compact write
-// stride (ceil16(m) row fractals per block column) equals the parent's Rows
-// are representable.
+// mad has no destination-stride operand. Reject static multi-column Acc row
+// windows when mad's compact stride, ceil16(ValidRow), differs from Rows.
+// Dynamic ValidRow is not rejected here because the type cannot distinguish a
+// standalone compact buffer from a parent row window.
 template <typename TileRes>
 PTO_INTERNAL constexpr bool MadAccStrideCompatible()
 {
@@ -33,18 +34,6 @@ PTO_INTERNAL constexpr bool MadAccStrideCompatible()
         return true;
     } else {
         return (TileRes::ValidRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW == TileRes::Rows;
-    }
-}
-
-template <typename TileRes>
-PTO_INTERNAL void CheckAccStrideCompatible(uint16_t m)
-{
-    if constexpr (
-        TileRes::Compact == CompactMode::Null && TileRes::ValidRow == DYNAMIC && TileRes::Cols > FRACTAL_NZ_ROW) {
-        uint16_t roundedM = (m + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
-        if (roundedM != TileRes::Rows) {
-            trap();
-        }
     }
 }
 
@@ -68,7 +57,6 @@ __tf__ AICORE void TMatmul(
     __ca__ typename TileLeft::DType* a = (__ca__ typename TileLeft::DType*)__cce_get_tile_ptr(aMatrix);
     __cb__ typename TileRight::DType* b = (__cb__ typename TileRight::DType*)__cce_get_tile_ptr(bMatrix);
 
-    CheckAccStrideCompatible<TileRes>(m);
     mad(c, a, b, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, cmatrixSource, cmatrixInitVal);
 }
 
@@ -85,7 +73,6 @@ __tf__ AICORE void TMatmulBias(
     uint64_t xd = ((uint64_t)c) & 0xffffffffULL | ((bias & 0xffffffffULL) << 32);
     c = (__cc__ typename TileRes::DType*)xd;
 
-    CheckAccStrideCompatible<TileRes>(m);
     mad(c, a, b, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, cmatrixSource, cmatrixInitVal);
 }
 
@@ -101,7 +88,6 @@ __tf__ AICORE void TMatmulMx(
     __ca__ typename TileLeft::DType* a = (__ca__ typename TileLeft::DType*)__cce_get_tile_ptr(aMatrix);
     __cb__ typename TileRight::DType* b = (__cb__ typename TileRight::DType*)__cce_get_tile_ptr(bMatrix);
 
-    CheckAccStrideCompatible<TileRes>(m);
     mad_mx(c, a, b, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, biasBufferCtrl, cmatrixInitVal);
 }
 
@@ -118,7 +104,6 @@ __tf__ AICORE void TMatmulMxBias(
     uint64_t xd = ((uint64_t)c) & 0xffffffffULL | ((bias & 0xffffffffULL) << 32);
     c = (__cc__ typename TileRes::DType*)xd;
 
-    CheckAccStrideCompatible<TileRes>(m);
     mad_mx(c, a, b, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, biasBufferCtrl, cmatrixInitVal);
 }
 

@@ -15,9 +15,10 @@ namespace pto {
 
 inline namespace TMatmulInternal {
 constexpr const int MMAD_MAX_SUPPORT_LENGTH = 4095;
-// mad has no destination-stride operand: only Acc shapes whose compact write
-// stride (ceil16(m) row fractals per block column) equals the parent's Rows
-// are representable.
+// mad has no destination-stride operand. Reject static multi-column Acc row
+// windows when mad's compact stride, ceil16(ValidRow), differs from Rows.
+// Dynamic ValidRow is not rejected here because the type cannot distinguish a
+// standalone compact buffer from a parent row window.
 template <typename TileRes>
 PTO_INTERNAL constexpr bool MadAccStrideCompatible()
 {
@@ -33,16 +34,6 @@ PTO_INTERNAL constexpr bool MadAccStrideCompatible()
     }
 }
 
-template <typename TileRes>
-PTO_INTERNAL void CheckAccStrideCompatible(uint16_t m)
-{
-    if constexpr (
-        TileRes::Compact == CompactMode::Null && TileRes::ValidRow == DYNAMIC && TileRes::Cols > FRACTAL_NZ_ROW) {
-        if ((m + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW != TileRes::Rows) {
-            trap();
-        }
-    }
-}
 } // namespace TMatmulInternal
 
 template <typename TileLeft, typename TileRight>
@@ -77,7 +68,6 @@ __tf__ AICORE void TMatmul(
             m = 16; // avoid gemv mode, if m is 1, the gemv mode will be used in a3
         }
     }
-    CheckAccStrideCompatible<TileRes>(m);
     mad(c, a, b, m, k, n, static_cast<uint8_t>(Phase), kDirectionAlign, cmatrixSource, cmatrixInitVal);
 }
 
@@ -100,7 +90,6 @@ __tf__ AICORE void TMatmulBias(
             m = 16; // avoid gemv mode, if m is 1, the gemv mode will be used in a3
         }
     }
-    CheckAccStrideCompatible<TileRes>(m);
     mad(c, a, b, m, k, n, static_cast<uint8_t>(Phase), kDirectionAlign, cmatrixSource, cmatrixInitVal);
 }
 

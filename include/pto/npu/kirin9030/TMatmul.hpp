@@ -19,8 +19,10 @@ inline namespace TMatmulInternal {
 constexpr const int MMAD_MAX_SUPPORT_LENGTH = 4095;
 constexpr const int TF32_MODE_BIT = 46;
 constexpr const int TF32_TRANS_MODE_BIT = 47;
-// Kirin9030 checks the same mad destination-stride limitation with a local
-// form so architecture headers remain independent.
+// mad has no destination-stride operand. Reject static multi-column Acc row
+// windows when mad's compact stride, ceil16(ValidRow), differs from Rows.
+// Dynamic ValidRow is not rejected here because the type cannot distinguish a
+// standalone compact buffer from a parent row window.
 template <typename TileRes>
 PTO_INTERNAL constexpr bool MadAccStrideCompatible()
 {
@@ -32,20 +34,6 @@ PTO_INTERNAL constexpr bool MadAccStrideCompatible()
     } else {
         constexpr int roundedValidRow = (TileRes::ValidRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
         return roundedValidRow == TileRes::Rows;
-    }
-}
-
-template <typename TileRes>
-PTO_INTERNAL void CheckAccStrideCompatible(uint16_t m)
-{
-    constexpr bool needsRuntimeCheck =
-        TileRes::Compact == CompactMode::Null && TileRes::ValidRow == DYNAMIC && TileRes::Cols > FRACTAL_NZ_ROW;
-    if constexpr (needsRuntimeCheck) {
-        uint16_t rowFractals = (m + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW;
-        bool matchesParentRows = rowFractals * FRACTAL_NZ_ROW == TileRes::Rows;
-        if (!matchesParentRows) {
-            trap();
-        }
     }
 }
 
@@ -62,7 +50,6 @@ __tf__ PTO_INTERNAL void TMatmul(
     __ca__ typename TileLeft::DType* a = (__ca__ typename TileLeft::DType*)__cce_get_tile_ptr(aData);
     __cb__ typename TileRight::DType* b = (__cb__ typename TileRight::DType*)__cce_get_tile_ptr(bData);
 
-    CheckAccStrideCompatible<TileRes>(m);
     using T = typename TileRes::DType;
     if constexpr (std::is_same_v<T, half>) {
         mad(c, a, b, m, k, n, static_cast<uint8_t>(Phase), false, cmatrixSource, cmatrixInitVal);
@@ -86,7 +73,6 @@ __tf__ PTO_INTERNAL void TMatmulBias(
     uint64_t xd = ((uint64_t)c) & 0xffffffffULL | ((bias & 0xffffffffULL) << 32);
     c = (__cc__ typename TileRes::DType*)xd;
 
-    CheckAccStrideCompatible<TileRes>(m);
     using T = typename TileRes::DType;
     if constexpr (std::is_same_v<T, half>) {
         mad(c, a, b, m, k, n, static_cast<uint8_t>(Phase), false, cmatrixSource, cmatrixInitVal);
