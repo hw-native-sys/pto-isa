@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_TTEST_HPP
 #define PTO_TTEST_HPP
 
+#include <atomic>
 #include "pto/comm/comm_types.hpp"
 
 namespace pto {
@@ -37,13 +38,14 @@ PTO_INTERNAL bool TestCompareSignal(int32_t sigVal, int32_t cmpVal, WaitCmp cmp)
 }
 
 PTO_INTERNAL bool TestPartSignal(
-    volatile int32_t* basePtr, int32_t cmpValue, WaitCmp cmp, int d0, int st0, int d1, int st1, int d2, int st2, int s3,
-    int st3, int s4, int st4)
+    std::atomic<int32_t>* basePtr, int32_t cmpValue, WaitCmp cmp, int d0, int st0, int d1, int st1, int d2, int st2,
+    int s3, int st3, int s4, int st4)
 {
     for (int d3 = 0; d3 < s3; ++d3) {
         for (int d4 = 0; d4 < s4; ++d4) {
             const int idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
-            if (!TestCompareSignal(basePtr[idx], cmpValue, cmp)) {
+            int32_t sigVal = basePtr[idx].load(std::memory_order_acquire);
+            if (!TestCompareSignal(sigVal, cmpValue, cmp)) {
                 return false;
             }
         }
@@ -70,7 +72,7 @@ PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData& signalData, int32_t cmpValue, Wai
     const int st3 = signalData.GetStride(GlobalTensorDim::DIM_3);
     const int st4 = signalData.GetStride(GlobalTensorDim::DIM_4);
 
-    volatile int32_t* basePtr = (volatile int32_t*)signalData.data();
+    auto* basePtr = reinterpret_cast<std::atomic<int32_t>*>(signalData.data());
 
     // Test if all signals satisfy the condition (full 5-D traversal)
     for (int d0 = 0; d0 < s0; ++d0) {
