@@ -149,8 +149,7 @@ __tf__ PTO_INTERNAL void TConcatIdx(
         dstIdxPtr = (__ubuf__ idxType*)__cce_get_tile_ptr(dstIdx);
     }
 
-    uint16_t rowLimit = static_cast<uint16_t>(validRow);
-    for (uint16_t i = 0; i < rowLimit; i++) {
+    for (uint16_t i = 0; i < validRow; i++) {
         SetWaitFlag<PIPE_MTE2, PIPE_S>();
         unsigned idx0Num = *(idx0Ptr + i * idx0Stride) / sizeof(idxType);
         unsigned idx1Num = *(idx1Ptr + i * idx1Stride) / sizeof(idxType);
@@ -164,30 +163,41 @@ __tf__ PTO_INTERNAL void TConcatIdx(
         unsigned src0Num = idx0Num < dstValidCol ? idx0Num : dstValidCol;
         unsigned src1Col = dstValidCol > src0Num ? dstValidCol - src0Num : 0;
         unsigned src1Num = idx1Num < src1Col ? idx1Num : src1Col;
-        unsigned src0RepeatTime = CeilDivision(src0Num, elementsPerRepeat);
-        unsigned src1RepeatTime = CeilDivision(src1Num, elementsPerRepeat);
+        unsigned src0RepeatTime = src0Num / elementsPerRepeat;
+        unsigned src1RepeatTime = src1Num / elementsPerRepeat;
         constexpr unsigned copyTypeElemSize = (sizeof(dataType) == sizeof(int32_t)) ? sizeof(int32_t) : sizeof(int16_t);
-        unsigned src0MaskNum = CeilDivision(src0Num * sizeof(dataType), copyTypeElemSize);
-        unsigned src1MaskNum = CeilDivision(src1Num * sizeof(dataType), copyTypeElemSize);
+        unsigned src0RemainNum = src0Num - src0RepeatTime * elementsPerRepeat;
+        unsigned src1RemainNum = src1Num - src1RepeatTime * elementsPerRepeat;
+        unsigned src0MaskNum = CeilDivision(src0RemainNum * sizeof(dataType), copyTypeElemSize);
+        unsigned src1MaskNum = CeilDivision(src1RemainNum * sizeof(dataType), copyTypeElemSize);
         bool isAligned = (src0Num % elementsPerBlock) == 0;
 
         SetWaitFlag<PIPE_S, PIPE_V>();
-        vcopy((copyType)(dstPtr + i * dstStride), (copyType)(src0Ptr + i * src0Stride), src0RepeatTime - 1, 1, 1, 8, 8);
-        SetContinuousMask(src0MaskNum);
-        vcopy(
-            (copyType)(dstPtr + (src0RepeatTime - 1) * elementsPerRepeat + i * dstStride),
-            (copyType)(src0Ptr + (src0RepeatTime - 1) * elementsPerRepeat + i * src0Stride), 1, 1, 1, 8, 8);
-        set_vector_mask(-1, -1);
+        vcopy((copyType)(dstPtr + i * dstStride), (copyType)(src0Ptr + i * src0Stride), src0RepeatTime, 1, 1, 8, 8);
+        if (src0MaskNum > 0) {
+            SetContinuousMask(src0MaskNum);
+            vcopy(
+                (copyType)(dstPtr + src0RepeatTime * elementsPerRepeat + i * dstStride),
+                (copyType)(src0Ptr + src0RepeatTime * elementsPerRepeat + i * src0Stride), 1, 1, 1, 8, 8);
+            set_vector_mask(-1, -1);
+        }
 
         if (isAligned) {
             vcopy(
-                (copyType)(dstPtr + i * dstStride + src0Num), (copyType)(src1Ptr + i * src1Stride), src1RepeatTime - 1,
-                1, 1, 8, 8);
-            SetContinuousMask(src1MaskNum);
-            vcopy(
-                (copyType)(dstPtr + (src1RepeatTime - 1) * elementsPerRepeat + i * dstStride + src0Num),
-                (copyType)(src1Ptr + (src1RepeatTime - 1) * elementsPerRepeat + i * src1Stride), 1, 1, 1, 8, 8);
-            set_vector_mask(-1, -1);
+                (copyType)(dstPtr + i * dstStride + src0Num), (copyType)(src1Ptr + i * src1Stride), src1RepeatTime, 1,
+                1, 8, 8);
+            if (src1MaskNum > 0) {
+                SetContinuousMask(src1MaskNum);
+                vcopy(
+                    (copyType)(dstPtr + src1RepeatTime * elementsPerRepeat + i * dstStride + src0Num),
+                    (copyType)(src1Ptr + src1RepeatTime * elementsPerRepeat + i * src1Stride), 1, 1, 1, 8, 8);
+                set_vector_mask(-1, -1);
+            }
+            SetWaitFlag<PIPE_V, PIPE_S>();
+            if (sizeof(dataType) == sizeof(int8_t) && src1Num % 2 != 0) {
+                dstPtr[i * dstStride + src0Num + src1Num] = 0;
+            }
+            SetWaitFlag<PIPE_S, PIPE_V>();
         } else {
             SetWaitFlag<PIPE_V, PIPE_S>();
             for (unsigned j = 0; j < src1Num; j++) {
