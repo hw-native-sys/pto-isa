@@ -4,7 +4,7 @@ PTO Tile Lib supports an explicit event model for expressing dependencies betwee
 
 This document describes the C++ event types used by `include/pto/common/pto_instr.hpp` and `include/pto/common/event.hpp`.
 
-> Note: the concrete `pto::Event<SrcOp, DstOp>` type is defined only for device builds (`__CCE_AICORE__`). The CPU simulator backend treats event synchronization as a no-op and relies on ordinary program order within a single thread.
+> Note: the concrete `pto::Event<SrcOp, DstOp>` type is defined only for device builds (`__CCE_AICORE__`). The CPU simulator backend treats event synchronization as a no-op and relies on ordinary program order within each CPU worker. Cross-worker ordering must use a synchronization or communication operation supported by CPU_SIM.
 
 ## Key types
 

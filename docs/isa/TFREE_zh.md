@@ -8,6 +8,8 @@
 
 对于 `GlobalData` 流程，`TFREE(Pipe&, GlobalData&)` 会释放由 `TPOP(Pipe&, GlobalData&)` 返回的FIFO槽位视图。
 
+CPU_SIM 中，TileData 形式会在 pipe 的 free-status 策略要求释放时参与主机侧 FIFO 释放协议，因此 CPU TileData 形式不是 A2A3 路径中的空操作。CPU_SIM 当前不支持 GlobalData 重载。
+
 ## 操作语义
 
 对于TileData流程：

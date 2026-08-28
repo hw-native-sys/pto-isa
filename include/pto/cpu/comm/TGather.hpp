@@ -167,11 +167,11 @@ PTO_INTERNAL void TGATHER_CCU_IMPL(
 // parses on CPU simulator builds; the static_assert depends on `engine` and
 // fires only if the overload is actually instantiated.
 template <CollEngine engine = CollEngine::CCU, typename... Args>
-PTO_INTERNAL void TGATHER_CCU_IMPL(Args &&...)
+PTO_INTERNAL void TGATHER_CCU_IMPL(Args&&...)
 {
-    static_assert(engine != CollEngine::CCU,
-                  "TGATHER<CollEngine::CCU> is not supported on the CPU simulator; "
-                  "CCU engine requires A5 NPU hardware.");
+    static_assert(
+        engine != CollEngine::CCU, "TGATHER<CollEngine::CCU> is not supported on the CPU simulator; "
+                                   "CCU engine requires A5 NPU hardware.");
 }
 
 } // namespace comm

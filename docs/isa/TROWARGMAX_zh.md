@@ -90,6 +90,13 @@ PTO_INST RecordEvent TROWARGMAX(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
         - 单列DN布局（`BLayout::ColMajor`、`Cols == 1`），或
         - 有效列数为1的ND布局。
 
+### CPU_SIM实现检查
+
+- 支持的源元素类型为整数类型、`half`、`bfloat16_t` 和 `float`。
+- 索引目标元素类型必须为 `int32_t` 或 `uint32_t`。
+- 在值+索引模式下，值目标元素类型必须与源元素类型一致。
+- 接口为兼容性保留 `tmp`，CPU实现不使用该临时Tile。
+
 ### `tmp`临时Tile相关说明
 
 - 仅Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品使用`tmp`临时Tile，Ascend 950PR/Ascend 950DT接收`tmp`但实际并不使用。

@@ -85,6 +85,13 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
         - DN layout with one column (`BLayout::ColMajor`, `Cols == 1`), or
         - ND layout whose valid column count is 1.
 
+### CPU_SIM implementation checks
+
+- Supported source element types are integral types, `half`, `bfloat16_t`, and `float`.
+- The destination index element type must be `int32_t` or `uint32_t`.
+- In value + index mode, the value destination element type must match the source element type.
+- `tmp` is accepted for interface compatibility but is not used by the CPU implementation.
+
 ### About temporary tile `tmp`
 
 - Temporary tile is only used by A2A3, A5 accepts `tmp` tile but leaves it unused.
@@ -140,7 +147,7 @@ void example_auto() {
   using TmpT = Tile<TileType::Vec, float, 16, 16>;
   SrcT src;
   DstT dst;
-  DstValT dst;
+  DstValT dstVal;
   TmpT tmp;
   TROWARGMIN(dst, src, tmp);
   TROWARGMIN(dstVal, dst, src, tmp);
@@ -161,6 +168,7 @@ void example_manual() {
   using TmpT = Tile<TileType::Vec, float, 16, 16>;
   SrcT src;
   DstT dst;
+  DstValT dstVal;
   TmpT tmp;
   TASSIGN(src, 0x1000);
   TASSIGN(dst, 0x2000);

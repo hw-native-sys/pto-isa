@@ -155,7 +155,9 @@ inline uint64_t sbitset0(uint64_t value, int bit) { return value & ~(1ULL << bit
 
 inline uint32_t get_block_idx();
 
+#if !defined(__COSTMODEL)
 #include <pto/cpu/trace.hpp>
+#endif
 
 /* <Hccl> */
 #define HcclHostBarrier(x, y)
@@ -193,6 +195,7 @@ struct CommDeviceContext {
 #define F16_MAX 65504.0f
 
 namespace pto::cpu_sim {
+#if !defined(__COSTMODEL)
 struct RuntimeConfig {
     bool initialized = false;
     uint32_t device_id = 0;
@@ -209,6 +212,7 @@ struct StreamState {
 };
 
 inline const auto g_time_origin = std::chrono::steady_clock::now();
+#endif
 
 using SetExecutionContextHookFn = void (*)(uint32_t block_idx, uint32_t subblock_id, uint32_t subblock_dim);
 using GetExecutionContextHookFn = void (*)(uint32_t* block_idx, uint32_t* subblock_id, uint32_t* subblock_dim);
@@ -223,6 +227,7 @@ inline void reset_execution_context();
 inline GetSubblockIdInjectedHookFn injected_subblock_id_hook = nullptr;
 inline GetPipeSharedStateInjectedHookFn injected_pipe_shared_state_hook = nullptr;
 
+#if !defined(__COSTMODEL)
 inline RuntimeConfig& runtime_config()
 {
     static RuntimeConfig config;
@@ -421,6 +426,7 @@ inline void LaunchKernelMultiCore(const KernelLaunchOptions& options, aclrtStrea
 }
 
 inline StreamState* ToStreamState(aclrtStream stream) { return reinterpret_cast<StreamState*>(stream); }
+#endif
 
 inline SetExecutionContextHookFn ResolveSetExecutionContextHook()
 {
@@ -513,6 +519,7 @@ inline int printf(const char* fmt, Args... args)
 }
 } // namespace cce
 
+#if !defined(__COSTMODEL)
 inline int aclInit(const char*)
 {
     pto::cpu_sim::InitializeRuntime();
@@ -539,6 +546,7 @@ inline int aclrtCreateStream(aclrtStream* stream)
     *stream = reinterpret_cast<aclrtStream>(state);
     return 0;
 }
+#endif
 
 inline uint32_t get_block_idx()
 {
@@ -582,9 +590,11 @@ inline uint32_t get_subblockdim()
     return pto::cpu_sim::execution_context.subblock_dim;
 }
 
+#if !defined(__COSTMODEL)
 inline uint32_t get_block_num() { return pto::cpu_sim::GetConfiguredCoreCount(); }
 
 inline uint32_t get_coreid() { return get_block_idx(); }
+#endif
 
 inline uint64_t get_task_cookie()
 {

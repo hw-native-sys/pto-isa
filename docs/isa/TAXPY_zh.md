@@ -67,6 +67,8 @@ TAXPY在向量流水线（`PIPE_V`）上执行，使用 `vaxpy`（$a \cdot x + y
 2. **差异类型（`dst`=`float`，`src0`=`half`）**：`src0` 的half数据拓宽为FP32后参与累加（Ascend 950PR/Ascend 950DT上经 `UNPK_B16` 解包并 `vcvt` 转换；Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品由 `vaxpy` 原生按4-block src / 8-block dst处理）。
 3. Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上按repeat-stride是否溢出、以及列数与行数的关系，在count模式与norm模式间选择，以覆盖任意有效形状。
 
+CPU_SIM 的 `half`/`half` 路径先将乘积舍入为 `half`，再与 `dst` 相加并将和再次舍入为 `half`，从而模拟两个可观察的半精度步骤，而不是按主机浮点精度一次性计算完整表达式。
+
 ## 约束
 
 | 约束 | 适用范围 | 原因 |

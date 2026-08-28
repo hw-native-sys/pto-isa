@@ -79,6 +79,12 @@ struct TPipe;
     - `gmTensor` 必须是由 `TALLOC` 返回的FIFO槽位视图。
     - 调用 `TPUSH(Pipe&, GlobalData&)` 之前，数据必须已经写入 `gmTensor`。
     - `TPUSH(Pipe&, GlobalData&)` 忽略tensor内容，只将FIFO槽位提交给消费者。
+- **CPU_SIM FIFO模型**：
+    - FIFO状态由主机线程共享。`TPUSH` 通过互斥锁和条件变量等待空闲槽位并提交数据。
+    - TileData生产者支持 `DIR_C2V`、`DIR_V2C` 和 `DIR_BOTH`；`DIR_BOTH` 管道的两个方向维护独立的FIFO状态。
+    - 切分模式根据当前subblock上下文选择lane。`TILE_NO_SPLIT` 使用一个生产者lane。对于启用 `IsNoSplit` 的C2V管道，一个生产者槽位可根据运行时subblock数量协调一个或两个vector消费者subblock。
+    - 简化版接口使用 `TILE_NO_SPLIT`；`TConfig` 接口同样支持CPU fixpipe路径。
+    - CPU_SIM 当前不支持 GlobalData 重载。
 - **Tile类型支持**：
     - **TPUSH/TPOP支持的Tile类型**：
         - `TileType::Acc`（累加器Tile）：Cube核心使用，用于C2V方向通信。

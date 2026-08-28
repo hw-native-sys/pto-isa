@@ -4,7 +4,7 @@ PTO Tile Lib 支持显式事件（event）模型，用于表达操作之间的�
 
 本文档描述 `include/pto/common/pto_instr.hpp` 与 `include/pto/common/event.hpp` 中使用的 C++ 事件类型。
 
-> 注意：具体的 `pto::Event<SrcOp, DstOp>` 类型仅在设备构建（`__CCE_AICORE__`）中定义。CPU 仿真后端通常将 event synchronization 视为 no-op，并依赖单线程的普通程序顺序来验证语义。
+> 注意：具体的 `pto::Event<SrcOp, DstOp>` 类型仅在设备构建（`__CCE_AICORE__`）中定义。CPU 仿真后端将 event synchronization 视为 no-op，并依赖每个 CPU 工作线程内的普通程序顺序。跨工作线程的顺序必须使用 CPU_SIM 已支持的同步或通信操作来保证。
 
 ## 关键类型
 

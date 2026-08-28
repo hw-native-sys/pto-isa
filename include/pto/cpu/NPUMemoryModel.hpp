@@ -86,13 +86,13 @@ private:
         4 * 1024,   // L0B: 4 KB
     };
 
-    static std::size_t ReadSizeOverride(const char *name, std::size_t fallback)
+    static std::size_t ReadSizeOverride(const char* name, std::size_t fallback)
     {
-        const char *value = std::getenv(name);
+        const char* value = std::getenv(name);
         if (value == nullptr || *value == '\0') {
             return fallback;
         }
-        char *end = nullptr;
+        char* end = nullptr;
         const unsigned long long parsed = std::strtoull(value, &end, 10);
         if (end == value || *end != '\0' || parsed == 0) {
             return fallback;
@@ -262,7 +262,7 @@ public:
         if (!initialized_) {
             return false;
         }
-        for (const auto &buf : buffers_) {
+        for (const auto& buf : buffers_) {
             if (buf.empty()) {
                 continue;
             }

@@ -55,6 +55,7 @@ PTO_INST RecordEvent TMULADDDST(TileDataDst &dst, TileDataSrc0 &src0, TileDataSr
     - 运行时：`dst`、`src0` 和 `src1` 的有效行列数必须相同。
     - 标量类型必须与 Tile 数据类型一致。
 - 该操作在 `dst.GetValidRow()` / `dst.GetValidCol()` 上迭代。
+- CPU_SIM 的 `half` 路径先将乘积舍入为 `half`，再执行累加，并将累加结果再次舍入为 `half`。
 
 ## 示例
 

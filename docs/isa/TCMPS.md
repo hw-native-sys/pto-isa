@@ -7,12 +7,14 @@
 
 ## Introduction
 
-Compare a tile against a **scalar** or **the first element of another tile** and write per-element comparison results.
+Compare a tile against a **scalar** or another tile and write per-element comparison results. The Tile-form behavior is
+backend-specific as described below.
 
 Two overloads are provided:
 
 - **Scalar form**: compare every element of `src0` against a scalar value.
-- **Tile form**: compare every element of `src0` against the scalar from the first element of `src1` tile.
+- **Tile form**: A2/A3 compares every element of `src0` against the scalar from the first element of `src1`.
+  A5 and CPU_SIM compare corresponding `src0[i,j]` and `src1[i,j]` elements instead.
 
 ## Math Interpretation
 
@@ -20,9 +22,13 @@ Two overloads are provided:
 
 $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{scalar}\right) $$
 
-**Tile form** — for each element `(i, j)` in the valid region:
+**Tile form on A2/A3** — for each element `(i, j)` in the valid region:
 
 $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src1}_{0,0}\right) $$
+
+**Tile form on A5 and CPU_SIM** — for each element `(i, j)` in the valid region:
+
+$$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src1}_{i,j}\right) $$
 
 The encoding/type of `dst` is implementation-defined (a bit-packed mask tile where each bit represents one comparison result).
 
@@ -59,7 +65,7 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc& src0,
                            WaitEvents&... events);
 ```
 
-**Tile form** — compare tile against another tile (scalar broadcast from `src1`):
+**Tile form** — compare tile against another tile (backend behavior described above):
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
@@ -82,8 +88,11 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0,
 - **Common constraints**:
     - Tile location must be vector (`TileData::Loc == TileType::Vec`) for both `src` and `dst`.
     - Static valid bounds: `TileData::ValidRow <= TileData::Rows` and `TileData::ValidCol <= TileData::Cols`.
-    - Runtime: `src0` and `dst` must have the same valid row and column count.
     - Data type: `src0` and `src1` must have the same data type.
+    - On A5 and CPU_SIM, Tile-form `src0` and `src1` are compared element by element; A2/A3 broadcasts `src1[0,0]`.
+- **Backend shape checks**:
+    - A2/A3 and A5 assert that `src0` and `dst` have the same valid row count. They do not explicitly check the valid column counts.
+    - CPU_SIM does not assert valid-shape equality. It evaluates the valid region of `src0`, bounds packed writes by the valid shape of `dst`, and expects Tile-form `src1` to provide the corresponding readable elements.
 - **Valid region**:
     - The op uses `src0.GetValidRow()` / `src0.GetValidCol()` as the iteration domain.
 - **Comparison modes**:
@@ -137,7 +146,7 @@ void example_tile() {
   using DstT = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
   SrcT src0, src1;
   DstT dst(16, 2);
-  // src1[0,0] is used as the comparison scalar
+  // A2/A3: broadcast src1[0,0]. A5 and CPU_SIM: compare corresponding elements.
   TCMPS(dst, src0, src1, CmpMode::GE);
 }
 ```

@@ -61,6 +61,8 @@ When `Mode` is `Hard`, `gmWorkspace` and `usedCores` are ignored and the behavio
 - Hard AIC-only on A2/A3 cannot be compiled as a pure cube kernel: plain `dav-c220-cube` fails to establish the FFTS context that AIC-only hard sync needs, and hangs in practice. Compile it as MIX (`dav-c220`) instead, with the AIC side calling `SYNCALL<AICOnly>()` and the AIV side left empty. On A5, `dav-c310-cube` works.
 - When compiling a kernel by hand (not through chevron auto-split), the kernel meta must be declared explicitly, otherwise the runtime schedules the wrong core type and hard sync hangs for lack of an FFTS context. Declare it with the macros in `include/pto/common/kernel_meta.hpp` (`PTO_SYNCALL_AIV_KERNEL_META` / `PTO_SYNCALL_AIC_KERNEL_META` / `PTO_SYNCALL_MIX_AIC_KERNEL_META`); the macro argument must exactly match the `__global__` entry symbol. Currently only Hard AIV-only and Soft AIC-only on A2/A3 need a hand-written meta; the compiler generates it for all other cases.
 - In the auto build path (`__PTO_AUTO__`), `SYNCALL` is a no-op; real synchronization happens only in manual kernels.
+- In CPU_SIM, every `SYNCALL` overload is currently a compatibility no-op, including Soft mode. It does not synchronize
+  workers launched by `LaunchKernelMultiCore`.
 
 ## Examples
 

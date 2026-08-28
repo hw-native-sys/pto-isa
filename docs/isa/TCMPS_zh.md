@@ -6,12 +6,12 @@
 
 ## 简介
 
-将Tile与**标量**或**另一个Tile的首元素**进行比较，并写入逐元素比较结果。
+将 Tile 与**标量**或另一个 Tile 进行比较，并写入逐元素比较结果。Tile 形式的行为存在下述后端差异。
 
 提供两种重载形式：
 
 - **标量形式**：将 `src0` 的每个元素与标量值进行比较。
-- **Tile形式**：将 `src0` 的每个元素与从 `src1` Tile首元素的标量进行比较。
+- **Tile形式**：A2/A3 将 `src0` 的每个元素与 `src1` Tile 首元素广播出的标量进行比较；A5 和 CPU_SIM 逐元素比较对应的 `src0[i,j]` 和 `src1[i,j]`。
 
 ## 数学语义
 
@@ -19,9 +19,13 @@
 
 $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{scalar}\right) $$
 
-**Tile形式** —对每个元素 `(i, j)` 在有效区域内：
+**A2/A3上的Tile形式** —对每个元素 `(i, j)` 在有效区域内：
 
 $$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src1}_{0,0}\right) $$
+
+**A5和CPU_SIM上的Tile形式** —对每个元素 `(i, j)` 在有效区域内：
+
+$$ \mathrm{dst}_{i,j} = \left(\mathrm{src0}_{i,j}\ \mathrm{cmpMode}\ \mathrm{src1}_{i,j}\right) $$
 
 `dst` 的编码/类型由实现定义（位压缩掩码Tile，每个比特代表一个比较结果）。
 
@@ -60,7 +64,7 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc& src0,
                            WaitEvents&... events);
 ```
 
-**Tile形式** —将Tile与另一个Tile进行比较（从 `src1` 广播标量）：
+**Tile形式** —将Tile与另一个Tile进行比较（后端行为见上文）：
 
 ```cpp
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
@@ -83,8 +87,11 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0,
 - **通用约束**:
     - `src` 和 `dst` 的Tile位置都必须是向量（`TileData::Loc == TileType::Vec`）。
     - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
-    - 运行时：`src0` 和 `dst` 的有效行列数必须相同。
     - 数据类型：`src0` 和 `src1` 的数据类型必须相同。
+    - A5 和 CPU_SIM 的 Tile 形式逐元素比较 `src0` 与 `src1`；A2/A3 广播 `src1[0,0]`。
+- **后端shape检查**：
+    - A2/A3 和 A5 会断言 `src0` 与 `dst` 的有效行数相同，但不会显式检查有效列数。
+    - CPU_SIM 不断言有效shape相同。它在 `src0` 的有效区域上计算，按 `dst` 的有效shape限制位压缩结果写入，并要求 Tile 形式的 `src1` 提供对应位置的可读元素。
 - **有效区域**:
     - 该操作使用 `src0.GetValidRow()` / `src0.GetValidCol()` 作为迭代域。
 - **比较模式**:
@@ -138,7 +145,7 @@ void example_tile() {
   using DstT = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
   SrcT src0, src1;
   DstT dst(16, 2);
-  // src1[0,0] 作为比较标量
+  // A2/A3：广播 src1[0,0]；A5和CPU_SIM：比较对应位置元素。
   TCMPS(dst, src0, src1, CmpMode::GE);
 }
 ```

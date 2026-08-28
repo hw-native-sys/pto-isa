@@ -64,6 +64,11 @@ struct TPipe;
     - `gmTensor` 会被赋值为由 `pipe.cons.tileIndex` 选择的FIFO槽位基地址。
     - 对于C2V分裂模式，会根据 `Split` 应用向量子块偏移。
     - 从槽位视图完成所有加载后，调用者必须调用 `TFREE(Pipe&, GlobalData&)`。
+- **CPU_SIM FIFO模型**：
+    - `TPOP` 使用主机FIFO的互斥锁和条件变量等待生产者提交槽位。
+    - 切分模式根据当前subblock上下文选择lane。对于启用 `IsNoSplit` 的C2V管道，`TILE_NO_SPLIT` 会根据运行时subblock数量协调一个或两个vector消费者subblock；在其他no-split vector场景中，非零的未参与lane会按需填零。
+    - `DIR_BOTH` 根据消费者方向选择对应FIFO，并发的pop会预留不同槽位。
+    - CPU_SIM 当前不支持 GlobalData 重载。
 
 ## 示例
 

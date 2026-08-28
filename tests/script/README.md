@@ -29,12 +29,19 @@ python3 tests/script/run_st.py -r sim -v a5 -t tmatmul -g TMATMULTest.case1
 Options:
 
 - `-v, --verbose`: print build/run output
-- `-b, --build-folder`: build directory (default: `build_tests`)
+- `-c, --compiler`: C++ compiler path or name
+- `--enable-bf16`: enable BF16 coverage with a C++23 compiler
+- `--trace-mode`: build CPU STs with instruction tracing enabled
+- `-g, --generator`: optional CMake generator
+- `-j, --jobs`: parallel build jobs
+- `--timeout`: per-test timeout in seconds
+- `--build-folder`: optional build root; the `cpu_st` and `cpu_st_comm` directories are created below it
 
 Example:
 
 ```bash
 python3 tests/script/all_cpu_tests.py --verbose
+python3 tests/script/all_cpu_tests.py --trace-mode --build-folder build/trace_cpu
 ```
 
 ## Convenience Wrappers

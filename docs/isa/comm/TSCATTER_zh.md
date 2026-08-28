@@ -52,6 +52,9 @@ PTO_INST RecordEvent TSCATTER(ParallelGroupType &parallelGroup, GlobalSrcData &s
 
 ## 约束
 
+- **CPU_SIM引擎支持**：
+    - CPU实现支持 `CollEngine::AIV`。
+    - CPU_SIM 没有可用的 `CollEngine::CCU` 功能路径，其 deferred-fail 重载会在编译期拒绝不支持的 CCU 调用；CCU 路径应使用 A5 NPU 后端。
 - **类型约束**：
     - `ParallelGroup::value_type::RawDType` 必须等于 `GlobalSrcData::RawDType`。
     - `TileData::DType` 必须等于 `GlobalSrcData::RawDType`。

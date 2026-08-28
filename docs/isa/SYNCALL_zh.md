@@ -67,6 +67,7 @@ PTO_INST void SYNCALL(GlobalData &gmWorkspace, int32_t usedCores = 0);
 - A2/A3 的 Hard AIC-only 不能编译成纯cube kernel：纯 `dav-c220-cube` 建立不起AIC-only硬同步所需的FFTS上下文，实测会hang。须按MIX编译（`dav-c220`），AIC侧调用 `SYNCALL<AICOnly>()`，AIV侧留空。A5 用 `dav-c310-cube` 即可。
 - 手工编译kernel（不走chevron自动拆分）时须自行声明kernel meta，否则runtime会按错误的核型调度，硬同步拿不到FFTS上下文而hang。meta用 `include/pto/common/kernel_meta.hpp` 中的宏声明（`PTO_SYNCALL_AIV_KERNEL_META` / `PTO_SYNCALL_AIC_KERNEL_META` / `PTO_SYNCALL_MIX_AIC_KERNEL_META`），宏参须与 `__global__` 入口符号完全一致。当前仅A2/A3的 Hard AIV-only 与 Soft AIC-only 需手写，其余场景由编译器生成。
 - auto构建路径（`__PTO_AUTO__`）下 `SYNCALL` 为no-op，真实同步只在manual kernel中发生。
+- CPU_SIM 中所有 `SYNCALL` 重载当前都是兼容性空操作（包括 Soft 模式），不会同步由 `LaunchKernelMultiCore` 启动的工作线程。
 
 
 

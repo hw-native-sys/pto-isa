@@ -48,8 +48,10 @@ PTO_INST RecordEvent TMULADDDST(TileDataDst &dst, TileDataSrc0 &src0, TileDataSr
     - `TileData::DType` must be one of: `float`, `half`.
     - Tile layout must be row-major (`TileData::isRowMajor`).
 - **Valid region**:
-    - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain; `src0/src1` are assumed to be compatible (not validated by explicit runtime checks in this op).
-- The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
+    - The op iterates over `dst.GetValidRow()` / `dst.GetValidCol()`.
+    - CPU_SIM asserts that `dst`, `src0`, and `src1` have identical valid row and column counts.
+- In CPU_SIM, `half` multiplication is rounded to `half` before accumulation, and the accumulated result is rounded to
+  `half` again.
 
 ## Examples
 

@@ -1,3 +1,13 @@
+/**
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
 #ifndef CPU_TILE_TEST_UTILS_H
 #define CPU_TILE_TEST_UTILS_H
 
@@ -15,7 +25,7 @@
 namespace CpuTileTestUtils {
 
 template <typename TileData>
-void FillLinear(TileData &tile, typename TileData::DType start = typename TileData::DType(1))
+void FillLinear(TileData& tile, typename TileData::DType start = typename TileData::DType(1))
 {
     std::size_t offset = 0;
     for (int r = 0; r < tile.GetValidRow(); ++r) {
@@ -27,25 +37,25 @@ void FillLinear(TileData &tile, typename TileData::DType start = typename TileDa
 }
 
 template <typename TileData>
-void FillAll(TileData &tile, typename TileData::DType value)
+void FillAll(TileData& tile, typename TileData::DType value)
 {
     std::fill(tile.data(), tile.data() + TileData::Numel, value);
 }
 
 template <typename TileData>
-auto GetValue(const TileData &tile, int r, int c) -> typename TileData::DType
+auto GetValue(const TileData& tile, int r, int c) -> typename TileData::DType
 {
     return tile.data()[pto::GetTileElementOffset<TileData>(r, c)];
 }
 
 template <typename TileData>
-void SetValue(TileData &tile, int r, int c, typename TileData::DType value)
+void SetValue(TileData& tile, int r, int c, typename TileData::DType value)
 {
     tile.data()[pto::GetTileElementOffset<TileData>(r, c)] = value;
 }
 
 template <typename TileData>
-void AssignOneTileStorage(TileData &tile, std::size_t &addr)
+void AssignOneTileStorage(TileData& tile, std::size_t& addr)
 {
     TASSIGN(tile, addr);
     addr += sizeof(typename TileData::DType) * static_cast<std::size_t>(TileData::Numel);
@@ -53,13 +63,13 @@ void AssignOneTileStorage(TileData &tile, std::size_t &addr)
 }
 
 template <typename... TileData>
-void AssignTileStorage(std::size_t &addr, TileData &...tiles)
+void AssignTileStorage(std::size_t& addr, TileData&... tiles)
 {
     (AssignOneTileStorage(tiles, addr), ...);
 }
 
 template <typename T>
-void ExpectValueEquals(const T &actual, const T &expected)
+void ExpectValueEquals(const T& actual, const T& expected)
 {
     if constexpr (std::is_same_v<T, half>) {
         EXPECT_FLOAT_EQ(static_cast<float>(actual), static_cast<float>(expected));
@@ -71,7 +81,7 @@ void ExpectValueEquals(const T &actual, const T &expected)
 }
 
 template <typename TileData>
-void ExpectTileEqualsVector(const TileData &tile, const std::vector<typename TileData::DType> &expected)
+void ExpectTileEqualsVector(const TileData& tile, const std::vector<typename TileData::DType>& expected)
 {
     ASSERT_EQ(expected.size(), static_cast<std::size_t>(TileData::Numel));
     for (int i = 0; i < TileData::Numel; ++i) {
@@ -80,9 +90,9 @@ void ExpectTileEqualsVector(const TileData &tile, const std::vector<typename Til
 }
 
 template <typename AccTile, typename LeftTile, typename RightTile>
-std::vector<typename AccTile::DType> ComputeMatmulExpected(const LeftTile &lhs, const RightTile &rhs,
-                                                           const AccTile *acc = nullptr,
-                                                           const typename AccTile::DType *bias = nullptr)
+std::vector<typename AccTile::DType> ComputeMatmulExpected(
+    const LeftTile& lhs, const RightTile& rhs, const AccTile* acc = nullptr,
+    const typename AccTile::DType* bias = nullptr)
 {
     std::vector<typename AccTile::DType> expected(AccTile::Numel, typename AccTile::DType(0));
     for (int r = 0; r < lhs.GetValidRow(); ++r) {

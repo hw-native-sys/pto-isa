@@ -99,6 +99,13 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
     - `dstIdx.GetValidRow() == 1`
     - `src.GetValidCol() == dstIdx.GetValidCol()`
 
+### CPU_SIM实现检查
+
+- 支持的源元素类型为整数类型、`half`、`bfloat16_t` 和 `float`。
+- 索引目标元素类型必须为 `int32_t` 或 `uint32_t`。
+- 在值+索引模式下，值目标元素类型必须与源元素类型一致。
+- 接口为兼容性保留 `tmp`，CPU实现不使用该临时Tile。
+
 ### 纯索引模式（3参数）
 
 #### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查

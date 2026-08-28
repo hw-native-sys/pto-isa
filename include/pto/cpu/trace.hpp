@@ -62,75 +62,66 @@ struct InstructionTraceState {
 };
 
 inline thread_local InstructionTraceState g_instruction_trace_state;
-inline thread_local InstructionTraceState *g_instruction_trace_override = nullptr;
+inline thread_local InstructionTraceState* g_instruction_trace_override = nullptr;
 
-inline InstructionTraceState &CurrentInstructionTraceState()
+inline InstructionTraceState& CurrentInstructionTraceState()
 {
     return g_instruction_trace_override == nullptr ? g_instruction_trace_state : *g_instruction_trace_override;
 }
 
 inline void ResetInstructionTrace()
 {
-    auto &trace = CurrentInstructionTraceState();
+    auto& trace = CurrentInstructionTraceState();
     std::scoped_lock lock(trace.mutex);
     trace.next_sequence_id = 0;
     trace.records.clear();
 }
 
-inline InstructionTraceState &GetMutableInstructionTrace()
-{
-    return CurrentInstructionTraceState();
-}
+inline InstructionTraceState& GetMutableInstructionTrace() { return CurrentInstructionTraceState(); }
 
 // Returns the active trace state for advanced consumers that need direct access
 // to the state object. Callers must lock InstructionTraceState::mutex before
 // reading records or mutating shared members.
-inline const InstructionTraceState &GetInstructionTrace()
-{
-    return CurrentInstructionTraceState();
-}
+inline const InstructionTraceState& GetInstructionTrace() { return CurrentInstructionTraceState(); }
 
 inline std::vector<InstructionTraceRecord> CopyInstructionTraceRecords()
 {
-    const auto &trace = GetInstructionTrace();
+    const auto& trace = GetInstructionTrace();
     std::scoped_lock lock(trace.mutex);
     return trace.records;
 }
 
 class ScopedInstructionTraceState {
 public:
-    explicit ScopedInstructionTraceState(InstructionTraceState &state) : saved_(g_instruction_trace_override)
+    explicit ScopedInstructionTraceState(InstructionTraceState& state) : saved_(g_instruction_trace_override)
     {
         g_instruction_trace_override = &state;
     }
 
-    ~ScopedInstructionTraceState()
-    {
-        g_instruction_trace_override = saved_;
-    }
+    ~ScopedInstructionTraceState() { g_instruction_trace_override = saved_; }
 
-    ScopedInstructionTraceState(const ScopedInstructionTraceState &) = delete;
-    ScopedInstructionTraceState &operator=(const ScopedInstructionTraceState &) = delete;
+    ScopedInstructionTraceState(const ScopedInstructionTraceState&) = delete;
+    ScopedInstructionTraceState& operator=(const ScopedInstructionTraceState&) = delete;
 
 private:
-    InstructionTraceState *saved_ = nullptr;
+    InstructionTraceState* saved_ = nullptr;
 };
 
 inline uint64_t ReserveInstructionTraceSequenceId()
 {
-    auto &trace = GetMutableInstructionTrace();
+    auto& trace = GetMutableInstructionTrace();
     std::scoped_lock lock(trace.mutex);
     return trace.next_sequence_id++;
 }
 
 inline void AppendInstructionTraceRecord(InstructionTraceRecord record)
 {
-    auto &trace = GetMutableInstructionTrace();
+    auto& trace = GetMutableInstructionTrace();
     std::scoped_lock lock(trace.mutex);
     trace.records.push_back(std::move(record));
 }
 
-inline const char *LayoutToString(Layout layout)
+inline const char* LayoutToString(Layout layout)
 {
     switch (layout) {
         case Layout::ND:
@@ -179,12 +170,9 @@ inline const char *LayoutToString(Layout layout)
     return "UNKNOWN";
 }
 
-inline const char *BLayoutToString(BLayout layout)
-{
-    return layout == BLayout::RowMajor ? "row_major" : "col_major";
-}
+inline const char* BLayoutToString(BLayout layout) { return layout == BLayout::RowMajor ? "row_major" : "col_major"; }
 
-inline const char *SLayoutToString(SLayout layout)
+inline const char* SLayoutToString(SLayout layout)
 {
     switch (layout) {
         case SLayout::NoneBox:
@@ -197,7 +185,7 @@ inline const char *SLayoutToString(SLayout layout)
     return "unknown";
 }
 
-inline const char *CompactModeToString(CompactMode mode)
+inline const char* CompactModeToString(CompactMode mode)
 {
     switch (mode) {
         case CompactMode::Null:
@@ -262,8 +250,8 @@ std::string ScalarValueToString(T value)
     } else if constexpr (std::is_enum_v<Decayed>) {
         using Underlying = std::underlying_type_t<Decayed>;
         return std::to_string(static_cast<Underlying>(value));
-    } else if constexpr (std::is_same_v<Decayed, half> || std::is_same_v<Decayed, aclFloat16> ||
-                         std::is_same_v<Decayed, bfloat16_t>) {
+    } else if constexpr (
+        std::is_same_v<Decayed, half> || std::is_same_v<Decayed, aclFloat16> || std::is_same_v<Decayed, bfloat16_t>) {
         std::ostringstream os;
         os << static_cast<float>(value);
         return os.str();
@@ -338,7 +326,7 @@ std::string TileLayoutString()
 }
 
 template <typename TileData>
-TileOperandTrace CaptureTileOperand(TileData &tile)
+TileOperandTrace CaptureTileOperand(TileData& tile)
 {
     using CleanTileData = std::remove_cv_t<std::remove_reference_t<TileData>>;
     TileOperandTrace operand;
@@ -407,14 +395,14 @@ inline std::string HexAddress(std::uintptr_t address)
     return os.str();
 }
 
-inline void DumpInstructionTraceJson(std::ostream &os)
+inline void DumpInstructionTraceJson(std::ostream& os)
 {
     const auto records = CopyInstructionTraceRecords();
-    for (const auto &record : records) {
+    for (const auto& record : records) {
         os << "{\"block_idx\":" << record.block_idx << ",\"sequence_id\":" << record.sequence_id << ",\"opcode\":\""
            << JsonEscape(record.opcode) << "\",\"input_tiles\":[";
         for (std::size_t i = 0; i < record.input_tiles.size(); ++i) {
-            const auto &operand = record.input_tiles[i];
+            const auto& operand = record.input_tiles[i];
             if (i != 0) {
                 os << ",";
             }
@@ -430,7 +418,7 @@ inline void DumpInstructionTraceJson(std::ostream &os)
         }
         os << "],\"scalar_inputs\":[";
         for (std::size_t i = 0; i < record.scalar_inputs.size(); ++i) {
-            const auto &operand = record.scalar_inputs[i];
+            const auto& operand = record.scalar_inputs[i];
             if (i != 0) {
                 os << ",";
             }
@@ -439,7 +427,7 @@ inline void DumpInstructionTraceJson(std::ostream &os)
         }
         os << "],\"output_tiles\":[";
         for (std::size_t i = 0; i < record.output_tiles.size(); ++i) {
-            const auto &operand = record.output_tiles[i];
+            const auto& operand = record.output_tiles[i];
             if (i != 0) {
                 os << ",";
             }
@@ -460,7 +448,7 @@ inline void DumpInstructionTraceJson(std::ostream &os)
 class PtoInstrTraceScope {
 public:
     template <typename... Args>
-    explicit PtoInstrTraceScope(std::string_view opcode, std::size_t output_tile_count, Args &&...args)
+    explicit PtoInstrTraceScope(std::string_view opcode, std::size_t output_tile_count, Args&&... args)
     {
         if constexpr (!kInstructionTraceEnabled) {
             (void)opcode;
@@ -474,7 +462,7 @@ public:
     }
 
     template <typename... Args>
-    explicit PtoInstrTraceScope(std::string_view opcode, std::string_view roles, Args &&...args)
+    explicit PtoInstrTraceScope(std::string_view opcode, std::string_view roles, Args&&... args)
     {
         if constexpr (!kInstructionTraceEnabled) {
             (void)opcode;
@@ -492,15 +480,15 @@ public:
         if constexpr (!kInstructionTraceEnabled) {
             return;
         } else if (active_) {
-            for (const auto &capture : output_tile_captures_) {
+            for (const auto& capture : output_tile_captures_) {
                 capture(record_);
             }
             AppendInstructionTraceRecord(std::move(record_));
         }
     }
 
-    PtoInstrTraceScope(const PtoInstrTraceScope &) = delete;
-    PtoInstrTraceScope &operator=(const PtoInstrTraceScope &) = delete;
+    PtoInstrTraceScope(const PtoInstrTraceScope&) = delete;
+    PtoInstrTraceScope& operator=(const PtoInstrTraceScope&) = delete;
 
 private:
     void Initialize(std::string_view opcode)
@@ -512,16 +500,16 @@ private:
     }
 
     template <typename TileData>
-    void AddOutputCapture(TileData &tile)
+    void AddOutputCapture(TileData& tile)
     {
         output_tile_captures_.push_back(
-            [&tile](InstructionTraceRecord &record) { record.output_tiles.push_back(CaptureTileOperand(tile)); });
+            [&tile](InstructionTraceRecord& record) { record.output_tiles.push_back(CaptureTileOperand(tile)); });
     }
 
     template <typename TileData>
-    void AddOutputCapture(TileData *tile)
+    void AddOutputCapture(TileData* tile)
     {
-        output_tile_captures_.push_back([tile](InstructionTraceRecord &record) {
+        output_tile_captures_.push_back([tile](InstructionTraceRecord& record) {
             if (tile != nullptr) {
                 record.output_tiles.push_back(CaptureTileOperand(*tile));
             }
@@ -529,7 +517,7 @@ private:
     }
 
     template <typename T>
-    void VisitArg(T &&arg)
+    void VisitArg(T&& arg)
     {
         using Arg = std::remove_cvref_t<T>;
         if constexpr (kTraceTileLikeOperand<Arg>) {
@@ -555,7 +543,7 @@ private:
     }
 
     template <typename T>
-    void VisitArgWithRole(char role, T &&arg)
+    void VisitArgWithRole(char role, T&& arg)
     {
         switch (role) {
             case 'O':
@@ -577,7 +565,7 @@ private:
     }
 
     template <typename T>
-    void VisitInputArg(T &&arg)
+    void VisitInputArg(T&& arg)
     {
         using Arg = std::remove_cvref_t<T>;
         if constexpr (kTraceTileLikeOperand<Arg>) {
@@ -592,7 +580,7 @@ private:
     }
 
     template <typename T>
-    void VisitOutputArg(T &&arg)
+    void VisitOutputArg(T&& arg)
     {
         using Arg = std::remove_cvref_t<T>;
         if constexpr (kTraceTileLikeOperand<Arg>) {
@@ -609,7 +597,7 @@ private:
     bool active_ = false;
     std::size_t remaining_output_tiles_ = 0;
     InstructionTraceRecord record_{};
-    std::vector<std::function<void(InstructionTraceRecord &)>> output_tile_captures_;
+    std::vector<std::function<void(InstructionTraceRecord&)>> output_tile_captures_;
 };
 
 } // namespace pto::cpu_sim

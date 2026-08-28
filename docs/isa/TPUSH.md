@@ -78,6 +78,12 @@ struct TPipe;
     - `gmTensor` must be a FIFO slot view returned by `TALLOC`.
     - Data must be written into `gmTensor` before calling `TPUSH(Pipe&, GlobalData&)`.
     - `TPUSH(Pipe&, GlobalData&)` ignores the tensor contents and only commits the FIFO slot to the consumer.
+- **CPU_SIM FIFO model**:
+    - FIFO state is shared by host threads. `TPUSH` waits for a free slot and commits it with mutex and condition-variable synchronization.
+    - TileData producers support `DIR_C2V`, `DIR_V2C`, and `DIR_BOTH`; the two directions of a `DIR_BOTH` pipe maintain independent FIFO state.
+    - Split modes select the lane from the current subblock context. `TILE_NO_SPLIT` uses one producer lane. For a C2V pipe configured with `IsNoSplit`, one producer slot can be coordinated across one or two vector consumer subblocks according to the runtime subblock count.
+    - The simplified overload uses `TILE_NO_SPLIT`. The `TConfig` overload also supports the CPU fixpipe path.
+    - The GlobalData overload is not currently available in CPU_SIM.
 - **Tile Type Support**:
     - **TPUSH/TPOP Supported Tile Types**:
         - `TileType::Acc` (Accumulator Tile): Used by Cube core for C2V direction communication.

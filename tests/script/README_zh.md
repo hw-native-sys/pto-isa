@@ -29,12 +29,19 @@ python3 tests/script/run_st.py -r sim -v a5 -t tmatmul -g TMATMULTest.case1
 选项：
 
 - `-v, --verbose`：打印构建/运行输出
-- `-b, --build-folder`：构建目录（默认：`build_tests`）
+- `-c, --compiler`：C++ 编译器路径或名称
+- `--enable-bf16`：使用支持 C++23 的编译器启用 BF16 覆盖
+- `--trace-mode`：构建启用指令 Trace 的 CPU ST
+- `-g, --generator`：可选的 CMake generator
+- `-j, --jobs`：并行构建任务数
+- `--timeout`：单个测试的超时时间，单位为秒
+- `--build-folder`：可选的构建根目录；其下会创建 `cpu_st` 和 `cpu_st_comm` 目录
 
 示例：
 
 ```bash
 python3 tests/script/all_cpu_tests.py --verbose
+python3 tests/script/all_cpu_tests.py --trace-mode --build-folder build/trace_cpu
 ```
 
 ## 便捷封装脚本

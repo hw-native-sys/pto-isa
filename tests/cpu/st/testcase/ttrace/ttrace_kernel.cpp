@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 template <int kRows_, int kCols_>
-AICORE void runTraceKernel(__gm__ float __out__ *out, __gm__ float __in__ *src0, __gm__ float __in__ *src1)
+AICORE void runTraceKernel(__gm__ float __out__* out, __gm__ float __in__* src0, __gm__ float __in__* src1)
 {
     using TensorShape = Shape<1, 1, 1, kRows_, kCols_>;
     using TensorStride = Stride<1, 1, 1, kCols_, 1>;
@@ -39,7 +39,7 @@ AICORE void runTraceKernel(__gm__ float __out__ *out, __gm__ float __in__ *src0,
     TSTORE(dstGlobal, dstTile);
 }
 
-void LaunchTraceKernel(float *out, float *src0, float *src1, void *stream)
+void LaunchTraceKernel(float* out, float* src0, float* src1, void* stream)
 {
     (void)stream;
     runTraceKernel<4, 32>(out, src0, src1);

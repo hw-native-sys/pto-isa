@@ -66,6 +66,10 @@ TAXPY runs on the vector pipeline (`PIPE_V`) using the `vaxpy` ($a \cdot x + y$)
 2. **Diff type (`dst`=`float`, `src0`=`half`)**: the half data of `src0` is widened to FP32 before accumulating (on A5 via `UNPK_B16` unpack followed by `vcvt`; on A2/A3 handled natively by `vaxpy` with 4-block src / 8-block dst).
 3. On A2/A3, count mode vs. norm mode is selected based on whether the repeat-stride overflows and the relation between column count and row count, so any valid shape is covered.
 
+In CPU_SIM, the `half`/`half` path rounds the product to `half` before adding it to `dst`, then rounds the sum to
+`half`. This models the two observable half-precision steps instead of evaluating the full expression at host
+floating-point precision.
+
 ## Constraints
 
 | Constraint | Applies to | Reason |

@@ -286,8 +286,8 @@ TEST_F(TEXTRACTTest, FpVariantSlicesSourceTile)
 
     for (int r = 0; r < dst.GetValidRow(); ++r) {
         for (int c = 0; c < dst.GetValidCol(); ++c) {
-            CpuTileTestUtils::ExpectValueEquals(CpuTileTestUtils::GetValue(dst, r, c),
-                                                CpuTileTestUtils::GetValue(src, r + 1, c + 2));
+            CpuTileTestUtils::ExpectValueEquals(
+                CpuTileTestUtils::GetValue(dst, r, c), CpuTileTestUtils::GetValue(src, r + 1, c + 2));
         }
     }
 }

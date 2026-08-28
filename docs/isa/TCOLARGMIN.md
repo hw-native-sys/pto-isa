@@ -99,6 +99,13 @@ PTO_INST RecordEvent TCOLARGMIN(TileDataOutVal& dstVal, TileDataOutIdx& dstIdx, 
     - `dstIdx.GetValidRow() == 1`
     - `src.GetValidCol() == dstIdx.GetValidCol()`
 
+### CPU_SIM implementation checks
+
+- Supported source element types are integral types, `half`, `bfloat16_t`, and `float`.
+- The destination index element type must be `int32_t` or `uint32_t`.
+- In value + index mode, the value destination element type must match the source element type.
+- `tmp` is accepted for interface compatibility but is not used by the CPU implementation.
+
 ### Pure Index Mode (3-argument)
 
 #### A2A3 implementation checks

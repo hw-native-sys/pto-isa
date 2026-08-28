@@ -63,6 +63,11 @@ struct TPipe;
     - `gmTensor` is assigned to the FIFO slot base address selected by `pipe.cons.tileIndex`.
     - For C2V split modes, vector subblock offsets are applied according to `Split`.
     - The caller must call `TFREE(Pipe&, GlobalData&)` after all loads from the slot view are complete.
+- **CPU_SIM FIFO model**:
+    - `TPOP` waits for a committed producer slot using the host FIFO's mutex and condition variable.
+    - Split modes select the lane from the current subblock context. For a C2V pipe configured with `IsNoSplit`, `TILE_NO_SPLIT` coordinates one or two vector consumer subblocks according to the runtime subblock count. In other no-split vector cases, a nonzero inactive lane is zero-filled where required.
+    - `DIR_BOTH` selects the FIFO matching the consumer direction, and overlapping pops reserve distinct slots.
+    - The GlobalData overload is not currently available in CPU_SIM.
 
 ## Examples
 

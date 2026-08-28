@@ -52,6 +52,9 @@ When `engine == CollEngine::CCU`, the first variadic argument must be a `CcuTrig
 
 ## Constraints
 
+- **CPU_SIM engine support**:
+    - `CollEngine::AIV` is supported by the CPU implementation.
+    - CPU_SIM has no functional `CollEngine::CCU` path. Its deferred-fail overload rejects unsupported CCU calls at compile time; use the A5 NPU backend.
 - **Type constraints**:
     - `ParallelGroup::value_type::RawDType` must equal `GlobalSrcData::RawDType`.
     - `TileData::DType` must equal `GlobalSrcData::RawDType`.
