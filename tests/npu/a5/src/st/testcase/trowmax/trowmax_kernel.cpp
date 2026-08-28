@@ -48,11 +48,11 @@ PTO_INTERNAL void runTRowMax(__gm__ T* out, __gm__ T* src)
     TSTORE(dstGlobal, dstTile);
 }
 
-template <typename T, int row, int validRow, int srcCol, int srcValidCol, int dstCol>
+template <typename T, int row, int validRow, int srcCol, int srcValidCol, int dstCol, int globalSrcCol = srcCol>
 PTO_INTERNAL void runTRowMaxDNDst(__gm__ T* out, __gm__ T* src)
 {
     using ValidSrcShape = TileShape2D<T, validRow, srcValidCol>;
-    using NDSrcShape = BaseShape2D<T, row, srcCol>;
+    using NDSrcShape = BaseShape2D<T, row, globalSrcCol>;
     using GlobalDataSrc = GlobalTensor<T, ValidSrcShape, NDSrcShape>;
     GlobalDataSrc srcGlobal(src);
 
@@ -61,8 +61,8 @@ PTO_INTERNAL void runTRowMaxDNDst(__gm__ T* out, __gm__ T* src)
     using GlobalDataDst = GlobalTensor<T, ValidDstShape, NDDstShape>;
     GlobalDataDst dstGlobal(out);
 
-    using srcTileData = Tile<TileType::Vec, T, row, srcCol, BLayout::RowMajor, row, srcCol>;
-    using dstTileDataDN = Tile<TileType::Vec, T, row, 1, BLayout::ColMajor, row, 1>;
+    using srcTileData = Tile<TileType::Vec, T, row, srcCol, BLayout::RowMajor, validRow, srcValidCol>;
+    using dstTileDataDN = Tile<TileType::Vec, T, row, 1, BLayout::ColMajor, validRow, 1>;
     srcTileData srcTile;
     srcTileData tmpTile;
     dstTileDataDN dstTile;
@@ -80,7 +80,7 @@ PTO_INTERNAL void runTRowMaxDNDst(__gm__ T* out, __gm__ T* src)
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
-    using dstTileDataND = Tile<TileType::Vec, T, 1, row, BLayout::RowMajor, 1, row>;
+    using dstTileDataND = Tile<TileType::Vec, T, 1, row, BLayout::RowMajor, 1, validRow>;
     dstTileDataND dstTileND;
     TRESHAPE(dstTileND, dstTile);
     TSTORE(dstGlobal, dstTileND);
@@ -226,6 +226,26 @@ extern "C" __global__ AICORE void launchTROWMAXCase34(__gm__ int64_t* out, __gm_
     runTRowMax<int64_t, 1, 1, 10912, 10912, 1>(out, src);
 }
 
+extern "C" __global__ AICORE void launchTROWMAXCase35(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMaxDNDst<int64_t, 32, 32, 32, 32, 1>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMAXCase36(__gm__ uint64_t* out, __gm__ uint64_t* src)
+{
+    runTRowMaxDNDst<uint64_t, 32, 32, 32, 32, 1>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMAXCase37(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMaxDNDst<int64_t, 32, 32, 148, 145, 1, 145>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMAXCase38(__gm__ uint64_t* out, __gm__ uint64_t* src)
+{
+    runTRowMaxDNDst<uint64_t, 32, 32, 148, 145, 1, 145>(out, src);
+}
+
 template <uint32_t caseId>
 void launchTROWMAXTestCase(void* out, void* src, aclrtStream stream)
 {
@@ -366,6 +386,22 @@ void launchTROWMAXTestCase(void* out, void* src, aclrtStream stream)
             launchTROWMAXCase34<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
             break;
         }
+        case 35: {
+            launchTROWMAXCase35<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 36: {
+            launchTROWMAXCase36<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
+        case 37: {
+            launchTROWMAXCase37<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 38: {
+            launchTROWMAXCase38<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
         default: {
         }
     }
@@ -405,3 +441,7 @@ template void launchTROWMAXTestCase<31>(void* out, void* src, aclrtStream stream
 template void launchTROWMAXTestCase<32>(void* out, void* src, aclrtStream stream);
 template void launchTROWMAXTestCase<33>(void* out, void* src, aclrtStream stream);
 template void launchTROWMAXTestCase<34>(void* out, void* src, aclrtStream stream);
+template void launchTROWMAXTestCase<35>(void* out, void* src, aclrtStream stream);
+template void launchTROWMAXTestCase<36>(void* out, void* src, aclrtStream stream);
+template void launchTROWMAXTestCase<37>(void* out, void* src, aclrtStream stream);
+template void launchTROWMAXTestCase<38>(void* out, void* src, aclrtStream stream);

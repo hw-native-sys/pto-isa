@@ -273,3 +273,14 @@ TEST_F(TROWMINTest, case_int64_4x64) { EXPECT_TRUE((TRowMinTestFramework<31, int
 TEST_F(TROWMINTest, case_uint64_4x64) { EXPECT_TRUE((TRowMinTestFramework<32, uint64_t, 4, 4, 64, 64, 1>())); }
 TEST_F(TROWMINTest, case_int64_32x32) { EXPECT_TRUE((TRowMinTestFramework<33, int64_t, 32, 32, 32, 32, 1>())); }
 TEST_F(TROWMINTest, case_int64_1x10912) { EXPECT_TRUE((TRowMinTestFramework<34, int64_t, 1, 1, 10912, 10912, 1>())); }
+
+TEST_F(TROWMINTest, case_int64_32x32_dndst) { EXPECT_TRUE((TRowMinTestFramework<35, int64_t, 32, 32, 32, 32, 1>())); }
+TEST_F(TROWMINTest, case_uint64_32x32_dndst) { EXPECT_TRUE((TRowMinTestFramework<36, uint64_t, 32, 32, 32, 32, 1>())); }
+TEST_F(TROWMINTest, case_int64_32x145_dndst)
+{
+    EXPECT_TRUE((TRowMinTestFramework<37, int64_t, 32, 32, 145, 145, 1>()));
+}
+TEST_F(TROWMINTest, case_uint64_32x145_dndst)
+{
+    EXPECT_TRUE((TRowMinTestFramework<38, uint64_t, 32, 32, 145, 145, 1>()));
+}

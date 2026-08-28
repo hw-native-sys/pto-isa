@@ -42,50 +42,104 @@ PTO_INTERNAL void Int64RowSumRepeat(
     vor(outLow, low16, mid16, mask);
 }
 
+template <typename T, unsigned SrcCols>
+PTO_INTERNAL void Int64RowSumAccumulate(
+    vector_u32& accLow, vector_u32& accHigh, __ubuf__ T* src, uint16_t row, uint32_t validCols, uint16_t repeatTimes,
+    vector_u32& mask16, MaskReg& oneMask, MaskReg& rowMask, MaskReg& fullMask)
+{
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+    vector_u32 outLow, outHigh;
+    vbr(accLow, 0);
+    vbr(accHigh, 0);
+    for (uint16_t colRepeat = 0; colRepeat < repeatTimes; ++colRepeat) {
+        uint32_t colOffset = colRepeat * elementsPerRepeat;
+        uint32_t remainingCols = validCols - colOffset;
+        MaskReg colMask = plt_b32(remainingCols, POST_UPDATE);
+        MaskReg repeatMask;
+        pand(repeatMask, colMask, rowMask, fullMask);
+        Int64RowSumRepeat<T, SrcCols>(outLow, outHigh, src, row, colOffset, mask16, repeatMask);
+        MaskReg carry, carryOut;
+        vaddc(carry, (vector_s32&)accLow, (vector_s32&)accLow, (vector_s32&)outLow, oneMask);
+        vaddcs(carryOut, (vector_s32&)accHigh, (vector_s32&)accHigh, (vector_s32&)outHigh, carry, oneMask);
+    }
+}
+
 template <typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void Int64RowSum(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+    constexpr unsigned alignedBytes = 32;
+    constexpr unsigned dstRowBytes = DstCols * sizeof(T);
+    constexpr bool dstRowAligned = dstRowBytes % alignedBytes == 0;
     __VEC_SCOPE__
     {
-        vector_u32 mask16, outLow, outHigh, accLow, accHigh;
+        vector_u32 mask16, accLow, accHigh;
         vbr(mask16, 0xffffu);
         MaskReg oneMask = pset_b32(PAT_VL1);
         uint16_t rows = validRows;
-        uint16_t fullRepeats = validCols / elementsPerRepeat;
-        uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
+        uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat);
         uint32_t fullMaskCols = elementsPerRepeat;
         MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
-        uint32_t tailMaskCols = tailCols;
-        MaskReg tailMask = Int64TailMask(tailMaskCols, allMask);
-        for (uint16_t row = 0; row < rows; ++row) {
-            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
-                Int64RowSumRepeat<T, SrcCols>(
-                    outLow, outHigh, src, row, colRepeat * elementsPerRepeat, mask16, allMask);
-                if (colRepeat == 0) {
-                    accLow = outLow;
-                    accHigh = outHigh;
-                } else {
-                    MaskReg carry, carryOut;
-                    vaddc(carry, (vector_s32&)accLow, (vector_s32&)accLow, (vector_s32&)outLow, oneMask);
-                    vaddcs(carryOut, (vector_s32&)accHigh, (vector_s32&)accHigh, (vector_s32&)outHigh, carry, oneMask);
-                }
+        if constexpr (dstRowAligned) {
+            for (uint16_t row = 0; row < rows; ++row) {
+                Int64RowSumAccumulate<T, SrcCols>(
+                    accLow, accHigh, src, row, validCols, repeatTimes, mask16, oneMask, allMask, allMask);
+                vsts(
+                    (vector_s32&)accLow, (vector_s32&)accHigh, (__ubuf__ int32_t*)dst + row * DstCols * 2, 0, INTLV_B32,
+                    oneMask);
             }
-            if (tailCols != 0) {
-                Int64RowSumRepeat<T, SrcCols>(
-                    outLow, outHigh, src, row, fullRepeats * elementsPerRepeat, mask16, tailMask);
-                if (fullRepeats == 0) {
-                    accLow = outLow;
-                    accHigh = outHigh;
-                } else {
-                    MaskReg carry, carryOut;
-                    vaddc(carry, (vector_s32&)accLow, (vector_s32&)accLow, (vector_s32&)outLow, oneMask);
-                    vaddcs(carryOut, (vector_s32&)accHigh, (vector_s32&)accHigh, (vector_s32&)outHigh, carry, oneMask);
-                }
+        } else {
+            static_assert(DstCols == 1, "Unaligned int64 row reduction output must be compact scalar rows.");
+            constexpr uint16_t rowsPerStore = alignedBytes / sizeof(T);
+            uint16_t groups = CeilDivision(rows, rowsPerStore);
+            for (uint16_t g = 0; g < groups; ++g) {
+                vector_u32 slotALow, slotAHigh, slotBLow, slotBHigh, slotCLow, slotCHigh, slotDLow, slotDHigh;
+                uint16_t rowBase = g * rowsPerStore;
+                uint32_t row0Valid = 1;
+                uint32_t row1Valid = rowBase + 1 < rows;
+                uint32_t row2Valid = rowBase + 2 < rows;
+                uint32_t row3Valid = rowBase + 3 < rows;
+                uint32_t row0MaskCols = row0Valid * elementsPerRepeat;
+                uint32_t row1MaskCols = row1Valid * elementsPerRepeat;
+                uint32_t row2MaskCols = row2Valid * elementsPerRepeat;
+                uint32_t row3MaskCols = row3Valid * elementsPerRepeat;
+                MaskReg row0Mask = plt_b32(row0MaskCols, POST_UPDATE);
+                MaskReg row1Mask = plt_b32(row1MaskCols, POST_UPDATE);
+                MaskReg row2Mask = plt_b32(row2MaskCols, POST_UPDATE);
+                MaskReg row3Mask = plt_b32(row3MaskCols, POST_UPDATE);
+                uint16_t row0 = rowBase;
+                uint16_t row1 = rowBase + row1Valid;
+                uint16_t row2 = rowBase + row2Valid * 2;
+                uint16_t row3 = rowBase + row3Valid * 3;
+                Int64RowSumAccumulate<T, SrcCols>(
+                    accLow, accHigh, src, row0, validCols, repeatTimes, mask16, oneMask, row0Mask, allMask);
+                vdup((vector_s32&)slotALow, (vector_s32&)accLow, allMask, POS_LOWEST, MODE_ZEROING);
+                vdup((vector_s32&)slotAHigh, (vector_s32&)accHigh, allMask, POS_LOWEST, MODE_ZEROING);
+                Int64RowSumAccumulate<T, SrcCols>(
+                    accLow, accHigh, src, row1, validCols, repeatTimes, mask16, oneMask, row1Mask, allMask);
+                vdup((vector_s32&)slotCLow, (vector_s32&)accLow, allMask, POS_LOWEST, MODE_ZEROING);
+                vdup((vector_s32&)slotCHigh, (vector_s32&)accHigh, allMask, POS_LOWEST, MODE_ZEROING);
+                Int64RowSumAccumulate<T, SrcCols>(
+                    accLow, accHigh, src, row2, validCols, repeatTimes, mask16, oneMask, row2Mask, allMask);
+                vdup((vector_s32&)slotBLow, (vector_s32&)accLow, allMask, POS_LOWEST, MODE_ZEROING);
+                vdup((vector_s32&)slotBHigh, (vector_s32&)accHigh, allMask, POS_LOWEST, MODE_ZEROING);
+                Int64RowSumAccumulate<T, SrcCols>(
+                    accLow, accHigh, src, row3, validCols, repeatTimes, mask16, oneMask, row3Mask, allMask);
+                vdup((vector_s32&)slotDLow, (vector_s32&)accLow, allMask, POS_LOWEST, MODE_ZEROING);
+                vdup((vector_s32&)slotDHigh, (vector_s32&)accHigh, allMask, POS_LOWEST, MODE_ZEROING);
+                vector_u32 p0, p1, q0, q1, r0, r1, ph0, ph1, qh0, qh1, rh0, rh1;
+                vintlv((vector_s32&)p0, (vector_s32&)p1, (vector_s32&)slotALow, (vector_s32&)slotBLow);
+                vintlv((vector_s32&)q0, (vector_s32&)q1, (vector_s32&)slotCLow, (vector_s32&)slotDLow);
+                vintlv((vector_s32&)r0, (vector_s32&)r1, (vector_s32&)p0, (vector_s32&)q0);
+                vintlv((vector_s32&)ph0, (vector_s32&)ph1, (vector_s32&)slotAHigh, (vector_s32&)slotBHigh);
+                vintlv((vector_s32&)qh0, (vector_s32&)qh1, (vector_s32&)slotCHigh, (vector_s32&)slotDHigh);
+                vintlv((vector_s32&)rh0, (vector_s32&)rh1, (vector_s32&)ph0, (vector_s32&)qh0);
+                uint32_t groupMaskElems = row0Valid + row1Valid + row2Valid + row3Valid;
+                MaskReg groupMask = plt_b32(groupMaskElems, POST_UPDATE);
+                vsts(
+                    (vector_s32&)r0, (vector_s32&)rh0, (__ubuf__ int32_t*)dst + g * rowsPerStore * DstCols * 2, 0,
+                    INTLV_B32, groupMask);
             }
-            vsts(
-                (vector_s32&)accLow, (vector_s32&)accHigh, (__ubuf__ int32_t*)dst + row * DstCols * 2, 0, INTLV_B32,
-                oneMask);
         }
     }
 }
@@ -122,6 +176,28 @@ PTO_INTERNAL void Int64RowSelectHigh(vector_s32& selectedHigh, vector_s32& high,
     }
 }
 
+template <Int64Op Op, typename T>
+PTO_INTERNAL void Int64RowMinMaxInit(vector_s32& accLow, vector_s32& accHigh)
+{
+    if constexpr (Op == Int64Op::Max) {
+        if constexpr (std::is_same_v<T, int64_t>) {
+            vbr((vector_u32&)accLow, 0u);
+            vbr((vector_u32&)accHigh, 0x80000000u);
+        } else {
+            vbr((vector_u32&)accLow, 0u);
+            vbr((vector_u32&)accHigh, 0u);
+        }
+    } else {
+        if constexpr (std::is_same_v<T, int64_t>) {
+            vbr((vector_u32&)accLow, 0xffffffffu);
+            vbr((vector_u32&)accHigh, 0x7fffffffu);
+        } else {
+            vbr((vector_u32&)accLow, 0xffffffffu);
+            vbr((vector_u32&)accHigh, 0xffffffffu);
+        }
+    }
+}
+
 template <Int64Op Op, typename T, unsigned SrcCols>
 PTO_INTERNAL void Int64RowMinMaxRepeat(
     vector_s32& outLow, vector_s32& outHigh, __ubuf__ T* src, unsigned row, unsigned colOffset, MaskReg& mask,
@@ -147,49 +223,102 @@ PTO_INTERNAL void Int64RowMinMaxRepeat(
     outHigh = selectedHigh;
 }
 
+template <Int64Op Op, typename T, unsigned SrcCols>
+PTO_INTERNAL void Int64RowMinMaxAccumulate(
+    vector_s32& accLow, vector_s32& accHigh, __ubuf__ T* src, uint16_t row, uint32_t validCols, uint16_t repeatTimes,
+    MaskReg& dupMask, MaskReg& rowMask, MaskReg& fullMask)
+{
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+    vector_s32 repeatLow, repeatHigh;
+    Int64RowMinMaxInit<Op, T>(accLow, accHigh);
+    MaskReg oneMask = pset_b32(PAT_VL1);
+    for (uint16_t colRepeat = 0; colRepeat < repeatTimes; ++colRepeat) {
+        uint32_t colOffset = colRepeat * elementsPerRepeat;
+        uint32_t remainingCols = validCols - colOffset;
+        MaskReg colMask = plt_b32(remainingCols, POST_UPDATE);
+        MaskReg repeatMask;
+        pand(repeatMask, colMask, rowMask, fullMask);
+        Int64RowMinMaxRepeat<Op, T, SrcCols>(repeatLow, repeatHigh, src, row, colOffset, repeatMask, dupMask);
+        Int64MinMax<Op, T>(accLow, accHigh, accLow, accHigh, repeatLow, repeatHigh, oneMask);
+    }
+}
+
 template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void Int64RowMinMax(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+    constexpr unsigned alignedBytes = 32;
+    constexpr unsigned dstRowBytes = DstCols * sizeof(T);
+    constexpr bool dstRowAligned = dstRowBytes % alignedBytes == 0;
     __VEC_SCOPE__
     {
-        vector_s32 accLow, accHigh, repeatLow, repeatHigh;
+        vector_s32 accLow, accHigh;
         MaskReg dupMask = pset_b32(PAT_ALL);
         uint16_t rows = validRows;
-        uint16_t fullRepeats = validCols / elementsPerRepeat;
-        uint32_t tailCols = validCols - fullRepeats * elementsPerRepeat;
+        uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat);
         uint32_t fullMaskCols = elementsPerRepeat;
         MaskReg fullMask = plt_b32(fullMaskCols, POST_UPDATE);
-        uint32_t tailMaskCols = tailCols;
-        MaskReg tailMask = Int64TailMask(tailMaskCols, fullMask);
-        for (uint16_t row = 0; row < rows; ++row) {
-            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
-                uint32_t colOffset = colRepeat * elementsPerRepeat;
-                Int64RowMinMaxRepeat<Op, T, SrcCols>(repeatLow, repeatHigh, src, row, colOffset, fullMask, dupMask);
-                if (colRepeat == 0) {
-                    accLow = repeatLow;
-                    accHigh = repeatHigh;
-                } else {
-                    MaskReg oneMask = pset_b32(PAT_VL1);
-                    Int64MinMax<Op, T>(accLow, accHigh, accLow, accHigh, repeatLow, repeatHigh, oneMask);
-                }
+        if constexpr (dstRowAligned) {
+            for (uint16_t row = 0; row < rows; ++row) {
+                Int64RowMinMaxAccumulate<Op, T, SrcCols>(
+                    accLow, accHigh, src, row, validCols, repeatTimes, dupMask, fullMask, fullMask);
+                MaskReg oneMask = pset_b32(PAT_VL1);
+                vsts(accLow, accHigh, (__ubuf__ int32_t*)dst + row * DstCols * 2, 0, INTLV_B32, oneMask);
             }
-            if (tailCols != 0) {
-                uint32_t colOffset = fullRepeats * elementsPerRepeat;
-                Int64RowMinMaxRepeat<Op, T, SrcCols>(repeatLow, repeatHigh, src, row, colOffset, tailMask, dupMask);
-                if (fullRepeats == 0) {
-                    accLow = repeatLow;
-                    accHigh = repeatHigh;
-                } else {
-                    MaskReg oneMask = pset_b32(PAT_VL1);
-                    Int64MinMax<Op, T>(accLow, accHigh, accLow, accHigh, repeatLow, repeatHigh, oneMask);
-                }
+        } else {
+            static_assert(DstCols == 1, "Unaligned int64 row reduction output must be compact scalar rows.");
+            constexpr uint16_t rowsPerStore = alignedBytes / sizeof(T);
+            uint16_t groups = CeilDivision(rows, rowsPerStore);
+            for (uint16_t g = 0; g < groups; ++g) {
+                vector_s32 slotALow, slotAHigh, slotBLow, slotBHigh, slotCLow, slotCHigh, slotDLow, slotDHigh;
+                uint16_t rowBase = g * rowsPerStore;
+                uint32_t row0Valid = 1;
+                uint32_t row1Valid = rowBase + 1 < rows;
+                uint32_t row2Valid = rowBase + 2 < rows;
+                uint32_t row3Valid = rowBase + 3 < rows;
+                uint32_t row0MaskCols = row0Valid * elementsPerRepeat;
+                uint32_t row1MaskCols = row1Valid * elementsPerRepeat;
+                uint32_t row2MaskCols = row2Valid * elementsPerRepeat;
+                uint32_t row3MaskCols = row3Valid * elementsPerRepeat;
+                MaskReg row0Mask = plt_b32(row0MaskCols, POST_UPDATE);
+                MaskReg row1Mask = plt_b32(row1MaskCols, POST_UPDATE);
+                MaskReg row2Mask = plt_b32(row2MaskCols, POST_UPDATE);
+                MaskReg row3Mask = plt_b32(row3MaskCols, POST_UPDATE);
+                uint16_t row0 = rowBase;
+                uint16_t row1 = rowBase + row1Valid;
+                uint16_t row2 = rowBase + row2Valid * 2;
+                uint16_t row3 = rowBase + row3Valid * 3;
+                Int64RowMinMaxAccumulate<Op, T, SrcCols>(
+                    accLow, accHigh, src, row0, validCols, repeatTimes, dupMask, row0Mask, fullMask);
+                vdup(slotALow, accLow, dupMask, POS_LOWEST, MODE_ZEROING);
+                vdup(slotAHigh, accHigh, dupMask, POS_LOWEST, MODE_ZEROING);
+                Int64RowMinMaxAccumulate<Op, T, SrcCols>(
+                    accLow, accHigh, src, row1, validCols, repeatTimes, dupMask, row1Mask, fullMask);
+                vdup(slotCLow, accLow, dupMask, POS_LOWEST, MODE_ZEROING);
+                vdup(slotCHigh, accHigh, dupMask, POS_LOWEST, MODE_ZEROING);
+                Int64RowMinMaxAccumulate<Op, T, SrcCols>(
+                    accLow, accHigh, src, row2, validCols, repeatTimes, dupMask, row2Mask, fullMask);
+                vdup(slotBLow, accLow, dupMask, POS_LOWEST, MODE_ZEROING);
+                vdup(slotBHigh, accHigh, dupMask, POS_LOWEST, MODE_ZEROING);
+                Int64RowMinMaxAccumulate<Op, T, SrcCols>(
+                    accLow, accHigh, src, row3, validCols, repeatTimes, dupMask, row3Mask, fullMask);
+                vdup(slotDLow, accLow, dupMask, POS_LOWEST, MODE_ZEROING);
+                vdup(slotDHigh, accHigh, dupMask, POS_LOWEST, MODE_ZEROING);
+                vector_s32 p0, p1, q0, q1, r0, r1, ph0, ph1, qh0, qh1, rh0, rh1;
+                vintlv(p0, p1, slotALow, slotBLow);
+                vintlv(q0, q1, slotCLow, slotDLow);
+                vintlv(r0, r1, p0, q0);
+                vintlv(ph0, ph1, slotAHigh, slotBHigh);
+                vintlv(qh0, qh1, slotCHigh, slotDHigh);
+                vintlv(rh0, rh1, ph0, qh0);
+                uint32_t groupMaskElems = row0Valid + row1Valid + row2Valid + row3Valid;
+                MaskReg groupMask = plt_b32(groupMaskElems, POST_UPDATE);
+                vsts(r0, rh0, (__ubuf__ int32_t*)dst + g * rowsPerStore * DstCols * 2, 0, INTLV_B32, groupMask);
             }
-            MaskReg oneMask = pset_b32(PAT_VL1);
-            vsts(accLow, accHigh, (__ubuf__ int32_t*)dst + row * DstCols * 2, 0, INTLV_B32, oneMask);
         }
     }
 }
+
 #else
 template <typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void Int64RowSum(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols);
