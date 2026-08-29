@@ -150,7 +150,7 @@ nav:
           - TLOG: docs/isa/TLOG.md
           - TRECIP: docs/isa/TRECIP.md
           - TPRELU: docs/isa/TPRELU.md
-          - TMULADDDST: docs/isa/TMULADDDST.md
+          - TMULA: docs/isa/TMULA.md
           - TCVT: docs/isa/TCVT.md
           - TSEL: docs/isa/TSEL.md
           - TRSQRT: docs/isa/TRSQRT.md

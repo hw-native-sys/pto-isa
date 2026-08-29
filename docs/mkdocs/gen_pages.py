@@ -721,7 +721,7 @@ NAV_PAGES_EN = [
     "docs/isa/TLOG.md",
     "docs/isa/TRECIP.md",
     "docs/isa/TPRELU.md",
-    "docs/isa/TMULADDDST.md",
+    "docs/isa/TMULA.md",
     "docs/isa/TCVT.md",
     "docs/isa/TSEL.md",
     "docs/isa/TRSQRT.md",

@@ -147,6 +147,7 @@ Starting with PTO ISA v9.2.0, the public fused multiply-add instruction names us
 | Legacy name | Replacement | Semantics |
 | --- | --- | --- |
 | `TFUSEDMULADD` | `TMADD` | `dst = src0 * dst + src1` |
+| `TMULADDDST` | `TMULA` | `dst = src0 * src1 + dst` |
 
 Update C++ intrinsic calls, ISA references, generated diagrams, and ST testcase names to the replacement names. The legacy names are not retained as public wrappers after the rename.
 

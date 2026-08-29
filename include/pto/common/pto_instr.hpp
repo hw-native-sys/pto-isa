@@ -1403,10 +1403,10 @@ PTO_INST RecordEvent TPARTARGMIN(
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TMULADDDST(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
+PTO_INST RecordEvent TMULA(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
 {
     detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMULADDDST, dst, src0, src1);
+    MAP_INSTR_IMPL(TMULA, dst, src0, src1);
     return {};
 }
 

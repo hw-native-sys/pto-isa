@@ -205,7 +205,7 @@ def append_removed_interfaces_en(lines: List[str]) -> None:
         "- Replace ternary/scalar fused arithmetic forms with the corresponding primitive arithmetic sequence, "
         "such as `TADD`, `TSUB`, `TADDS`, `TSUBS`, `TMUL`, `TMADD`, and `TRELU`."
     )
-    lines.append("- Rename legacy fused multiply-add APIs: `TFUSEDMULADD` to `TMADD`.")
+    lines.append("- Rename legacy fused multiply-add APIs: `TFUSEDMULADD` to `TMADD`, and `TMULADDDST` to `TMULA`.")
     lines.append(
         "- Replace fused add/ReLU/convert or add/dequant/ReLU forms with explicit arithmetic, "
         "conversion/dequantization, and `TRELU` steps."
@@ -245,7 +245,7 @@ def append_removed_interfaces_zh(lines: List[str]) -> None:
         "- 将三元/标量融合算术形式替换为对应基础算术序列，例如 `TADD`、`TSUB`、`TADDS`、`TSUBS`、"
         "`TMUL`、`TMADD` 和 `TRELU`。"
     )
-    lines.append("- 将历史融合乘加接口重命名：`TFUSEDMULADD` 改为 `TMADD`。")
+    lines.append("- 将历史融合乘加接口重命名：`TFUSEDMULADD` 改为 `TMADD`，`TMULADDDST` 改为 `TMULA`。")
     lines.append("- 将融合 add/ReLU/convert 或 add/dequant/ReLU 形式拆分为显式算术、转换/反量化和 `TRELU` 步骤。")
     lines.append("- 将 `TPairReduceSum` 替换为与目标 layout 匹配的现有行/列归约原语。")
     lines.append(

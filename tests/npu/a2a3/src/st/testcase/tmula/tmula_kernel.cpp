@@ -17,7 +17,7 @@ using namespace pto;
 template <
     typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
     int vCols>
-__global__ AICORE void runTMULADDDST(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
+__global__ AICORE void runTMULA(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
     using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
@@ -49,7 +49,7 @@ __global__ AICORE void runTMULADDDST(__gm__ T __out__* out, __gm__ T __in__* src
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
     wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
 #endif
-    TMULADDDST<TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile);
+    TMULA<TileDataDst, TileDataSrc0, TileDataSrc1>(dstTile, src0Tile, src1Tile);
 #ifndef __PTO_AUTO__
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
@@ -61,22 +61,21 @@ __global__ AICORE void runTMULADDDST(__gm__ T __out__* out, __gm__ T __in__* src
 template <
     typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
     int vCols, bool isHalf = true>
-void LaunchTMULADDDST(T* out, T* src0, T* src1, void* stream)
+void LaunchTMULA(T* out, T* src0, T* src1, void* stream)
 {
     if constexpr (std::is_same_v<T, aclFloat16>) {
-        runTMULADDDST<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
+        runTMULA<half, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
             <<<1, nullptr, stream>>>((half*)(out), (half*)(src0), (half*)(src1));
     } else {
-        runTMULADDDST<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
+        runTMULA<T, dstTileH, dstTileW, src0TileH, src0TileW, src1TileH, src1TileW, vRows, vCols>
             <<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
-template void LaunchTMULADDDST<float, 64, 64, 64, 64, 64, 64, 64, 64>(
+template void LaunchTMULA<float, 64, 64, 64, 64, 64, 64, 64, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTMULA<float, 32, 128, 32, 192, 32, 256, 32, 127>(
     float* out, float* src0, float* src1, void* stream);
-template void LaunchTMULADDDST<float, 32, 128, 32, 192, 32, 256, 32, 127>(
-    float* out, float* src0, float* src1, void* stream);
-template void LaunchTMULADDDST<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(
+template void LaunchTMULA<aclFloat16, 64, 64, 64, 64, 64, 64, 64, 64>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
-template void LaunchTMULADDDST<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>(
+template void LaunchTMULA<aclFloat16, 32, 128, 32, 192, 32, 256, 32, 127>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);

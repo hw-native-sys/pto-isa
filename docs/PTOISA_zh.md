@@ -53,7 +53,7 @@
 | 逐元素（Tile-Tile） | [`TNEG`](isa/TNEG_zh.md) | Tile 的逐元素取负。 |
 | 逐元素（Tile-Tile） | [`TREM`](isa/TREM_zh.md) | 两个 Tile 的逐元素余数，余数符号与除数相同。 |
 | 逐元素（Tile-Tile） | [`TFMOD`](isa/TFMOD_zh.md) | 两个 Tile 的逐元素余数，余数符号与被除数相同。 |
-| 逐元素（Tile-Tile） | [`TMULADDDST`](isa/TMULADDDST_zh.md) | 三元逐元素运算：`src0 * src1 + dst`。 |
+| 逐元素（Tile-Tile） | [`TMULA`](isa/TMULA_zh.md) | 三元逐元素运算：`src0 * src1 + dst`。 |
 | Tile-标量 / Tile-立即数 | [`TEXPANDS`](isa/TEXPANDS_zh.md) | 将标量广播到目标 Tile 中。 |
 | Tile-标量 / Tile-立即数 | [`TCMPS`](isa/TCMPS_zh.md) | 将 Tile 与标量比较并写入逐元素比较结果。 |
 | Tile-标量 / Tile-立即数 | [`TSELS`](isa/TSELS_zh.md) | 使用掩码 Tile 在源 Tile 和标量之间进行选择（源 Tile 逐元素选择）。 |

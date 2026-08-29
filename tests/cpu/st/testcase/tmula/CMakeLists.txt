@@ -8,4 +8,4 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
-pto_cpu_sim_st(tmuladddst)
+pto_cpu_sim_st(tmula)

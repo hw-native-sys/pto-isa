@@ -53,7 +53,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Elementwise (Tile-Tile) | [`TNEG`](isa/TNEG.md) | Elementwise negation of a tile. |
 | Elementwise (Tile-Tile) | [`TREM`](isa/TREM.md) | Elementwise remainder of two tiles. |
 | Elementwise (Tile-Tile) | [`TFMOD`](isa/TFMOD.md) | Elementwise fmod of two tiles. |
-| Elementwise (Tile-Tile) | [`TMULADDDST`](isa/TMULADDDST.md) | Elementwise ternary op: `src0 * src1 + dst`. |
+| Elementwise (Tile-Tile) | [`TMULA`](isa/TMULA.md) | Elementwise ternary op: `src0 * src1 + dst`. |
 | Tile-Scalar / Tile-Immediate | [`TEXPANDS`](isa/TEXPANDS.md) | Broadcast a scalar into a destination tile. |
 | Tile-Scalar / Tile-Immediate | [`TCMPS`](isa/TCMPS.md) | Compare a tile against a scalar and write per-element comparison results. |
 | Tile-Scalar / Tile-Immediate | [`TSELS`](isa/TSELS.md) | Select between source tile and scalar using a mask tile (per-element selection for source tile). |

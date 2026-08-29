@@ -147,6 +147,7 @@ Event 的详细模型说明请参考 [Event 编程模型](Event_zh.md)。
 | 历史名称 | 替代名称 | 语义 |
 | --- | --- | --- |
 | `TFUSEDMULADD` | `TMADD` | `dst = src0 * dst + src1` |
+| `TMULADDDST` | `TMULA` | `dst = src0 * src1 + dst` |
 
 请同步更新 C++ intrinsic 调用、ISA 文档引用、生成图和 ST 用例名称。重命名后不再保留历史名称作为公开 wrapper。
 

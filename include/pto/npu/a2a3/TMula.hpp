@@ -8,8 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#ifndef TMULADDDST_HPP
-#define TMULADDDST_HPP
+#ifndef TMULA_HPP
+#define TMULA_HPP
 
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
@@ -18,7 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename T>
-struct MulAddDstOp {
+struct MulaOp {
     PTO_INTERNAL static void BinInstr(__ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint8_t repeats)
     {
         vmla(dst, src0, src1, repeats, 1, 1, 1, 8, 8, 8);
@@ -34,7 +34,7 @@ struct MulAddDstOp {
 template <
     typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
     unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride, unsigned src1RowStride>
-__tf__ PTO_INTERNAL void TMulAddDst(
+__tf__ PTO_INTERNAL void TMula(
     typename TileDataDst::TileDType __in__ __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
     typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols)
 {
@@ -43,49 +43,49 @@ __tf__ PTO_INTERNAL void TMulAddDst(
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
     if constexpr (dstRowStride == src0RowStride && dstRowStride == src1RowStride) {
-        BinaryInstr<MulAddDstOp<T>, T, TileDataDst, elementsPerRepeat, blockSizeElem, dstRowStride>(
+        BinaryInstr<MulaOp<T>, T, TileDataDst, elementsPerRepeat, blockSizeElem, dstRowStride>(
             dstPtr, src0Ptr, src1Ptr, validRows, validCols);
     } else {
-        BinaryInstr<MulAddDstOp<T>, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride, src1RowStride>(
+        BinaryInstr<MulaOp<T>, T, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride, src1RowStride>(
             dstPtr, src0Ptr, src1Ptr, validRows, validCols);
     }
     return;
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TMulAddDstCheck(const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1)
+PTO_INTERNAL void TMulaCheck(const TileDataDst& dst, const TileDataSrc0& src0, const TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
     static_assert(
         std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
-        "Fix: TMULADDDST the data type of dst must be consistent with of src0 and src1.");
+        "Fix: TMULA the data type of dst must be consistent with of src0 and src1.");
     static_assert(
         std::is_same_v<T, half> || std::is_same_v<T, float16_t> || std::is_same_v<T, float> ||
             std::is_same_v<T, float32_t>,
-        "Fix: TMULADDDST has invalid data type.");
+        "Fix: TMULA has invalid data type.");
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc0::isRowMajor && TileDataSrc1::isRowMajor,
-        "Fix: TMULADDDST only support row major layout.");
+        "Fix: TMULA only support row major layout.");
     unsigned validRows = dst.GetValidRow();
     unsigned validCols = dst.GetValidCol();
     PTO_ASSERT(
         src0.GetValidRow() == validRows && src0.GetValidCol() == validCols && src1.GetValidRow() == validRows &&
             src1.GetValidCol() == validCols,
-        "Fix: TMULADDDST input tile src0 valid shape mismatch with output tile dst shape.");
+        "Fix: TMULA input tile src0 valid shape mismatch with output tile dst shape.");
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
-PTO_INTERNAL void TMULADDDST_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
+PTO_INTERNAL void TMULA_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileDataDst::DType;
-    TMulAddDstCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
+    TMulaCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
 
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
     constexpr unsigned src1RowStride = TileDataSrc1::RowStride;
-    TMulAddDst<
+    TMula<
         TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, dstRowStride, src0RowStride,
         src1RowStride>(dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());
 }

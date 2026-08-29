@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TMULADDDST tile operation diagram">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-label="TMULA tile operation diagram">
 <defs>
   <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L0,12 L12,6 z" fill="#2D5BCE"/></marker>
   <marker id="axisArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L0,10 L10,5 z" fill="#64748b"/></marker>
@@ -32,7 +32,7 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 </style>
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel"/>
-<text x="40" y="46" class="title">TMULADDDST</text>
+<text x="40" y="46" class="title">TMULA</text>
 <text x="40" y="72" class="subtitle">Elementwise ternary op: `src0 * src1 + dst`.</text>
 <text x="40" y="92" class="meta">Template: elementwise</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>

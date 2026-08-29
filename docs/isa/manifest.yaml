@@ -447,7 +447,7 @@
       "notes": []
     },
     {
-      "instruction": "TMULADDDST",
+      "instruction": "TMULA",
       "category": "Elementwise (Tile-Tile)",
       "summary_en": "Elementwise ternary op: `src0 * src1 + dst`.",
       "summary_zh": "三元逐元素运算：`src0 * src1 + dst`。",

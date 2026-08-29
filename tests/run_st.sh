@@ -531,7 +531,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmadd -g TMADDTest.case_float_32x128_32x192_32x256_32x127
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
-    python3 tests/script/run_st.py $ARGS -w -v a3 -t tmuladddst -g TMULADDDSTTest.case_float_32x128_32x192_32x256_32x127
+    python3 tests/script/run_st.py $ARGS -w -v a3 -t tmula -g TMULATest.case_float_32x128_32x192_32x256_32x127
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t textract_ndto2xnz -g TExtractNd2xNzTest.case_half

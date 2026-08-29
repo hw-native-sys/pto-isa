@@ -167,7 +167,7 @@ This table tracks per-instruction backend availability:
 | [`TWAIT`](../docs/isa/comm/TWAIT.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TXOR`](../docs/isa/TXOR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
 | [`TXORS`](../docs/isa/TXORS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMULADDDST`](../docs/isa/TMULADDDST_zh.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`TMULA`](../docs/isa/TMULA_zh.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 
 Notes:
 
