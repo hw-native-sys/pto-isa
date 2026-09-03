@@ -1330,6 +1330,12 @@ public:
     AICORE float GetCycle() { return cycle; }
 #endif
 
+#ifdef __CPU_SIM
+    DType GetElement(int64_t offset) { return GetProperDataPart(data(), offset); }
+
+    void SetElement(int64_t offset, const DType& val) { SetProperDataPart(data(), offset, val); }
+#endif
+
     AICORE TileDType& data() { return data_; }
     AICORE const TileDType& data() const { return data_; }
 
@@ -1420,6 +1426,12 @@ struct Tile {
 public:
     using DType = Element_;
 
+#ifdef __CPU_SIM
+    static constexpr size_t kPackedElementsPerByte = IsTwinType<DType>() ? 2 : 1;
+#else
+    static constexpr size_t kPackedElementsPerByte = 1;
+#endif
+
     static constexpr int getInnerRow()
     {
         if constexpr (SFractalSize_ == TileConfig::fractalCSize) {
@@ -1428,7 +1440,8 @@ public:
             return isInnerRowMajor ? TileConfig::fixedMxRowSize : TileConfig::fixedMxColSize;
         } else {
             return isBoxedLayout ?
-                       (isInnerRowMajor ? TileConfig::fixedRowSize : TileConfig::alignedSize / sizeof(DType)) :
+                       (isInnerRowMajor ? TileConfig::fixedRowSize :
+                                          (kPackedElementsPerByte * TileConfig::alignedSize) / sizeof(DType)) :
                        1;
         }
     }
@@ -1441,7 +1454,8 @@ public:
             return isInnerRowMajor ? TileConfig::fixedMxColSize : TileConfig::fixedMxRowSize;
         } else {
             return isBoxedLayout ?
-                       (isInnerRowMajor ? TileConfig::alignedSize / sizeof(DType) : TileConfig::fixedColSize) :
+                       (isInnerRowMajor ? (kPackedElementsPerByte * TileConfig::alignedSize) / sizeof(DType) :
+                                          TileConfig::fixedColSize) :
                        1;
         }
     }
@@ -1545,9 +1559,9 @@ public:
 
     static_assert(
         (BFractal_ == BLayout::RowMajor && SFractal_ == SLayout::NoneBox &&
-         Cols * sizeof(DType) % TileConfig::alignedSize == 0) ||
+         Cols * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
             (BFractal_ == BLayout::ColMajor && SFractal_ == SLayout::NoneBox &&
-             Rows * sizeof(DType) % TileConfig::alignedSize == 0) ||
+             Rows * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
             (SFractal_ != SLayout::NoneBox) &&
                 (((Loc == TileType::Vec) || (SFractalSize_ == TileConfig::fractalMxSize) || (Rows_ == 1) ||
                   (Rows % InnerRows == 0)) &&
@@ -1582,7 +1596,7 @@ public:
     TileDType& data()
     {
         if (!data_) {
-            internalBuffer.resize(Rows * Cols / (IsTwinType<DType>() ? 2 : 1));
+            internalBuffer.resize(Rows * Cols / kPackedElementsPerByte);
             data_ = internalBuffer.data();
         }
         return data_;
@@ -1691,11 +1705,7 @@ public:
     static constexpr size_t GetSizeInUnits()
     {
         // One unit is sizeof(DType)
-        if constexpr (IsTwinType<DType>()) {
-            return Numel / 2;
-        } else {
-            return Numel;
-        }
+        return Numel / kPackedElementsPerByte;
     }
 
     static constexpr size_t GetSizeInBytes() { return GetSizeInUnits() * sizeof(DType); }

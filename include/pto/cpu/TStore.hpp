@@ -104,7 +104,7 @@ __tf__ PTO_INLINE void TStoreConv(GlobalData& dst, ConTile& src)
     uint64_t scalar = 0;
     for (size_t row = 0; row < validRow; ++row) {
         for (size_t col = 0; col < validCol; ++col) {
-            T val = src.data()[GetConvTileElementOffset<ConTile>(row, col, tile_shapes)];
+            T val = src.GetElement(GetConvTileElementOffset<ConTile>(row, col, tile_shapes));
             const size_t dstOffset = MapTileIndicesToGlobalOffset<GlobalData>(row, col, shapes, strides);
             if constexpr (atomicType == AtomicType::AtomicAdd) {
                 dst.AddToElement(dstOffset, val);
