@@ -92,6 +92,9 @@ struct TPipe;
     - Split modes select the lane from the current subblock context. `TILE_NO_SPLIT` uses one producer lane. For a C2V pipe configured with `IsNoSplit`, one producer slot can be coordinated across one or two vector consumer subblocks according to the runtime subblock count.
     - The overload with an explicit `int32_t subBlockId` is not currently implemented by CPU_SIM; use the simulated subblock execution context to select a split lane.
     - The simplified overload uses `TILE_NO_SPLIT`. The `TConfig` overload also supports the CPU fixpipe path.
+    - For `TILE_NO_SPLIT`, the slot payload is laid out with the shape of the window actually transferred, that is
+      the pushed tile's valid shape, so a narrow view of a wider tile keeps its rows aligned with the tile the
+      consumer pops. The split axes lay the payload out with the producer tile's declared shape.
     - The GlobalData overload is not currently available in CPU_SIM.
 - **Tile Type Support**:
     - **TPUSH/TPOP Supported Tile Types**:

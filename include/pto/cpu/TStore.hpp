@@ -68,7 +68,7 @@ __tf__ PTO_INLINE void TStore(GlobalData& dst, TileData& src, const std::vector<
             }
             ST val = src.GetElement(row, col);
             DT dstVal = ConvertStoreValue<DT, ST, quantMode, applyRelu>(val, scalar);
-            const size_t dstOffset = MapTileIndicesToGlobalOffset<GlobalData, TileData>(row, col, shapes, strides);
+            const size_t dstOffset = MapTransferIndicesToGlobalOffset<GlobalData, TileData>(row, col, shapes, strides);
             if constexpr (atomicType == AtomicType::AtomicAdd) {
                 dst.AddToElement(dstOffset, dstVal);
             } else {
