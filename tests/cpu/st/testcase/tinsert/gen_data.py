@@ -149,6 +149,17 @@ if __name__ == "__main__":
                       128, 96, 8, 16, 128, 96, 4, 1),
         TInsertParams(np.int32, np.float32, "Vec", "Vec",
                       128, 96, 8, 16, 128, 96, 5, 1),
+        # ---------------------------------------------------
+        TInsertParams(np.float16, np.float32, "Vec",
+                      "Vec", 32, 32, 8, 16, 32, 32, 3, 2),
+        TInsertParams(np.float32, np.float32, "Vec", "Vec",
+                      128, 96, 8, 16, 128, 96, 3, 2),
+        TInsertParams(np.int32, np.float32, "Vec", "Vec",
+                      128, 96, 8, 16, 128, 96, 3, 2),
+        TInsertParams(np.float16, np.float16, "Mat",
+                      "Mat", 32, 32, 24, 16, 32, 32, 3, 2),
+        TInsertParams(np.float32, np.float32, "Mat", "Mat",
+                      128, 96, 18, 16, 125, 93, 3, 2),
 
     ]
 
