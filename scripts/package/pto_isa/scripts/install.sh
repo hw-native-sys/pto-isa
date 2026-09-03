@@ -688,9 +688,6 @@ install_package() {
   if [ $(id -u) -eq 0 ]; then
     chown -R "root":"root" "${TARGET_MOULDE_DIR}/script" 2>/dev/null
     chown "root":"root" "${TARGET_MOULDE_DIR}" 2>/dev/null
-  else
-    chmod -R 550 "${TARGET_MOULDE_DIR}/script" 2>/dev/null
-    chmod 440 "${TARGET_MOULDE_DIR}/script/filelist.csv" 2>/dev/null
   fi
   comm_log_operation "Install" "${IN_INSTALL_TYPE}" "PTO" "$?" "${CMD_LIST}"
 }

@@ -93,7 +93,7 @@ init_install_env() {
   if [ "$(id -u)" != "0" ]; then
     LOG_PATH_PERM="740"
     LOG_FILE_PERM="640"
-    INSTALL_INFO_PERM="600"
+    INSTALL_INFO_PERM="640"
   else
     LOG_PATH_PERM="750"
     LOG_FILE_PERM="640"
@@ -625,14 +625,6 @@ install_pto() {
   log_with_errorlevel "$?" "error" "[ERROR]: ERR_NO:${INSTALL_FAILED};ERR_DES:Install pto module files failed."
 
   logandprint "[INFO]: upgradePercentage:30%"
-
-  if [ -n "${module_mod}" ]; then
-    chmod ${module_mod} "${TARGET_MOULDE_DIR}" 2>/dev/null
-  fi
-  if [ -n "${version_mod}" ]; then
-    chmod ${version_mod} "${TARGET_VERSION_DIR}" 2>/dev/null
-  fi
-
   logandprint "[INFO]: upgradePercentage:50%"
 }
 
@@ -652,30 +644,6 @@ main() {
   check_env
 
   install_pto
-
-  #chmod to support copy
-  if [ -d "${TARGET_MOULDE_DIR}/vendors" ] && [ "$(id -u)" != "0" ]; then
-    chmod -R "${CUSTOM_PERM}" ${TARGET_MOULDE_DIR}/vendors
-  fi
-
-  # change log dir and file owner and rights
-  chmod "${LOG_PATH_PERM}" "${COMM_LOG_DIR}" 2>/dev/null
-  chmod "${LOG_FILE_PERM}" "${COMM_LOGFILE}" 2>/dev/null
-  chmod "${LOG_FILE_PERM}" "${COMM_OPERATION_LOGFILE}" 2>/dev/null
-
-  # change installed folder's permission except aicpu
-  chmod -R "${BUILTIN_PERM}" "${TARGET_MOULDE_DIR}/built-in/op_impl/ai_core/tbe/op_tiling/lib" 2>/dev/null
-  chmod -R "${BUILTIN_PERM}" "${TARGET_MOULDE_DIR}/built-in/op_proto/lib" 2>/dev/null
-
-  if [ "$(id -u)" = "0" ]; then
-    chmod "755" "${TARGET_MOULDE_DIR}" 2>/dev/null
-  else
-    chmod "${BUILTIN_PERM}" "${TARGET_MOULDE_DIR}" 2>/dev/null
-  fi
-
-  chmod "${ONLYREAD_PERM}" "${TARGET_MOULDE_DIR}/scene.info" 2>/dev/null
-  chmod "${ONLYREAD_PERM}" "${TARGET_MOULDE_DIR}/version.info" 2>/dev/null
-  chmod "${ONLYREAD_PERM}" "${TARGET_MOULDE_DIR}/ascend_install.info" 2>/dev/null
 
   # change installed folder's owner and group except aicpu
   chown "${TARGET_USERNAME}":"${TARGET_USERGROUP}" "${TARGET_MOULDE_DIR}" 2>/dev/null
