@@ -55,11 +55,12 @@ template <
     int gWholeShape2, int gWholeShape3, int gWholeShape4>
 AICORE inline void RunTStoreColMajor(__gm__ T __out__* out, __gm__ T __in__* src)
 {
+    constexpr size_t kPackedElementsPerByte = IsTwinType<T>() ? 2 : 1;
     constexpr int gStride[5] = {
         gWholeShape1 * gWholeShape2 * gWholeShape3 * gWholeShape4, gWholeShape2 * gWholeShape3 * gWholeShape4,
         gWholeShape3 * gWholeShape4, 1, gWholeShape3};
 
-    constexpr int blockSize = 32 / sizeof(T);
+    constexpr int blockSize = kPackedElementsPerByte * 32 / sizeof(T);
     constexpr int Rows = (gShape3 + blockSize - 1) / blockSize * blockSize;
     constexpr int Cols = gShape0 * gShape1 * gShape2 * gShape4;
     constexpr int validRow = gShape3;

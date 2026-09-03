@@ -19,12 +19,13 @@ namespace pto {
 template <typename T, typename TileData = void>
 constexpr size_t GetC0ElemCount()
 {
+    constexpr int kPackedElementsPerByte = IsTwinType<T>() ? 2 : 1;
     if constexpr (!std::is_same_v<TileData, void>) {
         if constexpr (std::is_same_v<T, int32_t> && TileData::Loc == TileType::Acc) {
-            return static_cast<size_t>(ACC_C0_SIZE);
+            return kPackedElementsPerByte * static_cast<size_t>(ACC_C0_SIZE);
         }
     }
-    return static_cast<size_t>(C0_SIZE_BYTE) / sizeof(T);
+    return kPackedElementsPerByte * static_cast<size_t>(C0_SIZE_BYTE) / sizeof(T);
 }
 
 template <typename T, typename = void>

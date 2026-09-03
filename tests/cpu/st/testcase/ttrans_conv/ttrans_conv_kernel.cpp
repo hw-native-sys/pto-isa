@@ -227,7 +227,7 @@ __global__ AICORE void runTTRANSConv_GNCHW2NC1HWC0(__gm__ T __out__* out, __gm__
     std::fill((uint8_t*)out, (uint8_t*)out + dstElemNum * DTypeSize / (IsTwinType<T>() ? 2 : 1), 0);
 
     // Not used internally, just for placeholder
-    using TmpTileData = Tile<TileType::Vec, T, 1, 32, BLayout::RowMajor, 1, 32>;
+    using TmpTileData = Tile<TileType::Vec, T, 1, 64, BLayout::RowMajor, 1, 64>;
     TmpTileData tmpTile;
     TASSIGN(tmpTile, 0x0 + (srcElemNum + dstElemNum) * DTypeSize);
 
