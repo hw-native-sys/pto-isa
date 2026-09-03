@@ -326,6 +326,221 @@ void testDirBothSplitV2CFreePreservesC2VFifoOrder()
     }
 }
 
+template <int FlagId>
+void testDirBothOverlappingC2VPopsFreeInOrder()
+{
+    using VecTile = Tile<TileType::Vec, float, 16, 16, BLayout::RowMajor, 16, 16>;
+    using AccTile = TileAcc<float, 16, 16>;
+    using Pipe = TPipe<FlagId, Direction::DIR_BOTH, sizeof(float) * VecTile::Numel, 2>;
+
+    Pipe::reset_for_cpu_sim();
+    Pipe c2vProducer0((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe c2vProducer1((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecConsumer((__gm__ void*)nullptr, 0x0, 0x10000);
+
+    AccTile accSrc0;
+    AccTile accSrc1;
+    VecTile poppedVec0;
+    VecTile poppedVec1;
+
+    TASSIGN(accSrc0, 0);
+    TASSIGN(accSrc1, AccTile::GetSizeInBytes());
+    TASSIGN(poppedVec0, 2 * AccTile::GetSizeInBytes());
+    TASSIGN(poppedVec1, 2 * AccTile::GetSizeInBytes() + VecTile::GetSizeInBytes());
+
+    fillTileSequence(accSrc0, 1.0f);
+    fillTileSequence(accSrc1, 5001.0f);
+
+    TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(c2vProducer0, accSrc0);
+    TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(c2vProducer1, accSrc1);
+
+    TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer, poppedVec0);
+    TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer, poppedVec1);
+    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer);
+    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer);
+
+    for (int row = 0; row < VecTile::Rows; ++row) {
+        for (int col = 0; col < VecTile::Cols; ++col) {
+            EXPECT_FLOAT_EQ(poppedVec0.GetElement(row, col), accSrc0.GetElement(row, col));
+            EXPECT_FLOAT_EQ(poppedVec1.GetElement(row, col), accSrc1.GetElement(row, col));
+        }
+    }
+
+    auto& state = Pipe::GetSharedState();
+    EXPECT_EQ(state.occupied, 0);
+    EXPECT_EQ(state.popped_not_freed, 0);
+    for (std::size_t slot = 0; slot < 2; ++slot) {
+        EXPECT_EQ(state.slot_busy[slot], 0);
+        EXPECT_EQ(state.transfer_dirs[slot], cpu_pipe::TransferDir::None);
+        EXPECT_EQ(state.remaining_consumers[slot], 0u);
+    }
+
+    AccTile accSrc2;
+    VecTile poppedVec2;
+    TASSIGN(accSrc2, 2 * AccTile::GetSizeInBytes() + 2 * VecTile::GetSizeInBytes());
+    TASSIGN(poppedVec2, 2 * AccTile::GetSizeInBytes() + 3 * VecTile::GetSizeInBytes());
+    fillTileSequence(accSrc2, 9001.0f);
+    TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(c2vProducer0, accSrc2);
+    TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer, poppedVec2);
+    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer);
+    for (int row = 0; row < VecTile::Rows; ++row) {
+        for (int col = 0; col < VecTile::Cols; ++col) {
+            EXPECT_FLOAT_EQ(poppedVec2.GetElement(row, col), accSrc2.GetElement(row, col));
+        }
+    }
+}
+
+template <int FlagId>
+void testDirBothMixedSingleAndOverlappingPopRounds()
+{
+    using VecTile = Tile<TileType::Vec, float, 16, 16, BLayout::RowMajor, 16, 16>;
+    using AccTile = TileAcc<float, 16, 16>;
+    using Pipe = TPipe<FlagId, Direction::DIR_BOTH, sizeof(float) * VecTile::Numel, 2>;
+
+    Pipe::reset_for_cpu_sim();
+    Pipe producerA((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe producerB((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe consumer((__gm__ void*)nullptr, 0x0, 0x10000);
+
+    AccTile srcA;
+    AccTile srcB;
+    VecTile dstA;
+    VecTile dstB;
+    TASSIGN(srcA, 0);
+    TASSIGN(srcB, AccTile::GetSizeInBytes());
+    TASSIGN(dstA, 2 * AccTile::GetSizeInBytes());
+    TASSIGN(dstB, 2 * AccTile::GetSizeInBytes() + VecTile::GetSizeInBytes());
+
+    for (int round = 0; round < 8; ++round) {
+        const float baseA = static_cast<float>(round * 1000 + 1);
+        fillTileSequence(srcA, baseA);
+
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(producerA, srcA);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(consumer, dstA);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(consumer);
+        for (int row = 0; row < VecTile::Rows; ++row) {
+            for (int col = 0; col < VecTile::Cols; ++col) {
+                ASSERT_FLOAT_EQ(dstA.GetElement(row, col), srcA.GetElement(row, col))
+                    << "single-pop round " << round << " at (" << row << "," << col << ")";
+            }
+        }
+
+        const float baseB = static_cast<float>(round * 1000 + 501);
+        fillTileSequence(srcA, baseA);
+        fillTileSequence(srcB, baseB);
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(producerA, srcA);
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(producerB, srcB);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(consumer, dstA);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(consumer, dstB);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(consumer);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(consumer);
+        for (int row = 0; row < VecTile::Rows; ++row) {
+            for (int col = 0; col < VecTile::Cols; ++col) {
+                ASSERT_FLOAT_EQ(dstA.GetElement(row, col), srcA.GetElement(row, col))
+                    << "overlapping round " << round << " first tile at (" << row << "," << col << ")";
+                ASSERT_FLOAT_EQ(dstB.GetElement(row, col), srcB.GetElement(row, col))
+                    << "overlapping round " << round << " second tile at (" << row << "," << col << ")";
+            }
+        }
+
+        auto& state = Pipe::GetSharedState();
+        ASSERT_EQ(state.occupied, 0) << "round " << round;
+        ASSERT_EQ(state.popped_not_freed, 0) << "round " << round;
+    }
+}
+
+template <int FlagId>
+void testDirBothInterleavedV2CWithOverlappingC2VPops()
+{
+    using VecTile = Tile<TileType::Vec, float, 16, 16, BLayout::RowMajor, 16, 16>;
+    using MatTile = Tile<TileType::Mat, float, 16, 16, BLayout::RowMajor, 16, 16>;
+    using AccTile = TileAcc<float, 16, 16>;
+    using Pipe = TPipe<FlagId, Direction::DIR_BOTH, sizeof(float) * MatTile::Numel, 2>;
+
+    Pipe::reset_for_cpu_sim();
+    Pipe cubeProducer((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe cubeConsumer((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecProducer((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecConsumer((__gm__ void*)nullptr, 0x0, 0x10000);
+
+    AccTile accA;
+    AccTile accB;
+    AccTile accC;
+    VecTile v2cA;
+    VecTile v2cB;
+    VecTile popped0;
+    VecTile popped1;
+    VecTile popped2;
+    MatTile poppedMat0;
+    MatTile poppedMat1;
+
+    std::size_t off = 0;
+    auto place = [&off](auto& tile) {
+        TASSIGN(tile, off);
+        off += std::remove_reference_t<decltype(tile)>::GetSizeInBytes();
+    };
+    place(accA);
+    place(accB);
+    place(accC);
+    place(v2cA);
+    place(v2cB);
+    place(popped0);
+    place(popped1);
+    place(popped2);
+    place(poppedMat0);
+    place(poppedMat1);
+
+    for (int round = 0; round < 4; ++round) {
+        const float base = static_cast<float>(round * 10000 + 1);
+        fillTileSequence(accA, base);
+        fillTileSequence(v2cA, base + 1000.0f);
+        fillTileSequence(v2cB, base + 2000.0f);
+        fillTileSequence(accB, base + 3000.0f);
+        fillTileSequence(accC, base + 4000.0f);
+
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(cubeProducer, accA);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer, popped0);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer);
+        for (int i = 0; i < VecTile::Numel; ++i) {
+            ASSERT_FLOAT_EQ(popped0.data()[i], accA.data()[i]) << "round " << round << " c2v single";
+        }
+
+        TPUSH<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecProducer, v2cA);
+        TPUSH<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecProducer, v2cB);
+        TPOP<Pipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(cubeConsumer, poppedMat0);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(cubeConsumer);
+        TPOP<Pipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(cubeConsumer, poppedMat1);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(cubeConsumer);
+        for (int r = 0; r < MatTile::Rows; ++r) {
+            for (int c = 0; c < MatTile::Cols; ++c) {
+                ASSERT_FLOAT_EQ(
+                    poppedMat0.data()[GetTileElementOffset<MatTile>(r, c)],
+                    v2cA.data()[GetTileElementOffset<VecTile>(r, c)])
+                    << "round " << round << " v2c first at (" << r << "," << c << ")";
+                ASSERT_FLOAT_EQ(
+                    poppedMat1.data()[GetTileElementOffset<MatTile>(r, c)],
+                    v2cB.data()[GetTileElementOffset<VecTile>(r, c)])
+                    << "round " << round << " v2c second at (" << r << "," << c << ")";
+            }
+        }
+
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(cubeProducer, accB);
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(cubeProducer, accC);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer, popped1);
+        TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer, popped2);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecConsumer);
+        for (int i = 0; i < VecTile::Numel; ++i) {
+            ASSERT_FLOAT_EQ(popped1.data()[i], accB.data()[i]) << "round " << round << " c2v overlap first";
+            ASSERT_FLOAT_EQ(popped2.data()[i], accC.data()[i]) << "round " << round << " c2v overlap second";
+        }
+
+        auto& state = Pipe::GetSharedState();
+        ASSERT_EQ(state.occupied, 0) << "round " << round;
+        ASSERT_EQ(state.popped_not_freed, 0) << "round " << round;
+    }
+}
+
 template <typename T, int rows, int cols, TileType srcLoc, TileType dstLoc>
 void testPushPopSingleThread()
 {
@@ -648,6 +863,122 @@ TEST_F(TPushPopTest, a5_style_dir_both_updown_split_v2c_free_preserves_c2v_fifo_
 TEST_F(TPushPopTest, a5_style_dir_both_leftright_split_v2c_free_preserves_c2v_fifo_order)
 {
     testDirBothSplitV2CFreePreservesC2VFifoOrder<TileSplitAxis::TILE_LEFT_RIGHT, 14>();
+}
+
+TEST_F(TPushPopTest, dir_both_overlapping_c2v_pops_free_in_order) { testDirBothOverlappingC2VPopsFreeInOrder<15>(); }
+
+TEST_F(TPushPopTest, dir_both_mixed_single_and_overlapping_pop_rounds)
+{
+    testDirBothMixedSingleAndOverlappingPopRounds<16>();
+}
+
+template <uint8_t FlagId>
+void testDirBothDualLaneC2VOrderAfterV2C()
+{
+    using AccTile = TileAcc<float, 16, 16>;
+    using VecTile = Tile<TileType::Vec, float, 16, 16, BLayout::RowMajor, 16, 16>;
+    using MatTile = Tile<TileType::Mat, float, 16, 16, BLayout::RowMajor, 16, 16>;
+    using Pipe = TPipe<FlagId, Direction::DIR_BOTH, sizeof(float) * MatTile::Numel, 2, 2, true>;
+
+    Pipe::reset_for_cpu_sim();
+    Pipe cubeProducer((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe cubeConsumer((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecProducer((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecLane0((__gm__ void*)nullptr, 0x0, 0x10000);
+    Pipe vecLane1((__gm__ void*)nullptr, 0x0, 0x10000);
+
+    AccTile accA;
+    AccTile accB;
+    AccTile accC;
+    VecTile v2cA;
+    VecTile lane0First;
+    VecTile lane0Second;
+    VecTile lane1First;
+    VecTile lane1Second;
+    VecTile warmLane0;
+    VecTile warmLane1;
+    MatTile poppedMat;
+
+    std::size_t off = 0;
+    auto place = [&off](auto& tile) {
+        TASSIGN(tile, off);
+        off += std::remove_reference_t<decltype(tile)>::GetSizeInBytes();
+    };
+    place(accA);
+    place(accB);
+    place(accC);
+    place(v2cA);
+    place(lane0First);
+    place(lane0Second);
+    place(lane1First);
+    place(lane1Second);
+    place(warmLane0);
+    place(warmLane1);
+    place(poppedMat);
+
+    for (int round = 0; round < 3; ++round) {
+        const float base = static_cast<float>(round * 10000 + 1);
+        fillTileSequence(accA, base);
+        fillTileSequence(v2cA, base + 1000.0f);
+        fillTileSequence(accB, base + 2000.0f);
+        fillTileSequence(accC, base + 3000.0f);
+
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(cubeProducer, accA);
+        {
+            cpu_sim::ScopedExecutionContext lane(0, 0, 2);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecLane0, warmLane0);
+            TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecLane0);
+        }
+        {
+            cpu_sim::ScopedExecutionContext lane(0, 1, 2);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecLane1, warmLane1);
+            TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecLane1);
+        }
+
+        TPUSH<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecProducer, v2cA);
+        TPOP<Pipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(cubeConsumer, poppedMat);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(cubeConsumer);
+
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(cubeProducer, accB);
+        TPUSH<Pipe, AccTile, TileSplitAxis::TILE_NO_SPLIT>(cubeProducer, accC);
+        {
+            cpu_sim::ScopedExecutionContext lane(0, 0, 2);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecLane0, lane0First);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecLane0, lane0Second);
+        }
+        {
+            cpu_sim::ScopedExecutionContext lane(0, 1, 2);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecLane1, lane1First);
+            TPOP<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(vecLane1, lane1Second);
+        }
+        for (int i = 0; i < VecTile::Numel; ++i) {
+            ASSERT_FLOAT_EQ(lane0First.data()[i], accB.data()[i]) << "round " << round << " lane0 first";
+            ASSERT_FLOAT_EQ(lane0Second.data()[i], accC.data()[i]) << "round " << round << " lane0 second";
+            ASSERT_FLOAT_EQ(lane1First.data()[i], accB.data()[i]) << "round " << round << " lane1 first";
+            ASSERT_FLOAT_EQ(lane1Second.data()[i], accC.data()[i]) << "round " << round << " lane1 second";
+        }
+        {
+            cpu_sim::ScopedExecutionContext lane(0, 0, 2);
+            TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecLane0);
+            TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecLane0);
+        }
+        {
+            cpu_sim::ScopedExecutionContext lane(0, 1, 2);
+            TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecLane1);
+            TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(vecLane1);
+        }
+
+        auto& state = Pipe::GetSharedState();
+        ASSERT_EQ(state.occupied, 0) << "round " << round;
+        ASSERT_EQ(state.popped_not_freed, 0) << "round " << round;
+    }
+}
+
+TEST_F(TPushPopTest, dir_both_dual_lane_c2v_order_after_v2c) { testDirBothDualLaneC2VOrderAfterV2C<19>(); }
+
+TEST_F(TPushPopTest, dir_both_interleaved_v2c_with_overlapping_c2v_pops)
+{
+    testDirBothInterleavedV2CWithOverlappingC2VPops<17>();
 }
 
 TEST_F(TPushPopTest, tile_flow_keeps_non_null_gm_workspace_out_of_cpu_data_plane)

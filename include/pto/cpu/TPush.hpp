@@ -257,6 +257,31 @@ PTO_INTERNAL bool FindNextTransferSlot(
     return false;
 }
 
+// A DIR_BOTH pipe shares one producer cursor while each consumer keeps its own, so cursors cannot
+// order the directions; select by producer commit order instead.
+template <std::size_t SlotNum, typename RejectSlotFn>
+PTO_INTERNAL bool FindOldestTransferSlot(
+    const std::array<TransferDir, SlotNum>& transferDirs, const std::array<uint64_t, SlotNum>& commitSeq,
+    TransferDir expectedDir, int& slotIndex, RejectSlotFn rejectSlot)
+{
+    bool found = false;
+    uint64_t bestSeq = 0;
+    for (std::size_t i = 0; i < SlotNum; ++i) {
+        if (transferDirs[i] != expectedDir || commitSeq[i] == 0) {
+            continue;
+        }
+        if (rejectSlot(static_cast<int>(i))) {
+            continue;
+        }
+        if (!found || commitSeq[i] < bestSeq) {
+            found = true;
+            bestSeq = commitSeq[i];
+            slotIndex = static_cast<int>(i);
+        }
+    }
+    return found;
+}
+
 template <std::size_t SlotNum>
 PTO_INTERNAL bool FindNextTransferSlot(
     const std::array<TransferDir, SlotNum>& transferDirs, int start, TransferDir expectedDir, int& slotIndex)
@@ -282,6 +307,31 @@ PTO_INTERNAL bool PopPendingSlot(std::array<int, SlotNum>& slots, int& count, in
     }
     slotIndex = slots[0];
     for (int i = 1; i < count; ++i) {
+        slots[static_cast<std::size_t>(i - 1)] = slots[static_cast<std::size_t>(i)];
+    }
+    --count;
+    return true;
+}
+
+// `popped_slots` interleaves both directions on a DIR_BOTH pipe, so a consumer drops its own slot
+// by value rather than the head.
+template <std::size_t SlotNum>
+PTO_INTERNAL bool ErasePendingSlot(std::array<int, SlotNum>& slots, int& count, int slotIndex)
+{
+    if (count <= 0 || static_cast<std::size_t>(count) > SlotNum) {
+        return false;
+    }
+    int found = -1;
+    for (int i = 0; i < count; ++i) {
+        if (slots[static_cast<std::size_t>(i)] == slotIndex) {
+            found = i;
+            break;
+        }
+    }
+    if (found < 0) {
+        return false;
+    }
+    for (int i = found + 1; i < count; ++i) {
         slots[static_cast<std::size_t>(i - 1)] = slots[static_cast<std::size_t>(i)];
     }
     --count;
@@ -499,6 +549,9 @@ struct TPipe {
         std::array<int, SlotNum> popped_slots{};
         std::array<std::array<uint8_t, LOCAL_SLOT_STORAGE_SIZE>, SlotNum> local_slot_storage{};
         std::array<cpu_pipe::TransferDir, SlotNum> transfer_dirs{};
+        // Producer commit order per slot, 0 when the slot holds nothing.
+        std::array<uint64_t, SlotNum> commit_seq{};
+        uint64_t next_commit_seq = 1;
         std::array<uint32_t, SlotNum> remaining_consumers{};
         std::array<uint32_t, SlotNum> consumers_claimed{};
         std::array<uint32_t, SlotNum> producers_allocated{};
@@ -572,6 +625,12 @@ struct TPipe {
         shared_state.next_v2c_consumer_slot = 0;
         shared_state.next_consumer_slots_by_lane.fill(0);
         shared_state.occupied = 0;
+        shared_state.popped_not_freed = 0;
+        shared_state.popped_slots.fill(0);
+        shared_state.popped_not_freed_by_lane.fill(0);
+        for (auto& lane : shared_state.popped_slots_by_lane) {
+            lane.fill(0);
+        }
         for (auto& slot : shared_state.local_slot_storage) {
             slot.fill(0);
         }
@@ -581,6 +640,8 @@ struct TPipe {
         shared_state.producers_done.fill(0);
         shared_state.slot_busy.fill(0);
         shared_state.transfer_dirs.fill(cpu_pipe::TransferDir::None);
+        shared_state.commit_seq.fill(0);
+        shared_state.next_commit_seq = 1;
         shared_state.cv.notify_all();
     }
 
@@ -675,6 +736,7 @@ struct TPipe {
                 shared_state.transfer_dirs[slotIdx] = cpu_pipe::GetProducerTransferDir<TPipe, TileProd>();
                 shared_state.remaining_consumers[slotIdx] =
                     cpu_pipe::GetRequiredConsumerCount<TPipe, TileProd, Split>();
+                shared_state.commit_seq[slotIdx] = shared_state.next_commit_seq++;
                 shared_state.next_producer_slot = (tileIndex + 1) % RingFiFo::SLOT_NUM;
                 ++shared_state.occupied;
             }
@@ -688,11 +750,11 @@ struct TPipe {
         bool isWait = true;
         bool isFree = true;
         int entryOffset = 0;
-        // CPU-sim only: set by wait() when this pop is serviced through the pending-slot
-        // FIFO (overlapping pops kept on distinct slots). free() reads it to choose the
-        // matching release path on a DIR_BOTH pipe, where the Split-only template cannot
-        // tell a V2C-direction release (cube popping Mat) from a C2V one (vector popping Vec).
-        bool pendingSlotTracked = false;
+        // CPU-sim only: this consumer's pops awaiting their TFREE, oldest first; free() releases the
+        // head. Kept per consumer because the shared `popped_slots` head can belong to the other
+        // direction on a DIR_BOTH pipe.
+        std::array<int, RingFiFo::SLOT_NUM> pendingSlots{};
+        int pendingSlotCount = 0;
 
         PTO_INTERNAL Consumer() = default;
 
@@ -722,7 +784,7 @@ struct TPipe {
             (void)Split;
             auto& shared_state = TPipe::GetSharedState();
             std::unique_lock<std::mutex> lock(shared_state.mutex);
-            pendingSlotTracked = false;
+            // Not cleared here: earlier pops on this consumer stay counted until their own TFREE.
             constexpr auto expectedDir = cpu_pipe::GetConsumerTransferDir<TPipe, TileCons>();
             constexpr bool kBothDir = TPipe::is_c2v && TPipe::is_v2c;
             if constexpr (
@@ -757,9 +819,9 @@ struct TPipe {
                         auto& laneNext = shared_state.next_consumer_slots_by_lane[laneId];
                         auto& lanePopped = shared_state.popped_not_freed_by_lane[laneId];
                         int foundSlot = 0;
-                        shared_state.cv.wait(lock, [&shared_state, &laneNext, laneMask, expectedDir, &foundSlot]() {
-                            return cpu_pipe::FindNextTransferSlot(
-                                shared_state.transfer_dirs, laneNext, expectedDir, foundSlot,
+                        shared_state.cv.wait(lock, [&shared_state, laneMask, expectedDir, &foundSlot]() {
+                            return cpu_pipe::FindOldestTransferSlot(
+                                shared_state.transfer_dirs, shared_state.commit_seq, expectedDir, foundSlot,
                                 [&shared_state, laneMask](int candidate) {
                                     return (shared_state.consumers_claimed[static_cast<std::size_t>(candidate)] &
                                             laneMask) != 0;
@@ -784,9 +846,10 @@ struct TPipe {
                 int& consumerCursor = (expectedDir == cpu_pipe::TransferDir::V2C) ?
                                           shared_state.next_v2c_consumer_slot :
                                           shared_state.next_c2v_consumer_slot;
-                shared_state.cv.wait(lock, [&shared_state, expectedDir, &foundSlot, &consumerCursor]() {
-                    return cpu_pipe::FindNextTransferSlot(
-                        shared_state.transfer_dirs, consumerCursor, expectedDir, foundSlot,
+                (void)consumerCursor;
+                shared_state.cv.wait(lock, [&shared_state, expectedDir, &foundSlot]() {
+                    return cpu_pipe::FindOldestTransferSlot(
+                        shared_state.transfer_dirs, shared_state.commit_seq, expectedDir, foundSlot,
                         [&shared_state](int candidate) {
                             for (int i = 0; i < shared_state.popped_not_freed; ++i) {
                                 if (shared_state.popped_slots[static_cast<std::size_t>(i)] == candidate) {
@@ -800,7 +863,7 @@ struct TPipe {
                 subTileIndex = static_cast<int>(get_subblockid());
                 consumerCursor = (tileIndex + 1) % RingFiFo::SLOT_NUM;
                 cpu_pipe::PushPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed, tileIndex);
-                pendingSlotTracked = true;
+                cpu_pipe::PushPendingSlot(pendingSlots, pendingSlotCount, tileIndex);
                 return;
             }
             shared_state.cv.wait(lock, [&shared_state, expectedDir]() {
@@ -827,10 +890,11 @@ struct TPipe {
                             tileIndex);
                     }
                 }
-                const bool wasPendingSlotTracked = pendingSlotTracked;
+                // Releases this consumer's oldest outstanding pop into tileIndex.
+                const bool wasPendingSlotTracked = pendingSlotCount > 0;
                 if (wasPendingSlotTracked) {
-                    cpu_pipe::PopPendingSlot(shared_state.popped_slots, shared_state.popped_not_freed, tileIndex);
-                    pendingSlotTracked = false;
+                    cpu_pipe::PopPendingSlot(pendingSlots, pendingSlotCount, tileIndex);
+                    cpu_pipe::ErasePendingSlot(shared_state.popped_slots, shared_state.popped_not_freed, tileIndex);
                 }
                 const auto slotIndex = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
                 auto& remaining = shared_state.remaining_consumers[slotIndex];
@@ -840,6 +904,7 @@ struct TPipe {
                     remaining = 0;
                     shared_state.consumers_claimed[slotIndex] = 0;
                     shared_state.transfer_dirs[slotIndex] = cpu_pipe::TransferDir::None;
+                    shared_state.commit_seq[slotIndex] = 0;
                     shared_state.slot_busy[slotIndex] = 0;
                     // Only a split consumer that advances the shared cursor in free() does so here;
                     // a pending-tracked V2C consumer already advanced it in wait(), and a NO_SPLIT
