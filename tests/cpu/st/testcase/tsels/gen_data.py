@@ -10,7 +10,7 @@
 
 import os
 import numpy as np
-from tests.cpu.st.utils import NumExt
+from utils import NumExt
 np.random.seed(19)
 
 

@@ -35,11 +35,7 @@ PTO_INTERNAL void TPOP_IMPL(Pipe& pipe, TileCons& tile)
 
     // 2. Address calculation + TASSIGN + data transfer
     pipe.cons.template pop<TileCons, Split>(pipe.fifo, tile);
-    if constexpr (participateNoSplitC2V) {
-        if (get_subblockid() != 0) {
-            cpu_pipe::FillTile(tile, typename TileCons::DType{});
-        }
-    }
+    // Every participating lane reads the same payload; only the inactive lane gets a zeroed tile.
 }
 
 template <

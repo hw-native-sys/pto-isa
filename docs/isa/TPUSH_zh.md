@@ -89,7 +89,7 @@ struct TPipe;
 - **CPU_SIM FIFO模型**：
     - FIFO状态由主机线程共享。`TPUSH` 通过互斥锁和条件变量等待空闲槽位并提交数据。
     - TileData 数据使用主机 FIFO 状态拥有的存储；即使构造 `TPipe` 时传入了非空 NPU GM workspace，CPU_SIM TileData 流程也不会访问该 workspace，从而使数据生命周期与槽位状态受同一套同步保护。
-    - TileData生产者支持 `DIR_C2V`、`DIR_V2C` 和 `DIR_BOTH`。`DIR_BOTH` 管道使用共享的环形槽位和共享容量，通过方向标签和独立的消费游标区分C2V与V2C条目。
+    - TileData生产者支持 `DIR_C2V`、`DIR_V2C` 和 `DIR_BOTH`。`DIR_BOTH` 管道使用共享的环形槽位和共享容量，通过方向标签区分C2V与V2C条目；每次提交还会记录生产序号，消费者据此按FIFO顺序取出各方向的数据。
     - 切分模式根据当前subblock上下文选择lane。`TILE_NO_SPLIT` 使用一个生产者lane。对于启用 `IsNoSplit` 的C2V管道，一个生产者槽位可根据运行时subblock数量协调一个或两个vector消费者subblock。
     - CPU_SIM 当前未实现显式传入 `int32_t subBlockId` 的重载；应通过模拟subblock执行上下文选择split lane。
     - 简化版接口使用 `TILE_NO_SPLIT`；`TConfig` 接口同样支持CPU fixpipe路径。

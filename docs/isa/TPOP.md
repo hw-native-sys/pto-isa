@@ -75,7 +75,7 @@ struct TPipe;
     - TileData payloads are loaded from storage owned by the host FIFO state, even when `TPipe` carries a non-null NPU GM workspace. The workspace is not accessed by the CPU_SIM TileData flow.
     - Split modes select the lane from the current subblock context. For a C2V pipe configured with `IsNoSplit`, `TILE_NO_SPLIT` coordinates one or two vector consumer subblocks according to the runtime subblock count. In other no-split vector cases, a nonzero inactive lane is zero-filled where required.
     - The overload with an explicit `int32_t subBlockId` is not currently implemented by CPU_SIM; use the simulated subblock execution context to select a split lane.
-    - For `DIR_BOTH`, the consumer searches the shared ring for a committed slot matching its direction. Overlapping pops reserve distinct slots.
+    - For `DIR_BOTH`, the consumer waits for a committed slot matching its direction. No-split and V2C consumers take the oldest such slot by producer commit order rather than by cursor position, which keeps each direction FIFO after the shared producer cursor and the per-consumer cursors desync. Overlapping pops reserve distinct slots.
     - The GlobalData overload is not currently available in CPU_SIM.
 
 ## Examples
