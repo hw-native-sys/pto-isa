@@ -77,6 +77,7 @@ struct TPipe;
     - 切分模式根据当前subblock上下文选择lane。对于启用 `IsNoSplit` 的C2V管道，`TILE_NO_SPLIT` 会根据运行时subblock数量协调一个或两个vector消费者subblock；在其他no-split vector场景中，非零的未参与lane会按需填零。
     - CPU_SIM 当前未实现显式传入 `int32_t subBlockId` 的重载；应通过模拟subblock执行上下文选择split lane。
     - 对于 `DIR_BOTH`，消费者会等待与自身方向匹配的已提交槽位；no-split和V2C消费者按生产序号取出最早的槽位，而不是按游标位置查找，因此在共享生产游标与各消费者游标失步后仍能保持各方向的FIFO顺序；并发的pop会预留不同槽位。
+    - TileData 数据按消费者 Tile 的声明形状读回，因此该形状必须与生产者推送的窗口一致（`TILE_NO_SPLIT` 下即其有效形状）。
     - CPU_SIM 当前不支持 GlobalData 重载。
 
 ## 示例

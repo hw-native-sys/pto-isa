@@ -151,6 +151,7 @@ tstore
 tstore_acc2gm
 tstore_quant
 tstore_conv
+tstore_layout
 tsub
 tsubs
 ttest

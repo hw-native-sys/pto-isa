@@ -1107,11 +1107,33 @@ PTO_INTERNAL void TPush_v2c(Pipe& pipe, TileProd& tile, size_t slotIndex)
 {
     using DstT = FixpipeConsType<TileProd, TConfig>;
 
-    constexpr int consRows =
+    constexpr int slotRows =
         (Split == TileSplitAxis::TILE_UP_DOWN) ? (TileProd::Rows * 2) : static_cast<int>(TileProd::Rows);
-    constexpr int consCols =
+    constexpr int slotCols =
         (Split == TileSplitAxis::TILE_LEFT_RIGHT) ? (TileProd::Cols * 2) : static_cast<int>(TileProd::Cols);
-    using SlotTile = Tile<TileType::Mat, DstT, consRows, consCols, BLayout::RowMajor, consRows, consCols>;
+    using SlotTile = Tile<TileType::Mat, DstT, slotRows, slotCols, BLayout::RowMajor, slotRows, slotCols>;
+
+    // Lay the payload out with the pushed window, that is the valid shape. TileProd::Cols
+    // would stride it by the parent width when a narrower view is pushed. Mirrors TPush_c2v.
+    const uint32_t consRows = [&tile]() -> uint32_t {
+        if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+            return static_cast<uint32_t>(tile.GetValidRow());
+        } else if constexpr (Split == TileSplitAxis::TILE_UP_DOWN) {
+            return static_cast<uint32_t>(TileProd::Rows * 2);
+        } else {
+            return static_cast<uint32_t>(TileProd::Rows);
+        }
+    }();
+    const uint32_t consCols = [&tile]() -> uint32_t {
+        if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+            return static_cast<uint32_t>(tile.GetValidCol());
+        } else if constexpr (Split == TileSplitAxis::TILE_LEFT_RIGHT) {
+            return static_cast<uint32_t>(TileProd::Cols * 2);
+        } else {
+            return static_cast<uint32_t>(TileProd::Cols);
+        }
+    }();
+
     auto& slotStorage = Pipe::GetSharedState().local_slot_storage[slotIndex];
     const std::size_t baseByteOffset = static_cast<std::size_t>(pipe.prod.entryOffset);
     if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {

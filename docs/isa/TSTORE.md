@@ -83,6 +83,9 @@ The vector-quantized `STPhase` form is exposed only on targets with matching bac
     - `TileData::DType` must be one of: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `bfloat16_t`, `float`.
     - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`.
     - Layouts must match ND/DN/NZ (or a special case where `TileData::Rows == 1` or `TileData::Cols == 1`).
+      In that special case the traversal follows the tile layout, not the `GlobalTensor` layout: the vector is
+      written as one contiguous burst and the other axis' stride is not used. A ColMajor `[N, 1]` tile stored
+      through an ND `GlobalTensor` therefore occupies `N` consecutive elements, not one element per row stride.
     - For `int64_t/uint64_t`, only ND->ND or DN->DN are supported.
     - For `TileType::Acc`:
       - Supported layout conversions: NZ2ND, NZ2NZ, NZ2NC1HWC0, NZ2NDC1HWC0. NZ2DN is **not** supported.
@@ -107,6 +110,9 @@ The vector-quantized `STPhase` form is exposed only on targets with matching bac
     - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`.
     - `TileData::DType` must be one of: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `bfloat16_t`, `float`, `float8_e4m3_t`, `float8_e5m2_t`, `hifloat8_t`, `float8_e8m0_t`, `float4_e1m2x2_t`, `float4_e2m1x2_t`.
     - Layouts must match ND/DN/NZ (or a special case where `TileData::Rows == 1` or `TileData::Cols == 1`).
+      In that special case the traversal follows the tile layout, not the `GlobalTensor` layout: the vector is
+      written as one contiguous burst and the other axis' stride is not used. A ColMajor `[N, 1]` tile stored
+      through an ND `GlobalTensor` therefore occupies `N` consecutive elements, not one element per row stride.
     - Additional alignment constraints are enforced (e.g., for ND the row-major width in bytes must be a multiple of 32; for DN the column-major height in bytes must be a multiple of 32, with special-case exceptions).
     - For `TileType::Acc` / ACC source tiles:
       - Supported layout conversions: NZ2ND, NZ2NZ, NZ2NHWC, NZ2NCHW, NZ2NCDHW. NZ2DN is **not** supported.

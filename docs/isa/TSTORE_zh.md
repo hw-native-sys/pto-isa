@@ -72,6 +72,8 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
         - `TileData::DType` 必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`。
         - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`。
         - 布局必须匹配ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
+      该特殊情况下遍历方式取自 Tile 布局而非 `GlobalTensor` 布局：向量按一次连续搬运写入，不使用另一维的跨距。
+      因此 ColMajor 的 `[N, 1]` Tile 经 ND `GlobalTensor` 落盘时占用 `N` 个连续元素，而不是每行跨距一个元素。
         - 对于 `int64_t/uint64_t`，仅支持ND->ND或DN->DN。
     - 对于源tile位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
         - 支持的布局转换：NZ2ND、NZ2NZ、NZ2NC1HWC0、NZ2NDC1HWC0。不支持NZ2DN。
@@ -97,6 +99,8 @@ PTO_INST RecordEvent TSTORE_FP(GlobalData& dst, TileData& src, FpTileData& fp, W
         - `sizeof(TileData::DType) == sizeof(GlobalData::DType)`。
         - `TileData::DType` 必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`、`float8_e4m3_t`、`float8_e5m2_t`、`hifloat8_t`、`float8_e8m0_t`、`float4_e1m2x2_t`、`float4_e2m1x2_t`。
         - 布局必须匹配ND/DN/NZ（或特殊情况：`TileData::Rows == 1` 或 `TileData::Cols == 1`）。
+      该特殊情况下遍历方式取自 Tile 布局而非 `GlobalTensor` 布局：向量按一次连续搬运写入，不使用另一维的跨距。
+      因此 ColMajor 的 `[N, 1]` Tile 经 ND `GlobalTensor` 落盘时占用 `N` 个连续元素，而不是每行跨距一个元素。
         - 强制执行额外的对齐约束（例如，对于ND，行主序宽度（以字节为单位）必须是32的倍数；对于DN，列主序高度（以字节为单位）必须是32的倍数，但有特殊情况例外）。
     - 对于源tile位置为`TileType::Acc`（包括带量化参数的调用形式和原子写入变体）：
         - 支持的布局转换：NZ2ND、NZ2NZ、NZ2NHWC、NZ2NCHW、NZ2NCDHW。不支持NZ2DN。

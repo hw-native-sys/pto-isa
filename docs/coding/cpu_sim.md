@@ -69,11 +69,20 @@ correctness testing and does not model a specific on-chip address.
 - CPU_SIM implements all four `TCVT` overloads, with or without an explicit scratch Tile and `SaturationMode`.
   Scratch-Tile forms accept but do not access `tmp` and match the corresponding no-scratch conversion. The default
   CPU_SIM saturation mode is `SaturationMode::OFF`; portable kernels must retain any NPU scratch allocation.
+- `TSTORE` from a `TileType::Vec` tile with `SLayout::NoneBox` picks its GM traversal from the tile's own layout
+  in one case, the way the hardware DMA does: the single-row or single-column pairing that `TSTORE` allows on top
+  of matching ND/DN/NZ layouts. A ColMajor `[N, 1]` tile stored through an ND `GlobalTensor`, or a RowMajor
+  `[1, N]` tile stored through a DN one, lands as a contiguous vector instead of one element per the other axis'
+  stride. Every other combination, including a ColMajor tile wider than one column, still takes its mapping from
+  the `GlobalTensor` layout. `TLOAD` needs no such case: `TileType::Vec` loads only accept matching layouts.
 - TileData `TPUSH`/`TPOP`/`TFREE` use a host-side `TPipe` FIFO model. The model waits for free slots and ready data,
   keeps C2V and V2C traffic separate for `Direction::DIR_BOTH`, and coordinates split lanes through the simulated
   block/subblock context. TileData payloads stay in host-owned shared slot storage even if generated code supplies a
   non-null NPU GM workspace; CPU_SIM does not access that workspace for this flow. `TFREE` participates in the CPU
-  FIFO release protocol; it is not the A2A3 TileData no-op. The public GlobalData
+  FIFO release protocol; it is not the A2A3 TileData no-op. For `TileSplitAxis::TILE_NO_SPLIT`, a TileData `TPUSH`
+  lays the slot payload out with the shape of the window it actually transfers, that is the pushed tile's valid
+  shape, so pushing a narrow view of a wider tile stays row-aligned with the tile the consumer pops it into; the
+  split axes keep using the producer tile's declared shape. The public GlobalData
   `TALLOC`/`TPUSH`/`TPOP`/`TFREE` flow is not currently available in CPU_SIM.
 - The Tile-vs-Tile `TCMPS` overload compares `src0[i,j]` with `src1[i,j]` in CPU_SIM. This matches A5 and differs
   from the A2/A3 scalar-broadcast behavior. The scalar overload has the usual scalar comparison semantics.

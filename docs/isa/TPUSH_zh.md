@@ -93,6 +93,7 @@ struct TPipe;
     - 切分模式根据当前subblock上下文选择lane。`TILE_NO_SPLIT` 使用一个生产者lane。对于启用 `IsNoSplit` 的C2V管道，一个生产者槽位可根据运行时subblock数量协调一个或两个vector消费者subblock。
     - CPU_SIM 当前未实现显式传入 `int32_t subBlockId` 的重载；应通过模拟subblock执行上下文选择split lane。
     - 简化版接口使用 `TILE_NO_SPLIT`；`TConfig` 接口同样支持CPU fixpipe路径。
+    - 在 `TILE_NO_SPLIT` 下，槽位 payload 按实际搬运窗口的形状（即所推送 Tile 的有效形状）排布，因此推送宽 Tile 的窄视图时，行与消费者弹出的 Tile 保持对齐；split 轴则按生产者 Tile 的声明形状排布 payload。
     - CPU_SIM 当前不支持 GlobalData 重载。
 - **Tile类型支持**：
     - **TPUSH/TPOP支持的Tile类型**：

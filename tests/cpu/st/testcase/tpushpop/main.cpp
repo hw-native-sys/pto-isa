@@ -653,6 +653,59 @@ TEST_F(TPushPopTest, multicore_float_64_128_Vec)
     testPushPopMultiCore<float, 64, 128, TileType::Vec, TileType::Mat>();
 }
 
+// A narrow view of a wider Vec tile: the payload must use the pushed window's width,
+// otherwise the consumer reads every other row.
+template <typename T, int parentCols, int windowCols, int rows, int colOffset>
+void testPushPopNarrowVecView()
+{
+    constexpr int FiFoDepth = 4;
+    constexpr int LocalDepth = 2;
+    using ParentTile = Tile<TileType::Vec, T, rows, parentCols>;
+    using ViewTile = Tile<TileType::Vec, T, rows, parentCols, BLayout::RowMajor, rows, windowCols>;
+    using MatTile = Tile<TileType::Mat, T, rows, windowCols>;
+    using PPipe = TPipe<3, Direction::DIR_V2C, sizeof(T) * rows * windowCols, FiFoDepth, LocalDepth>;
+
+    std::vector<T> fifoStorage(static_cast<std::size_t>(rows) * windowCols * FiFoDepth, static_cast<T>(0));
+    PPipe::reset_for_cpu_sim();
+    PPipe pipe(fifoStorage.data(), 0x0, 0x0);
+
+    ParentTile parent;
+    TASSIGN(parent, 0);
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < parentCols; ++c) {
+            parent.data()[GetTileElementOffset<ParentTile>(r, c)] = static_cast<T>(r * parentCols + c);
+        }
+    }
+
+    ViewTile view;
+    TASSIGN(view, colOffset * static_cast<int>(sizeof(T)));
+
+    MatTile dst;
+    TASSIGN(dst, static_cast<int>(sizeof(T)) * rows * parentCols);
+    for (int i = 0; i < dst.Numel; ++i) {
+        dst.data()[i] = static_cast<T>(0);
+    }
+
+    TPUSH<PPipe, ViewTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, view);
+    TPOP<PPipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, dst);
+    TFREE<PPipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+
+    for (int r = 0; r < rows; ++r) {
+        for (int c = 0; c < windowCols; ++c) {
+            const auto expected = static_cast<T>(r * parentCols + colOffset + c);
+            ASSERT_EQ(dst.data()[GetTileElementOffset<MatTile>(r, c)], expected)
+                << "narrow view v2c at (" << r << "," << c << ")";
+        }
+    }
+}
+
+TEST_F(TPushPopTest, v2c_narrow_vec_view_keeps_rows)
+{
+    testPushPopNarrowVecView<float, 64, 32, 16, 0>();
+    testPushPopNarrowVecView<float, 64, 32, 16, 32>();
+    testPushPopNarrowVecView<float, 128, 32, 8, 64>();
+}
+
 TEST_F(TPushPopTest, v2c_gm_fifo_preserves_updown_and_leftright_layout)
 {
     testGmFifoPreservesV2CSplitLayout<TileSplitAxis::TILE_UP_DOWN, 10>();
