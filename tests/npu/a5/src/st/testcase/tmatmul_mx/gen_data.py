@@ -28,20 +28,23 @@ def convert_x1_scale_format(x1_mx_gm, block_size=16, c0_size_mx=2):
     m, k = x1_mx_gm.shape
     pad_m = (block_size - m % block_size) % block_size
     pad_k = (c0_size_mx - k % c0_size_mx) % c0_size_mx
-
+    
     if pad_m > 0 or pad_k > 0:
-        padded = np.pad(x1_mx_gm, ((0, pad_m), (0, pad_k)), mode="constant", constant_values=0)
+        padded = np.pad(x1_mx_gm, 
+                       ((0, pad_m), (0, pad_k)), 
+                       mode='constant',
+                       constant_values=0)
     else:
         padded = x1_mx_gm
-
+    
     m_padded = m + pad_m
     k_padded = k + pad_k
 
-    x1_scale_gm = padded.reshape((int(m_padded / block_size), block_size, int(k_padded / c0_size_mx), c0_size_mx))
+    x1_scale_gm = padded.reshape((int(m_padded / block_size), block_size, 
+                                 int(k_padded / c0_size_mx), c0_size_mx))
     x1_scale_gm = x1_scale_gm.transpose(0, 2, 1, 3)
-    x1_scale_gm = x1_scale_gm.reshape(
-        x1_scale_gm.shape[0] * x1_scale_gm.shape[1], x1_scale_gm.shape[2] * x1_scale_gm.shape[3]
-    )
+    x1_scale_gm = x1_scale_gm.reshape(x1_scale_gm.shape[0] * x1_scale_gm.shape[1], 
+                                     x1_scale_gm.shape[2] * x1_scale_gm.shape[3])
 
     return x1_scale_gm
 
@@ -50,18 +53,20 @@ def convert_x2_scale_format(x2_mx_gm, block_size=16, c0_size_mx=2):
     k, n = x2_mx_gm.shape
     pad_n = (block_size - n % block_size) % block_size
     pad_k = (c0_size_mx - k % c0_size_mx) % c0_size_mx
-
+    
     if pad_n > 0 or pad_k > 0:
-        padded = np.pad(x2_mx_gm, ((0, pad_k), (0, pad_n)), mode="constant", constant_values=0)
+        padded = np.pad(x2_mx_gm, 
+                       ((0, pad_k), (0, pad_n)),
+                       mode='constant',
+                       constant_values=0)
     else:
         padded = x2_mx_gm
-
+    
     k_padded, n_padded = padded.shape
-
+    
     x2_scale_gm = padded.reshape((int(k_padded / c0_size_mx), c0_size_mx, int(n_padded / 16), 16)).transpose(2, 0, 3, 1)
-    x2_scale_gm = x2_scale_gm.reshape(
-        x2_scale_gm.shape[1] * x2_scale_gm.shape[3], x2_scale_gm.shape[0] * x2_scale_gm.shape[2]
-    )
+    x2_scale_gm = x2_scale_gm.reshape(x2_scale_gm.shape[1] * x2_scale_gm.shape[3], 
+                                      x2_scale_gm.shape[0] * x2_scale_gm.shape[2])
 
     return x2_scale_gm
 
@@ -87,7 +92,7 @@ def gen_golden_data(case_name, param):
 
     a_type = param.atype
     b_type = param.btype
-
+   
     dst_type = param.ctype
     bias_type = param.bias_type
     scale_a_format = param.scale_a_format
@@ -120,13 +125,13 @@ def gen_golden_data(case_name, param):
     else:
         x1_gm.tofile("./x1_gm.bin")
         x2_gm.tofile("./x2_gm.bin")
-
+    
     x1_mx_gm = np.random.randint(127, 130, [m, math.ceil(k / 32)]).astype(np.uint8)
     x2_mx_gm = np.random.randint(127, 130, [math.ceil(k / 32), n]).astype(np.uint8)
 
     ###################### compute ########################
-    x1_mx = 2 ** (x1_mx_gm.astype(np.float64) - 127)
-    x2_mx = 2 ** (x2_mx_gm.astype(np.float64) - 127)
+    x1_mx = 2**(x1_mx_gm.astype(np.float64) - 127)
+    x2_mx = 2**(x2_mx_gm.astype(np.float64) - 127)
     x1_full = np.zeros([m, k_aligned], dtype=np.float64)
     x2_full = np.zeros([k_aligned, n], dtype=np.float64)
 
@@ -137,19 +142,19 @@ def gen_golden_data(case_name, param):
     x1 = x1_full[:, :original_k]
     x2 = x2_full[:original_k, :]
 
-    if scale_a_format == "zz":
+    if scale_a_format == 'zz':
         # x1_scale_gm, convert to zZ format
         x1_scale_gm = convert_x1_scale_format(x1_mx_gm, 16, 2)
-    elif scale_a_format == "dn":
+    elif scale_a_format == 'dn':
         # x1_scale_gm, convert to dn format
         x1_scale_gm = x1_mx_gm.reshape((x1_mx_gm.shape[0], x1_mx_gm.shape[1] // 2, 2)).transpose(1, 0, 2)
     else:
         x1_scale_gm = x1_mx_gm
 
-    if scale_b_format == "nn":
+    if scale_b_format == 'nn':
         # x2_scale_gm, convert to nN format
         x2_scale_gm = convert_x2_scale_format(x2_mx_gm, 16, 2)
-    elif scale_b_format == "dn":
+    elif scale_b_format == 'dn':
         x2_scale_gm = x2_mx_gm.transpose()
     else:
         # x2_scale_gm, convert to nd format
@@ -158,7 +163,7 @@ def gen_golden_data(case_name, param):
     x1_scale_gm.tofile("./x1_mx_gm.bin")
     x2_scale_gm.tofile("./x2_mx_gm.bin")
     if is_bias:
-        bias_gm = np.random.randint(1, 10, [n]).astype(bias_type)
+        bias_gm = np.random.randint(1, 10, [n, ]).astype(bias_type)
         bias_gm.tofile("./bias_gm.bin")
         golden = np.matmul(x1.astype(np.float64), x2.astype(np.float64)).astype(dst_type) + bias_gm.astype(dst_type)
     else:
@@ -168,81 +173,21 @@ def gen_golden_data(case_name, param):
 
 
 class TmatmulmxParams:
-    def __init__(self, atype, btype, ctype, m, k, n, is_bias, scale_a_format="zz", scale_b_format="nn", bias_type=None):
+
+    def __init__(self, atype, btype, ctype, m, k, n, is_bias, scale_a_format='zz', scale_b_format='nn', bias_type=None):
         self.atype = atype
         self.btype = btype
         self.ctype = ctype
         self.m = m
         self.k = k
-        self.n = n
+        self.n = n 
         self.is_bias = is_bias
         self.scale_a_format = scale_a_format
         self.scale_b_format = scale_b_format
-        if bias_type:
+        if (bias_type):
             self.bias_type = bias_type
         else:
             self.bias_type = ctype
-
-
-def gen_pingpong_golden():
-    """Generate golden for the MX pingpong case.
-
-    Same A/B data for both matmuls, but two distinct E8M0 scale sets so the
-    derived scale address (and scale value) differs between the ping and pong
-    iterations. scale0 = 127 (1x), scale1 = 128 (2x) for both A and B, so
-    out1 == 4 * out0.  Output golden is out0 || out1 concatenated.
-    """
-    m, k, n = 16, 64, 16
-    k_aligned = align_to_multiple(k, 64)
-    kmx = math.ceil(k / 32)
-
-    a_type = fp8_e4m3fn
-    b_type = fp8_e4m3fn
-    dst_type = np.float32
-
-    x1_gm = np.random.randint(-10, 10, [m, k]).astype(a_type)
-    x2_gm = np.random.randint(-10, 10, [k, n]).astype(b_type)
-    x1_gm.tofile("./x1_gm.bin")
-    x2_gm.tofile("./x2_gm.bin")
-
-    # scale set 0: all 127 -> 2^0 = 1x ; scale set 1: all 128 -> 2^1 = 2x
-    x1_mx0 = np.full((m, kmx), 127, dtype=np.uint8)
-    x1_mx1 = np.full((m, kmx), 128, dtype=np.uint8)
-    x2_mx0 = np.full((kmx, n), 127, dtype=np.uint8)
-    x2_mx1 = np.full((kmx, n), 128, dtype=np.uint8)
-
-    # Convert to the ZZ (A) / NN (B) fractal formats the kernel expects.
-    x1_scale0_gm = convert_x1_scale_format(x1_mx0, 16, 2)
-    x1_scale1_gm = convert_x1_scale_format(x1_mx1, 16, 2)
-    x2_scale0_gm = convert_x2_scale_format(x2_mx0, 16, 2)
-    x2_scale1_gm = convert_x2_scale_format(x2_mx1, 16, 2)
-    x1_scale0_gm.tofile("./x1_mx0_gm.bin")
-    x1_scale1_gm.tofile("./x1_mx1_gm.bin")
-    x2_scale0_gm.tofile("./x2_mx0_gm.bin")
-    x2_scale1_gm.tofile("./x2_mx1_gm.bin")
-
-    # Compute the two outputs.  Scale factor per 32-element K block.
-    def apply_scale(data, scale):
-        full = np.zeros((data.shape[0], k_aligned), dtype=np.float64)
-        for col in range(data.shape[1]):
-            full[:, col] = data[:, col] * (2 ** (scale[:, col // 32].astype(np.float64) - 127))
-        return full[:, :k]
-
-    x1_0 = apply_scale(x1_gm, x1_mx0)  # 1x
-    x1_1 = apply_scale(x1_gm, x1_mx1)  # 2x
-    x2_0 = np.zeros((k_aligned, n), dtype=np.float64)
-    x2_1 = np.zeros((k_aligned, n), dtype=np.float64)
-    for row in range(k):
-        x2_0[row, :] = x2_gm[row, :] * (2 ** (x2_mx0[row // 32, :].astype(np.float64) - 127))
-        x2_1[row, :] = x2_gm[row, :] * (2 ** (x2_mx1[row // 32, :].astype(np.float64) - 127))
-    x2_0 = x2_0[:k, :]
-    x2_1 = x2_1[:k, :]
-
-    out0 = np.matmul(x1_0, x2_0).astype(dst_type)
-    out1 = np.matmul(x1_1, x2_1).astype(dst_type)  # == 4 * out0
-    golden = np.concatenate([out0.flatten(), out1.flatten()]).astype(dst_type)
-    golden.tofile("./golden.bin")
-
 
 if __name__ == "__main__":
     case_name_list = [
@@ -268,7 +213,6 @@ if __name__ == "__main__":
         "TMATMULMXTest.case17",
         "TMATMULMXTest.case18",
         "TMATMULMXTest.case19",
-        "TMATMULMXTest.case20_pingpong",
     ]
 
     case_params_list = [
@@ -282,8 +226,8 @@ if __name__ == "__main__":
         TmatmulmxParams(fp8_e4m3fn, fp8_e4m3fn, np.float32, 16, 32, 16, False),
         TmatmulmxParams(fp8_e4m3fn, fp8_e5m2, np.float32, 10, 50, 54, False),
         TmatmulmxParams(fp4_e2m1x2, fp4_e2m1x2, np.float32, 4, 30, 8, False),
-        TmatmulmxParams(fp4_e1m2x2, fp4_e1m2x2, np.float32, 1, 128, 62, False, "nd", "nd"),
-        TmatmulmxParams(fp8_e4m3fn, fp8_e5m2, np.float32, 1, 256, 20, False, "nd", "nd"),
+        TmatmulmxParams(fp4_e1m2x2, fp4_e1m2x2, np.float32, 1, 128, 62, False, 'nd', 'nd'),
+        TmatmulmxParams(fp8_e4m3fn, fp8_e5m2, np.float32, 1, 256, 20, False, 'nd', 'nd'),
         # bias test
         TmatmulmxParams(fp8_e5m2, fp8_e4m3fn, np.float32, 115, 64, 30, True),
         TmatmulmxParams(fp8_e4m3fn, fp8_e4m3fn, np.float32, 200, 192, 95, True),
@@ -292,8 +236,7 @@ if __name__ == "__main__":
         TmatmulmxParams(fp4_e1m2x2, fp4_e1m2x2, np.float32, 47, 128, 62, True),
         TmatmulmxParams(fp8_e4m3fn, fp8_e5m2, np.float32, 64, 192, 64, True),
         TmatmulmxParams(fp4_e1m2x2, fp4_e1m2x2, np.float32, 1, 64, 62, True),  # TMatmul, gemv mode is disable.
-        TmatmulmxParams(fp4_e1m2x2, fp4_e1m2x2, np.float32, 1, 2048, 64, True, "nd", "nn"),
-        None,  # case20_pingpong: generated by gen_pingpong_golden
+        TmatmulmxParams(fp4_e1m2x2, fp4_e1m2x2, np.float32, 1, 2048, 64, True, 'nd', 'nn'),
     ]
 
     for i, case_name in enumerate(case_name_list):
@@ -301,8 +244,5 @@ if __name__ == "__main__":
             os.makedirs(case_name)
         original_dir = os.getcwd()
         os.chdir(case_name)
-        if case_name == "TMATMULMXTest.case20_pingpong":
-            gen_pingpong_golden()
-        else:
-            gen_golden_data(case_name, case_params_list[i])
+        gen_golden_data(case_name, case_params_list[i])
         os.chdir(original_dir)

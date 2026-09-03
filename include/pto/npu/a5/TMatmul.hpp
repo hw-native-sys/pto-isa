@@ -13,7 +13,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdint>
 #include <pto/common/buffer_limits.hpp>
-#include "utils.hpp"
 
 namespace pto {
 
@@ -88,14 +87,8 @@ __tf__ AICORE void TMatmulMx(
     __cc__ typename TileRes::DType* c = (__cc__ typename TileRes::DType*)__cce_get_tile_ptr(cMatrix);
     __ca__ typename TileLeft::DType* a = (__ca__ typename TileLeft::DType*)__cce_get_tile_ptr(aMatrix);
     __cb__ typename TileRight::DType* b = (__cb__ typename TileRight::DType*)__cce_get_tile_ptr(bMatrix);
-    // Pack the per-call MX scale-buffer start addresses into the high-32 bits of
-    // the Xn/Xm operand registers so each mad_mx reads the scale that matches
-    // its data tile. GetScaleAddr(a) = a >> 4 = a / 16 (MX_BUFFER_SCALE).
-    uint64_t scaleAddrA = GetScaleAddr(a);
-    uint64_t scaleAddrB = GetScaleAddr(b);
-    mad_mx(
-        c, a, scaleAddrA, b, scaleAddrB, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, biasBufferCtrl,
-        cmatrixInitVal);
+
+    mad_mx(c, a, b, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, biasBufferCtrl, cmatrixInitVal);
 }
 
 template <
@@ -108,13 +101,10 @@ __tf__ AICORE void TMatmulMxBias(
     __cc__ typename TileRes::DType* c = (__cc__ typename TileRes::DType*)__cce_get_tile_ptr(cMatrix);
     __ca__ typename TileLeft::DType* a = (__ca__ typename TileLeft::DType*)__cce_get_tile_ptr(aMatrix);
     __cb__ typename TileRight::DType* b = (__cb__ typename TileRight::DType*)__cce_get_tile_ptr(bMatrix);
-    // 14-arg overload: packs bias into c's high-32 and the per-call MX scale
-    // addresses into a/b's high-32 so each mad_mx reads the matching scale.
-    uint64_t scaleAddrA = GetScaleAddr(a);
-    uint64_t scaleAddrB = GetScaleAddr(b);
-    mad_mx(
-        c, bias, a, scaleAddrA, b, scaleAddrB, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, biasBufferCtrl,
-        cmatrixInitVal);
+    uint64_t xd = ((uint64_t)c) & 0xffffffffULL | ((bias & 0xffffffffULL) << 32);
+    c = (__cc__ typename TileRes::DType*)xd;
+
+    mad_mx(c, a, b, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl, biasBufferCtrl, cmatrixInitVal);
 }
 
 template <typename A, typename B>

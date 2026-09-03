@@ -22,11 +22,6 @@ template <int32_t tilingKey>
 void LaunchTMATMUL_MX_BIAS(
     uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, void* stream);
 
-template <int32_t tilingKey>
-void LaunchTMATMUL_MX_PINGPONG(
-    uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* src3, uint8_t* src4, uint8_t* src5,
-    void* stream);
-
 class TMATMULMXTest : public testing::Test {
 protected:
     void SetUp() override {}
@@ -321,98 +316,4 @@ TEST_F(TMATMULMXTest, case19)
     uint32_t N = 64;
 
     TmatmulMXTest<float, uint8_t, uint8_t, true, true, 7>(16, 2048, 64, M, K, N);
-}
-
-// PingPong: two back-to-back TMATMUL_MX with different scale addresses.
-// out0 uses scale0 (1x), out1 uses scale1 (2x) -> out1 == 4*out0.
-template <typename T, typename U, typename S, bool isFp4, int32_t key>
-void TmatmulMXPingPongTest(uint32_t M, uint32_t K, uint32_t N)
-{
-    uint32_t kAlign = CeilAlign<uint32_t>(K, 64);
-    size_t aFileSize = isFp4 ? CeilDiv<uint32_t>(M * K, 2) : M * K * sizeof(U);
-    size_t bFileSize = isFp4 ? CeilDiv<uint32_t>(K * N, 2) : K * N * sizeof(S);
-    size_t aScaleFileSize = M * CeilDiv<uint32_t>(kAlign, 32);
-    size_t bScaleFileSize = N * CeilDiv<uint32_t>(kAlign, 32);
-    size_t cFileSize = M * N * sizeof(T);
-    size_t outFileSize = 2 * cFileSize; // out0 || out1
-
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-    aclrtStream stream;
-    aclrtCreateStream(&stream);
-
-    uint8_t *dstHost, *src0Host, *src1Host, *sA0Host, *sA1Host, *sB0Host, *sB1Host;
-    uint8_t *dstDevice, *src0Device, *src1Device, *sA0Device, *sA1Device, *sB0Device, *sB1Device;
-
-    aclrtMallocHost((void**)(&dstHost), outFileSize);
-    aclrtMallocHost((void**)(&src0Host), aFileSize);
-    aclrtMallocHost((void**)(&src1Host), bFileSize);
-    aclrtMallocHost((void**)(&sA0Host), aScaleFileSize);
-    aclrtMallocHost((void**)(&sA1Host), aScaleFileSize);
-    aclrtMallocHost((void**)(&sB0Host), bScaleFileSize);
-    aclrtMallocHost((void**)(&sB1Host), bScaleFileSize);
-
-    aclrtMalloc((void**)&dstDevice, outFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&src0Device, aFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&src1Device, bFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&sA0Device, aScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&sA1Device, aScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&sB0Device, bScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&sB1Device, bScaleFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
-    ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-    ReadFile(GetGoldenDir() + "/x1_mx0_gm.bin", aScaleFileSize, sA0Host, aScaleFileSize);
-    ReadFile(GetGoldenDir() + "/x1_mx1_gm.bin", aScaleFileSize, sA1Host, aScaleFileSize);
-    ReadFile(GetGoldenDir() + "/x2_mx0_gm.bin", bScaleFileSize, sB0Host, bScaleFileSize);
-    ReadFile(GetGoldenDir() + "/x2_mx1_gm.bin", bScaleFileSize, sB1Host, bScaleFileSize);
-    aclrtMemset(dstDevice, outFileSize, 0, outFileSize);
-
-    aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(sA0Device, aScaleFileSize, sA0Host, aScaleFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(sA1Device, aScaleFileSize, sA1Host, aScaleFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(sB0Device, bScaleFileSize, sB0Host, bScaleFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    aclrtMemcpy(sB1Device, bScaleFileSize, sB1Host, bScaleFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-
-    LaunchTMATMUL_MX_PINGPONG<key>(
-        dstDevice, src0Device, src1Device, sA0Device, sA1Device, sB0Device, sB1Device, stream);
-
-    aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, outFileSize, dstDevice, outFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
-    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, outFileSize);
-
-    aclrtFree(dstDevice);
-    aclrtFree(src0Device);
-    aclrtFree(src1Device);
-    aclrtFree(sA0Device);
-    aclrtFree(sA1Device);
-    aclrtFree(sB0Device);
-    aclrtFree(sB1Device);
-    aclrtFreeHost(dstHost);
-    aclrtFreeHost(src0Host);
-    aclrtFreeHost(src1Host);
-    aclrtFreeHost(sA0Host);
-    aclrtFreeHost(sA1Host);
-    aclrtFreeHost(sB0Host);
-    aclrtFreeHost(sB1Host);
-    aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
-
-    // Compare both halves (out0, out1) against the concatenated golden.
-    std::vector<T> golden(outFileSize / sizeof(T));
-    std::vector<T> devFinal(outFileSize / sizeof(T));
-    ReadFile(GetGoldenDir() + "/golden.bin", outFileSize, golden.data(), outFileSize);
-    ReadFile(GetGoldenDir() + "/output_z.bin", outFileSize, devFinal.data(), outFileSize);
-
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
-}
-
-TEST_F(TMATMULMXTest, case20_pingpong)
-{
-    // fp8_e4m3 x fp8_e4m3, 16x64x16. scale0=127(1x), scale1=128(2x) => out1=4*out0.
-    TmatmulMXPingPongTest<float, uint8_t, uint8_t, false, 1>(16, 64, 16);
 }
