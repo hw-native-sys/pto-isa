@@ -69,7 +69,7 @@ def gen_golden_data(param):
     input_reshaped = input_arr.reshape(-1, 32)
     idx_reshaped = idx.reshape(-1, 32)
     # sort each group of 32 elements based on input values in descending order
-    sorted_indices = np.argsort(-input_reshaped, axis=1)
+    sorted_indices = np.argsort(-input_reshaped, axis=1, kind='stable')
     sorted_input = np.take_along_axis(input_reshaped, sorted_indices, axis=1)
     sorted_idx = np.take_along_axis(idx_reshaped, sorted_indices, axis=1)
     sorted_input = sorted_input.reshape(rows, cols)
