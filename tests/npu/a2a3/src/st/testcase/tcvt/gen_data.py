@@ -183,6 +183,11 @@ def gen_golden(case_name, param):
     # Apply rounding mode for conversions
     mode = param.mode
 
+    # round-half-away-from-zero: matches hardware ROUND_A used by CAST_ROUND.
+    # np.round is round-half-to-even (ROUND_R), NOT away-from-zero, so it must not be used for CAST_ROUND.
+    def _round_half_away_from_zero(arr):
+        return np.sign(arr) * np.floor(np.abs(arr) + 0.5)
+
     # Perform conversion first
     if np.issubdtype(srctype, np.floating):
         if np.issubdtype(dsttype, np.integer):
@@ -190,12 +195,15 @@ def gen_golden(case_name, param):
             if mode == "RoundMode::CAST_RINT":
                 converted_golden = np.rint(x1_gm)
             elif mode == "RoundMode::CAST_ROUND":
-                converted_golden = np.round(x1_gm)
+                converted_golden = _round_half_away_from_zero(x1_gm)
             elif mode == "RoundMode::CAST_FLOOR":
                 converted_golden = np.floor(x1_gm)
             elif mode == "RoundMode::CAST_CEIL":
                 converted_golden = np.ceil(x1_gm)
             elif mode == "RoundMode::CAST_TRUNC":
+                converted_golden = np.trunc(x1_gm)
+            elif mode == "RoundMode::CAST_NONE":
+                # CAST_NONE default: float->integer truncates toward zero (ROUND_Z)
                 converted_golden = np.trunc(x1_gm)
             else:
                 converted_golden = x1_gm
@@ -204,13 +212,16 @@ def gen_golden(case_name, param):
             if mode == "RoundMode::CAST_RINT":
                 converted_golden = np.rint(x1_gm)
             elif mode == "RoundMode::CAST_ROUND":
-                converted_golden = np.round(x1_gm)
+                converted_golden = _round_half_away_from_zero(x1_gm)
             elif mode == "RoundMode::CAST_FLOOR":
                 converted_golden = np.floor(x1_gm)
             elif mode == "RoundMode::CAST_CEIL":
                 converted_golden = np.ceil(x1_gm)
             elif mode == "RoundMode::CAST_TRUNC":
                 converted_golden = np.trunc(x1_gm)
+            elif mode == "RoundMode::CAST_NONE":
+                # CAST_NONE default: fp32->fp32 rounds to nearest-even (ROUND_R)
+                converted_golden = np.rint(x1_gm)
             else:
                 converted_golden = x1_gm
         else:

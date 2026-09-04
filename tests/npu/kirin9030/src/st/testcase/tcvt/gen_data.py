@@ -70,9 +70,15 @@ def gen_golden(case_name, param):
 
     # Apply rounding mode
     mode = param.mode
+
+    # round-half-away-from-zero: matches hardware ROUND_A used by CAST_ROUND.
+    # np.round is round-half-to-even (ROUND_R), NOT away-from-zero, so it must not be used for CAST_ROUND.
+    def _round_half_away_from_zero(arr):
+        return np.sign(arr) * np.floor(np.abs(arr) + 0.5)
+
     rounding_funcs = {
         "RoundMode::CAST_RINT": np.rint,
-        "RoundMode::CAST_ROUND": np.round,
+        "RoundMode::CAST_ROUND": _round_half_away_from_zero,
         "RoundMode::CAST_FLOOR": np.floor,
         "RoundMode::CAST_CEIL": np.ceil,
         "RoundMode::CAST_TRUNC": np.trunc,
@@ -84,7 +90,13 @@ def gen_golden(case_name, param):
     needs_rounding = is_float_src and (is_int_dst or is_f32_to_f32)
 
     if needs_rounding:
-        converted_golden = rounding_funcs.get(mode, lambda x: x)(x1_gm)
+        if mode == "RoundMode::CAST_NONE":
+            # CAST_NONE has no case in the hardware dispatch (tcvtDispatchByRound); it falls to the
+            # default: float->integer truncates toward zero (ROUND_Z, same as CAST_TRUNC), and
+            # everything else (incl. fp32->fp32) rounds to nearest-even (ROUND_R, same as CAST_RINT).
+            converted_golden = np.trunc(x1_gm) if is_int_dst else np.rint(x1_gm)
+        else:
+            converted_golden = rounding_funcs.get(mode, lambda x: x)(x1_gm)
     else:
         converted_golden = x1_gm
 
