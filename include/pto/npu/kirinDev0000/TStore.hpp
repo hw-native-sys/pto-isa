@@ -79,120 +79,6 @@ __tf__ AICORE void TStoreMat(
         gStride4, validRow, validCol);
 }
 
-template <typename SrcType, typename DstType>
-PTO_INTERNAL constexpr QuantMode_t GetCastPreQuantModeGm()
-{
-    return QuantMode_t::NoQuant;
-}
-
-template <typename SrcType, typename DstType>
-PTO_INTERNAL constexpr QuantMode_t GetScalarPreQuantModeGm()
-{
-    QuantMode_t quantPre = QuantMode_t::NoQuant;
-    if constexpr (caps::IsSInt32<SrcType>()) {
-        if constexpr (caps::IsInt8<DstType>()) {
-            quantPre = QuantMode_t::REQ8;
-        } else if constexpr (caps::IsFP16<DstType>()) {
-            quantPre = QuantMode_t::DEQF16;
-        }
-    } else if constexpr (caps::IsFP16<SrcType>()) {
-        if constexpr (caps::IsInt8<DstType>()) {
-            quantPre = QuantMode_t::QF162B8_PRE;
-        }
-    }
-    return quantPre;
-}
-
-template <typename SrcType, typename DstType>
-PTO_INTERNAL constexpr QuantMode_t GetVectorPreQuantModeGm()
-{
-    QuantMode_t quantPre = QuantMode_t::NoQuant;
-    if constexpr (caps::IsSInt32<SrcType>()) {
-        if constexpr (caps::IsInt8<DstType>()) {
-            quantPre = QuantMode_t::VREQ8;
-        } else if constexpr (caps::IsFP16<DstType>()) {
-            quantPre = QuantMode_t::VDEQF16;
-        }
-    } else if constexpr (caps::IsFP16<SrcType>()) {
-        if constexpr (caps::IsInt8<DstType>()) {
-            quantPre = QuantMode_t::VQF162B8_PRE;
-        }
-    }
-    return quantPre;
-}
-
-template <typename TileData, typename GlobalData, bool isQuant>
-PTO_INTERNAL void CheckStaticAcc()
-{
-    static_assert(
-        caps::IsSInt32<typename TileData::DType>() || caps::IsFP16<typename TileData::DType>(),
-        "The input data type must be restricted to int32_t/half!");
-    static_assert(
-        (GlobalData::layout == pto::Layout::ND) || (GlobalData::layout == pto::Layout::NZ),
-        "TSTORE(Acc2GM) only support NZ2ND / NZ2NZ.");
-    static_assert(TileData::Cols >= 1 && TileData::Cols <= 4095, "The range of Cols is [1, 4095].");
-    static_assert(
-        (GlobalData::layout == pto::Layout::ND && TileData::Rows >= 1 && TileData::Rows <= 8192) ||
-            (GlobalData::layout == pto::Layout::NZ && TileData::Rows >= 1 && TileData::Rows <= 65535 &&
-             TileData::Cols % 16 == 0),
-        "When GlobalData is ND format, the range of Rows is [1, 8192]."
-        "When GlobalData is NZ format, the range of Rows is [1, 65535] and Cols"
-        "must be an integer multiple of 16.");
-    if constexpr (!isQuant) {
-        static_assert(
-            caps::IsSInt32<typename GlobalData::RawDType>() || caps::IsFP32<typename GlobalData::RawDType>() ||
-                caps::IsFP16<typename GlobalData::RawDType>(),
-            "The output data type must be restricted to int32_t/float/half!");
-    } else if constexpr (isQuant) {
-        if constexpr (caps::IsFP16<typename TileData::DType>()) {
-            static_assert(
-                caps::IsFP16<typename GlobalData::RawDType>() || caps::IsSInt16<typename GlobalData::RawDType>() ||
-                    caps::IsSInt8<typename GlobalData::RawDType>() || caps::IsUInt8<typename GlobalData::RawDType>(),
-                "The output data type must be restricted to half/int16_t/int8_t/uint8_t.");
-        } else if constexpr (caps::IsSInt32<typename TileData::DType>()) {
-            static_assert(
-                caps::IsFP16<typename GlobalData::RawDType>() || caps::IsSInt16<typename GlobalData::RawDType>() ||
-                    caps::IsSInt8<typename GlobalData::RawDType>() || caps::IsUInt8<typename GlobalData::RawDType>() ||
-                    caps::IsSInt32<typename GlobalData::RawDType>(),
-                "The output data type must be restricted to half/int16_t/int8_t/uint8_t/int32_t.");
-        }
-    }
-}
-
-template <typename TileData, typename GlobalData>
-PTO_INTERNAL void CheckStaticVec()
-{
-    static_assert(
-        sizeof(typename TileData::DType) == sizeof(typename GlobalData::RawDType),
-        "Source dtype must be same with dst dtype!");
-    static_assert(
-        ((GlobalData::layout == pto::Layout::ND) &&
-         (TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
-            ((GlobalData::layout == pto::Layout::DN) &&
-             (!TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
-            ((GlobalData::layout == pto::Layout::NZ) &&
-             (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) ||
-            (TileData::Rows == 1) || (TileData::Cols == 1),
-        "Src and dst layout must be same, only support ND/DN/NZ or the special case of one row/one column!");
-    if constexpr (GlobalData::layout == pto::Layout::ND) {
-        static_assert(
-            (TileData::Cols * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0) ||
-                ((TileData::Cols == 1) && (TileData::Rows * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0)),
-            "Fix: TSTORE For ND layout, Cols * sizeof(DType) must be 32-byte aligned, or Rows * sizeof(DType) must be "
-            "32-byte aligned when Cols == 1.");
-    } else if constexpr (GlobalData::layout == pto::Layout::DN) {
-        static_assert(
-            (TileData::Rows * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0) ||
-                ((TileData::Rows == 1) && (TileData::Cols * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0)),
-            "Fix: TSTORE For DN layout, Rows * sizeof(DType) must be 32-byte aligned, or Cols * sizeof(DType) must be "
-            "32-byte aligned when Rows == 1.");
-    } else {
-        static_assert(
-            GlobalData::layout == pto::Layout::NZ,
-            "Fix: TSTORE Unsupported layout format, only ND/DN/NZ are supported.");
-    }
-}
-
 template <typename GlobalData, typename TileData>
 PTO_INTERNAL void TStoreVecND(
     typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
@@ -326,7 +212,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
     } else if constexpr (TileData::Loc == pto::TileType::Acc) {
         static_assert(sizeof(TileData::DType) == 0, "TSTORE(Acc2GM): use TMOV(Acc->Vec) then TSTORE(Vec2GM) instead.");
     } else if constexpr (TileData::Loc == pto::TileType::Vec) {
-        CheckStaticVec<TileData, GlobalData>();
+        CheckStaticVecCommon<TileData, GlobalData>();
 
         //
         //

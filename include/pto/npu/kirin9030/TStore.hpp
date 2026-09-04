@@ -93,43 +93,6 @@ PTO_INTERNAL void CheckStaticAcc()
     }
 }
 
-template <typename TileData, typename GlobalData>
-PTO_INTERNAL void CheckStaticVec()
-{
-    static_assert(
-        sizeof(typename TileData::DType) == sizeof(typename GlobalData::RawDType),
-        "Source dtype must be same with dst dtype!");
-    static_assert(
-        caps::IsTypeSupported<typename TileData::DType>(),
-        "Data type must be int8_t/uint8_t/int16_t/uint16_t/int32_t/uint32_t/int64_t/uint64_t/half/float!");
-    static_assert(
-        ((GlobalData::layout == pto::Layout::ND) &&
-         (TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
-            ((GlobalData::layout == pto::Layout::DN) &&
-             (!TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
-            ((GlobalData::layout == pto::Layout::NZ) &&
-             (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) ||
-            (TileData::Rows == 1) || (TileData::Cols == 1),
-        "Src and dst layout must be same, only support ND/DN/NZ or the special case of one row/one column!");
-    if constexpr (GlobalData::layout == pto::Layout::ND) {
-        static_assert(
-            (TileData::Cols * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0) ||
-                ((TileData::Cols == 1) && (TileData::Rows * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0)),
-            "Fix: TSTORE For ND layout, Cols * sizeof(DType) must be 32-byte aligned, or Rows * sizeof(DType) must be "
-            "32-byte aligned when Cols == 1.");
-    } else if constexpr (GlobalData::layout == pto::Layout::DN) {
-        static_assert(
-            (TileData::Rows * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0) ||
-                ((TileData::Rows == 1) && (TileData::Cols * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0)),
-            "Fix: TSTORE For DN layout, Rows * sizeof(DType) must be 32-byte aligned, or Cols * sizeof(DType) must be "
-            "32-byte aligned when Rows == 1.");
-    } else {
-        static_assert(
-            GlobalData::layout == pto::Layout::NZ,
-            "Fix: TSTORE Unsupported layout format, only ND/DN/NZ are supported.");
-    }
-}
-
 template <typename GlobalData, typename TileData>
 PTO_INTERNAL void TStoreVecND(
     typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
@@ -227,7 +190,10 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
             dst.GetShape(dim4), dst.GetStride(dim0), dst.GetStride(dim1), dst.GetStride(dim2), dst.GetStride(dim3),
             dst.GetStride(dim4), src.GetValidRow(), src.GetValidCol());
     } else if constexpr (TileData::Loc == pto::TileType::Vec) {
-        CheckStaticVec<TileData, GlobalData>();
+        static_assert(
+            caps::IsTypeSupported<typename TileData::DType>(),
+            "Data type must be int8_t/uint8_t/int16_t/uint16_t/int32_t/uint32_t/int64_t/uint64_t/half/float!");
+        CheckStaticVecCommon<TileData, GlobalData>();
 
         TStore<GlobalData, TileData>(
             dst.data(), src.data(), dst.GetShape(dim0), dst.GetShape(dim1), dst.GetShape(dim2), dst.GetShape(dim3),

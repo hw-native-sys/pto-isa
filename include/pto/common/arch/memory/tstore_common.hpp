@@ -12,6 +12,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TSTORE_COMMON_MEMORY
 #include <pto/common/utils.hpp>
 
+// TStoreUb2gmInstr is arch-specific (burst instruction form differs between
+// a2a3 and kirinX90) and is defined by each arch shell. Declared here because
+// the UB→GM path helpers below call it with explicit template arguments (no ADL).
+template <typename GlobalData, typename TileData>
+PTO_INTERNAL void TStoreUb2gmInstr(
+    typename GlobalData::DType* dst, __ubuf__ typename TileData::DType* src, uint16_t nBurst, uint32_t lenBurst,
+    uint32_t gmGap, uint32_t ubGap);
+
 template <typename GlobalData, typename TileData>
 PTO_INTERNAL void TStoreMat2GmInstr(
     typename GlobalData::DType* dstAddr, __cbuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
@@ -386,6 +394,73 @@ PTO_INTERNAL void TStoreUb2gmNd2nd(
                 TStoreUb2gmInstr<GlobalData, TileData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, gmGap, ubGap);
             }
         }
+    }
+}
+
+template <typename GlobalData, typename TileData>
+PTO_INTERNAL void TStoreUb2gmDn2dn(
+    typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
+    int validRow, int validCol)
+{
+    PTO_ASSERT(validRow == gShape3, "The validCol of TileData must be equal to the 4th dim(Shape3) of DN shape!");
+    PTO_ASSERT(
+        validCol == gShape0 * gShape1 * gShape2 * gShape4,
+        "The validRow of TileData must be equal to (Shape0 * Shape1 * Shape2 * Shape4) of DN shape!");
+    PTO_ASSERT(gShape4 < 4096, "The gshape4 (which equals nBurst) must be less than 4096");
+    uint16_t nBurst = gShape4;
+    uint32_t lenBurst = validRow * sizeof(typename TileData::DType);
+    uint32_t gmGap = (gStride4 - gShape3) * sizeof(typename TileData::DType);
+    uint32_t ubGap = ((TileData::Rows - gShape3) * sizeof(typename TileData::DType)) >> SHIFT_BLOCK_BYTE;
+    typename GlobalData::DType* dstGlobalAddr = dstAddr;
+    __ubuf__ typename TileData::DType* srcTileAddr = srcAddr;
+    int64_t srcStride2 = TileData::Rows * gShape4;
+    int64_t srcStride1 = gShape2 * srcStride2;
+    int64_t srcStride0 = gShape1 * srcStride1;
+
+    for (uint32_t i = 0; i < gShape0; i++) {
+        int64_t srcAddr0 = i * srcStride0;
+        int64_t dstAddr0 = i * gStride0;
+        for (uint32_t j = 0; j < gShape1; j++) {
+            int64_t srcAddr1 = j * srcStride1;
+            int64_t dstAddr1 = j * gStride1;
+            for (uint32_t k = 0; k < gShape2; k++) {
+                dstGlobalAddr = dstAddr + dstAddr0 + dstAddr1 + k * gStride2;
+                srcTileAddr = srcAddr + srcAddr0 + srcAddr1 + k * srcStride2;
+                TStoreUb2gmInstr<GlobalData, TileData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, gmGap, ubGap);
+            }
+        }
+    }
+}
+
+template <typename GlobalData, typename TileData>
+PTO_INTERNAL void TStoreUb2gmNz2nz(
+    typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
+    int validRow, int validCol)
+{
+    static_assert(
+        GlobalData::staticShape[3] == FRACTAL_NZ_ROW &&
+            GlobalData::staticShape[4] == BLOCK_BYTE_SIZE / sizeof(typename TileData::DType),
+        "When TileData is NZ format, the last 2 dim must be static and satisfy [16, 32 / sizeof(DataType)]");
+    PTO_ASSERT(validRow == gShape2 * gShape3, "The validRow of TileData must be equal to Shape2 * Shape3 of NZ shape!");
+    PTO_ASSERT(
+        validCol == gShape0 * gShape1 * gShape4,
+        "The validCol of TileData must be equal to Shape0 * Shape1 * Shape4 of NZ shape!");
+    PTO_ASSERT(gShape1 < 4096, "The gshape1 (which equals nBurst) must be less than 4096");
+    uint16_t nBurst = gShape1;
+    uint32_t lenBurst = validRow * C0_SIZE_BYTE;
+    uint32_t gmGap = (gStride1 - gShape2 * gShape3 * gShape4) * sizeof(typename TileData::DType);
+    uint32_t ubGap = TileData::Rows - validRow;
+
+    typename GlobalData::DType* dstGlobalAddr = dstAddr;
+    __ubuf__ typename TileData::DType* srcTileAddr = srcAddr;
+
+    int64_t tileStride = TileData::Rows * gShape1 * gShape4;
+    for (uint32_t i = 0; i < gShape0; i++) {
+        dstGlobalAddr = dstAddr + i * gStride0;
+        srcTileAddr = srcAddr + i * tileStride;
+        TStoreUb2gmInstr<GlobalData, TileData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, gmGap, ubGap);
     }
 }
 

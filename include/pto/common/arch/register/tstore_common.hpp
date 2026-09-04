@@ -13,6 +13,45 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 
 namespace pto {
+
+// Common static checks for TSTORE(Vec→GM). The arch-specific type-support
+// assertion (caps::IsTypeSupported) is intentionally NOT part of this: a5 has a
+// wider type list, so each arch shell states its own type constraint at the
+// call site.
+template <typename TileData, typename GlobalData>
+PTO_INTERNAL void CheckStaticVecCommon()
+{
+    static_assert(
+        sizeof(typename TileData::DType) == sizeof(typename GlobalData::RawDType),
+        "Source dtype must be same with dst dtype!");
+    static_assert(
+        ((GlobalData::layout == pto::Layout::ND) &&
+         (TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
+            ((GlobalData::layout == pto::Layout::DN) &&
+             (!TileData::isRowMajor && (TileData::SFractal == SLayout::NoneBox))) ||
+            ((GlobalData::layout == pto::Layout::NZ) &&
+             (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) ||
+            (TileData::Rows == 1) || (TileData::Cols == 1),
+        "Src and dst layout must be same, only support ND/DN/NZ or the special case of one row/one column!");
+    if constexpr (GlobalData::layout == pto::Layout::ND) {
+        static_assert(
+            (TileData::Cols * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0) ||
+                ((TileData::Cols == 1) && (TileData::Rows * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0)),
+            "Fix: TSTORE For ND layout, Cols * sizeof(DType) must be 32-byte aligned, or Rows * sizeof(DType) must be "
+            "32-byte aligned when Cols == 1.");
+    } else if constexpr (GlobalData::layout == pto::Layout::DN) {
+        static_assert(
+            (TileData::Rows * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0) ||
+                ((TileData::Rows == 1) && (TileData::Cols * sizeof(typename TileData::DType) % BLOCK_BYTE_SIZE == 0)),
+            "Fix: TSTORE For DN layout, Rows * sizeof(DType) must be 32-byte aligned, or Cols * sizeof(DType) must be "
+            "32-byte aligned when Rows == 1.");
+    } else {
+        static_assert(
+            GlobalData::layout == pto::Layout::NZ,
+            "Fix: TSTORE Unsupported layout format, only ND/DN/NZ are supported.");
+    }
+}
+
 template <
     typename GlobalData, typename TileData, QuantMode_t quantPre = QuantMode_t::NoQuant,
     ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
