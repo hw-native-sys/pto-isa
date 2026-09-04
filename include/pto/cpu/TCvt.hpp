@@ -149,7 +149,7 @@ template <typename T>
 inline T from_double_value(double val)
 {
     if constexpr (std::is_same_v<T, int4b_t>) {
-        int8_t ival = static_cast<int8_t>(clamp_value(val, -8.0, 7.0));
+        int8_t ival = static_cast<int8_t>(clamp_value(val, SafeLimits<int4b_t>::lowest(), SafeLimits<int4b_t>::max()));
         return int4b_t(ival);
     } else {
         return static_cast<T>(val);
@@ -171,7 +171,7 @@ inline D convert_value(S val, RoundMode mode)
         volatile double dval = static_cast<double>(val);
         if constexpr (is_float_like_v<S>)
             dval = applyRoundingToIntegral(dval, mode);
-        dval = clamp_value(dval, -8.0, 7.0);
+        dval = clamp_value(dval, SafeLimits<int4b_t>::lowest(), SafeLimits<int4b_t>::max());
         return int4b_t(static_cast<int8_t>(dval));
     } else if constexpr (
         (is_fp4_v<S> && is_float_like_v<D>) || (is_float_like_v<S> && is_fp4_v<D>) ||

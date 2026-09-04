@@ -40,14 +40,11 @@ void TFillPad(TileDataDst& dst, TileDataSrc& src)
     } else {
         constexpr auto padBits = GetPadValue<TileDataDst>();
         if constexpr (sizeof(DType) == 4) {
-            const uint32_t bits = static_cast<uint32_t>(padBits);
-            std::memcpy(&padVal, &bits, sizeof(DType));
+            padVal = std::bit_cast<DType>(static_cast<uint32_t>(padBits));
         } else if constexpr (sizeof(DType) == 2) {
-            const uint16_t bits = static_cast<uint16_t>(padBits);
-            std::memcpy(&padVal, &bits, sizeof(DType));
+            padVal = std::bit_cast<DType>(static_cast<uint16_t>(padBits));
         } else {
-            const uint8_t bits = static_cast<uint8_t>(padBits);
-            std::memcpy(&padVal, &bits, sizeof(DType));
+            padVal = std::bit_cast<DType>(static_cast<uint8_t>(padBits));
         }
     }
 

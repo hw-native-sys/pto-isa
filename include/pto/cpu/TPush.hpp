@@ -25,6 +25,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 #include <pto/common/fifo.hpp>
 #include <pto/common/fixpipe.hpp>
 
@@ -375,7 +376,7 @@ PTO_INTERNAL T LoadByteStorageElement(
     const std::size_t byteOffset =
         GetCheckedByteStorageOffset<T>(storage, slotIndex, baseByteOffset, regionByteEnd, elementIndex, operation);
     T value;
-    std::memcpy(&value, storage.data() + byteOffset, sizeof(T));
+    std::copy(storage.data() + byteOffset, storage.data() + byteOffset + sizeof(T), reinterpret_cast<uint8_t*>(&value));
     return value;
 }
 
@@ -386,7 +387,8 @@ PTO_INTERNAL void StoreByteStorageElement(
 {
     const std::size_t byteOffset =
         GetCheckedByteStorageOffset<T>(storage, slotIndex, baseByteOffset, regionByteEnd, elementIndex, operation);
-    std::memcpy(storage.data() + byteOffset, &value, sizeof(T));
+    const auto* src = reinterpret_cast<const uint8_t*>(&value);
+    std::copy(src, src + sizeof(T), storage.data() + byteOffset);
 }
 
 template <typename T, std::size_t StorageSize>
