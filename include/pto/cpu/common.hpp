@@ -139,7 +139,7 @@ DstType quantize_element(SrcType src_val, uint64_t scalar)
     if constexpr (
         mode == QuantMode_t::QF322B8_PRE || mode == QuantMode_t::VQF322B8_PRE || mode == QuantMode_t::REQ8 ||
         mode == QuantMode_t::VREQ8) {
-        float rounded = std::nearbyint(result_f + offset);
+        float rounded = std::rint(result_f + offset);
         float min = sign == 1 ? -128.0f : 0.0f;
         float max = sign == 1 ? 127.0f : 255.0f;
         result_f = std::clamp(rounded, min, max);
