@@ -54,6 +54,10 @@ void LaunchTQuantDN_MXFP4_fp16(
     uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream);
 
 template <int M, int N, int N_pad>
+void LaunchTQuantDN_MXFP4_fp16_nd_only(
+    uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream);
+
+template <int M, int N, int N_pad>
 void LaunchTQuantDN_MXFP4_bf16_interleaved(
     uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream);
 
@@ -204,6 +208,11 @@ TQUANT_DN_VALID_SHAPE_CASE(bf16, false, 512, 64, 24)
 TQUANT_DN_VALID_SHAPE_NV_CASE(fp16, true, 896, 896, 34)
 
 #undef TQUANT_DN_VALID_SHAPE_NV_CASE
+
+TEST_F(TQUANTDNTest, case_nv_validshape_fp32_s192x168_v192x162)
+{
+    test_tquant_dn_valid_shape<192, 168, 192, 162, uint32_t, false, true>();
+}
 
 template <int M, int N, int N_pad, bool InterleaveExp = false, bool IsNv = false>
 void test_tquant_dn_bf16()
@@ -443,7 +452,11 @@ void test_tquant_dn_fp32()
     if constexpr (!InterleaveExp) {
         ExpectGoldenMatch("DN_Pipeline_fp32", "e8_zz", goldenE8Zz, outE8Zz);
     }
-    ExpectGoldenMatch("DN_Pipeline_fp32", "group_max", goldenGroupMax, outGroupMax);
+    // max is TQUANT scratch. The interleaved FP32 path reuses it after scaling is produced,
+    // so only validate it for paths that currently preserve the intermediate value.
+    if constexpr (!InterleaveExp) {
+        ExpectGoldenMatch("DN_Pipeline_fp32", "group_max", goldenGroupMax, outGroupMax);
+    }
 
     aclrtFree(srcDevice);
     aclrtFree(fp8NDDevice);
@@ -576,7 +589,7 @@ void test_tquant_dn_mxfp4_bf16()
 
 TEST_F(TQUANTDNTest, case_nv_mxfp4_bf16_128x128_interleaved) { test_tquant_dn_mxfp4_bf16<128, 128, 128, true, true>(); }
 
-template <int M, int N, int N_pad, bool InterleaveExp = false, bool IsNv = false>
+template <int M, int N, int N_pad, bool InterleaveExp = false, bool IsNv = false, bool ProduceNZ = true>
 void test_tquant_dn_mxfp4_fp16()
 {
     constexpr int grpSize = 32;
@@ -622,7 +635,10 @@ void test_tquant_dn_mxfp4_fp16()
 
     const std::string goldenDir = GetGoldenDir();
 
-    if constexpr (IsNv) {
+    if constexpr (!ProduceNZ) {
+        TQuantDNTest::LaunchTQuantDN_MXFP4_fp16_nd_only<M, N, N_pad>(
+            (uint16_t*)srcDevice, fp4NDDevice, e8DNDevice, fp4NZDevice, maxDNDevice, stream);
+    } else if constexpr (IsNv) {
         TQuantDNTest::LaunchTQuantDN_MXFP4_nv_fp16<M, N, N_pad, InterleaveExp>(
             (uint16_t*)srcDevice, fp4NDDevice, e8DNDevice, fp4NZDevice, maxDNDevice, stream);
     } else if constexpr (InterleaveExp) {
@@ -636,11 +652,13 @@ void test_tquant_dn_mxfp4_fp16()
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "MXFP4 fp16 DN sync failed: " << aclGetRecentErrMsg();
 
     aclrtMemcpy(fp4NDHost, fp4NDFileSize, fp4NDDevice, fp4NDFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    aclrtMemcpy(fp4NZHost, fp4NZFileSize, fp4NZDevice, fp4NZFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    if constexpr (ProduceNZ)
+        aclrtMemcpy(fp4NZHost, fp4NZFileSize, fp4NZDevice, fp4NZFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtMemcpy(e8DNHost, e8DNFileSize, e8DNDevice, e8DNFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtMemcpy(maxDNHost, maxDNFileSize, maxDNDevice, maxDNFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
     WriteFile(goldenDir + "/output_fp4_nd.bin", fp4NDHost, fp4NDFileSize);
-    WriteFile(goldenDir + "/output_fp4_nz.bin", fp4NZHost, fp4NZFileSize);
+    if constexpr (ProduceNZ)
+        WriteFile(goldenDir + "/output_fp4_nz.bin", fp4NZHost, fp4NZFileSize);
     WriteFile(goldenDir + "/output_e8_dn.bin", e8DNHost, e8DNFileSize);
     WriteFile(goldenDir + "/output_group_max.bin", maxDNHost, maxDNFileSize);
 
@@ -653,16 +671,19 @@ void test_tquant_dn_mxfp4_fp16()
     std::vector<uint8_t> outE8Dn(e8DNFileSize);
     std::vector<uint16_t> outGroupMax(maxDNFileSize / sizeof(uint16_t));
     ReadFile(goldenDir + "/golden_fp4_nd.bin", fp4NDFileSize, goldenFp4Nd.data(), fp4NDFileSize);
-    ReadFile(goldenDir + "/golden_fp4_nz.bin", fp4NZFileSize, goldenFp4Nz.data(), fp4NZFileSize);
+    if constexpr (ProduceNZ)
+        ReadFile(goldenDir + "/golden_fp4_nz.bin", fp4NZFileSize, goldenFp4Nz.data(), fp4NZFileSize);
     const std::string e8GoldenName = InterleaveExp ? "/golden_e8_dn_interleaved.bin" : "/golden_e8_dn.bin";
     ReadFile(goldenDir + e8GoldenName, e8DNFileSize, goldenE8Dn.data(), e8DNFileSize);
     ReadFile(goldenDir + "/golden_group_max.bin", maxDNFileSize, goldenGroupMax.data(), maxDNFileSize);
     ReadFile(goldenDir + "/output_fp4_nd.bin", fp4NDFileSize, outFp4Nd.data(), fp4NDFileSize);
-    ReadFile(goldenDir + "/output_fp4_nz.bin", fp4NZFileSize, outFp4Nz.data(), fp4NZFileSize);
+    if constexpr (ProduceNZ)
+        ReadFile(goldenDir + "/output_fp4_nz.bin", fp4NZFileSize, outFp4Nz.data(), fp4NZFileSize);
     ReadFile(goldenDir + "/output_e8_dn.bin", e8DNFileSize, outE8Dn.data(), e8DNFileSize);
     ReadFile(goldenDir + "/output_group_max.bin", maxDNFileSize, outGroupMax.data(), maxDNFileSize);
     ExpectGoldenMatch("MXFP4_FP16_DN", "fp4_nd", goldenFp4Nd, outFp4Nd);
-    ExpectGoldenMatch("MXFP4_FP16_DN", "fp4_nz", goldenFp4Nz, outFp4Nz);
+    if constexpr (ProduceNZ)
+        ExpectGoldenMatch("MXFP4_FP16_DN", "fp4_nz", goldenFp4Nz, outFp4Nz);
     ExpectGoldenMatch("MXFP4_FP16_DN", "e8_dn (exponents)", goldenE8Dn, outE8Dn);
     ExpectGoldenMatch("MXFP4_FP16_DN", "group_max", goldenGroupMax, outGroupMax);
 
@@ -682,3 +703,5 @@ void test_tquant_dn_mxfp4_fp16()
 }
 
 TEST_F(TQUANTDNTest, case_mxfp4_fp16_64x128) { test_tquant_dn_mxfp4_fp16<64, 128, 128>(); }
+
+TEST_F(TQUANTDNTest, case_mxfp4_fp16_64x480) { test_tquant_dn_mxfp4_fp16<64, 480, 480, false, false, false>(); }

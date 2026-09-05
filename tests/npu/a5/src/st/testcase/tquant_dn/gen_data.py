@@ -326,6 +326,7 @@ MXFP4_BF16_CASE_PARAMS = []
 
 MXFP4_FP16_CASE_PARAMS = [
     ("TQUANTDNTest.case_mxfp4_fp16_64x128", 64, 128),
+    ("TQUANTDNTest.case_mxfp4_fp16_64x480", 64, 480),
 ]
 
 MXFP4_INTERLEAVED_CASE_PARAMS = [
@@ -346,6 +347,7 @@ class ValidShapeCase:
 VALID_SHAPE_CASE_PARAMS = [
     ValidShapeCase("bf16", 512, 64, 24),
     ValidShapeCase("fp16", 896, 896, 34, nv=True),
+    ValidShapeCase("fp32", 192, 192, 162, nv=True, static_cols=168),
 ]
 
 GOLDEN_DIR = os.environ.get("PTO_GOLDEN_DIR", ".")
@@ -513,7 +515,11 @@ def _write_golden_data_mxfp4_fp16(case_name, src, nv=False):
     fp4_nd, e8_dn, group_max = quant_fp16_to_mxfp4_dn(src, m, n_pad, nv)
     fp4_padded = np.zeros((m, n_pad // 2), dtype=np.uint8)
     fp4_padded[:, : n_pad // 2] = fp4_nd.reshape(m, n_pad // 2)
-    fp4_nz = nd2nz_mxfp8(fp4_padded, m, n_pad // 2)
+    fp4_nz = (
+        nd2nz_mxfp8(fp4_padded, m, n_pad // 2)
+        if (n_pad // 2) % 32 == 0
+        else np.empty(0, dtype=np.uint8)
+    )
     golden_group_max_fp16 = (
         group_max.view(np.uint16) if nv else fp32_to_bf16_bits(group_max)
     )

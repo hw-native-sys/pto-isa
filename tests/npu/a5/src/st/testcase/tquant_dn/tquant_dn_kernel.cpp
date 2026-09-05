@@ -371,10 +371,29 @@ void LaunchTQuantDN_fp32_nv(
 }
 
 // MXFP4 (E2M1) DN kernel: quantizes src[M,N_pad] to packed FP4 plus per-group
-// e8m0/max tiles. TQUANT writes FP4 as a flat float4_e2m1x2_t tile; a uint8_t
-// TSTORE tile is assigned via TASSIGN to the same UB region so TSTORE reads it in-place
-// (no copy/intrinsics needed).
-template <typename T, int M, int N, int N_pad, bool InterleaveExp = false, MxQuantAlg Alg = MxQuantAlg::OcpMxFp4E2M1>
+// e8m0/max tiles. TQUANT writes FP4 as a flat float4_e2m1x2_t tile. Aligned
+// shapes optionally copy it to a separate 2D byte tile for ND-to-NZ.
+template <typename TileData>
+__tf__ PTO_INTERNAL void StoreFlatTileToGm(
+    __gm__ uint8_t* dst, typename TileData::TileDType __in__ src, uint32_t byteCount)
+{
+    __ubuf__ uint8_t* srcPtr = reinterpret_cast<__ubuf__ uint8_t*>(__cce_get_tile_ptr(src));
+    copy_ubuf_to_gm_align_v2(
+        static_cast<__gm__ void*>(dst), static_cast<__ubuf__ void*>(srcPtr), 0, 1, byteCount, 0, 0, 0);
+}
+
+template <typename DstTileData, typename SrcTileData>
+__tf__ PTO_INTERNAL void CopyFlatTile(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t blockCount)
+{
+    __ubuf__ uint8_t* dstPtr = reinterpret_cast<__ubuf__ uint8_t*>(__cce_get_tile_ptr(dst));
+    __ubuf__ uint8_t* srcPtr = reinterpret_cast<__ubuf__ uint8_t*>(__cce_get_tile_ptr(src));
+    pto_copy_ubuf_to_ubuf(dstPtr, srcPtr, 1, blockCount, 0, 0);
+}
+
+template <
+    typename T, int M, int N, int N_pad, bool InterleaveExp = false, MxQuantAlg Alg = MxQuantAlg::OcpMxFp4E2M1,
+    bool ProduceNZ = true>
 __global__ AICORE void runTQuantDN_MXFP4(
     __gm__ T __in__* src_gm, __gm__ uint8_t __out__* fp4_nd_gm, __gm__ uint8_t __out__* e8_dn_gm,
     __gm__ uint8_t __out__* fp4_nz_gm, __gm__ T __out__* max_dn_gm)
@@ -400,22 +419,8 @@ __global__ AICORE void runTQuantDN_MXFP4(
     using DstFP4Tile = Tile<
         TileType::Vec, float4_e2m1x2_t, 1, fp4FlatAligned, BLayout::RowMajor, -1, -1, SLayout::NoneBox, 512,
         PadValue::Zero>;
-    // 2D RowMajor view of the same packed FP4 UB data for ND->NZ.
-    // Use uint8_t for the view so the standard byte ND->NZ lowering is used.
-    using Fp4Tile2D = Tile<
-        TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox, 512, PadValue::Zero>;
-    // NZ tile for packed FP4: use uint8_t as the element type so the standard
-    // byte ND->NZ lowering (32B blocks) is used. Each byte holds 2 FP4 values.
     constexpr uint32_t paddedRows16 = PTO_CEIL(M, FRACTAL_NZ_ROW);
     constexpr uint32_t virtualRow = paddedRows16 + 1;
-    using Fp4NZTile = Tile<
-        TileType::Vec, uint8_t, virtualRow, packedCols, BLayout::ColMajor, M, packedCols, SLayout::RowMajor, 512,
-        PadValue::Null, CompactMode::RowPlusOne>;
-    // TSTORE tile: uint8_t [M, packedCols] view over the same UB region that TQUANT
-    // wrote the packed FP4 data into (TASSIGN to fp4Addr). No copy needed — TSTORE
-    // reads the bytes in-place. Valid extents are DYNAMIC for runtime sizing.
-    using DstBytesTile = Tile<
-        TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox, 512, PadValue::Zero>;
 
     constexpr uint32_t srcBytes = M * paddedCols * sizeof(T);
     constexpr uint32_t maxBytes = hatM * paddedCols * sizeof(T);
@@ -430,7 +435,8 @@ __global__ AICORE void runTQuantDN_MXFP4(
     constexpr uint32_t e8Addr = PTO_CEIL(scalingAddr + scalingBytes, 0x20);
     constexpr uint32_t fp4Addr = PTO_CEIL(e8Addr + e8Bytes, 0x20);
     constexpr uint32_t fp4NZAddr = PTO_CEIL(fp4Addr + fp4Bytes, 0x20);
-    constexpr uint32_t layoutEnd = PTO_CEIL(fp4NZAddr + fp4NZBytes, 0x100);
+    constexpr uint32_t fp4CopyAddr = PTO_CEIL(fp4NZAddr + fp4NZBytes, 0x20);
+    constexpr uint32_t layoutEnd = PTO_CEIL(fp4CopyAddr + fp4Bytes, 0x100);
     static_assert(layoutEnd <= 0x40000, "MXFP4 DN UB layout exceeds 256 KB.");
 
     SrcTile srcTile(M, paddedCols);
@@ -438,30 +444,18 @@ __global__ AICORE void runTQuantDN_MXFP4(
     ScalingTile scalingTile(hatM, paddedCols);
     E8Tile e8Tile(e8Rows, e8Cols);
     DstFP4Tile fp4Tile;
-    Fp4Tile2D fp4Tile2D;
-    Fp4NZTile fp4NZTile;
-    DstBytesTile fp4BytesTile;
 
     TASSIGN(srcTile, srcAddr);
     TASSIGN(maxTile, maxAddr);
     TASSIGN(scalingTile, scalingAddr);
     TASSIGN(e8Tile, e8Addr);
     TASSIGN(fp4Tile, fp4Addr);
-    TASSIGN(fp4Tile2D, fp4Addr);
-    TASSIGN(fp4NZTile, fp4NZAddr);
-    TASSIGN(fp4BytesTile, fp4Addr);
 
     using SrcGlobal = GlobalTensor<T, Shape<1, 1, 1, M, N_pad>, pto::Stride<1, 1, 1, N_pad, 1>>;
-    using Fp4Global = GlobalTensor<uint8_t, Shape<1, 1, 1, M, packedCols>, pto::Stride<1, 1, 1, packedCols, 1>>;
-    using Fp4GlobalNZ = GlobalTensor<
-        uint8_t, TileShape2D<uint8_t, M, packedCols, Layout::NZ>, BaseShape2D<uint8_t, M, packedCols, Layout::NZ>,
-        Layout::NZ>;
     using MaxGlobal = GlobalTensor<T, Shape<1, 1, 1, hatM, paddedCols>, pto::Stride<1, 1, 1, paddedCols, 1>>;
     using E8Global = GlobalTensor<uint8_t, Shape<1, 1, 1, e8Rows, e8Cols>, pto::Stride<1, 1, 1, e8Cols, 1>>;
 
     SrcGlobal srcGlobal(src_gm);
-    Fp4Global fp4Global(fp4_nd_gm);
-    Fp4GlobalNZ fp4GlobalNZ(fp4_nz_gm);
     MaxGlobal maxGlobal(max_dn_gm);
     E8Global e8Global(e8_dn_gm);
 
@@ -476,13 +470,37 @@ __global__ AICORE void runTQuantDN_MXFP4(
     else
         TQUANT<0, Alg>(fp4Tile, srcTile, &e8Tile, &maxTile, &scalingTile);
 
-    // Packed FP4 ND->NZ: source is RowMajor [M, packedCols] of float4_e2m1x2_t.
-    TMOV(fp4NZTile, fp4Tile2D);
-
-    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
-    TSTORE(fp4Global, fp4BytesTile);
-    TSTORE(fp4GlobalNZ, fp4NZTile);
+    if constexpr (ProduceNZ) {
+        using Fp4Tile2D = Tile<
+            TileType::Vec, uint8_t, M, packedCols, BLayout::RowMajor, M, packedCols, SLayout::NoneBox, 512,
+            PadValue::Zero>;
+        using Fp4NZTile = Tile<
+            TileType::Vec, uint8_t, virtualRow, packedCols, BLayout::ColMajor, M, packedCols, SLayout::RowMajor, 512,
+            PadValue::Null, CompactMode::RowPlusOne>;
+        using Fp4GlobalNZ = GlobalTensor<
+            uint8_t, TileShape2D<uint8_t, M, packedCols, Layout::NZ>, BaseShape2D<uint8_t, M, packedCols, Layout::NZ>,
+            Layout::NZ>;
+        Fp4Tile2D fp4Tile2D;
+        Fp4NZTile fp4NZTile;
+        TASSIGN(fp4Tile2D, fp4CopyAddr);
+        TASSIGN(fp4NZTile, fp4NZAddr);
+        Fp4GlobalNZ fp4GlobalNZ(fp4_nz_gm);
+        set_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_MTE2, EVENT_ID0);
+        CopyFlatTile<Fp4Tile2D, DstFP4Tile>(fp4Tile2D.data(), fp4Tile.data(), fp4Bytes / 32);
+        set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+        // Packed FP4 ND->NZ: source is RowMajor [M, packedCols] of float4_e2m1x2_t.
+        TMOV(fp4NZTile, fp4Tile2D);
+        set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        StoreFlatTileToGm<DstFP4Tile>(fp4_nd_gm, fp4Tile.data(), fp4Bytes);
+        TSTORE(fp4GlobalNZ, fp4NZTile);
+    } else {
+        set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+        StoreFlatTileToGm<DstFP4Tile>(fp4_nd_gm, fp4Tile.data(), fp4Bytes);
+    }
     TSTORE(maxGlobal, maxTile);
     TSTORE(e8Global, e8Tile);
 }
@@ -500,6 +518,14 @@ void LaunchTQuantDN_MXFP4_fp16(
     uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream)
 {
     runTQuantDN_MXFP4<half, M, N, N_pad><<<1, nullptr, stream>>>((half*)src, fp4_nd, e8_dn, fp4_nz, (half*)max_dn);
+}
+
+template <int M, int N, int N_pad>
+void LaunchTQuantDN_MXFP4_fp16_nd_only(
+    uint16_t* src, uint8_t* fp4_nd, uint8_t* e8_dn, uint8_t* fp4_nz, uint16_t* max_dn, void* stream)
+{
+    runTQuantDN_MXFP4<half, M, N, N_pad, false, MxQuantAlg::OcpMxFp4E2M1, false>
+        <<<1, nullptr, stream>>>((half*)src, fp4_nd, e8_dn, fp4_nz, (half*)max_dn);
 }
 
 template <int M, int N, int N_pad>
@@ -545,7 +571,10 @@ template void LaunchTQuantDN_fp32_nv<128, 128, 128, true>(
     uint32_t*, int8_t*, uint8_t*, int8_t*, uint8_t*, uint32_t*, void*);
 template void LaunchTQuantDNValidShapeBF16<512, 48, 64, 24>(uint16_t*, int8_t*, uint8_t*, void*);
 template void LaunchTQuantDNValidShapeNVFP16<896, 48, 896, 34>(uint16_t*, int8_t*, uint8_t*, void*);
+template void LaunchTQuantDNValidShapeNVFP32<192, 168, 192, 162>(uint32_t*, int8_t*, uint8_t*, void*);
 template void LaunchTQuantDN_MXFP4_fp16<64, 128, 128>(uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
+template void LaunchTQuantDN_MXFP4_fp16_nd_only<64, 480, 480>(
+    uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
 template void LaunchTQuantDN_MXFP4_nv_bf16<128, 128, 128, true>(
     uint16_t*, uint8_t*, uint8_t*, uint8_t*, uint16_t*, void*);
 } // namespace TQuantDNTest

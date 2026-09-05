@@ -2625,16 +2625,16 @@ PTO_INTERNAL void StoreDnInterleavedExponentB32(
 }
 
 // FP32 exponent extraction is kept sequential because retaining two complete
-// extraction contexts exceeds the safe VF register budget. Stage 2 stores each
-// linear exponent row in the not-yet-written quantized output tile; this pass
-// only loads that scratch and writes the final interleaved exponent.
+// extraction contexts exceeds the safe VF register budget. Once a max row has
+// been consumed, stage 2 reuses the beginning of that row for its packed linear
+// exponent. This pass loads that scratch and writes the final interleaved exponent.
 template <uint32_t StaticCols, uint32_t ExpStaticCols>
 PTO_INTERNAL void WriteDnInterleavedExponentF32(
     __ubuf__ uint8_t* expScratch, __ubuf__ uint8_t* expPtr, unsigned validRows, unsigned validCols)
 {
     constexpr uint32_t grpSize = 32;
     constexpr uint32_t bytesPerInputVL = CCE_VL / 2;
-    constexpr uint32_t scratchRowStride = ((StaticCols + 31) / 32) * 32;
+    constexpr uint32_t scratchRowStride = StaticCols * sizeof(float);
     uint16_t pairCount = validRows / (2 * grpSize);
     uint16_t storeVlCount = CeilDivision(validCols, bytesPerInputVL);
     for (uint16_t pair = 0; pair < pairCount; ++pair) {
@@ -2951,22 +2951,14 @@ PTO_INTERNAL void calcQuantizedFP4E2M1Values_DN_Fp16_Row(
     CalcE2M1SignedCodeI32(vs32_odd_code, vf32_odd, preg_b32);
     PackE2M1SignedCodeBytes(vu8_packed, vs32_even_code, vs32_odd_code, packIndex, preg_b32);
     uint32_t dst_byte_offset = r * StaticCols + vl_start;
-    MaskReg preg_b8 = CreatePredicate<uint8_t>(packedBytes);
     if constexpr ((StaticCols / 2) % 32 == 0) {
+        MaskReg preg_b8 = CreatePredicate<uint8_t>(packedBytes);
         vsts(vu8_packed, dstPtr, dst_byte_offset / 2, NORM_B8, preg_b8);
     } else {
-        // The packed row stride can be 16-byte aligned but not 32-byte aligned
-        // (case 286: 480 FP16 values -> 240 FP4 bytes). RV_VSTS rejects those
-        // odd-row addresses. First pack to the unused aligned half of the FP4
-        // tile, then copy the packed bytes with the unaligned-store stream.
-        __ubuf__ uint8_t* scratchPtr = dstPtr + DstStaticRows * StaticCols / 2;
-        vsts(vu8_packed, scratchPtr, 0, NORM_B8, preg_b8);
-        mem_bar(VST_VLD);
-        RegTensor<uint8_t> packed;
-        vlds(packed, scratchPtr, 0, NORM);
         UnalignReg ureg;
         __ubuf__ uint8_t* writePtr = dstPtr + dst_byte_offset / 2;
-        vstus(ureg, packedBytes, packed, writePtr, POST_UPDATE);
+        mem_bar(VST_VST);
+        vstus(ureg, packedBytes, (RegTensor<uint8_t>&)vu8_packed, writePtr, POST_UPDATE);
         vstas(ureg, writePtr, 0, POST_UPDATE);
     }
 }
@@ -3074,7 +3066,7 @@ PTO_INTERNAL void ExtractDnInterleavedExponentAndScaling(
     uint32_t validRows, uint32_t validCols, uint32_t elementsPerVL)
 {
     constexpr uint32_t grpSize = 32;
-    constexpr uint32_t scratchRowStride = ((StaticCols + 31) / 32) * 32;
+    constexpr uint32_t scratchRowStride = StaticCols * sizeof(T);
     uint16_t vlCount = CeilDivision(validCols, elementsPerVL);
     uint16_t groupCount = CeilDivision(validRows, grpSize);
     if constexpr (std::is_same<T, float>::value) {
@@ -3135,11 +3127,11 @@ PTO_INTERNAL void TQuant_MXFP8_DN(
     AbsReduceMax_DN<scale_alg, T, SrcStaticCols>(srcPtr, maxPtr, validRows, validCols);
     mem_bar(VST_VLD);
     ExtractDnExponentAndScaling<Alg, interleave, T, SrcStaticCols, ExpStaticCols>(
-        maxPtr, expPtr, dstPtr, scalingPtr, validRows, validCols, elementsPerVL);
+        maxPtr, expPtr, (__ubuf__ uint8_t*)maxPtr, scalingPtr, validRows, validCols, elementsPerVL);
     mem_bar(VST_VLD);
     if constexpr (interleave && std::is_same<T, float>::value) {
-        WriteDnInterleavedExponentF32<SrcStaticCols, ExpStaticCols>(dstPtr, expPtr, validRows, validCols);
-        mem_bar(VLD_VST);
+        WriteDnInterleavedExponentF32<SrcStaticCols, ExpStaticCols>(
+            (__ubuf__ uint8_t*)maxPtr, expPtr, validRows, validCols);
     }
     if constexpr (std::is_same<T, float>::value)
         calcQuantizedFP8Values_DN_float<SrcStaticCols, DstStaticCols>(srcPtr, scalingPtr, dstPtr, validRows, validCols);
