@@ -33,20 +33,37 @@ struct A5LoadOp : LoadOpBase {
     }
 };
 
-template <typename Op, typename TileData, typename GlobalData>
-PTO_INTERNAL void TLoadVecND2ND(
+// Shared body of the axis-swapped vector loads. ND2ND bursts along the
+// last (column) axis; DN2DN bursts along the row axis (transposed load).
+// The wrappers forward every argument unchanged; IsDN picks the burst axis
+// at compile time, so each instantiation lowers to exactly the instruction
+// sequence the two originals produced.
+template <typename Op, typename TileData, typename GlobalData, bool IsDN>
+PTO_INTERNAL void TLoadVecAxisSwapImpl(
     __ubuf__ typename TileData::DType* dstAddr, typename GlobalData::DType* srcAddr, int gShape0, int gShape1,
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
     int validRow, int validCol, bool enableUBPad)
 {
     typename GlobalData::DType* srcAddrP = srcAddr;
     __ubuf__ typename TileData::DType* dstAddrP = dstAddr;
-    uint32_t nBurst = gShape3;
-    uint32_t lenBurst = GetByteSize<typename TileData::DType>(validCol);
-    uint64_t gmStride = GetByteSize<typename TileData::DType>(gStride3);
-    uint32_t ubStride = GetByteSize<typename TileData::DType>(TileData::Cols);
-
-    int64_t dstStride2 = gShape3 * TileData::Cols;
+    uint32_t nBurst;
+    uint32_t lenBurst;
+    uint64_t gmStride;
+    uint32_t ubStride;
+    int64_t dstStride2;
+    if constexpr (IsDN) { // DN: burst along the row axis
+        nBurst = gShape4;
+        lenBurst = GetByteSize<typename TileData::DType>(validRow);
+        gmStride = GetByteSize<typename TileData::DType>(gStride4);
+        ubStride = GetByteSize<typename TileData::DType>(TileData::Rows);
+        dstStride2 = (int64_t)gShape4 * TileData::Rows;
+    } else { // ND: burst along the column axis
+        nBurst = gShape3;
+        lenBurst = GetByteSize<typename TileData::DType>(validCol);
+        gmStride = GetByteSize<typename TileData::DType>(gStride3);
+        ubStride = GetByteSize<typename TileData::DType>(TileData::Cols);
+        dstStride2 = (int64_t)gShape3 * TileData::Cols;
+    }
     int64_t dstStride1 = gShape2 * dstStride2;
     int64_t dstStride0 = gShape1 * dstStride1;
     if constexpr (caps::IsFP4<typename TileData::DType>()) {
@@ -78,49 +95,25 @@ PTO_INTERNAL void TLoadVecND2ND(
 }
 
 template <typename Op, typename TileData, typename GlobalData>
+PTO_INTERNAL void TLoadVecND2ND(
+    __ubuf__ typename TileData::DType* dstAddr, typename GlobalData::DType* srcAddr, int gShape0, int gShape1,
+    int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
+    int validRow, int validCol, bool enableUBPad)
+{
+    TLoadVecAxisSwapImpl<Op, TileData, GlobalData, false>(
+        dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
+        validRow, validCol, enableUBPad);
+}
+
+template <typename Op, typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadVecDN2DN(
     __ubuf__ typename TileData::DType* dstAddr, typename GlobalData::DType* srcAddr, int gShape0, int gShape1,
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
     int validRow, int validCol, bool enableUBPad)
 {
-    uint32_t nBurst = gShape4;
-    uint32_t lenBurst = GetByteSize<typename TileData::DType>(validRow);
-    uint64_t gmStride = GetByteSize<typename TileData::DType>(gStride4);
-    uint32_t ubStride = GetByteSize<typename TileData::DType>(TileData::Rows);
-
-    typename GlobalData::DType* srcAddrP = srcAddr;
-    __ubuf__ typename TileData::DType* dstAddrP = dstAddr;
-
-    int64_t dstStride2 = gShape4 * TileData::Rows;
-    int64_t dstStride1 = gShape2 * dstStride2;
-    int64_t dstStride0 = gShape1 * dstStride1;
-
-    uint64_t loop2 = gShape1;
-    uint64_t loop1 = gShape2;
-    uint64_t loop2_src_stride = GetByteSize<typename TileData::DType>(gStride1);
-    uint64_t loop1_src_stride = GetByteSize<typename TileData::DType>(gStride2);
-    uint64_t loop2_dst_stride = GetByteSize<typename TileData::DType>(dstStride1);
-    uint64_t loop1_dst_stride = GetByteSize<typename TileData::DType>(dstStride2);
-    if (loop1 != 1 || loop2 != 1) {
-        set_loop2_stride_outtoub(loop2_dst_stride << 40 | loop2_src_stride);
-        set_loop1_stride_outtoub(loop1_dst_stride << 40 | loop1_src_stride);
-        set_loop_size_outtoub(loop2 << 21 | loop1);
-    }
-    if constexpr (caps::IsFP4<typename TileData::DType>()) {
-        dstStride0 = dstStride0 >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
-        gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
-    }
-
-    for (uint32_t i = 0; i < gShape0; i++) {
-        int64_t dstAddr0 = i * dstStride0;
-        int64_t srcAddr0 = i * gStride0;
-        dstAddrP = dstAddr + dstAddr0;
-        srcAddrP = srcAddr + srcAddr0;
-        Op::TLoadInstr(dstAddrP, srcAddrP, nBurst, lenBurst, gmStride, ubStride, enableUBPad);
-    }
-    if (loop1 != 1 || loop2 != 1) {
-        set_loop_size_outtoub(1 << 21 | 1); // resume to normal mode
-    }
+    TLoadVecAxisSwapImpl<Op, TileData, GlobalData, true>(
+        dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
+        validRow, validCol, enableUBPad);
 }
 
 template <typename TileData, typename GlobalData>
@@ -415,21 +408,39 @@ __tf__ PTO_INTERNAL void TLoadMxCube(
     }
 }
 
-template <typename Op, typename TileData, typename GlobalData>
-PTO_INTERNAL void TLoadCubeND2ND(
+// Shared body of the axis-swapped cube loads (same axis selection as
+// TLoadVecAxisSwapImpl, plus the pad-value handling of the cube path).
+template <typename Op, typename TileData, typename GlobalData, bool IsDN>
+PTO_INTERNAL void TLoadCubeAxisSwapImpl(
     __cbuf__ typename TileData::DType* dst, typename GlobalData::DType* src, int gShape0, int gShape1, int gShape2,
     int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4, int validRow,
     int validCol)
 {
     __cbuf__ typename TileData::DType* dstAddrP = dst;
     typename GlobalData::DType* srcAddrP = src;
-    uint32_t nBurst = gShape3;
-    uint32_t lenBurst = GetByteSize<typename TileData::DType>(validCol);
-    uint64_t gmStride = GetByteSize<typename TileData::DType>(gStride3);
-    uint32_t dstStride = GetByteSize<typename TileData::DType>(TileData::Cols);
+    uint32_t nBurst;
+    uint32_t lenBurst;
+    uint64_t gmStride;
+    uint32_t dstStride;
+    int64_t dstStride2;
+    uint32_t gapElement;
+    if constexpr (IsDN) { // DN: burst along the row axis
+        nBurst = gShape4;
+        lenBurst = GetByteSize<typename TileData::DType>(validRow);
+        gmStride = GetByteSize<typename TileData::DType>(gStride4);
+        dstStride = GetByteSize<typename TileData::DType>(TileData::Rows);
+        dstStride2 = (int64_t)gShape4 * TileData::Rows;
+        gapElement = (TileData::Rows - validRow);
+    } else { // ND: burst along the column axis
+        nBurst = gShape3;
+        lenBurst = GetByteSize<typename TileData::DType>(validCol);
+        gmStride = GetByteSize<typename TileData::DType>(gStride3);
+        dstStride = GetByteSize<typename TileData::DType>(TileData::Cols);
+        dstStride2 = (int64_t)gShape3 * TileData::Cols;
+        gapElement = (TileData::Cols - validCol);
+    }
 
     constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
-    uint32_t gapElement = (TileData::Cols - validCol);
     uint32_t padCount = gapElement % blockSizeElem;
     if constexpr (caps::IsFP4<typename TileData::DType>()) {
         padCount = padCount >> 1;
@@ -438,7 +449,6 @@ PTO_INTERNAL void TLoadCubeND2ND(
         pto_set_tload_pad_val<TileType::Mat>(GetPadValue<TileData>());
     }
 
-    int64_t dstStride2 = gShape3 * TileData::Cols;
     int64_t dstStride1 = gShape2 * dstStride2;
     int64_t dstStride0 = gShape1 * dstStride1;
 
@@ -474,59 +484,25 @@ PTO_INTERNAL void TLoadCubeND2ND(
 }
 
 template <typename Op, typename TileData, typename GlobalData>
+PTO_INTERNAL void TLoadCubeND2ND(
+    __cbuf__ typename TileData::DType* dst, typename GlobalData::DType* src, int gShape0, int gShape1, int gShape2,
+    int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4, int validRow,
+    int validCol)
+{
+    TLoadCubeAxisSwapImpl<Op, TileData, GlobalData, false>(
+        dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
+        validRow, validCol);
+}
+
+template <typename Op, typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadCubeDN2DN(
     __cbuf__ typename TileData::DType* dst, typename GlobalData::DType* src, int gShape0, int gShape1, int gShape2,
     int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4, int validRow,
     int validCol)
 {
-    __cbuf__ typename TileData::DType* dstAddrP = dst;
-    typename GlobalData::DType* srcAddrP = src;
-    uint32_t nBurst = gShape4;
-    uint32_t lenBurst = GetByteSize<typename TileData::DType>(validRow);
-    uint64_t gmStride = GetByteSize<typename TileData::DType>(gStride4);
-    uint32_t dstStride = GetByteSize<typename TileData::DType>(TileData::Rows);
-
-    constexpr uint32_t blockSizeElem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
-    uint32_t gapElement = (TileData::Rows - validRow);
-    uint32_t padCount = gapElement % blockSizeElem;
-    if constexpr (caps::IsFP4<typename TileData::DType>()) {
-        padCount = padCount >> 1;
-    }
-    if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
-        pto_set_tload_pad_val<TileType::Mat>(GetPadValue<TileData>());
-    }
-    int64_t dstStride2 = gShape4 * TileData::Rows;
-    int64_t dstStride1 = gShape2 * dstStride2;
-    int64_t dstStride0 = gShape1 * dstStride1;
-    if constexpr (caps::IsFP4<typename TileData::DType>()) {
-        dstStride0 = dstStride0 >> 1; // fp4 dstAddr offset need divide 2 as use b8 to move
-        gStride0 = gStride0 >> 1;     // fp4 srcAddr offset need divide 2 as use b8 to move
-    }
-    uint64_t loop2 = gShape1;
-    uint64_t loop1 = gShape2;
-    uint64_t loop2SrcStride = GetByteSize<typename TileData::DType>(gStride1);
-    uint64_t loop1SrcStride = GetByteSize<typename TileData::DType>(gStride2);
-    uint64_t loop2DstStride = GetByteSize<typename TileData::DType>(dstStride1);
-    uint64_t loop1DstStride = GetByteSize<typename TileData::DType>(dstStride2);
-
-    if (loop1 != 1 || loop2 != 1) {
-        set_loop2_stride_outtol1(loop2DstStride << 40 | loop2SrcStride);
-        set_loop1_stride_outtol1(loop1DstStride << 40 | loop1SrcStride);
-        set_loop_size_outtol1(loop2 << 21 | loop1);
-    }
-    for (uint32_t i = 0; i < gShape0; i++) {
-        int64_t dstAddr0 = i * dstStride0;
-        int64_t srcAddr0 = i * gStride0;
-        dstAddrP = dst + dstAddr0;
-        srcAddrP = src + srcAddr0;
-        Op::TLoadCubeInstr(dstAddrP, srcAddrP, nBurst, lenBurst, gmStride, dstStride, padCount);
-    }
-    if (loop1 != 1 || loop2 != 1) {
-        set_loop_size_outtol1(1 << 21 | 1); // resume to normal mode
-    }
-    if constexpr (!(TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero)) {
-        pto_set_tload_pad_val<TileType::Mat>(uint8_t(0));
-    }
+    TLoadCubeAxisSwapImpl<Op, TileData, GlobalData, true>(
+        dst, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
+        validRow, validCol);
 }
 
 template <typename TileData, typename GlobalData>
