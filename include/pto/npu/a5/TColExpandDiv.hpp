@@ -15,6 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 #include "common.hpp"
 #include "utils.hpp"
+#include "TDiv.hpp"
 #include "TColExpandBinOp.hpp"
 
 namespace pto {
@@ -32,6 +33,15 @@ struct ColExpandDivOp {
             vdiv(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
         }
     }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    PTO_INTERNAL static void Int64ColExpandBinaryInstr(
+        vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High, vector_s32& src1Low,
+        vector_s32& src1High, MaskReg& preg)
+    {
+        Int64DivRegs<T>(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
+    }
+#endif
 };
 
 template <DivAlgorithm PrecisionType, typename T>
@@ -47,6 +57,15 @@ struct ColExpandDivOp2 {
             vdiv(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
         }
     }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    PTO_INTERNAL static void Int64ColExpandBinaryInstr(
+        vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High, vector_s32& src1Low,
+        vector_s32& src1High, MaskReg& preg)
+    {
+        Int64DivRegs<T>(dstLow, dstHigh, src1Low, src1High, src0Low, src0High, preg);
+    }
+#endif
 };
 
 template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileData, typename TileDataSrc0, typename TileDataSrc1>

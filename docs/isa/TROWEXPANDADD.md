@@ -79,7 +79,7 @@ PTO_INST RecordEvent TROWEXPANDADD(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## Constraints
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3 and A5, `uint16`, `uint32`, `bfloat16_t`, `int8`, `uint8` for A5.
+- `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3 and A5, `uint16`, `uint32`, `bfloat16_t`, `int8`, `uint8`, `int64`, `uint64` for A5.
 - `TileDataDst` must be **RowMajor** (`TileDataDst::isRowMajor == true`).
 - Exactly one of `src0` or `src1` must have the same valid shape as `dst` (i.e., `validRow == dst.validRow` and `validCol == dst.validCol`). That operand is the full-sized operand. The other operand is the **expanded operand** (row-broadcast source).
 - The full-sized operand must be **RowMajor** (`isRowMajor == true`).
@@ -98,7 +98,17 @@ When the expanded operand is **RowMajor** (`isRowMajor == true`):
 - Its valid column count must be **32 / sizeof(T)** (a 32-byte block per row): `srcX.GetValidCol() == 32 / sizeof(T)`.
   - For `half` / `int16` / `uint16`: `validCol == 16`.
   - For `float` / `int32` / `uint32`: `validCol == 8`.
+  - For `int64` / `uint64`: `validCol == 4`.
 - Its valid row count must equal `dst.GetValidRow()`: `srcX.GetValidRow() == dst.GetValidRow()`.
+
+### 64-bit element types (A5)
+
+`int64` / `uint64` are supported on A5 only. A5 has no native 64-bit vector ALU, so the instruction is emulated on pairs of 32-bit registers that hold the low and the high word of every element. Both broadcast modes remain available:
+
+- Mode 1: the low and the high word of the per-row scalar are broadcast separately.
+- Mode 2: a 32-byte block holds `32 / sizeof(T) == 4` values, so the block repeats every 4 elements along the row.
+
+Results are exact 64-bit two's-complement values. Tile alignment follows the usual rule for 64-bit elements: a RowMajor tile needs `Cols % 4 == 0`, and a ColMajor expanded operand needs `Rows % 4 == 0`.
 
 ### Additional target-specific constraints
 

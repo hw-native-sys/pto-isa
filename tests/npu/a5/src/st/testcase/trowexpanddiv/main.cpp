@@ -119,6 +119,15 @@ void test_trowexpanddiv()
     aclrtResetDevice(0);
     aclFinalize();
 
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        std::vector<T> golden64(outputFileSize / sizeof(T));
+        std::vector<T> devFinal64(outputFileSize / sizeof(T));
+        ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden64.data(), outputFileSize);
+        ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal64.data(), outputFileSize);
+        EXPECT_TRUE(ResultCmpExact(golden64, devFinal64.data()));
+        return;
+    }
+
     std::vector<float> golden(outputFileSize / sizeof(float));
     std::vector<float> devFinal(outputFileSize / sizeof(float));
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
@@ -165,4 +174,7 @@ TEST_F(TRowExpandDivTest, case_int32_16_32) { test_trowexpanddiv<int32_t, 16, 32
 TEST_F(TRowExpandDivTest, case_int16_16_64) { test_trowexpanddiv<int16_t, 16, 64, 16, 1, true, false>(); }
 TEST_F(TRowExpandDivTest, case_uint32_16_32) { test_trowexpanddiv<uint32_t, 16, 32, 16, 1, true, false>(); }
 TEST_F(TRowExpandDivTest, case_uint16_16_64) { test_trowexpanddiv<uint16_t, 16, 64, 16, 1, true, false>(); }
+TEST_F(TRowExpandDivTest, case_int64_16_32) { test_trowexpanddiv<int64_t, 16, 32, 16, 1, true, false>(); }
+TEST_F(TRowExpandDivTest, case_int64_24_64) { test_trowexpanddiv<int64_t, 24, 64, 24, 4, true, true>(); }
+TEST_F(TRowExpandDivTest, case_uint64_16_32) { test_trowexpanddiv<uint64_t, 16, 32, 16, 1, true, false>(); }
 } // namespace TRowExpandDivTest

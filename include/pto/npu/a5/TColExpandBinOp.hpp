@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
+#include "TBinOp.hpp"
 
 namespace pto {
 template <
@@ -151,6 +152,52 @@ PTO_INTERNAL void TColExpandBinOps_2D_PostUpdate(
     }
 }
 
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+// 64-bit elements are emulated as (low, high) 32-bit register pairs. The expanded operand is a single row
+// vector, so it is addressed by column offset alone and re-read for every row.
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned DstRowStride,
+    unsigned Src0RowStride>
+PTO_INTERNAL void Int64ColExpandBinary(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
+{
+    using T = typename TileData::DType;
+    constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+
+    __VEC_SCOPE__
+    {
+        vector_s32 dstLow, dstHigh, src0Low, src0High, src1Low, src1High, half0, half1;
+        MaskReg lowMask, highMask;
+        uint16_t rowCount = kValidRows;
+        uint16_t colRepeats = CeilDivision(kValidCols, elementsPerRepeat);
+        for (uint16_t row = 0; row < rowCount; ++row) {
+            uint32_t sreg = kValidCols;
+            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                vlds(src0Low, src0High, (__ubuf__ int32_t*)src0Ptr, (row * Src0RowStride + colOffset) * 2, DINTLV_B32);
+                vlds(src1Low, src1High, (__ubuf__ int32_t*)src1Ptr, colOffset * 2, DINTLV_B32);
+                Op::Int64ColExpandBinaryInstr(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
+                pintlv_b32(lowMask, highMask, preg, preg);
+                vintlv(half0, half1, dstLow, dstHigh);
+                uint32_t dstOffset = (row * DstRowStride + colOffset) * 2;
+                vsts(half0, (__ubuf__ int32_t*)dstPtr, dstOffset, NORM_B32, lowMask);
+                vsts(half1, (__ubuf__ int32_t*)dstPtr, dstOffset + CCE_VL / sizeof(int32_t), NORM_B32, highMask);
+            }
+        }
+    }
+}
+#else
+// Declaration-only stub for targets without 64-bit vector emulation. See TBinOp.hpp for details.
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned DstRowStride,
+    unsigned Src0RowStride>
+PTO_INTERNAL void Int64ColExpandBinary(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols);
+#endif
+
 template <
     typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
     unsigned blockSizeElem, unsigned DstRowStride, unsigned Src0RowStride>
@@ -164,29 +211,34 @@ __tf__ PTO_INTERNAL OP_NAME(TCOLEXPAND) OP_TYPE(broadcast) void TColExpandOp(
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
 
-    switch (version) {
-        case VFImplKind::VFIMPL_1D_NO_POST_UPDATE:
-        case VFImplKind::VFIMPL_2D_NO_POST_UPDATE:
-            TColExpandBinOps_2D_NoPostUpdate<
-                Op, TileData, TileDataSrc1, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
-                dstPtr, src0Ptr, src1Ptr, validRow, validCol);
-            break;
-        case VFImplKind::VFIMPL_1D_POST_UPDATE:
-        case VFImplKind::VFIMPL_2D_POST_UPDATE:
-        case VFImplKind::VFIMPL_DEFAULT:
-        default: {
-            constexpr bool isContiguous = (TileData::ValidCol == TileData::Cols) || (TileData::Rows == 1);
-
-            if constexpr (isContiguous) {
-                TColExpandBinOps_2D_PostUpdate<
-                    Op, TileData, TileDataSrc1, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
-                    dstPtr, src0Ptr, src1Ptr, validRow, validCol);
-            } else {
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64ColExpandBinary<Op, TileData, TileDataSrc0, TileDataSrc1, DstRowStride, Src0RowStride>(
+            dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+    } else {
+        switch (version) {
+            case VFImplKind::VFIMPL_1D_NO_POST_UPDATE:
+            case VFImplKind::VFIMPL_2D_NO_POST_UPDATE:
                 TColExpandBinOps_2D_NoPostUpdate<
                     Op, TileData, TileDataSrc1, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
                     dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+                break;
+            case VFImplKind::VFIMPL_1D_POST_UPDATE:
+            case VFImplKind::VFIMPL_2D_POST_UPDATE:
+            case VFImplKind::VFIMPL_DEFAULT:
+            default: {
+                constexpr bool isContiguous = (TileData::ValidCol == TileData::Cols) || (TileData::Rows == 1);
+
+                if constexpr (isContiguous) {
+                    TColExpandBinOps_2D_PostUpdate<
+                        Op, TileData, TileDataSrc1, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
+                        dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+                } else {
+                    TColExpandBinOps_2D_NoPostUpdate<
+                        Op, TileData, TileDataSrc1, elementsPerRepeat, blockSizeElem, DstRowStride, Src0RowStride>(
+                        dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+                }
+                break;
             }
-            break;
         }
     }
 }
@@ -195,7 +247,8 @@ template <typename Op, typename Op2, typename TileData, typename TileDataSrc0, t
 PTO_INTERNAL void TCOLEXPANDOP_IMPL(TileData& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     static_assert(
-        std::is_same_v<typename TileData::DType, int32_t> || std::is_same_v<typename TileData::DType, uint32_t> ||
+        std::is_same_v<typename TileData::DType, int64_t> || std::is_same_v<typename TileData::DType, uint64_t> ||
+            std::is_same_v<typename TileData::DType, int32_t> || std::is_same_v<typename TileData::DType, uint32_t> ||
             std::is_same_v<typename TileData::DType, float> || std::is_same_v<typename TileData::DType, int16_t> ||
             std::is_same_v<typename TileData::DType, uint16_t> || std::is_same_v<typename TileData::DType, half> ||
             std::is_same_v<typename TileData::DType, bfloat16_t> || std::is_same_v<typename TileData::DType, uint8_t> ||

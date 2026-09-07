@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
+#include "TBinOp.hpp"
 
 namespace pto {
 
@@ -153,6 +154,66 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate32B(
         }
     }
 }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+// 64-bit elements are emulated as (low, high) 32-bit register pairs, so the broadcast operand has to be
+// materialized as a pair. De-interleaving a RowMajor 32-byte block against itself leaves lane j holding
+// word j % (32 / sizeof(T)), reproducing the block repeat that 32-bit types get from the BLK broadcast.
+template <typename TileDataSrc1, typename T>
+PTO_INTERNAL void Int64RowExpandBroadcast(vector_s32& low, vector_s32& high, __ubuf__ T* src1Ptr, uint16_t row)
+{
+    constexpr unsigned wordsPerRow = TileDataSrc1::RowStride * 2;
+    __ubuf__ int32_t* src1Words = (__ubuf__ int32_t*)src1Ptr;
+    if constexpr (TileDataSrc1::isRowMajor) {
+        vector_s32 block;
+        vlds(block, src1Words, row * wordsPerRow, BLK);
+        vdintlv(low, high, block, block);
+    } else {
+        vlds(low, src1Words, row * wordsPerRow, BRC_B32);
+        vlds(high, src1Words, row * wordsPerRow + 1, BRC_B32);
+    }
+}
+
+template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1>
+PTO_INTERNAL void Int64RowExpandBinary(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
+{
+    using T = typename TileData::DType;
+    constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    constexpr unsigned dstRowStride = TileData::RowStride;
+    constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
+
+    __VEC_SCOPE__
+    {
+        vector_s32 dstLow, dstHigh, src0Low, src0High, src1Low, src1High, half0, half1;
+        MaskReg lowMask, highMask;
+        uint16_t rowCount = kValidRows;
+        uint16_t colRepeats = CeilDivision(kValidCols, elementsPerRepeat);
+        for (uint16_t row = 0; row < rowCount; ++row) {
+            Int64RowExpandBroadcast<TileDataSrc1, T>(src1Low, src1High, src1Ptr, row);
+            uint32_t sreg = kValidCols;
+            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                vlds(src0Low, src0High, (__ubuf__ int32_t*)src0Ptr, (row * src0RowStride + colOffset) * 2, DINTLV_B32);
+                Op::Int64RowExpandBinaryInstr(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
+                pintlv_b32(lowMask, highMask, preg, preg);
+                vintlv(half0, half1, dstLow, dstHigh);
+                uint32_t dstOffset = (row * dstRowStride + colOffset) * 2;
+                vsts(half0, (__ubuf__ int32_t*)dstPtr, dstOffset, NORM_B32, lowMask);
+                vsts(half1, (__ubuf__ int32_t*)dstPtr, dstOffset + CCE_VL / sizeof(int32_t), NORM_B32, highMask);
+            }
+        }
+    }
+}
+#else
+// Declaration-only stub for targets without 64-bit vector emulation. See TBinOp.hpp for details.
+template <typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1>
+PTO_INTERNAL void Int64RowExpandBinary(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols);
+#endif
 
 template <
     typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,

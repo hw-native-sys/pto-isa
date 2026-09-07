@@ -177,4 +177,10 @@ template void launchTRowExpandDiv<uint32_t, 16, 32, 16, 1, true, false>(
     uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
 template void launchTRowExpandDiv<uint16_t, 16, 64, 16, 1, true, false>(
     uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void launchTRowExpandDiv<int64_t, 16, 32, 16, 1, true, false>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void launchTRowExpandDiv2<int64_t, 24, 64, 24, 4, true, false>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void launchTRowExpandDiv<uint64_t, 16, 32, 16, 1, true, false>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
 } // namespace TRowExpandDivTest

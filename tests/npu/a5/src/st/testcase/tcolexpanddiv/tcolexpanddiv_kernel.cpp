@@ -92,4 +92,8 @@ template void launchTColExpandDiv<uint32_t, 16, 32, 1, 32, false>(
     uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
 template void launchTColExpandDiv<uint16_t, 8, 64, 1, 64, false>(
     uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void launchTColExpandDiv<int64_t, 16, 32, 1, 32, false>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void launchTColExpandDiv<uint64_t, 16, 32, 1, 32, false>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
 } // namespace TColExpandDivTest

@@ -84,4 +84,6 @@ template void launchTColExpandMax<aclFloat16, 10, 64, 1, 64>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 template void launchTColExpandMax<int32_t, 16, 32, 1, 32>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
 template void launchTColExpandMax<int16_t, 16, 64, 1, 64>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void launchTColExpandMax<int64_t, 16, 32, 1, 32>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void launchTColExpandMax<uint64_t, 16, 32, 1, 32>(uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
 } // namespace TColExpandMaxTest

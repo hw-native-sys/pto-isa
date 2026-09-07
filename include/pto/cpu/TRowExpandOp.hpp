@@ -22,8 +22,9 @@ namespace pto {
 template <ElementOp Op, typename T>
 constexpr bool IsRowExpandAllowedType =
     std::is_same_v<T, float> || std::is_same_v<T, half> ||
-    (Op != ElementOp::OP_EXPDIF && (std::is_same_v<T, int32_t> || std::is_same_v<T, int16_t> ||
-                                    std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t>)) ||
+    (Op != ElementOp::OP_EXPDIF &&
+     (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
+      std::is_same_v<T, int16_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, uint16_t>)) ||
     (Op == ElementOp::OP_MUL && std::is_same_v<T, uint8_t>);
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp Op>

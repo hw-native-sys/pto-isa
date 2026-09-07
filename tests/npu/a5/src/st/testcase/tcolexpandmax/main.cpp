@@ -80,6 +80,15 @@ void test_tcolexpandmax()
     aclrtResetDevice(0);
     aclFinalize();
 
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        std::vector<T> golden64(outputFileSize / sizeof(T));
+        std::vector<T> devFinal64(outputFileSize / sizeof(T));
+        ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden64.data(), outputFileSize);
+        ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal64.data(), outputFileSize);
+        EXPECT_TRUE(ResultCmpExact(golden64, devFinal64.data()));
+        return;
+    }
+
     std::vector<float> golden(outputFileSize / sizeof(float));
     std::vector<float> devFinal(outputFileSize / sizeof(float));
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
@@ -95,4 +104,6 @@ TEST_F(TColExpandMaxTest, case_fp16_4_256_1_256) { test_tcolexpandmax<aclFloat16
 TEST_F(TColExpandMaxTest, case_fp16_10_64_1_64) { test_tcolexpandmax<aclFloat16, 10, 64, 1, 64>(); }
 TEST_F(TColExpandMaxTest, case_int32_16_32_1_32) { test_tcolexpandmax<int32_t, 16, 32, 1, 32>(); }
 TEST_F(TColExpandMaxTest, case_int16_16_64_1_64) { test_tcolexpandmax<int16_t, 16, 64, 1, 64>(); }
+TEST_F(TColExpandMaxTest, case_int64_16_32_1_32) { test_tcolexpandmax<int64_t, 16, 32, 1, 32>(); }
+TEST_F(TColExpandMaxTest, case_uint64_16_32_1_32) { test_tcolexpandmax<uint64_t, 16, 32, 1, 32>(); }
 } // namespace TColExpandMaxTest

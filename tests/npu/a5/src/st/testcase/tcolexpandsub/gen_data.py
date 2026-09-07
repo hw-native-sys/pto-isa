@@ -26,6 +26,8 @@ def gen_golden_data(params):
 
     def rand_array(shape):
         if is_int:
+            if np.dtype(dtype).itemsize == 8:
+                return np.random.randint(1, 1 << 28, size=shape, dtype=np.int64).astype(dtype)
             return np.random.randint(1, 10, size=shape).astype(dtype)
         return np.random.uniform(low=-10, high=10, size=shape).astype(dtype)
 
@@ -55,7 +57,14 @@ class TcolexpandParams:
 
 
 def generate_case_name(param):
-    dtype_str = {np.float32: "fp32", np.float16: "fp16", np.int32: "int32", np.int16: "int16"}[param.dtype]
+    dtype_str = {
+        np.float32: "fp32",
+        np.float16: "fp16",
+        np.int32: "int32",
+        np.int16: "int16",
+        np.int64: "int64",
+        np.uint64: "uint64",
+    }[param.dtype]
     return f"TColExpandSubTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}_{param.src1_row}_{param.src1_col}"
 
 
@@ -73,6 +82,8 @@ if __name__ == "__main__":
         TcolexpandParams(np.float16, 12, 64, 12, 64, 1, 64),
         TcolexpandParams(np.int32, 16, 32, 16, 32, 1, 32),
         TcolexpandParams(np.int16, 16, 64, 16, 64, 1, 64),
+        TcolexpandParams(np.int64, 16, 32, 16, 32, 1, 32),
+        TcolexpandParams(np.uint64, 16, 32, 16, 32, 1, 32),
     ]
 
     for _, param in enumerate(case_params_list):

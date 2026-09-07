@@ -26,6 +26,15 @@ struct RowExpandSubOp {
     {
         vsub(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
     }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    PTO_INTERNAL static void Int64RowExpandBinaryInstr(
+        vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High, vector_s32& src1Low,
+        vector_s32& src1High, MaskReg& preg)
+    {
+        Int64BinaryCalcRegs<Int64Op::Sub, T>(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
+    }
+#endif
 };
 
 template <typename T>
@@ -35,6 +44,15 @@ struct RowExpandSubOp2 {
     {
         vsub(reg_dst, reg_src1, reg_src0, preg, MODE_ZEROING);
     }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    PTO_INTERNAL static void Int64RowExpandBinaryInstr(
+        vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High, vector_s32& src1Low,
+        vector_s32& src1High, MaskReg& preg)
+    {
+        Int64BinaryCalcRegs<Int64Op::Sub, T>(dstLow, dstHigh, src1Low, src1High, src0Low, src0High, preg);
+    }
+#endif
 };
 
 template <
@@ -50,7 +68,15 @@ __tf__ PTO_INTERNAL OP_NAME(TROWEXPANDSUB) OP_TYPE(broadcast) void TRowExpandSub
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
 
-    if (src0eqdst) {
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        if (src0eqdst) {
+            Int64RowExpandBinary<RowExpandSubOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1>(
+                dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        } else {
+            Int64RowExpandBinary<RowExpandSubOp2<T>, TileDataDst, TileDataSrc0, TileDataSrc1>(
+                dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+        }
+    } else if (src0eqdst) {
         RowExpandBinaryInstr<
             RowExpandSubOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
             dstPtr, src0Ptr, src1Ptr, validRow, validCol);
@@ -69,9 +95,10 @@ PTO_INTERNAL void TROWEXPANDSUB_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileD
         std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
         "Fix: TROWEXPANDSUB src and dst data type is different!");
     static_assert(
-        std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
-            std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+        std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
+            std::is_same_v<T, uint32_t> || std::is_same_v<T, float> || std::is_same_v<T, int16_t> ||
+            std::is_same_v<T, uint16_t> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t> ||
+            std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
         "Fix: TROWEXPANDSUB Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDSUB Invalid tile shape.");
 

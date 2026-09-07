@@ -26,11 +26,15 @@ def gen_golden_data(params):
 
     def rand_src0(shape):
         if is_int:
+            if np.dtype(dtype).itemsize == 8:
+                return np.random.randint(1, 1 << 28, size=shape, dtype=np.int64).astype(dtype)
             return np.random.randint(1, 10, size=shape).astype(dtype)
         return np.random.uniform(low=-255, high=255, size=shape).astype(dtype)
 
     def rand_src1(shape):
         if is_int:
+            if np.dtype(dtype).itemsize == 8:
+                return np.random.randint(1, 1 << 28, size=shape, dtype=np.int64).astype(dtype)
             return np.random.randint(1, 10, size=shape).astype(dtype)
         return np.random.uniform(low=1, high=255, size=shape).astype(dtype)
 
@@ -67,6 +71,8 @@ def generate_case_name(param):
         np.int16: "int16",
         np.uint32: "uint32",
         np.uint16: "uint16",
+        np.int64: "int64",
+        np.uint64: "uint64",
     }[param.dtype]
     return f"TColExpandDivTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}_{param.src1_row}_{param.src1_col}"
 
@@ -90,6 +96,8 @@ if __name__ == "__main__":
         TcolexpandParams(np.int16, 16, 64, 16, 64, 1, 64),
         TcolexpandParams(np.uint32, 16, 32, 16, 32, 1, 32),
         TcolexpandParams(np.uint16, 8, 64, 8, 64, 1, 64),
+        TcolexpandParams(np.int64, 16, 32, 16, 32, 1, 32),
+        TcolexpandParams(np.uint64, 16, 32, 16, 32, 1, 32),
     ]
 
     for _, param in enumerate(case_params_list):

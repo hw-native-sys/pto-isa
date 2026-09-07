@@ -76,7 +76,7 @@ PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`（适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT）、`int16`、`int32`、`uint16`、`uint32`、`bfloat16_t`、`int8`、`uint8`（仅适用于Ascend 950PR/Ascend 950DT）。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`（适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT）、`int16`、`int32`、`uint16`、`uint32`、`bfloat16_t`、`int8`、`uint8`、`int64`、`uint64`（仅适用于Ascend 950PR/Ascend 950DT）。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
 - `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
 - 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
@@ -95,7 +95,17 @@ PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 - 其有效列数必须为 **32 / sizeof(T)**（每行一个32字节块）：`srcX.GetValidCol() == 32 / sizeof(T)`。
   - 对于 `half` / `int16` / `uint16`：`validCol == 16`。
   - 对于 `float` / `int32` / `uint32`：`validCol == 8`。
+  - 对于 `int64` / `uint64`：`validCol == 4`。
 - 其有效行数必须等于 `dst.GetValidRow()`：`srcX.GetValidRow() == dst.GetValidRow()`。
+
+### 64位元素类型（Ascend 950PR/Ascend 950DT）
+
+`int64` / `uint64` 仅在Ascend 950PR/Ascend 950DT上支持。该架构没有原生的64位向量运算单元，指令通过一对32位寄存器（分别保存每个元素的低32位和高32位）模拟实现，两种广播模式均可使用：
+
+- 模式1：每行标量的低32位和高32位分别广播。
+- 模式2：32字节块包含 `32 / sizeof(T) == 4` 个元素，因此该块沿行方向每4个元素重复一次。
+
+除法向零取整，与32位整数的行为一致；除零行为由目标定义。Tile对齐遵循64位元素的通用规则：RowMajor的Tile要求 `Cols % 4 == 0`，ColMajor的扩展操作数要求 `Rows % 4 == 0`。
 
 ### 其他目标特定约束
 

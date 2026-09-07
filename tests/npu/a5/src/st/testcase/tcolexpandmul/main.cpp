@@ -80,6 +80,15 @@ void test_tcolexpandmul()
     aclrtResetDevice(0);
     aclFinalize();
 
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        std::vector<T> golden64(outputFileSize / sizeof(T));
+        std::vector<T> devFinal64(outputFileSize / sizeof(T));
+        ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden64.data(), outputFileSize);
+        ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal64.data(), outputFileSize);
+        EXPECT_TRUE(ResultCmpExact(golden64, devFinal64.data()));
+        return;
+    }
+
     std::vector<float> golden(outputFileSize / sizeof(float));
     std::vector<float> devFinal(outputFileSize / sizeof(float));
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
@@ -97,4 +106,6 @@ TEST_F(TColExpandMulTest, case_int32_16_32_1_32) { test_tcolexpandmul<int32_t, 1
 TEST_F(TColExpandMulTest, case_int16_16_64_1_64) { test_tcolexpandmul<int16_t, 16, 64, 1, 64>(); }
 TEST_F(TColExpandMulTest, case_uint32_16_32_1_32) { test_tcolexpandmul<uint32_t, 16, 32, 1, 32>(); }
 TEST_F(TColExpandMulTest, case_uint16_16_64_1_64) { test_tcolexpandmul<uint16_t, 16, 64, 1, 64>(); }
+TEST_F(TColExpandMulTest, case_int64_16_32_1_32) { test_tcolexpandmul<int64_t, 16, 32, 1, 32>(); }
+TEST_F(TColExpandMulTest, case_uint64_16_32_1_32) { test_tcolexpandmul<uint64_t, 16, 32, 1, 32>(); }
 } // namespace TColExpandMulTest

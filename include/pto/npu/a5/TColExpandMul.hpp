@@ -26,6 +26,15 @@ struct ColExpandMulOp {
     {
         vmul(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
     }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    PTO_INTERNAL static void Int64ColExpandBinaryInstr(
+        vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High, vector_s32& src1Low,
+        vector_s32& src1High, MaskReg& preg)
+    {
+        Int64BinaryCalcRegs<Int64Op::Mul, T>(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
+    }
+#endif
 };
 
 template <typename TileData, typename TileDataSrc0, typename TileDataSrc1>

@@ -26,6 +26,15 @@ struct RowExpandMulOp {
     {
         vmul(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
     }
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    PTO_INTERNAL static void Int64RowExpandBinaryInstr(
+        vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High, vector_s32& src1Low,
+        vector_s32& src1High, MaskReg& preg)
+    {
+        Int64BinaryCalcRegs<Int64Op::Mul, T>(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
+    }
+#endif
 };
 
 template <
@@ -41,8 +50,14 @@ __tf__ PTO_INTERNAL OP_NAME(TROWEXPANDMUL) OP_TYPE(broadcast) void TRowExpandMul
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
 
-    RowExpandBinaryInstr<RowExpandMulOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
-        dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        Int64RowExpandBinary<RowExpandMulOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1>(
+            dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+    } else {
+        RowExpandBinaryInstr<
+            RowExpandMulOp<T>, TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+            dstPtr, src0Ptr, src1Ptr, validRow, validCol);
+    }
 }
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
@@ -53,9 +68,10 @@ PTO_INTERNAL void TROWEXPANDMUL_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileD
         std::is_same_v<T, typename TileDataSrc0::DType> && std::is_same_v<T, typename TileDataSrc1::DType>,
         "Fix: TROWEXPANDMUL src and dst data type is different!");
     static_assert(
-        std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
-            std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+        std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
+            std::is_same_v<T, uint32_t> || std::is_same_v<T, float> || std::is_same_v<T, int16_t> ||
+            std::is_same_v<T, uint16_t> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t> ||
+            std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
         "Fix: TROWEXPANDMUL Invalid data type.");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDMUL Invalid tile shape.");
 

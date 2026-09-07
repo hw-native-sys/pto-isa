@@ -81,4 +81,6 @@ template void launchTColExpandMul<int32_t, 16, 32, 1, 32>(int32_t* out, int32_t*
 template void launchTColExpandMul<int16_t, 16, 64, 1, 64>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 template void launchTColExpandMul<uint32_t, 16, 32, 1, 32>(uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
 template void launchTColExpandMul<uint16_t, 16, 64, 1, 64>(uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void launchTColExpandMul<int64_t, 16, 32, 1, 32>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void launchTColExpandMul<uint64_t, 16, 32, 1, 32>(uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
 } // namespace TColExpandMulTest

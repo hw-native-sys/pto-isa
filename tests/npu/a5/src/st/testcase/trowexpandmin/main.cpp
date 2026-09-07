@@ -88,6 +88,15 @@ void test_trowexpandmin()
     aclrtResetDevice(0);
     aclFinalize();
 
+    if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+        std::vector<T> golden64(outputFileSize / sizeof(T));
+        std::vector<T> devFinal64(outputFileSize / sizeof(T));
+        ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden64.data(), outputFileSize);
+        ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal64.data(), outputFileSize);
+        EXPECT_TRUE(ResultCmpExact(golden64, devFinal64.data()));
+        return;
+    }
+
     std::vector<float> golden(outputFileSize / sizeof(float));
     std::vector<float> devFinal(outputFileSize / sizeof(float));
     ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
@@ -106,4 +115,7 @@ TEST_F(TRowExpandMinTest, case_fp16_32_64) { test_trowexpandmin<aclFloat16, 32, 
 TEST_F(TRowExpandMinTest, case_fp32_20_64) { test_trowexpandmin<float, 20, 64, 20, 8, false, true>(); }
 TEST_F(TRowExpandMinTest, case_int32_16_32) { test_trowexpandmin<int32_t, 16, 32, 16, 1, true, false>(); }
 TEST_F(TRowExpandMinTest, case_int16_16_64) { test_trowexpandmin<int16_t, 16, 64, 16, 1, true, false>(); }
+TEST_F(TRowExpandMinTest, case_int64_16_32) { test_trowexpandmin<int64_t, 16, 32, 16, 1, true, false>(); }
+TEST_F(TRowExpandMinTest, case_int64_24_64) { test_trowexpandmin<int64_t, 24, 64, 24, 4, true, true>(); }
+TEST_F(TRowExpandMinTest, case_uint64_16_32) { test_trowexpandmin<uint64_t, 16, 32, 16, 1, true, false>(); }
 } // namespace TRowExpandMinTest
