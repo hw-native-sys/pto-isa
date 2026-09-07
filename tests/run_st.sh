@@ -152,10 +152,10 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tconcatidx -g TCONCATTest.case_int16_16x32_16x16_16x16_8x16_8x16
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t taxpy -g TAXPYTest.case1
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolexpand -g TCOLEXPANDTest.case1
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
@@ -167,22 +167,22 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmax -g TCOLMAXTest.case1
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolargmax -g TCOLCMAXTest.case01
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolmin -g TCOLMINTest.case1
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tcolargmin -g TCOLCMINTest.case01
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trem -g TREMTest.case_float_16x64_16x128_16x128_16x64
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tfmod -g TFMODTest.case_float_16x64_16x128_16x128_16x64
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trems -g TREMSTest.case1
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
@@ -191,7 +191,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsubs -g TSUBSTest.case1
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmaxs -g TMAXSTest.case1
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
@@ -203,7 +203,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmov -g TMOVTest.case14_scaling_dynamic_int32_int8_0_1_1_1_0_param
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmov_acc2mat -g TMOVTest.case_nz2nz_fb_quant_4
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
@@ -293,16 +293,16 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tmins
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trsqrt -g TRSQRTTest.case_float_64x64_64x64_64x64_inPlace_False
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tsqrt -g TSQRTTest.case_float_64x64_64x64_64x64_inPlace_False
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t texp -g TEXPTest.case_float_64x64_64x64_64x64_inPlace_False
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tabs -g TABSTest.case_float_64x64_64x64_64x64_inPlace_False
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
@@ -326,19 +326,19 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tadds -g TADDSTest.case6
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t texpands -g TEXPANDSTest.case_float_64x64_64x64_64x64_PAD_VALUE_NULL
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tnot -g TNOTTest.case_int16_64x64_64x64_64x64
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tprelu -g TPRELUTest.case5
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t trelu -g TRELUTest.case_int32_64x64_64x64_64x64
     fi
-    if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+    if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
     python3 tests/script/run_st.py $ARGS -w -v a3 -t tands -g TANDSTest.case_int16_64x64_64x64_64x64
     fi
     if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
@@ -552,7 +552,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
     if [ "$IS_AUTO_MODE" = "false" ]; then
       # this testcase has to directly call CCE intrinsics now, which won't compile for auto mode;
       # besides, auto-sync doesn't work with CCE intrinsics
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_cv -g TPushPopCVTest.case1_half_single_tile
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
@@ -567,7 +567,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_dir_both -g TPushPopDirBothTest.case1_float_dir_both
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpushpop_subtile -g TPushTpopSubtileTest.case1_half_128x512
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
@@ -663,7 +663,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartadd -g TPARTADDTest.case_float_64x64_64x64_64x64
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tpartmul -g TPARTMULTest.case_float_64x64_64x64_64x64
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
@@ -675,22 +675,22 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tscatter -g TSCATTERTest.case_mask_float_16x64_16x64_P1111
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case3_int32_17_3_3_2_2
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case1_float32_2_4_2_2_2
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case7_uint16_4_8_2_2_3
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttrans_3d -g TTRANS3DTest.case10_uint8_9_18_2_2_4
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t ttri -g TTRITest.case_float_128x128_128x31_1__444
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "2" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
@@ -720,7 +720,7 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
       fi
-      if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
+      if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t texpands_mat -g TEXPANDSTest.case1
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
