@@ -29,6 +29,7 @@ def type2str(t):
         return "bfloat16_t"
     return np.dtype(t).name + "_t"
 
+
 def gen_golden_data(case_name, param):
     src_type = param.src_type
     dst_type = param.dst_type
@@ -42,7 +43,8 @@ def gen_golden_data(case_name, param):
         param.idx_col,
     )
 
-    gm = NumExt.astype(np.arange(1, valid_rows * valid_cols + 1).reshape([valid_rows, valid_cols]), src_type)
+    gm = NumExt.astype(np.arange(1, valid_rows * valid_cols +
+                       1).reshape([valid_rows, valid_cols]), src_type)
 
     golden = NumExt.astype(gm[idx_row:, idx_col:], dst_type)
 
@@ -59,10 +61,11 @@ class textractParams:
         self.src_type, self.dst_type = src_type, dst_type
         self.rows, self.cols, self.valid_rows, self.valid_cols, self.idx_row, self.idx_col = rows, cols, valid_rows, valid_cols, idx_row, idx_col
         self.src_layout, self.dst_layout = src_layout, dst_layout
-        
+
 
 def gen_case_name(param):
     return f"case_{type2str(param.src_type)}_{type2str(param.dst_type)}_{param.rows}_{param.cols}_{param.valid_rows}_{param.valid_cols}_IDX_{param.idx_row}_{param.idx_col}_L_{param.src_layout}_{param.dst_layout}"
+
 
 if __name__ == "__main__":
     case_params_list = [
@@ -92,16 +95,16 @@ if __name__ == "__main__":
         textractParams(np.float32, np.float32, 128, 96, 125, 93, 8, 16, 2, 0),
         textractParams(np.float32, np.float32, 128, 96, 125, 93, 8, 16, 2, 1),
         textractParams(np.float32, np.float32, 128, 96, 125, 93, 8, 16, 2, 2),
-        textractParams(NumExt.bf16, NumExt.bf16, 32, 32, 32, 32, 0, 0, 0, 0),
-        textractParams(NumExt.bf16, np.float32, 32, 32, 32, 32, 8, 16, 0, 0),
-        textractParams(NumExt.bf16, NumExt.bf16, 32, 32, 31, 31, 8, 16, 0, 0),
     ]
     if ENABLE_BF16:
         case_params_list.extend(
             [
-                textractParams(BF16_DTYPE, BF16_DTYPE, "Mat", "Mat", 32, 32, 32, 32, 0, 0, 0, 0),
-                textractParams(BF16_DTYPE, np.float32, "Mat", "Mat", 32, 32, 32, 32, 8, 16, 0, 0),
-                textractParams(BF16_DTYPE, BF16_DTYPE, "Mat", "Mat", 32, 32, 31, 31, 8, 16, 0, 0),
+                textractParams(NumExt.bf16, NumExt.bf16,
+                               32, 32, 32, 32, 0, 0, 0, 0),
+                textractParams(NumExt.bf16, np.float32, 32,
+                               32, 32, 32, 8, 16, 0, 0),
+                textractParams(NumExt.bf16, NumExt.bf16,
+                               32, 32, 31, 31, 8, 16, 0, 0),
             ]
         )
 
@@ -116,4 +119,3 @@ if __name__ == "__main__":
         gen_golden_data(case_name, case_param)
 
         os.chdir(original_dir)
-

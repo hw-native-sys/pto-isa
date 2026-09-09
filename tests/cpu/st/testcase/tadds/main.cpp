@@ -47,7 +47,7 @@ inline void InitDstDevice(T* dstDevice)
 template <
     uint32_t caseId, typename T, int validRow, int validCol, int iRow = validRow, int iCol = validCol,
     int oRow = validRow, int oCol = validCol>
-bool TAddSTestFramework()
+void TAddSTestFramework()
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -71,7 +71,7 @@ bool TAddSTestFramework()
     aclrtMemset(dstDevice, dstByteSize, 0, dstByteSize);
 
     InitDstDevice<T, oRow, oCol>(dstDevice);
-    ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize));
     std::string scalar_file = GetGoldenDir() + "/divider.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
@@ -96,50 +96,24 @@ bool TAddSTestFramework()
 
     std::vector<T> golden(dstByteSize / sizeof(T));
     std::vector<T> devFinal(dstByteSize / sizeof(T));
-    ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
-    ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize));
 
-    return ResultCmp<T>(golden, devFinal, 0.001f);
+    EXPECT_TRUE(ResultCmp<T>(golden, devFinal, 0.001f));
 }
 
-TEST_F(TADDSTest, case1)
-{
-    bool ret = TAddSTestFramework<1, float, 32, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TADDSTest, case1) { TAddSTestFramework<1, float, 32, 64>(); }
 
-TEST_F(TADDSTest, case2)
-{
-    bool ret = TAddSTestFramework<2, aclFloat16, 63, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TADDSTest, case2) { TAddSTestFramework<2, aclFloat16, 63, 64>(); }
 
-TEST_F(TADDSTest, case3)
-{
-    bool ret = TAddSTestFramework<3, int32_t, 31, 128>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TADDSTest, case3) { TAddSTestFramework<3, int32_t, 31, 128>(); }
 
-TEST_F(TADDSTest, case4)
-{
-    bool ret = TAddSTestFramework<4, int16_t, 15, 192>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TADDSTest, case4) { TAddSTestFramework<4, int16_t, 15, 192>(); }
 
-TEST_F(TADDSTest, case5)
-{
-    bool ret = TAddSTestFramework<5, float, 7, 448>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TADDSTest, case5) { TAddSTestFramework<5, float, 7, 448>(); }
 
-TEST_F(TADDSTest, case6)
-{
-    bool ret = TAddSTestFramework<6, float, 256, 16>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TADDSTest, case6) { TAddSTestFramework<6, float, 256, 16>(); }
 
-TEST_F(TADDSTest, case7)
-{
-    bool ret = TAddSTestFramework<7, float, 16, 16, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TADDSTest, case7) { TAddSTestFramework<7, float, 16, 16, 32, 32, 64, 64>(); }
+
+TEST_F(TADDSTest, case8) { TAddSTestFramework<8, int64_t, 15, 128>(); }

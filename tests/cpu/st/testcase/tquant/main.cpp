@@ -263,9 +263,10 @@ void TestFP8ExactMatch()
             src.data()[GetTileElementOffset<SrcTile>(r, c)] = static_cast<SrcType>(base);
         }
     }
-    src.data()[GetTileElementOffset<SrcTile>(1, 0)] = BitsToFloat(0x04600001u);
-    src.data()[GetTileElementOffset<SrcTile>(2, 0)] = std::nextafter(448.0f, std::numeric_limits<float>::infinity());
-    src.data()[GetTileElementOffset<SrcTile>(3, 0)] = -896.0f;
+    src.data()[GetTileElementOffset<SrcTile>(1, 0)] = static_cast<SrcType>(BitsToFloat(0x04600001u));
+    src.data()[GetTileElementOffset<SrcTile>(2, 0)] =
+        static_cast<SrcType>(std::nextafter(448.0f, std::numeric_limits<float>::infinity()));
+    src.data()[GetTileElementOffset<SrcTile>(3, 0)] = static_cast<SrcType>(-896.0f);
 
     TQUANT<QuantType::MXFP8>(dst, src, &expTile, &max, &scaling);
 

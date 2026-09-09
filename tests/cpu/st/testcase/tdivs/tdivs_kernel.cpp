@@ -28,10 +28,9 @@ PTO_INTERNAL void runTDivS(__gm__ T* out, __gm__ T* src, T scalar)
     srcTileData srcTile(validRow, validCol);
     dstTileData dstTile(validRow, validCol);
     TASSIGN(srcTile, 0x0);
-    TASSIGN(dstTile, 0x28000);
+    TASSIGN(dstTile, srcTile.GetSizeInBytes());
 
     TLOAD(dstTile, dstGlobal);
-
     TLOAD(srcTile, srcGlobal);
 
     set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
@@ -104,6 +103,11 @@ extern "C" __global__ AICORE void launchTDIVSCase8(__gm__ int16_t* out, __gm__ i
     runSTDivS<int16_t, 15, 15, 192, 192>(out, src, scalar);
 }
 
+extern "C" __global__ AICORE void launchTDIVSCase9(__gm__ int64_t* out, __gm__ int64_t* src, float scalar)
+{
+    runTDivS<int64_t, 32, 32, 64, 64>(out, src, scalar);
+}
+
 template <uint32_t caseId>
 void launchTDIVSTestCase(void* out, void* src, float scalar, aclrtStream stream)
 {
@@ -140,6 +144,10 @@ void launchTDIVSTestCase(void* out, void* src, float scalar, aclrtStream stream)
             launchTDIVSCase8((int16_t*)out, (int16_t*)src, scalar);
             break;
         }
+        case 9: {
+            launchTDIVSCase9((int64_t*)out, (int64_t*)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -153,3 +161,4 @@ template void launchTDIVSTestCase<5>(void* out, void* src, float scalar, aclrtSt
 template void launchTDIVSTestCase<6>(void* out, void* src, float scalar, aclrtStream stream);
 template void launchTDIVSTestCase<7>(void* out, void* src, float scalar, aclrtStream stream);
 template void launchTDIVSTestCase<8>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTDIVSTestCase<9>(void* out, void* src, float scalar, aclrtStream stream);

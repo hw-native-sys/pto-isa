@@ -22,13 +22,14 @@ def gen_golden_data(param):
     rows = param.row
     cols = param.col
 
-    input_arr = np.random.uniform(low=1, high=8, size=(rows, cols)).astype(data_type)
+    input_arr = np.random.uniform(
+        low=1, high=8, size=(rows, cols)).astype(data_type)
     divider = np.random.uniform(low=1, high=8, size=(1, 1)).astype(data_type)
     output_arr = np.zeros((rows, cols), dtype=data_type)
 
     for i in range(rows):
         for j in range(cols):
-            if int(param.name[-1]) <= 4:
+            if param.is_tile_first:
                 output_arr[i, j] = input_arr[i, j] / divider[0, 0]
             else:
                 output_arr[i, j] = divider[0, 0] / input_arr[i, j]
@@ -39,11 +40,12 @@ def gen_golden_data(param):
 
 
 class TDivsParams:
-    def __init__(self, name, data_type, row, col):
+    def __init__(self, name, data_type, row, col, is_tile_first=True):
         self.name = name
         self.data_type = data_type
         self.row = row
         self.col = col
+        self.is_tile_first = is_tile_first
 
 
 if __name__ == "__main__":
@@ -52,10 +54,11 @@ if __name__ == "__main__":
         TDivsParams("TDIVSTest.case2", np.float16, 63, 64),
         TDivsParams("TDIVSTest.case3", np.int32, 31, 128),
         TDivsParams("TDIVSTest.case4", np.int16, 15, 64 * 3),
-        TDivsParams("TDIVSTest.case5", np.float32, 32, 64),
-        TDivsParams("TDIVSTest.case6", np.float16, 63, 64),
-        TDivsParams("TDIVSTest.case7", np.int32, 31, 128),
-        TDivsParams("TDIVSTest.case8", np.int16, 15, 64 * 3),
+        TDivsParams("TDIVSTest.case5", np.float32, 32, 64, False),
+        TDivsParams("TDIVSTest.case6", np.float16, 63, 64, False),
+        TDivsParams("TDIVSTest.case7", np.int32, 31, 128, False),
+        TDivsParams("TDIVSTest.case8", np.int16, 15, 64 * 3, False),
+        TDivsParams("TDIVSTest.case9", np.int64, 32, 64),
     ]
 
     for case in case_params_list:

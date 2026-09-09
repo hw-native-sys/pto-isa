@@ -80,6 +80,11 @@ extern "C" __global__ AICORE void launchTMULSCase9(__gm__ uint32_t* out, __gm__ 
     runTMulS<uint32_t, 32, 32, 64, 64>(out, src, scalar);
 }
 
+extern "C" __global__ AICORE void launchTMULSCase10(__gm__ int64_t* out, __gm__ int64_t* src, float scalar)
+{
+    runTMulS<int64_t, 32, 32, 64, 64>(out, src, scalar);
+}
+
 template <uint32_t caseId>
 void launchTMULSTestCase(void* out, void* src, float scalar, aclrtStream stream)
 {
@@ -120,6 +125,10 @@ void launchTMULSTestCase(void* out, void* src, float scalar, aclrtStream stream)
             launchTMULSCase9((uint32_t*)out, (uint32_t*)src, scalar);
             break;
         }
+        case 10: {
+            launchTMULSCase10((int64_t*)out, (int64_t*)src, scalar);
+            break;
+        }
         default: {
         }
     }
@@ -134,3 +143,4 @@ template void launchTMULSTestCase<6>(void* out, void* src, float scalar, aclrtSt
 template void launchTMULSTestCase<7>(void* out, void* src, float scalar, aclrtStream stream);
 template void launchTMULSTestCase<8>(void* out, void* src, float scalar, aclrtStream stream);
 template void launchTMULSTestCase<9>(void* out, void* src, float scalar, aclrtStream stream);
+template void launchTMULSTestCase<10>(void* out, void* src, float scalar, aclrtStream stream);

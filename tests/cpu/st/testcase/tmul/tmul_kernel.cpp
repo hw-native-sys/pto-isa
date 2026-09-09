@@ -24,8 +24,8 @@ AICORE void runTMul(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in_
     TileData src1Tile(kTRows_, kTCols_);
     TileData dstTile(kTRows_, kTCols_);
     TASSIGN(src0Tile, 0x0);
-    TASSIGN(src1Tile, 0x4000);
-    TASSIGN(dstTile, 0x8000);
+    TASSIGN(src1Tile, src0Tile.GetSizeInBytes());
+    TASSIGN(dstTile, src0Tile.GetSizeInBytes() + src1Tile.GetSizeInBytes());
 
     GlobalData src0Global(src0);
     GlobalData src1Global(src1);
@@ -63,3 +63,4 @@ template void LaunchTMul<bfloat16_t, 16, 256, 16, 256>(
 template void LaunchTMul<uint8_t, 64, 64, 64, 64>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTMul<uint16_t, 64, 64, 64, 64>(uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
 template void LaunchTMul<uint32_t, 64, 64, 64, 64>(uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTMul<int64_t, 64, 64, 64, 64>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);

@@ -23,9 +23,9 @@ AICORE void runTSub(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in_
     TileData src0Tile(kTRows_, kTCols_);
     TileData src1Tile(kTRows_, kTCols_);
     TileData dstTile(kTRows_, kTCols_);
-    TASSIGN(src0Tile, 0x0);
-    TASSIGN(src1Tile, 0x4000);
-    TASSIGN(dstTile, 0x8000);
+    TASSIGN(src0Tile, 0);
+    TASSIGN(src1Tile, src0Tile.GetSizeInBytes());
+    TASSIGN(dstTile, src0Tile.GetSizeInBytes() + src1Tile.GetSizeInBytes());
 
     GlobalData src0Global(src0);
     GlobalData src1Global(src1);
@@ -56,6 +56,7 @@ template void LaunchTSub<int32_t, 64, 64, 64, 64>(int32_t* out, int32_t* src0, i
 template void LaunchTSub<aclFloat16, 16, 256, 16, 256>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 template void LaunchTSub<int16_t, 64, 64, 64, 64>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTSub<int64_t, 64, 64, 64, 64>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTSub<bfloat16_t, 16, 256, 16, 256>(
     bfloat16_t* out, bfloat16_t* src0, bfloat16_t* src1, void* stream);

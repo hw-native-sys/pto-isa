@@ -36,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <uint32_t caseId, typename T, int row, int validRow, int col, int srcValidCol>
-bool TDivSTestFramework()
+void TDivSTestFramework()
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -59,7 +59,7 @@ bool TDivSTestFramework()
     aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemset(dstDevice, dstByteSize, 0, dstByteSize);
 
-    ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize));
     std::string scalar_file = GetGoldenDir() + "/divider.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
@@ -84,56 +84,26 @@ bool TDivSTestFramework()
 
     std::vector<T> golden(dstByteSize / sizeof(T));
     std::vector<T> devFinal(dstByteSize / sizeof(T));
-    ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
-    ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize));
 
-    return ResultCmp<T>(golden, devFinal, 0.001f);
+    EXPECT_TRUE(ResultCmp<T>(golden, devFinal, 0.001f));
 }
 
-TEST_F(TDIVSTest, case1)
-{
-    bool ret = TDivSTestFramework<1, float, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case1) { TDivSTestFramework<1, float, 32, 32, 64, 64>(); }
 
-TEST_F(TDIVSTest, case2)
-{
-    bool ret = TDivSTestFramework<2, aclFloat16, 63, 63, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case2) { TDivSTestFramework<2, aclFloat16, 63, 63, 64, 64>(); }
 
-TEST_F(TDIVSTest, case3)
-{
-    bool ret = TDivSTestFramework<3, int32_t, 31, 31, 128, 128>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case3) { TDivSTestFramework<3, int32_t, 31, 31, 128, 128>(); }
 
-TEST_F(TDIVSTest, case4)
-{
-    bool ret = TDivSTestFramework<4, int16_t, 15, 15, 192, 192>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case4) { TDivSTestFramework<4, int16_t, 15, 15, 192, 192>(); }
 
-TEST_F(TDIVSTest, case5)
-{
-    bool ret = TDivSTestFramework<5, float, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case5) { TDivSTestFramework<5, float, 32, 32, 64, 64>(); }
 
-TEST_F(TDIVSTest, case6)
-{
-    bool ret = TDivSTestFramework<6, aclFloat16, 63, 63, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case6) { TDivSTestFramework<6, aclFloat16, 63, 63, 64, 64>(); }
 
-TEST_F(TDIVSTest, case7)
-{
-    bool ret = TDivSTestFramework<7, int32_t, 31, 31, 128, 128>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case7) { TDivSTestFramework<7, int32_t, 31, 31, 128, 128>(); }
 
-TEST_F(TDIVSTest, case8)
-{
-    bool ret = TDivSTestFramework<8, int16_t, 15, 15, 192, 192>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TDIVSTest, case8) { TDivSTestFramework<8, int16_t, 15, 15, 192, 192>(); }
+
+TEST_F(TDIVSTest, case9) { TDivSTestFramework<9, int64_t, 32, 32, 64, 64>(); }

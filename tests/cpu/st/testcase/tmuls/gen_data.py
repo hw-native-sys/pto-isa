@@ -24,7 +24,8 @@ def gen_golden_data(param):
 
     l = 0 if data_type in [np.uint8, np.uint16, np.uint32] else -8
     h = 4 if data_type in [np.uint8] else 8
-    input_arr = np.random.uniform(low=l, high=h, size=(rows, cols)).astype(data_type)
+    input_arr = np.random.uniform(
+        low=l, high=h, size=(rows, cols)).astype(data_type)
     divider = np.random.uniform(low=l, high=h, size=(1, 1)).astype(data_type)
     output_arr = np.zeros((rows, cols), dtype=data_type)
     for i in range(rows):
@@ -55,6 +56,7 @@ if __name__ == "__main__":
         TMulsParams("TMULSTest.case7", np.uint8, 32, 64),
         TMulsParams("TMULSTest.case8", np.uint16, 32, 64),
         TMulsParams("TMULSTest.case9", np.uint32, 32, 64),
+        TMulsParams("TMULSTest.case10", np.int64, 32, 64),
     ]
 
     for case in case_params_list:

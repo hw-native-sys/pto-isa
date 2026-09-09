@@ -22,7 +22,8 @@ def gen_golden_data(param):
     valid_row = param.valid_row
     valid_col = param.valid_col
 
-    input_arr = np.random.uniform(low=-8, high=8, size=(param.in_row, param.in_col)).astype(data_type)
+    input_arr = np.random.uniform(
+        low=-8, high=8, size=(param.in_row, param.in_col)).astype(data_type)
     divider = np.random.uniform(low=-8, high=8, size=(1, 1)).astype(data_type)
     output_arr = np.zeros((param.out_row, param.out_col), dtype=data_type)
     for i in range(valid_row):
@@ -54,7 +55,8 @@ if __name__ == "__main__":
         TAddsParams("TADDSTest.case4", np.int16, 15, 64 * 3),
         TAddsParams("TADDSTest.case5", np.float32, 7, 64 * 7),
         TAddsParams("TADDSTest.case6", np.float32, 256, 16),
-        TAddsParams("TADDSTest.case7", np.float32, 16, 16, 32, 32, 64, 64)
+        TAddsParams("TADDSTest.case7", np.float32, 16, 16, 32, 32, 64, 64),
+        TAddsParams("TADDSTest.case8", np.int64, 15, 128)
     ]
 
     for _, case in enumerate(case_params_list):

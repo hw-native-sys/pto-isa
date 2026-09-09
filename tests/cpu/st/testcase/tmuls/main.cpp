@@ -36,7 +36,7 @@ std::string GetGoldenDir()
 }
 
 template <uint32_t caseId, typename T, int row, int validRow, int col, int srcValidCol>
-bool TMulSTestFramework()
+void TMulSTestFramework()
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -59,7 +59,7 @@ bool TMulSTestFramework()
     aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemset(dstDevice, dstByteSize, 0, dstByteSize);
 
-    ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize));
     std::string scalar_file = GetGoldenDir() + "/divider.bin";
     std::ifstream file(scalar_file, std::ios::binary);
 
@@ -84,62 +84,28 @@ bool TMulSTestFramework()
 
     std::vector<T> golden(dstByteSize / sizeof(T));
     std::vector<T> devFinal(dstByteSize / sizeof(T));
-    ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
-    ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize));
 
-    return ResultCmp<T>(golden, devFinal, 0.001f);
+    EXPECT_TRUE(ResultCmp<T>(golden, devFinal, 0.001f));
 }
 
-TEST_F(TMULSTest, case1)
-{
-    bool ret = TMulSTestFramework<1, float, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case1) { TMulSTestFramework<1, float, 32, 32, 64, 64>(); }
 
-TEST_F(TMULSTest, case2)
-{
-    bool ret = TMulSTestFramework<2, aclFloat16, 63, 63, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case2) { TMulSTestFramework<2, aclFloat16, 63, 63, 64, 64>(); }
 
-TEST_F(TMULSTest, case3)
-{
-    bool ret = TMulSTestFramework<3, int32_t, 31, 31, 128, 128>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case3) { TMulSTestFramework<3, int32_t, 31, 31, 128, 128>(); }
 
-TEST_F(TMULSTest, case4)
-{
-    bool ret = TMulSTestFramework<4, int16_t, 15, 15, 192, 192>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case4) { TMulSTestFramework<4, int16_t, 15, 15, 192, 192>(); }
 
-TEST_F(TMULSTest, case5)
-{
-    bool ret = TMulSTestFramework<5, float, 7, 7, 448, 448>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case5) { TMulSTestFramework<5, float, 7, 7, 448, 448>(); }
 
-TEST_F(TMULSTest, case6)
-{
-    bool ret = TMulSTestFramework<6, float, 256, 256, 16, 16>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case6) { TMulSTestFramework<6, float, 256, 256, 16, 16>(); }
 
-TEST_F(TMULSTest, case7)
-{
-    bool ret = TMulSTestFramework<7, uint8_t, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case7) { TMulSTestFramework<7, uint8_t, 32, 32, 64, 64>(); }
 
-TEST_F(TMULSTest, case8)
-{
-    bool ret = TMulSTestFramework<8, uint16_t, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case8) { TMulSTestFramework<8, uint16_t, 32, 32, 64, 64>(); }
 
-TEST_F(TMULSTest, case9)
-{
-    bool ret = TMulSTestFramework<9, uint32_t, 32, 32, 64, 64>();
-    EXPECT_TRUE(ret);
-}
+TEST_F(TMULSTest, case9) { TMulSTestFramework<9, uint32_t, 32, 32, 64, 64>(); }
+
+TEST_F(TMULSTest, case10) { TMulSTestFramework<10, int64_t, 32, 32, 64, 64>(); }

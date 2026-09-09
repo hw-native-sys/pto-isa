@@ -30,13 +30,12 @@ def gen_golden_data_tadd(case_name, param):
 
     # Perform the addbtraction
     golden = NumExt.zeros([row, col], dtype)
-    golden[:row_valid,:col_valid] = (input1 + input2)[:row_valid,:col_valid]
+    golden[:row_valid, :col_valid] = (input1 + input2)[:row_valid, :col_valid]
 
     # Save the input and golden data to binary files
     NumExt.write_array("input1.bin", input1, dtype)
     NumExt.write_array("input2.bin", input2, dtype)
     NumExt.write_array("golden.bin", golden, dtype)
-
 
 
 class TAddParams:
@@ -52,15 +51,15 @@ class TAddParams:
 
 def generate_case_name(param):
     dtype_str = NumExt.get_short_type_name(param.dtype)
-    
+
     def substring(a, b) -> str:
         return f"_{a}x{b}"
-        
-    name = f"TADDTest.case_{dtype_str}" 
+
+    name = f"TADDTest.case_{dtype_str}"
     name += substring(param.global_row, param.global_col)
     name += substring(param.tile_row, param.tile_col)
     name += substring(param.valid_row, param.valid_col)
-    
+
     return name
 
 
@@ -77,10 +76,12 @@ if __name__ == "__main__":
         TAddParams(np.float32, 64, 64, 64, 64, 64, 64),
         TAddParams(np.int32, 64, 64, 64, 64, 64, 64),
         TAddParams(np.int16, 64, 64, 64, 64, 64, 64),
-        TAddParams(np.float16, 16, 256, 16, 256, 16, 256)
+        TAddParams(np.float16, 16, 256, 16, 256, 16, 256),
+        TAddParams(np.int64, 64, 64, 64, 64, 64, 64)
     ]
     if ENABLE_BF16:
-        case_params_list.append(TAddParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
+        case_params_list.append(TAddParams(
+            NumExt.bf16, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

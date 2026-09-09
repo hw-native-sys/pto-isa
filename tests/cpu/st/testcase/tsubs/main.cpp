@@ -95,6 +95,7 @@ void test_tsubs()
 TEST_F(TSUBSTest, case_float_64x64_64x64_64x64) { test_tsubs<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TSUBSTest, case_int32_64x64_64x64_64x64) { test_tsubs<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TSUBSTest, case_int16_64x64_64x64_64x64) { test_tsubs<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSUBSTest, case_int64_64x64_64x64_64x64) { test_tsubs<int64_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TSUBSTest, case_half_16x256_16x256_16x256) { test_tsubs<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED
 TEST_F(TSUBSTest, case_bf16_16x256_16x256_16x256) { test_tsubs<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }

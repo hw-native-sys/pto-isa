@@ -164,6 +164,10 @@ inline const char* LayoutToString(Layout layout)
             return "FRACTAL_Z_S16S8";
         case Layout::FRACTAL_Z_3D:
             return "FRACTAL_Z_3D";
+        case Layout::HIF4_A_ZZ:
+            return "HIF4_A_ZZ";
+        case Layout::HIF4_B_NN:
+            return "HIF4_B_NN";
         case Layout::MAX:
             return "MAX";
     }
