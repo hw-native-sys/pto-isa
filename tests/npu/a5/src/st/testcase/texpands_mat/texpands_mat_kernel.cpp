@@ -39,10 +39,6 @@ AICORE inline void runTexpandsAndTstore(
     copy_cbuf_to_ubuf((__ubuf__ void*)srcUbAddr, (__cbuf__ void*)srcMatAddr, 0, blockCount, blockLen, 0, 0);
     copy_cbuf_to_ubuf((__ubuf__ void*)srcUbAddr, (__cbuf__ void*)srcMatAddr, 1, blockCount, blockLen, 0, 0);
 
-#ifndef __PTO_AUTO__
-    set_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
-    wait_flag(PIPE_MTE1, PIPE_MTE3, EVENT_ID0);
-#endif
     set_intra_block(PIPE_MTE1, syncID);
     set_intra_block(PIPE_MTE1, syncID + 16);
 #endif
