@@ -91,6 +91,9 @@ main() {
     elif [[ "${ge_st_rt2}X" == "A5X" ]]; then
         LOG_DO python3 tests/script/build_st.py -r npu -v a5 -t all
         DP_ASSERT_EQUAL "$?" "0" "Run A5 UT TESTCASE"
+    elif [[ "${ge_st_rt2}X" == "KIRINX" ]]; then
+        LOG_DO python3 tests/script/build_st.py -r sim -v kirin9030 -t all
+        DP_ASSERT_EQUAL "$?" "0" "Run KIRIN UT TESTCASE"
     else
         LOG_DO bash build.sh --cpu
         DP_ASSERT_EQUAL "$?" "0" "Run A5 UT TESTCASE"
