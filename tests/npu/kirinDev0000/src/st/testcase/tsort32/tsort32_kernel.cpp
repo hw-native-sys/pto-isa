@@ -79,3 +79,5 @@ void launchTSORT32Half(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tm
 
 template void launchTSORT32Half<2, 32, 2, 32>(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);
 template void launchTSORT32Half<4, 64, 4, 64>(uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);
+template void launchTSORT32Half<1, 32 * 256, 1, 32 * 256>(
+    uint64_t* out, uint64_t* src, uint32_t* idx, uint64_t* tmp, void* stream);

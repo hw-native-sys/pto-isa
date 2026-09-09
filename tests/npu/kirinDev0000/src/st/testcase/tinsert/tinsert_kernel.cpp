@@ -25,6 +25,7 @@ AICORE inline void test_copy_cbuf_to_ubuf(
     __cbuf__ uint8_t* srcP = reinterpret_cast<__cbuf__ uint8_t*>(src);
     uint32_t srcStep = (lenBurst + srcGap) * CBUF_UB_BURST_UNIT;
     uint32_t dstStep = (lenBurst + dstGap) * CBUF_UB_BURST_UNIT;
+#pragma unroll
     for (uint16_t i = 0; i < nBurst; ++i) {
         pto_copy_cbuf_to_ubuf(
             reinterpret_cast<__ubuf__ void*>(dstP + i * dstStep), reinterpret_cast<__cbuf__ void*>(srcP + i * srcStep),
@@ -46,6 +47,7 @@ AICORE inline void test_copy_ubuf_to_cbuf(
     __ubuf__ uint8_t* srcP = reinterpret_cast<__ubuf__ uint8_t*>(src);
     uint32_t srcStep = (lenBurst + srcGap) * CBUF_UB_BURST_UNIT;
     uint32_t dstStep = (lenBurst + dstGap) * CBUF_UB_BURST_UNIT;
+#pragma unroll
     for (uint16_t i = 0; i < nBurst; ++i) {
         copy_ubuf_to_cbuf(
             reinterpret_cast<__cbuf__ void*>(dstP + i * dstStep), reinterpret_cast<__ubuf__ void*>(srcP + i * srcStep),

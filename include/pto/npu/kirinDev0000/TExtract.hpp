@@ -128,6 +128,7 @@ __tf__ PTO_INTERNAL void TCopyUbToCbufFractal(
     __ubuf__ uint8_t* srcP = reinterpret_cast<__ubuf__ uint8_t*>(srcPtr);
     uint32_t srcStep = (blockLen + srcStride) * CBUF_UB_BURST_UNIT;
     uint32_t dstStep = blockLen * CBUF_UB_BURST_UNIT;
+#pragma unroll
     for (uint16_t i = 0; i < blockCout; ++i) {
         copy_ubuf_to_cbuf(
             reinterpret_cast<__cbuf__ void*>(dstP + i * dstStep), reinterpret_cast<__ubuf__ void*>(srcP + i * srcStep),

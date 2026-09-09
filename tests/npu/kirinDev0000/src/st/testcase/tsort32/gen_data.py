@@ -93,9 +93,14 @@ class tsort32Params:
 
 if __name__ == "__main__":
     # 用例名称
-    case_name_list = ["TSort32Test.case1", "TSort32Test.case2"]
+    case_name_list = ["TSort32Test.case1", "TSort32Test.case2", "TSort32Test.case3", "TSort32Test.case4"]
 
-    case_params_list = [tsort32Params(np.float16, 2, 32), tsort32Params(np.float16, 4, 64)]
+    case_params_list = [
+        tsort32Params(np.float16, 2, 32),
+        tsort32Params(np.float16, 4, 64),
+        tsort32Params(np.float16, 1, 256 * 32),
+        tsort32Params(np.float16, 2, 13),
+    ]
 
     for i, case_name in enumerate(case_name_list):
         if not os.path.exists(case_name):
