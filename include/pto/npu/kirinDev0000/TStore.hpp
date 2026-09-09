@@ -79,7 +79,7 @@ __tf__ AICORE void TStoreMat(
         gStride4, validRow, validCol);
 }
 
-template <typename GlobalData, typename TileData>
+template <typename GlobalData, typename TileData, TStoreL2Hint l2Control>
 PTO_INTERNAL void TStoreVecND(
     typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
@@ -108,14 +108,14 @@ PTO_INTERNAL void TStoreVecND(
                 dstGlobalAddr = dstAddr + k * gStride0 + i * gStride1 + j * gStride2;
                 srcTileAddr =
                     srcAddr + k * srcStride0 + i * gShape2 * gShape3 * TileData::Cols + j * gShape3 * TileData::Cols;
-                TStoreInstr<TileData, GlobalData>(
+                TStoreInstr<TileData, GlobalData, l2Control>(
                     dstGlobalAddr, srcTileAddr, nBurst, lenBurst, burstDstStride, burstSrcStride);
             }
         }
     }
 }
 
-template <typename GlobalData, typename TileData>
+template <typename GlobalData, typename TileData, TStoreL2Hint l2Control>
 PTO_INTERNAL void TStoreVecDN(
     typename GlobalData::DType* dstAddr, __ubuf__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
@@ -144,7 +144,7 @@ PTO_INTERNAL void TStoreVecDN(
                 dstGlobalAddr = dstAddr + k * gStride0 + i * gStride1 + j * gStride2;
                 srcTileAddr =
                     srcAddr + k * srcStride0 + i * gShape2 * TileData::Rows * gShape4 + j * TileData::Rows * gShape4;
-                TStoreInstr<TileData, GlobalData>(
+                TStoreInstr<TileData, GlobalData, l2Control>(
                     dstGlobalAddr, srcTileAddr, nBurst, lenBurst, burstDstStride, burstSrcStride);
             }
         }

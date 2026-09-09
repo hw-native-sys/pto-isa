@@ -46,8 +46,7 @@ namespace pto {
 AICORE inline void DivSoftIntImpl(vector_u16& dst, vector_u16 src0, vector_u16 src1, vector_bool mask)
 {
     // x/0 = 0xFFFF
-    vector_bool zero_mask, non_zero_mask, ori_mask;
-    ori_mask = mask;
+    vector_bool zero_mask, non_zero_mask;
     vcmps_eq(zero_mask, src1, 0, mask);
     vector_u16 q_zero;
     vdup(q_zero, 0xFFFF, mask, MODE_ZEROING);
@@ -121,8 +120,7 @@ AICORE inline void DivSoftIntImpl(vector_u16& dst, vector_u16 src0, vector_u16 s
 AICORE inline void DivSoftIntImpl(vector_s16& dst, vector_s16 src0, vector_s16 src1, vector_bool mask)
 {
     // x/0 = -1
-    vector_bool zero_mask, non_zero_mask, ori_mask, neg_x_mask;
-    ori_mask = mask;
+    vector_bool zero_mask, non_zero_mask, neg_x_mask;
     vcmps_eq(zero_mask, src1, 0, mask);
     vector_s16 q_zero, neg_q_zero, pos_q_zero;
     vdup(q_zero, 0x7FFF, mask, MODE_ZEROING);

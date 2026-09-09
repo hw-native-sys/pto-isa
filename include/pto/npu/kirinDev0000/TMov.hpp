@@ -26,7 +26,6 @@ PTO_INTERNAL void SetLoop3Para()
 }
 
 // Configure FIXP_NZ_PARA SPR for fix_cbuf_to_ubuf on dav-l510.
-//
 // [15:0]  loop4_size (= ndNum for NZ2ND/NZ2DN)
 // [31:16] loop2_src_stride (in unit of C0_SIZE=32B) for NORMAL_DMA/NZ2ND/NZ2DN;
 //         for LOOP_ENHANCE it is loop1_src_stride instead.

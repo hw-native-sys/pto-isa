@@ -162,8 +162,7 @@ __tf__ PTO_INTERNAL void SetMFpcForFp16()
 
 __tf__ PTO_INTERNAL void SetMReluAlpha(float reluScalar)
 {
-    uint32_t floatBits = 0;
-    *reinterpret_cast<float*>(reinterpret_cast<char*>(&floatBits)) = reluScalar;
+    uint32_t floatBits = __builtin_bit_cast(uint32_t, reluScalar);
     uint32_t sign = (floatBits >> 31) & 0x1;
     uint32_t exp = (floatBits >> 23) & 0xFF;
     uint32_t mantissa = (floatBits >> 13) & 0x3FF;

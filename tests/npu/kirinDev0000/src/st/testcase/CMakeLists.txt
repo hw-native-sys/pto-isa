@@ -158,7 +158,7 @@ set(ALL_TESTCASES
     tcolargmax
     tcolmin
     tcolargmin
-    # tsort32
+    tsort32
     trowexpand
     trowexpandadd
     trowexpanddiv
