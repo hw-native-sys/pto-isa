@@ -45,7 +45,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define __cb__
 #define __cc__
 #define __fbuf__
-#define __biasbuf__
 #define __tf__
 
 typedef void* aclrtStream;
@@ -82,7 +81,9 @@ inline int aclrtMalloc(void** p, size_t sz, int) { return aclrtMallocHost(p, sz)
 
 inline int aclrtMemcpy(void* dst, size_t szDst, const void* src, size_t szSrc, int)
 {
-    std::char_traits<char>::copy(static_cast<char*>(dst), static_cast<const char*>(src), std::min(szDst, szSrc));
+    const int8_t* srcPtr = static_cast<const int8_t*>(src);
+    int8_t* dstPtr = static_cast<int8_t*>(dst);
+    std::copy(srcPtr, srcPtr + std::min(szDst, szSrc), dstPtr);
     return 0;
 }
 
@@ -265,10 +266,11 @@ inline bool ReadEnvBool(const char* name, bool fallback)
 
 inline void InitializeRuntime()
 {
+    constexpr int DEFAULT_CORE_NUM = 4;
     auto& config = runtime_config();
     std::scoped_lock lock(config.mutex);
     config.device_id = 0;
-    config.num_cores = ReadEnvU32("PTO_CPU_SIM_NUM_CORES", 4);
+    config.num_cores = ReadEnvU32("PTO_CPU_SIM_NUM_CORES", DEFAULT_CORE_NUM);
     config.trace_enabled = kInstructionTraceEnabled && ReadEnvBool("PTO_CPU_SIM_TRACE_ENABLE", true);
     if (const char* trace_dir = std::getenv("PTO_CPU_SIM_TRACE_DIR"); trace_dir != nullptr && *trace_dir != '\0') {
         config.trace_root = trace_dir;

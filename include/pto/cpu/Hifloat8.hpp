@@ -32,6 +32,8 @@ private:
     static constexpr int exponentBitsFor4BitPrefix1 = 0;
     static constexpr int totalExponentMantissaBits = 5;
     static constexpr double infinityExponent = 15.0;
+    static constexpr int prefix2BitValue3 = 3;
+    static constexpr double denormalExponentOffset = 23.0;
 
 public:
     std::array<double, tableSize> toDoubleTable;
@@ -71,7 +73,7 @@ private:
                 return (byte & 0x80) ? std::numeric_limits<double>::quiet_NaN() : 0.0;
             }
             // Equation (2): X = (-1)^S * 2^(M - 23) * 1.0
-            return sign * std::pow(two, static_cast<double>(mantissa) - 23.0);
+            return sign * std::pow(two, static_cast<double>(mantissa) - denormalExponentOffset);
         }
 
         // --- NORMAL MODES (NML) ---
@@ -79,7 +81,7 @@ private:
         int remainingBits = 0;
 
         // Check 2-bit prefixes (examine top 2 bits of prefix4bits)
-        if ((payload >> prefix2BitShift) == 3) {
+        if ((payload >> prefix2BitShift) == prefix2BitValue3) {
             exponentBits = exponentBitsFor2BitPrefix3;
             remainingBits = payload & 0x1F;
         } else if ((payload >> prefix2BitShift) == 2) {
@@ -139,6 +141,7 @@ struct hifloat8_t {
     {
         if (std::isnan(value)) {
             data = 0x80;
+            return;
         }
 
         auto it = std::lower_bound(
