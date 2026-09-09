@@ -21,12 +21,12 @@ TFILLPAD (Tile Fill Pad) is a PTO instruction that copies data from a source til
 | 23–25 | e4m3 | 1×15 | 1×32 | Null | Zero/Min/Max | fp8 e4m3 `0x00`/`0xFE`/`0x7E` |
 | 26–28 | e5m2 | 1×15 | 1×32 | Null | Zero/Min/Max | fp8 e5m2 `0x00`/`0xFC`/`0x7C` |
 | 29–31 | hif8 | 1×15 | 1×32 | Null | Zero/Min/Max | HiF8 `0x00`/`0xEF`/`0x6F` |
-| 32–34 | e2m1x2 | 1×15 nibbles | 1×32 nibbles | Null | Zero/Min/Max | fp4 packed `0x00`/`0xFF`/`0x77`; golden 8+8 B |
-| 35–37 | e1m2x2 | 1×15 nibbles | 1×32 nibbles | Null | Zero/Min/Max | fp4 packed `0x00`/`0xFF`/`0x77`; golden 8+8 B |
+| 32–34 | e2m1x2 | 1×15 nibbles | 1×64 nibbles | Null | Zero/Min/Max | fp4 packed `0x00`/`0xFF`/`0x77`; golden 8+24 B (Cols=64 → 32B MTE align) |
+| 35–37 | e1m2x2 | 1×15 nibbles | 1×64 nibbles | Null | Zero/Min/Max | fp4 packed `0x00`/`0xFF`/`0x77`; golden 8+24 B (Cols=64 → 32B MTE align) |
 | 38 | e4m3 | 1×15 | 1×32 | Null | Custom(`0x42`) | custom hex still works |
-| 39 | e2m1x2 | 1×15 nibbles | 1×32 nibbles | Null | Custom(`0x33`) | golden 8+8 B |
+| 39 | e2m1x2 | 1×15 nibbles | 1×64 nibbles | Null | Custom(`0x33`) | golden 8+24 B (Cols=64 → 32B MTE align) |
 
-fp4x2 `ValidCol`/`Cols` are nibble-counted (same as TLOAD/TSTORE/TCVT). A 1×32 fp4 tile stores 16 packed bytes (`ceil(32/2)`). Host goldens use packed-byte width.
+fp4x2 `ValidCol`/`Cols` are nibble-counted (same as TLOAD/TSTORE/TCVT). A 1×64 fp4 tile stores 32 packed bytes (`ceil(64/2)`), which satisfies MTE 32B row-stride alignment (Cols=32 → 16B was illegal). Host goldens use packed-byte width (ValidCol bytes=`ceil(15/2)=8`, Cols bytes=32).
 
 ## Standard Pad Values
 

@@ -555,7 +555,7 @@ extern "C" __global__ AICORE void launchTFILLPAD_32(
     __gm__ uint8_t* out, __gm__ uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols,
     __gm__ uint64_t* gLog)
 {
-    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 64, 0, PadValue::Null, PadValue::Zero>(
         (__gm__ float4_e2m1x2_t*)out, (__gm__ float4_e2m1x2_t*)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 extern "C" __global__ AICORE void launchTFILLPAD_33(
@@ -563,7 +563,7 @@ extern "C" __global__ AICORE void launchTFILLPAD_33(
     __gm__ uint64_t* gLog)
 {
     static_assert(PadValueMap<float4_e2m1x2_t, PadValue::Min>::value == uint8_t(0xFF));
-    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Min>(
+    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 64, 0, PadValue::Null, PadValue::Min>(
         (__gm__ float4_e2m1x2_t*)out, (__gm__ float4_e2m1x2_t*)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 extern "C" __global__ AICORE void launchTFILLPAD_34(
@@ -571,21 +571,21 @@ extern "C" __global__ AICORE void launchTFILLPAD_34(
     __gm__ uint64_t* gLog)
 {
     static_assert(PadValueMap<float4_e2m1x2_t, PadValue::Max>::value == uint8_t(0x77));
-    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Max>(
+    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 64, 0, PadValue::Null, PadValue::Max>(
         (__gm__ float4_e2m1x2_t*)out, (__gm__ float4_e2m1x2_t*)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 extern "C" __global__ AICORE void launchTFILLPAD_35(
     __gm__ uint8_t* out, __gm__ uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols,
     __gm__ uint64_t* gLog)
 {
-    runTFILLPAD<float4_e1m2x2_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Zero>(
+    runTFILLPAD<float4_e1m2x2_t, 1, 1, 1, 1, 15, 1, 64, 0, PadValue::Null, PadValue::Zero>(
         (__gm__ float4_e1m2x2_t*)out, (__gm__ float4_e1m2x2_t*)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 extern "C" __global__ AICORE void launchTFILLPAD_36(
     __gm__ uint8_t* out, __gm__ uint8_t* src, int gShape0, int gShape1, int gShape2, int gRows, int gCols,
     __gm__ uint64_t* gLog)
 {
-    runTFILLPAD<float4_e1m2x2_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Min>(
+    runTFILLPAD<float4_e1m2x2_t, 1, 1, 1, 1, 15, 1, 64, 0, PadValue::Null, PadValue::Min>(
         (__gm__ float4_e1m2x2_t*)out, (__gm__ float4_e1m2x2_t*)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 extern "C" __global__ AICORE void launchTFILLPAD_37(
@@ -593,7 +593,7 @@ extern "C" __global__ AICORE void launchTFILLPAD_37(
     __gm__ uint64_t* gLog)
 {
     static_assert(PadValueMap<float4_e1m2x2_t, PadValue::Max>::value == uint8_t(0x77));
-    runTFILLPAD<float4_e1m2x2_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, PadValue::Max>(
+    runTFILLPAD<float4_e1m2x2_t, 1, 1, 1, 1, 15, 1, 64, 0, PadValue::Null, PadValue::Max>(
         (__gm__ float4_e1m2x2_t*)out, (__gm__ float4_e1m2x2_t*)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 extern "C" __global__ AICORE void launchTFILLPAD_38(
@@ -609,7 +609,7 @@ extern "C" __global__ AICORE void launchTFILLPAD_39(
     __gm__ uint64_t* gLog)
 {
     constexpr PadValue kPad = PadValueCustom(uint8_t(0x33));
-    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 32, 0, PadValue::Null, kPad>(
+    runTFILLPAD<float4_e2m1x2_t, 1, 1, 1, 1, 15, 1, 64, 0, PadValue::Null, kPad>(
         (__gm__ float4_e2m1x2_t*)out, (__gm__ float4_e2m1x2_t*)src, gShape0, gShape1, gShape2, gRows, gCols, gLog);
 }
 #endif // PTO_NPU_ARCH_A5
@@ -873,21 +873,21 @@ int get_input_golden(uint8_t* input, uint8_t* golden)
     } else if constexpr (testKey == 31) {
         return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 15, 1, 32, 0x6F>(input, golden);
     } else if constexpr (testKey == 32) {
-        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 16, 0x00>(input, golden);
+        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 32, 0x00>(input, golden);
     } else if constexpr (testKey == 33) {
-        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 16, 0xFF>(input, golden);
+        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 32, 0xFF>(input, golden);
     } else if constexpr (testKey == 34) {
-        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 16, 0x77>(input, golden);
+        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 32, 0x77>(input, golden);
     } else if constexpr (testKey == 35) {
-        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 16, 0x00>(input, golden);
+        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 32, 0x00>(input, golden);
     } else if constexpr (testKey == 36) {
-        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 16, 0xFF>(input, golden);
+        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 32, 0xFF>(input, golden);
     } else if constexpr (testKey == 37) {
-        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 16, 0x77>(input, golden);
+        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 32, 0x77>(input, golden);
     } else if constexpr (testKey == 38) {
         return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 15, 1, 32, 0x42>(input, golden);
     } else if constexpr (testKey == 39) {
-        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 16, 0x33>(input, golden);
+        return get_input_golden_bits<uint8_t, 1, 1, 1, 1, 8, 1, 32, 0x33>(input, golden);
     }
 #endif // PTO_NPU_ARCH_A5
 

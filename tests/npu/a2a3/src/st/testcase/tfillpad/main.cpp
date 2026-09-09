@@ -215,12 +215,12 @@ TEST_F(TFILLPADTest, case_e5m2_GT_1_15_VT_1_32_BLK1_PADMAX) { tfillpad_test<28, 
 TEST_F(TFILLPADTest, case_hif8_GT_1_15_VT_1_32_BLK1_PADZERO) { tfillpad_test<29, uint8_t, 1>(); }
 TEST_F(TFILLPADTest, case_hif8_GT_1_15_VT_1_32_BLK1_PADMIN) { tfillpad_test<30, uint8_t, 1>(); }
 TEST_F(TFILLPADTest, case_hif8_GT_1_15_VT_1_32_BLK1_PADMAX) { tfillpad_test<31, uint8_t, 1>(); }
-TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_32_BLK1_PADZERO) { tfillpad_test<32, uint8_t, 1>(); }
-TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_32_BLK1_PADMIN) { tfillpad_test<33, uint8_t, 1>(); }
-TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_32_BLK1_PADMAX) { tfillpad_test<34, uint8_t, 1>(); }
-TEST_F(TFILLPADTest, case_e1m2x2_GT_1_15_VT_1_32_BLK1_PADZERO) { tfillpad_test<35, uint8_t, 1>(); }
-TEST_F(TFILLPADTest, case_e1m2x2_GT_1_15_VT_1_32_BLK1_PADMIN) { tfillpad_test<36, uint8_t, 1>(); }
-TEST_F(TFILLPADTest, case_e1m2x2_GT_1_15_VT_1_32_BLK1_PADMAX) { tfillpad_test<37, uint8_t, 1>(); }
+TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_64_BLK1_PADZERO) { tfillpad_test<32, uint8_t, 1>(); }
+TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_64_BLK1_PADMIN) { tfillpad_test<33, uint8_t, 1>(); }
+TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_64_BLK1_PADMAX) { tfillpad_test<34, uint8_t, 1>(); }
+TEST_F(TFILLPADTest, case_e1m2x2_GT_1_15_VT_1_64_BLK1_PADZERO) { tfillpad_test<35, uint8_t, 1>(); }
+TEST_F(TFILLPADTest, case_e1m2x2_GT_1_15_VT_1_64_BLK1_PADMIN) { tfillpad_test<36, uint8_t, 1>(); }
+TEST_F(TFILLPADTest, case_e1m2x2_GT_1_15_VT_1_64_BLK1_PADMAX) { tfillpad_test<37, uint8_t, 1>(); }
 TEST_F(TFILLPADTest, case_e4m3_GT_1_15_VT_1_32_BLK1_PADCUSTOM_42) { tfillpad_test<38, uint8_t, 1>(); }
-TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_32_BLK1_PADCUSTOM_33) { tfillpad_test<39, uint8_t, 1>(); }
+TEST_F(TFILLPADTest, case_e2m1x2_GT_1_15_VT_1_64_BLK1_PADCUSTOM_33) { tfillpad_test<39, uint8_t, 1>(); }
 #endif // PTO_NPU_ARCH_A5
