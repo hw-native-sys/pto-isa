@@ -490,6 +490,11 @@ template void LaunchTLoad<2, float, 1, 5, 21, 16, 8, 1, 5, 21, 16, 8>(float* out
 template void LaunchTLoad<2, int16_t, 2, 15, 11, 16, 16, 3, 23, 13, 16, 16>(int16_t* out, int16_t* src, void* stream);
 template void LaunchTLoad<2, int8_t, 1, 16, 32, 16, 32, 1, 32, 32, 16, 32>(int8_t* out, int8_t* src, void* stream);
 template void LaunchTLoad<3, float, 1, 1, 1, 49, 35, 1, 1, 1, 49, 35>(float* out, float* src, void* stream);
+// ND2NZ with gShape2 != 1: one instruction moves gShape2 nd matrices of [gShape3, gShape4],
+// which is the [S, G, D] slice of an attention [B, S, N, G, D] left matrix
+template void LaunchTLoad<3, uint16_t, 1, 1, 64, 2, 128, 1, 1, 64, 6, 128>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTLoad<3, int8_t, 1, 1, 16, 4, 100, 1, 1, 16, 12, 128>(int8_t* out, int8_t* src, void* stream);
+template void LaunchTLoad<3, uint16_t, 1, 1, 3, 15, 64, 1, 1, 5, 20, 64>(uint16_t* out, uint16_t* src, void* stream);
 template void LaunchTLoad<3, int16_t, 1, 1, 1, 155, 250, 1, 1, 1, 752, 1000>(int16_t* out, int16_t* src, void* stream);
 template void LaunchTLoad<3, int8_t, 1, 1, 1, 1023, 511, 1, 1, 1, 1024, 1024>(int8_t* out, int8_t* src, void* stream);
 template void LaunchTLoad<3, uint16_t, 1, 1, 1, 1023, 51, 1, 1, 1, 1024, 1024>(

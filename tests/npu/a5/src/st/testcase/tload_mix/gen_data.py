@@ -189,12 +189,19 @@ def gen_golden_data(case_name, param):
     golden = np.zeros([BASEM, BASEK]).astype(src_type)
 
     if param.load_type == DataFormat['ND2NZ'].value:
+        # d2 是 nd 小矩阵个数（硬件 ndNum），tile 的行是 d2 * M 按行优先合并；d2 == 1 时退化为二维
         x1_gm = np.random.randint(
-            1, 5, [whole_shape3, whole_shape4]).astype(src_type)
+            1, 5, [whole_shape2, whole_shape3, whole_shape4]).astype(src_type)
+        submatrix = x1_gm[
+            0:shape2,    # d2: nd 小矩阵个数
+            0:M,         # d3: 每个小矩阵的行数
+            0:K          # d4: 每行元素数
+        ]
+        flattened_submatrix = submatrix.reshape(shape2 * M, K)
         golden = np.zeros([BASEM, BASEK]).astype(src_type)  # L1中Tile大小
-        min_m = min(M, golden.shape[0])
-        min_k = min(K, golden.shape[1])
-        golden[:min_m, :min_k] = x1_gm[:min_m, :min_k]
+        min_m = min(flattened_submatrix.shape[0], golden.shape[0])
+        min_k = min(flattened_submatrix.shape[1], golden.shape[1])
+        golden[:min_m, :min_k] = flattened_submatrix[:min_m, :min_k]
     elif param.load_type == DataFormat['DN2NZ'].value:
         x1_gm = np.random.randint(
             1, 5, [whole_shape4, whole_shape3]).astype(src_type)
@@ -404,6 +411,10 @@ if __name__ == "__main__":
         "TLOADMIXTest.1_1_1_128_128_half_ND2NZ",
         "TLOADMIXTest.1_1_1_128_128_int8_t_ND2NZ",
         "TLOADMIXTest.1_1_1_128_128_float_ND2NZ",
+        "TLOADMIXTest.1_1_64_2_128_1_1_64_6_128_128_128_half_ND2NZ",
+        "TLOADMIXTest.1_1_16_4_100_1_1_16_12_128_64_128_int8_t_ND2NZ",
+        "TLOADMIXTest.1_1_32_1_64_1_1_32_4_64_32_64_float_ND2NZ",
+        "TLOADMIXTest.1_1_16_3_64_1_1_16_9_64_64_64_half_ND2NZ",
         "TLOADMIXTest.1_1_1_64_128_half_DN2NZ",
         "TLOADMIXTest.1_1_1_63_127_half_ND2NZ",
         "TLOADMIXTest.1_1_1_128_128_float_ND2ND",
@@ -498,6 +509,10 @@ if __name__ == "__main__":
         TloadParams(np.float16, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, DataFormat["ND2NZ"].value),
         TloadParams(np.int8, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, DataFormat["ND2NZ"].value),
         TloadParams(np.float32, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, DataFormat["ND2NZ"].value),
+        TloadParams(np.float16, 1, 1, 64, 2, 128, 1, 1, 64, 6, 128, 128, 128, DataFormat["ND2NZ"].value),
+        TloadParams(np.int8, 1, 1, 16, 4, 100, 1, 1, 16, 12, 128, 64, 128, DataFormat["ND2NZ"].value),
+        TloadParams(np.float32, 1, 1, 32, 1, 64, 1, 1, 32, 4, 64, 32, 64, DataFormat["ND2NZ"].value),
+        TloadParams(np.float16, 1, 1, 16, 3, 64, 1, 1, 16, 9, 64, 64, 64, DataFormat["ND2NZ"].value),
         TloadParams(np.float16, 1, 1, 1, 64, 128, 1, 1, 1, 64, 128, 64, 128, DataFormat["DN2NZ"].value),
         TloadParams(np.float16, 1, 1, 1, 63, 127, 1, 1, 1, 63, 127, 64, 128, DataFormat["ND2NZ"].value),
         TloadParams(np.float32, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, DataFormat["ND2ND"].value),

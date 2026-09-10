@@ -161,10 +161,19 @@ PTO_INTERNAL void TLoadCubeCheck()
         (!TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) {
         static_assert(TileData::SFractalSize == 512, "Fix: TileData SFractalSize must be 512 of NZ format in L1");
         static_assert(sizeof(typename TileData::DType) != 8, "Fix: DType not support b64 in ND2NZ or DN2NZ");
-        // globaltensor only support 2 dim
+        // GlobalTensor is 2 dim, or 3 dim with DIM_2 mapped onto the hardware nd-matrix loop (ndNum).
         static_assert(
-            GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1,
-            "Fix: GlobalTensor input shape now only support 2 dim");
+            GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1,
+            "Fix: GlobalTensor input shape now only support 2 dim, or 3 dim with Shape2 as ndNum");
+        constexpr bool multiNd = GlobalData::staticShape[2] != 1;
+        static_assert(
+            !multiNd || GlobalData::layout == pto::Layout::ND,
+            "Fix: GlobalTensor Shape2 != 1 (multi-ND) is only supported for ND2NZ, not DN2NZ");
+        static_assert(
+            !multiNd || caps::SupportsNd2nzMultiND<>(),
+            "Fix: GlobalTensor Shape2 != 1 (multi-ND ND2NZ) is not supported on current platform");
+        static_assert(
+            !multiNd || !caps::IsFP4<typename TileData::DType>(), "Fix: multi-ND ND2NZ does not support fp4/hif4");
         if constexpr (caps::IsFP4<typename TileData::DType>()) {
             static_assert(
                 GlobalData::layout != pto::Layout::DN &&
@@ -206,17 +215,28 @@ PTO_INTERNAL void TLoadCubeND2NZ(
     if constexpr (GlobalData::layout == pto::Layout::DN) {
         loop1SrcStride = GetByteSize<typename TileData::DType>(gStride4);
     }
-    constexpr uint16_t ndNum = 1;
+    // DIM_2 drives the hardware nd-matrix loop: ndNum matrices of [nValue, dValue] are stacked
+    // along the NZ row direction, so the tile row index is i2 * nValue + i3.
+    uint16_t ndNum = 1;
+    uint16_t loop4DstStride = 0;
+    uint64_t loop4SrcStride = 0;
+    if constexpr (GlobalData::layout == pto::Layout::ND && GlobalData::staticShape[2] != 1) {
+        PTO_ASSERT(gShape2 > 0 && gShape2 <= 65535, "The Shape2 (ndNum) of GlobalTensor must be in [1, 65535]!");
+        PTO_ASSERT(gShape2 * gShape3 <= TileData::Rows, "The ndNum * nValue must not exceed TileData::Rows!");
+        PTO_ASSERT(validRow == gShape2 * gShape3, "The validRow must be equal to Shape2 * Shape3 in multi-ND ND2NZ!");
+        ndNum = static_cast<uint16_t>(gShape2);
+        loop4DstStride = nValue; // one nd matrix takes nValue rows in the NZ tile, unit is 32B
+        loop4SrcStride = static_cast<uint64_t>(gStride2) * sizeof(typename TileData::DType);
+    }
     uint16_t loop2DstStride = 1;
     uint16_t loop3DstStride = TileData::Rows;                          // unit is 32B
-    uint16_t loop4DstStride = 0;                                       // because ndNum = 1
     uint64_t mte2NzPara = static_cast<uint64_t>(loop4DstStride) << 48; // MTE2_NZ_PARA[63:48]
     mte2NzPara |= static_cast<uint64_t>(loop3DstStride) << 32;         // MTE2_NZ_PARA[47:32]
     mte2NzPara |= static_cast<uint64_t>(loop2DstStride) << 16;         // MTE2_NZ_PARA[31:16]
     mte2NzPara |= static_cast<uint64_t>(ndNum);                        // MTE2_NZ_PARA[15:0]
     set_mte2_nz_para(mte2NzPara);                                      // only set once
 
-    Op::template TLoadCubeInstr<GlobalData::layout>(dst, src, loop1SrcStride, nValue, dValue, 0);
+    Op::template TLoadCubeInstr<GlobalData::layout>(dst, src, loop1SrcStride, nValue, dValue, loop4SrcStride);
 }
 template <typename Op, typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadCubeNZ2NZ(

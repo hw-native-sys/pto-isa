@@ -86,7 +86,13 @@ A5 上表内取值均透传给 DMA。CPU / costmodel 接受该模板并忽略。
     - 运行时：所有 `src.GetShape(dim)` 值和 `dst.GetValidRow()/GetValidCol()` 必须 `> 0`。
     - `TileType::Vec` 加载仅支持匹配的布局：ND->ND、DN->DN、NZ->NZ。
     - `TileType::Mat` 加载支持：ND->ND、DN->DN、NZ->NZ，以及ND->NZ和DN->ZN。
-    - 对于ND->NZ或DN->ZN：`GlobalData::staticShape[0..2] == 1` 且 `TileData::SFractalSize == 512`。
+    - 对于ND->NZ：`GlobalData::staticShape[0..1] == 1` 且 `TileData::SFractalSize == 512`。
+    - 对于DN->ZN：`GlobalData::staticShape[0..2] == 1` 且 `TileData::SFractalSize == 512`。
+    - ND->NZ 也支持 `GlobalData::staticShape[2] != 1`。此时 `Shape2` 是单条指令搬运的 ND 小矩阵个数
+      （指令自带的 `ndNum` 操作数），每个小矩阵形状为 `[Shape3, Shape4]`，多个小矩阵沿 tile 行方向堆叠，
+      因此 `dst.GetValidRow() == Shape2 * Shape3`。该平台的 `srcNdMatrixStride` 与 `dstNzMatrixStride`
+      是 16 位的元素数，因此除 `Shape2 * Shape3 <= TileData::Rows` 和 `1 <= Shape2 <= 65535` 外，
+      还要求 `Stride2 <= 65535` 且 `Shape3 * (32 / sizeof(DType)) <= 65535`。
     - 对于 `int64_t/uint64_t`，仅支持ND->ND或DN->DN。
     - Vec tile（UB路径）：`1 <= TileData::Rows <= 4095`。
     - Mat tile（L1路径）：`1 <= TileData::Rows <= 16384`。
@@ -99,6 +105,12 @@ A5 上表内取值均透传给 DMA。CPU / costmodel 接受该模板并忽略。
     - NZ使用 `SLayout::RowMajor`（NZ->NZ）。
     - 对于使用编译时已知形状的行主序ND->ND，`TileData::ValidCol` 必须等于 `GlobalData::staticShape[4]`，且 `TileData::ValidRow` 必须等于 `GlobalData::staticShape[0..3]` 的乘积。
     - `TileType::Mat` 加载还受到 `TLoadCubeCheck` 的约束（例如，仅特定的ND/DN/NZ转换和L1大小限制）。
+    - 对于 `TileType::Mat` 的 ND->NZ 和 DN->NZ：`TileData::SFractalSize == 512`、`sizeof(TileData::DType) != 8`，
+      且 `GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1`。
+    - ND->NZ 额外支持 `GlobalData::staticShape[2] != 1`。此时 `Shape2` 是单条指令搬运的 ND 小矩阵个数
+      （硬件 `ndNum` 循环），每个小矩阵形状为 `[Shape3, Shape4]`，多个小矩阵沿 tile 行方向堆叠，
+      因此 `dst.GetValidRow() == Shape2 * Shape3`，并要求 `Shape2 * Shape3 <= TileData::Rows`、
+      `1 <= Shape2 <= 65535`，且数据类型不是 fp4。DN->NZ 仍要求 `Shape2 == 1`。
     - `TileType::Mat` 加载还处理mx格式的加载，包括 `MX_A_ZZ/MX_A_ND/MX_A_DN` 到ZZ（用于scalarA）和 `MX_B_NN/MX_B_ND/MX_B_DN` 到NN（用于scalarB）。
     - 对于 `MX_A_ZZ/MX_B_NN`：`(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。
     - 对于 `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`：`(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` 且 `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。

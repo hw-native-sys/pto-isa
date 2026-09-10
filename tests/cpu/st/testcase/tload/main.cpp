@@ -505,3 +505,160 @@ TEST_F(TLOADTest, A5MatNdPadsOnlyFinalPartialBlock)
         }
     }
 }
+
+// GM holds an attention-style [B, S, N, G, D] tensor. One [S, G, D] slice of a single head is
+// loaded into an NZ Mat tile whose rows are the (s, g) pairs, which is the layout matmul wants.
+// GlobalTensor DIM_2 (S) is the nd-matrix count and maps onto the hardware ndNum loop.
+TEST_F(TLOADTest, A5MatNdToNzMultiNdStacksRows)
+{
+    pto::NPU_MEMORY_INIT(pto::NPUArch::A5);
+    pto::NPU_MEMORY_CLEAR();
+
+    constexpr int kSentinel = 1234;
+    constexpr int kS = 8;  // nd matrix count -> ndNum
+    constexpr int kG = 2;  // rows per nd matrix -> nValue
+    constexpr int kD = 16; // row length -> dValue, one full C0 for int16_t
+    constexpr int kN = 3;  // heads, only head kHead is loaded
+    constexpr int kHead = 1;
+    constexpr int kValidRows = kS * kG;
+    constexpr int kSStride = kN * kG * kD;
+
+    using MatTile = pto::Tile<
+        pto::TileType::Mat, int16_t, kValidRows, kD, pto::BLayout::ColMajor, kValidRows, kD, pto::SLayout::RowMajor,
+        512>;
+    using SrcGlobal = pto::GlobalTensor<
+        int16_t, pto::Shape<1, 1, kS, kG, kD>, pto::Stride<kS * kSStride, kS * kSStride, kSStride, kD, 1>,
+        pto::Layout::ND>;
+
+    MatTile dst;
+    pto::TASSIGN(dst, 4096);
+    for (int row = 0; row < MatTile::Rows; ++row) {
+        for (int col = 0; col < MatTile::Cols; ++col) {
+            dst.SetElement(row, col, kSentinel);
+        }
+    }
+
+    std::vector<int16_t> src(kS * kSStride);
+    for (size_t i = 0; i < src.size(); ++i) {
+        src[i] = static_cast<int16_t>(i + 1);
+    }
+    SrcGlobal srcGlobal(src.data() + kHead * kG * kD);
+    pto::TLOAD(dst, srcGlobal);
+
+    for (int s = 0; s < kS; ++s) {
+        for (int g = 0; g < kG; ++g) {
+            for (int d = 0; d < kD; ++d) {
+                const int16_t expected = src[s * kSStride + kHead * kG * kD + g * kD + d];
+                EXPECT_EQ(dst.GetElement(s * kG + g, d), expected) << "s=" << s << " g=" << g << " d=" << d;
+            }
+        }
+    }
+}
+
+// Same multi-ND load with a row length that is not a whole C0. Only the final partial C0 block of
+// the valid rows is zero filled; rows and full blocks outside the valid area stay untouched.
+TEST_F(TLOADTest, A5MatNdToNzMultiNdZeroPadsFinalC0Tail)
+{
+    pto::NPU_MEMORY_INIT(pto::NPUArch::A5);
+    pto::NPU_MEMORY_CLEAR();
+
+    constexpr int kSentinel = 1234;
+    constexpr int kS = 4;
+    constexpr int kG = 2;
+    constexpr int kD = 20;
+    constexpr int kN = 3;
+    constexpr int kHead = 2;
+    constexpr int kValidRows = kS * kG;
+    constexpr int kSStride = kN * kG * kD;
+    constexpr int kTileCols = 48;
+
+    using MatTile = pto::Tile<
+        pto::TileType::Mat, int16_t, 16, kTileCols, pto::BLayout::ColMajor, kValidRows, kD, pto::SLayout::RowMajor, 512,
+        pto::PadValue::Max>;
+    using SrcGlobal = pto::GlobalTensor<
+        int16_t, pto::Shape<1, 1, kS, kG, kD>, pto::Stride<kS * kSStride, kS * kSStride, kSStride, kD, 1>,
+        pto::Layout::ND>;
+
+    MatTile dst;
+    pto::TASSIGN(dst, 4096);
+    for (int row = 0; row < MatTile::Rows; ++row) {
+        for (int col = 0; col < MatTile::Cols; ++col) {
+            dst.SetElement(row, col, kSentinel);
+        }
+    }
+
+    std::vector<int16_t> src(kS * kSStride);
+    for (size_t i = 0; i < src.size(); ++i) {
+        src[i] = static_cast<int16_t>(i + 1);
+    }
+    SrcGlobal srcGlobal(src.data() + kHead * kG * kD);
+    pto::TLOAD(dst, srcGlobal);
+
+    for (int row = 0; row < MatTile::Rows; ++row) {
+        for (int col = 0; col < MatTile::Cols; ++col) {
+            int16_t expected = kSentinel;
+            if (row < kValidRows && col < kD) {
+                const int s = row / kG;
+                const int g = row % kG;
+                expected = src[s * kSStride + kHead * kG * kD + g * kD + col];
+            } else if (row < kValidRows && col < 32) {
+                expected = 0;
+            }
+            EXPECT_EQ(dst.GetElement(row, col), expected) << "row=" << row << " col=" << col;
+        }
+    }
+}
+
+// Same multi-ND contract on A2/A3, where DIM_2 maps onto the instruction's own ndNum operand
+// instead of a config register. The row mapping the simulator must reproduce is identical.
+TEST_F(TLOADTest, A2A3MatNdToNzMultiNdStacksRows)
+{
+    pto::NPU_MEMORY_INIT(pto::NPUArch::A2A3);
+    pto::NPU_MEMORY_CLEAR();
+
+    constexpr int kSentinel = 1234;
+    constexpr int kS = 8;
+    constexpr int kG = 3;
+    constexpr int kD = 20; // not a whole C0 for int16_t, so the C0 tail must be zero filled
+    constexpr int kN = 2;
+    constexpr int kHead = 1;
+    constexpr int kValidRows = kS * kG;
+    constexpr int kSStride = kN * kG * kD;
+    constexpr int kTileCols = 48;
+
+    using MatTile = pto::Tile<
+        pto::TileType::Mat, int16_t, 32, kTileCols, pto::BLayout::ColMajor, kValidRows, kD, pto::SLayout::RowMajor, 512,
+        pto::PadValue::Max>;
+    using SrcGlobal = pto::GlobalTensor<
+        int16_t, pto::Shape<1, 1, kS, kG, kD>, pto::Stride<kS * kSStride, kS * kSStride, kSStride, kD, 1>,
+        pto::Layout::ND>;
+
+    MatTile dst;
+    pto::TASSIGN(dst, 4096);
+    for (int row = 0; row < MatTile::Rows; ++row) {
+        for (int col = 0; col < MatTile::Cols; ++col) {
+            dst.SetElement(row, col, kSentinel);
+        }
+    }
+
+    std::vector<int16_t> src(kS * kSStride);
+    for (size_t i = 0; i < src.size(); ++i) {
+        src[i] = static_cast<int16_t>(i + 1);
+    }
+    SrcGlobal srcGlobal(src.data() + kHead * kG * kD);
+    pto::TLOAD(dst, srcGlobal);
+
+    for (int row = 0; row < MatTile::Rows; ++row) {
+        for (int col = 0; col < MatTile::Cols; ++col) {
+            int16_t expected = kSentinel;
+            if (row < kValidRows && col < kD) {
+                const int s = row / kG;
+                const int g = row % kG;
+                expected = src[s * kSStride + kHead * kG * kD + g * kD + col];
+            } else if (row < kValidRows && col < 32) {
+                expected = 0;
+            }
+            EXPECT_EQ(dst.GetElement(row, col), expected) << "row=" << row << " col=" << col;
+        }
+    }
+}

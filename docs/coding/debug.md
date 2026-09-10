@@ -41,6 +41,9 @@ Use these codes referenced in the assertion index:
 
 ## Assertion Index
 
+> The index is not exhaustive, and a recorded location goes stale when an assertion moves
+> between headers. Search by the assertion message text first and treat `At:` as a hint.
+
 ### Compile-time checks (`static_assert`)
 - **SA-0001** 1-parameter constructor is only applicable to Stride with 1 dynamic dimension. (At: `include/pto/common/pto_tile.hpp:137 (+1)`; Fix: `FIX-A01,FIX-A09`)
 - **SA-0002** 2-parameter constructor is only applicable to Stride with 2 dynamic dimensions. (At: `include/pto/common/pto_tile.hpp:149 (+1)`; Fix: `FIX-A01,FIX-A09`)
@@ -96,9 +99,9 @@ Use these codes referenced in the assertion index:
 - **SA-0052** Fp only support Scaling. (At: `include/pto/npu/a2a3/TMov.hpp:206 (+2)`; Fix: `-`)
 - **SA-0053** GlobalTensor can only be assigned with address of pointer type. (At: `include/pto/cpu/TAssign.hpp:25 (+2)`; Fix: `FIX-A09`)
 - **SA-0054** GlobalTensor can only be assigned with pointer of same data type. (At: `include/pto/cpu/TAssign.hpp:28 (+2)`; Fix: `FIX-A09`)
-- **SA-0055** GlobalTensor input shape now only support 2 dim (At: `include/pto/npu/a5/TLoad.hpp:195`; Fix: `FIX-A09`)
+- **SA-0055** GlobalTensor input shape now only support 2 dim, or 3 dim with Shape2 as ndNum (At: `include/pto/common/arch/register/tload_common.hpp:165`; Fix: `FIX-A09`)
 - **SA-0056** GlobalTensor only support 2 dim when DN2ZN! (At: `include/pto/npu/a2a3/TLoad.hpp:333`; Fix: `FIX-A09`)
-- **SA-0057** GlobalTensor only support 2 dim when ND2NZ! (At: `include/pto/npu/a2a3/TLoad.hpp:306`; Fix: `FIX-A09`)
+- **SA-0057** GlobalTensor only support 2 dim when ND2NZ, or 3 dim with Shape2 as ndNum! (At: `include/pto/common/arch/memory/tload_common.hpp:277`; Fix: `FIX-A09`)
 - **SA-0058** Idx must be uint32_t. (At: `include/pto/npu/a2a3/TSort32.hpp:159 (+1)`; Fix: `-`)
 - **SA-0059** Inconsistent number of m, k, n (At: `include/pto/cpu/TMatmul.hpp:57`; Fix: `-`)
 - **SA-0060** Inconsistent number of m, k, n. (At: `include/pto/npu/a2a3/TMatmul.hpp:72 (+1)`; Fix: `-`)
@@ -395,6 +398,9 @@ Use these codes referenced in the assertion index:
 - **SA-0352** TASSIGN: Tile storage size exceeds memory space capacity. (At: `include/pto/common/tassign_check.hpp`; Fix: `FIX-A12`)
 - **SA-0353** TASSIGN: addr + tile_size exceeds memory space capacity (out of bounds). (At: `include/pto/common/tassign_check.hpp`; Fix: `FIX-A12`)
 - **SA-0354** TASSIGN: addr is not properly aligned for the target memory space. (At: `include/pto/common/tassign_check.hpp`; Fix: `FIX-A12`)
+- **SA-0355** GlobalTensor Shape2 != 1 (multi-ND) is only supported for ND2NZ, not DN2NZ (At: `include/pto/common/arch/register/tload_common.hpp:169`; Fix: `FIX-A06,FIX-A09`)
+- **SA-0356** GlobalTensor Shape2 != 1 (multi-ND ND2NZ) is not supported on current platform (At: `include/pto/common/arch/register/tload_common.hpp:172 (+1)`; Fix: `FIX-A06`)
+- **SA-0357** multi-ND ND2NZ does not support fp4/hif4 (At: `include/pto/common/arch/register/tload_common.hpp:175`; Fix: `FIX-A06`)
 
 ### Runtime checks (`PTO_ASSERT`)
 - **PA-0001** blockLen is a multiple of 64 (At: `include/pto/npu/a2a3/TMrgSort.hpp:282`; Fix: `-`)
@@ -461,13 +467,16 @@ Use these codes referenced in the assertion index:
 - **PA-0062** TSQRT: Number of columns of src and dst must be the same. (At: `include/pto/npu/a2a3/TUnaryOp.hpp:316`; Fix: `-`)
 - **PA-0063** TSQRT: Number of rows of src and dst must be the same. (At: `include/pto/npu/a2a3/TUnaryOp.hpp:317`; Fix: `-`)
 - **PA-0064** When GlobalData is ND format, the range of validRow is [1, 8192]. (At: `include/pto/npu/a2a3/TStore.hpp:355`; Fix: `FIX-A05`)
+- **PA-0065** The Shape2 (ndNum) of GlobalTensor must be in [1, 65535]! (At: `include/pto/common/arch/register/tload_common.hpp:224 (+1)`; Fix: `FIX-A09`)
+- **PA-0066** The ndNum * nValue must not exceed TileData::Rows! (At: `include/pto/common/arch/register/tload_common.hpp:225 (+1)`; Fix: `FIX-A09`)
+- **PA-0067** The validRow must be equal to Shape2 * Shape3 in multi-ND ND2NZ! (At: `include/pto/common/arch/register/tload_common.hpp:226 (+1)`; Fix: `FIX-A05,FIX-A09`)
+- **PA-0068** The Stride2 of GlobalTensor must be in [1, 65535], it is the 16-bit srcNdMatrixStride! (At: `include/pto/common/arch/memory/tload_common.hpp:303`; Fix: `FIX-A09`)
+- **PA-0069** The Shape3 * C0 must not exceed 65535, it is the 16-bit dstNzMatrixStride! (At: `include/pto/common/arch/memory/tload_common.hpp:306`; Fix: `FIX-A09`)
 
 ### CPU simulator checks (`assert`)
 
 - **CA-0001** assert (src.GetValidRow() == dst.GetValidRow() && src.GetValidCol() == dst.GetValidCol()); (At: `include/pto/cpu/TMov.hpp:23`)
-- **CA-0002** assert((gShape0*gShape1*gShape2*gShape3 == validRow && gShape4==validCol && TileData::isRowMajor) || (gShape0*gShape1… (At: `include/pto/cpu/TLoad.hpp:134 (+1)`)
+- **CA-0002** assert((rowsMerged && TileData::isRowMajor) || (colsMerged && !TileData::isRowMajor) || ndIntoNzTile); (At: `include/pto/cpu/TLoad.hpp:87`)
 - **CA-0003** assert(dst.GetValidCol() == DstTileData::Cols); (At: `include/pto/cpu/TGather.hpp:119`)
-- **CA-0004** assert(gShape0==1 && gShape1==1 && gShape2==1 && "ND,DN -> Nz,Zn conversion does support only 2D GMs"); (At: `include/pto/cpu/TLoad.hpp:145`)
-- **CA-0005** assert(gShape0==1 && gShape1==1 && gShape2==1 && "Nz,Zn -> ND,DN conversion does support only 2D GMs"); (At: `include/pto/cpu/TStore.hpp:119`)
 - **CA-0006** assert(src.GetValidRow() - idxRow == dst.GetValidRow() && src.GetValidCol() - idxCol == dst.GetValidCol()); (At: `include/pto/cpu/TExtract.hpp:20`)
 - **CA-0007** assert(validCol * sizeof(typename TileDataDst::TileDType) % 32 == 0); (At: `include/pto/cpu/TGatherB.hpp:54`)

@@ -71,15 +71,20 @@ PTO_INLINE void CheckTileData(TileData& dst, GlobalData& src)
             dst.GetValidCol() == src.GetShape(GlobalTensorDim::DIM_0) * src.GetShape(GlobalTensorDim::DIM_1) *
                                      src.GetShape(GlobalTensorDim::DIM_4));
     } else if constexpr (GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN) {
-        assert(
-            (src.GetShape(GlobalTensorDim::DIM_0) * src.GetShape(GlobalTensorDim::DIM_1) *
-                     src.GetShape(GlobalTensorDim::DIM_2) * src.GetShape(GlobalTensorDim::DIM_3) ==
-                 dst.GetValidRow() &&
-             src.GetShape(GlobalTensorDim::DIM_4) == dst.GetValidCol() && TileData::isRowMajor) ||
-            (src.GetShape(GlobalTensorDim::DIM_0) * src.GetShape(GlobalTensorDim::DIM_1) *
-                     src.GetShape(GlobalTensorDim::DIM_2) * src.GetShape(GlobalTensorDim::DIM_4) ==
-                 dst.GetValidCol() &&
-             src.GetShape(GlobalTensorDim::DIM_3) == dst.GetValidRow() && !TileData::isRowMajor));
+        [[maybe_unused]] const bool rowsMerged =
+            src.GetShape(GlobalTensorDim::DIM_0) * src.GetShape(GlobalTensorDim::DIM_1) *
+                    src.GetShape(GlobalTensorDim::DIM_2) * src.GetShape(GlobalTensorDim::DIM_3) ==
+                dst.GetValidRow() &&
+            src.GetShape(GlobalTensorDim::DIM_4) == dst.GetValidCol();
+        [[maybe_unused]] const bool colsMerged =
+            src.GetShape(GlobalTensorDim::DIM_0) * src.GetShape(GlobalTensorDim::DIM_1) *
+                    src.GetShape(GlobalTensorDim::DIM_2) * src.GetShape(GlobalTensorDim::DIM_4) ==
+                dst.GetValidCol() &&
+            src.GetShape(GlobalTensorDim::DIM_3) == dst.GetValidRow();
+        // An ND source always merges DIM_0..DIM_3 into rows, including ND2NZ into a Mat tile that is
+        // not row major: there DIM_2 is the nd-matrix count, so the tile has DIM_2 * DIM_3 rows.
+        [[maybe_unused]] const bool ndIntoNzTile = GlobalData::layout == pto::Layout::ND && rowsMerged;
+        assert((rowsMerged && TileData::isRowMajor) || (colsMerged && !TileData::isRowMajor) || ndIntoNzTile);
     }
 }
 

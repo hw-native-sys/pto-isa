@@ -40,6 +40,8 @@ struct ArchTraitsBase {
     static constexpr bool AccSupportsFloat = false;
     static constexpr bool AccSupportsHalf = false;
     static constexpr bool AccSupportsInt32 = false;
+    // GM to L1 ND2NZ can fold one extra GlobalTensor dim into the hardware nd-matrix loop (ndNum).
+    static constexpr bool SupportsNd2nzMultiND = false;
     using Bf16Type = void;
     using HiFloat8Type = void;
     using Float8E4M3Type = void;
@@ -82,6 +84,7 @@ struct ArchTraitsFp4Capable : ArchTraitsBase<Arch> {
 template <>
 struct ArchTraits<ChipArch::A2A3> : ArchTraitsBase<ChipArch::A2A3> {
     static constexpr bool SupportsBf16 = true;
+    static constexpr bool SupportsNd2nzMultiND = true;
     static constexpr bool SupportsSyncAll = true;
     static constexpr bool SupportsComm = true;
     static constexpr bool AccSupportsFloat = true;
@@ -94,6 +97,7 @@ using CurrArch = ArchTraits<ChipArch::A2A3>;
 template <>
 struct ArchTraits<ChipArch::A5> : ArchTraitsFp4Capable<ChipArch::A5> {
     static constexpr bool SupportsComm = true;
+    static constexpr bool SupportsNd2nzMultiND = true;
 };
 using CurrArch = ArchTraits<ChipArch::A5>;
 
@@ -135,6 +139,7 @@ struct ArchTraits<ChipArch::UNKNOWN> : ArchTraitsBase<ChipArch::UNKNOWN> {
     static constexpr bool AccSupportsFloat = true;
     static constexpr bool AccSupportsHalf = true;
     static constexpr bool AccSupportsInt32 = true;
+    static constexpr bool SupportsNd2nzMultiND = true;
     using Bf16Type = bfloat16_t;
 };
 using CurrArch = ArchTraits<ChipArch::UNKNOWN>;
@@ -348,6 +353,20 @@ template <typename T>
 PTO_INTERNAL constexpr bool IsUInteger()
 {
     return IsUInt8<T>() || IsUInt16<T>() || IsUInt32<T>() || IsUInt64<T>();
+}
+
+template <typename T>
+PTO_INTERNAL constexpr bool IsInteger()
+{
+    return IsSInteger<T>() || IsUInteger<T>();
+}
+
+// True when ND2NZ may map GlobalTensor DIM_2 onto the hardware ndNum loop, moving
+// several ND matrices into one NZ tile with a single instruction.
+template <typename Arch = CurrArch>
+PTO_INTERNAL constexpr bool SupportsNd2nzMultiND()
+{
+    return Arch::SupportsNd2nzMultiND;
 }
 
 template <typename T>

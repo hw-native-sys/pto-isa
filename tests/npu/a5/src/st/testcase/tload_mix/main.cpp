@@ -145,6 +145,29 @@ TEST_F(TLOADMIXTest, 1_1_1_128_128_float_ND2NZ)
     TLOADMIXFUNC<float, 0, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128>();
 }
 
+// Shape2 != 1: one instruction moves Shape2 nd matrices of [Shape3, Shape4] into one NZ tile,
+// which is the [S, G, D] slice of an attention [B, S, N, G, D] left matrix.
+TEST_F(TLOADMIXTest, 1_1_64_2_128_1_1_64_6_128_128_128_half_ND2NZ)
+{
+    TLOADMIXFUNC<uint16_t, 0, 1, 1, 64, 2, 128, 1, 1, 64, 6, 128, 128, 128>();
+}
+
+TEST_F(TLOADMIXTest, 1_1_16_4_100_1_1_16_12_128_64_128_int8_t_ND2NZ)
+{
+    TLOADMIXFUNC<int8_t, 0, 1, 1, 16, 4, 100, 1, 1, 16, 12, 128, 64, 128>();
+}
+
+TEST_F(TLOADMIXTest, 1_1_32_1_64_1_1_32_4_64_32_64_float_ND2NZ)
+{
+    TLOADMIXFUNC<float, 0, 1, 1, 32, 1, 64, 1, 1, 32, 4, 64, 32, 64>();
+}
+
+// Shape2 * Shape3 = 48 valid rows in a 64-row tile, so the tail rows must stay untouched
+TEST_F(TLOADMIXTest, 1_1_16_3_64_1_1_16_9_64_64_64_half_ND2NZ)
+{
+    TLOADMIXFUNC<uint16_t, 0, 1, 1, 16, 3, 64, 1, 1, 16, 9, 64, 64, 64>();
+}
+
 TEST_F(TLOADMIXTest, 1_1_1_64_128_half_DN2NZ)
 {
     TLOADMIXFUNC<uint16_t, 1, 1, 1, 1, 64, 128, 1, 1, 1, 64, 128, 64, 128>();

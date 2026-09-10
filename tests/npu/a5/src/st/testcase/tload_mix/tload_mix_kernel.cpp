@@ -75,8 +75,9 @@ AICORE inline void runTLOAD_MIX_ND2NZ(__gm__ T* out, __gm__ T* src0, __gm__ T* s
     GlobalDataSrc0 src0Global(src0);
     GlobalDataOut dstGlobal(out);
 
+    // N3 nd matrices of [M, K] stack along the row direction, so the tile has N3 * M rows.
     using TileMatAData =
-        Tile<TileType::Mat, T, baseM, baseK, BLayout::ColMajor, M, K, SLayout::RowMajor, 512>; // 大N小Z
+        Tile<TileType::Mat, T, baseM, baseK, BLayout::ColMajor, N3 * M, K, SLayout::RowMajor, 512>; // 大N小Z
     using TileUBData = Tile<TileType::Vec, T, baseM, baseK, BLayout::RowMajor, -1, -1>;
     TileUBData srcTile(baseM, baseK);
     TASSIGN(srcTile, 0x0);
@@ -717,6 +718,15 @@ template void launchTLOADMIX<float, 0, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128
 template void launchTLOADMIX<int8_t, 0, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTLOADMIX<uint16_t, 0, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+// 0:ND2NZ with Shape2 != 1, one instruction moves Shape2 nd matrices (an attention [S, G, D] slice)
+template void launchTLOADMIX<uint16_t, 0, 1, 1, 64, 2, 128, 1, 1, 64, 6, 128, 128, 128>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<int8_t, 0, 1, 1, 16, 4, 100, 1, 1, 16, 12, 128, 64, 128>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<float, 0, 1, 1, 32, 1, 64, 1, 1, 32, 4, 64, 32, 64>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<uint16_t, 0, 1, 1, 16, 3, 64, 1, 1, 16, 9, 64, 64, 64>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTLOADMIX<uint16_t, 0, 1, 1, 1, 33, 99, 1, 1, 1, 64, 128, 48, 112>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);

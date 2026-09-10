@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TLOAD_COMMON_MEMORY
 #define TLOAD_COMMON_MEMORY
 #include <pto/common/utils.hpp>
+#include <pto/common/arch_capability.hpp>
 
 #if defined(PTO_NPU_ARCH_A2A3)
 template <TLoadL2Hint l2Control, typename T>
@@ -271,9 +272,14 @@ __tf__ PTO_INTERNAL void TLoadGm2L1Nd2nz(
 {
     __cbuf__ typename TileData::DType* dstAddr = (__cbuf__ typename TileData::DType*)__cce_get_tile_ptr(dst);
     typename GlobalData::DType* srcAddr = src;
+    // GlobalTensor is 2 dim, or 3 dim with DIM_2 mapped onto the instruction's ndNum.
     static_assert(
-        GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 && GlobalData::staticShape[2] == 1,
-        "Fix: GlobalTensor only support 2 dim when ND2NZ!");
+        GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1,
+        "Fix: GlobalTensor only support 2 dim when ND2NZ, or 3 dim with Shape2 as ndNum!");
+    constexpr bool multiNd = GlobalData::staticShape[2] != 1;
+    static_assert(
+        !multiNd || caps::SupportsNd2nzMultiND<>(),
+        "Fix: GlobalTensor Shape2 != 1 (multi-ND ND2NZ) is not supported on current platform");
     static_assert(TileData::SFractalSize == 512, "Fix: TileData only support SFractalSize = 512Bytes!");
     PTO_ASSERT(gShape3 > 0 && gShape3 <= 16384, "The Shape3 of GlobalTensor must be in range of [1, 16384]!");
     PTO_ASSERT(gShape4 > 0 && gShape4 <= 65535, "The Shape4 of GlobalTensor must be must be in range of [1, 65535]!");
@@ -284,7 +290,34 @@ __tf__ PTO_INTERNAL void TLoadGm2L1Nd2nz(
     uint16_t nValue = gShape3;
     uint16_t dValue = gShape4;
     uint16_t srcDValue = gStride3;
-    TLoadNd2nzInstr<TileData, GlobalData>(dstAddr, srcAddr, 1, nValue, dValue, 0, srcDValue, TileData::Rows, 1, 1);
+    // ndNum matrices of [nValue, dValue] are stacked along the NZ row direction, so the tile row
+    // index is i2 * nValue + i3. srcNdMatrixStride and dstNzMatrixStride are both in elements,
+    // while dstNzC0Stride and dstNzNStride stay in C0 units; one NZ row is one C0 of elements.
+    // b64 reaches this instruction through the b32s form with dValue/srcDValue doubled, so if ND2NZ
+    // is ever opened up for b64 these two element strides must be doubled the same way. Today
+    // CheckNormalTileData rejects b64 for anything but ND2ND/DN2DN, which keeps them consistent.
+    uint16_t ndNum = 1;
+    uint16_t srcNdMatrixStride = 0;
+    uint16_t dstNzMatrixStride = 1;
+    if constexpr (multiNd) {
+        constexpr int c0Elem = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
+        PTO_ASSERT(gShape2 > 0 && gShape2 <= 65535, "The Shape2 (ndNum) of GlobalTensor must be in [1, 65535]!");
+        // The two matrix strides only drive the instruction once there is more than one nd matrix, so
+        // a dynamic Shape2 that happens to be 1 at run time must not trip their 16-bit range checks.
+        PTO_ASSERT(
+            gShape2 == 1 || (gStride2 > 0 && gStride2 <= 65535),
+            "The Stride2 of GlobalTensor must be in [1, 65535], it is the 16-bit srcNdMatrixStride!");
+        PTO_ASSERT(
+            gShape2 == 1 || gShape3 * c0Elem <= 65535,
+            "The Shape3 * C0 must not exceed 65535, it is the 16-bit dstNzMatrixStride!");
+        PTO_ASSERT(gShape2 * gShape3 <= TileData::Rows, "The ndNum * nValue must not exceed TileData::Rows!");
+        PTO_ASSERT(validRow == gShape2 * gShape3, "The validRow must be equal to Shape2 * Shape3 in multi-ND ND2NZ!");
+        ndNum = static_cast<uint16_t>(gShape2);
+        srcNdMatrixStride = static_cast<uint16_t>(gStride2);
+        dstNzMatrixStride = static_cast<uint16_t>(gShape3 * c0Elem);
+    }
+    TLoadNd2nzInstr<TileData, GlobalData>(
+        dstAddr, srcAddr, ndNum, nValue, dValue, srcNdMatrixStride, srcDValue, TileData::Rows, 1, dstNzMatrixStride);
 }
 
 template <typename TileData, typename GlobalData>

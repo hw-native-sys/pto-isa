@@ -85,7 +85,15 @@ On A5 all listed values are passed through to DMA. CPU / costmodel accept the te
     - Runtime: all `src.GetShape(dim)` values and `dst.GetValidRow()/GetValidCol()` must be `> 0`.
     - `TileType::Vec` loads only support matching layouts: ND->ND, DN->DN, NZ->NZ.
     - `TileType::Mat` loads support: ND->ND, DN->DN, NZ->NZ, plus ND->NZ and DN->ZN.
-    - For ND->NZ or DN->ZN: `GlobalData::staticShape[0..2] == 1` and `TileData::SFractalSize == 512`.
+    - For ND->NZ: `GlobalData::staticShape[0..1] == 1` and `TileData::SFractalSize == 512`.
+    - For DN->ZN: `GlobalData::staticShape[0..2] == 1` and `TileData::SFractalSize == 512`.
+    - ND->NZ also accepts `GlobalData::staticShape[2] != 1`. `Shape2` is then the number of ND matrices
+      a single instruction moves (the instruction's own `ndNum` operand), each matrix being
+      `[Shape3, Shape4]`, and the matrices are stacked along the tile rows, so
+      `dst.GetValidRow() == Shape2 * Shape3`. Because `srcNdMatrixStride` and `dstNzMatrixStride` are
+      16-bit element counts on this platform, it also requires `Stride2 <= 65535` and
+      `Shape3 * (32 / sizeof(DType)) <= 65535`, on top of `Shape2 * Shape3 <= TileData::Rows` and
+      `1 <= Shape2 <= 65535`.
     - For `int64_t/uint64_t`, only ND->ND or DN->DN are supported.
     - Vec tile (UB path): `1 <= TileData::Rows <= 4095`.
     - Mat tile (L1 path): `1 <= TileData::Rows <= 16384`.
@@ -98,6 +106,12 @@ On A5 all listed values are passed through to DMA. CPU / costmodel accept the te
     - NZ with `SLayout::RowMajor` (NZ->NZ).
     - For row-major ND->ND with compile-time-known shapes, `TileData::ValidCol` must equal `GlobalData::staticShape[4]`, and `TileData::ValidRow` must equal the product of `GlobalData::staticShape[0..3]`.
     - `TileType::Mat` loads are additionally constrained by `TLoadCubeCheck` (e.g., only specific ND/DN/NZ conversions and L1-size limits).
+    - For `TileType::Mat` ND->NZ and DN->NZ: `TileData::SFractalSize == 512`, `sizeof(TileData::DType) != 8`, and `GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1`.
+    - ND->NZ additionally accepts `GlobalData::staticShape[2] != 1`. `Shape2` is then the number of ND matrices
+      a single instruction moves (the hardware `ndNum` loop), each matrix being `[Shape3, Shape4]`. The matrices are
+      stacked along the tile rows, so `dst.GetValidRow() == Shape2 * Shape3`, and it requires
+      `Shape2 * Shape3 <= TileData::Rows`, `1 <= Shape2 <= 65535`, and a data type that is not fp4.
+      DN->NZ still requires `Shape2 == 1`.
     - `TileType::Mat` loads also handle loads for mx format, which include `MX_A_ZZ/MX_A_ND/MX_A_DN` to ZZ for scalarA and `MX_B_NN/MX_B_ND/MX_B_DN` to NN for scalarB.
     - for `MX_A_ZZ/MX_B_NN`: `(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.
     - for `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`: `(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` and `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.

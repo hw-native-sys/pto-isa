@@ -152,6 +152,19 @@ TEST_F(TLoadGM2L1Test, NZ_int8_t_1_16_32_16_32_1_32_32_16_32)
     TestTload<2, int8_t, 1, 16, 32, 16, 32, 1, 32, 32, 16, 32>();
 }
 
+// gShape2 != 1 drives the instruction's ndNum: gShape2 nd matrices stacked along the tile rows
+TEST_F(TLoadGM2L1Test, ND2NZ_bfloat16_t_1_1_64_2_128_1_1_64_6_128)
+{
+    TestTload<3, uint16_t, 1, 1, 64, 2, 128, 1, 1, 64, 6, 128>();
+}
+TEST_F(TLoadGM2L1Test, ND2NZ_int8_t_1_1_16_4_100_1_1_16_12_128)
+{
+    TestTload<3, int8_t, 1, 1, 16, 4, 100, 1, 1, 16, 12, 128>();
+}
+TEST_F(TLoadGM2L1Test, ND2NZ_bfloat16_t_1_1_3_15_64_1_1_5_20_64)
+{
+    TestTload<3, uint16_t, 1, 1, 3, 15, 64, 1, 1, 5, 20, 64>();
+}
 TEST_F(TLoadGM2L1Test, ND2NZ_float_t_1_1_1_49_35_1_1_1_49_35)
 {
     TestTload<3, float, 1, 1, 1, 49, 35, 1, 1, 1, 49, 35>();
