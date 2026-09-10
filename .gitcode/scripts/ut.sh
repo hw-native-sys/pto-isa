@@ -25,9 +25,9 @@ elif sudo update-alternatives --set gcc /usr/bin/gcc-15 2>/dev/null; then
     echo "Switched to gcc-15"
 elif sudo update-alternatives --set gcc /usr/bin/gcc-14 2>/dev/null; then
     echo "gcc-16/15 not available, fell back to gcc-14"
-elif [[ -f "/opt/rh/devtoolset-7.3.1/enable" ]]; then
+elif [[ -f "/opt/rh/devtoolset-7/enable" ]]; then
     echo "gcc-16/15/14 not available, falling back to devtoolset-7.3.1"
-    source /opt/rh/devtoolset-7.3.1/enable
+    source /opt/rh/devtoolset-7/enable
 else
     echo "ERROR: No compatible GCC toolchain found for release branch" >&2
     exit 1
