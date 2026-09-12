@@ -82,6 +82,10 @@ set(ALL_TESTCASES
     tquant
     tload_hif4
     tmatmul_mx
+    tshl
+    tshls
+    tshr
+    tshrs
 )
 
 if (AUTO_MODE)

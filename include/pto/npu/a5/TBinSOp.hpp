@@ -19,7 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A5)
 template <Int64Op Op, typename T>
 PTO_INTERNAL void Int64ScalarCalcRegs(
     vector_s32& dstLow, vector_s32& dstHigh, vector_s32& srcLow, vector_s32& srcHigh, vector_s32& scalarLow,

@@ -83,15 +83,26 @@ void execute_gather_test(const std::string& goldenDir)
     aclrtResetDevice(0);
     aclFinalize();
 
-    std::vector<float> golden(dstSize / sizeof(float));
-    std::vector<float> devFinal(dstSize / sizeof(float));
-    size_t readSize = dstSize;
-    CHECK_RESULT_GTEST(ReadFile(goldenDir + "/golden.bin", readSize, golden.data(), dstSize));
-    readSize = dstSize;
-    CHECK_RESULT_GTEST(ReadFile(goldenDir + "/output_z.bin", readSize, devFinal.data(), dstSize));
+    if constexpr (sizeof(T) == 8) {
+        std::vector<T> golden(dstSize / sizeof(T));
+        std::vector<T> devFinal(dstSize / sizeof(T));
+        size_t readSize = dstSize;
+        CHECK_RESULT_GTEST(ReadFile(goldenDir + "/golden.bin", readSize, golden.data(), dstSize));
+        readSize = dstSize;
+        CHECK_RESULT_GTEST(ReadFile(goldenDir + "/output_z.bin", readSize, devFinal.data(), dstSize));
 
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
+        EXPECT_TRUE(ResultCmpExact<T>(golden, devFinal.data()));
+    } else {
+        std::vector<float> golden(dstSize / sizeof(float));
+        std::vector<float> devFinal(dstSize / sizeof(float));
+        size_t readSize = dstSize;
+        CHECK_RESULT_GTEST(ReadFile(goldenDir + "/golden.bin", readSize, golden.data(), dstSize));
+        readSize = dstSize;
+        CHECK_RESULT_GTEST(ReadFile(goldenDir + "/output_z.bin", readSize, devFinal.data(), dstSize));
+
+        bool ret = ResultCmp(golden, devFinal, 0.001f);
+        EXPECT_TRUE(ret);
+    }
 }
 
 template <typename T, uint8_t PATTERN, uint32_t ROW, uint32_t COL>
@@ -104,7 +115,7 @@ void test_gather()
         } else if constexpr (
             PATTERN == HP0101 || PATTERN == HP1010 || PATTERN == FP0101 || PATTERN == FP1010 || PATTERN == U16P0101 ||
             PATTERN == U16P1010 || PATTERN == I8_0101 || PATTERN == I8_1010 || PATTERN == U8_0101 ||
-            PATTERN == U8_1010) {
+            PATTERN == U8_1010 || PATTERN == I64P1010) {
             return COL / 2;
         } else {
             return COL / 4;
@@ -216,6 +227,10 @@ TEST_F(TGATHERTest, case1_I32_P1000) { test_gather<int32_t, I32P1000, FLOAT_P100
 
 TEST_F(TGATHERTest, case1_I32_P1111) { test_gather<int32_t, I32P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL>(); }
 
+TEST_F(TGATHERTest, case1_int64_P1010) { test_gather<int64_t, I64P1010, I64_P1010_ROW, I64_P1010_COL>(); }
+
+TEST_F(TGATHERTest, case1_uint64_P0001) { test_gather<uint64_t, U64P0001, U64_P0001_ROW, U64_P0001_COL>(); }
+
 TEST_F(TGATHERTest, case_xtype_float_to_int32_P1010)
 {
     test_gather_xtype<FLOAT_P1010_ROW, FLOAT_P1010_COL, FP1010_I32>();
@@ -326,6 +341,8 @@ void launchTGATHER1D_demo_half(aclFloat16* out, aclFloat16* src0, int32_t* src1,
 void launchTGATHER1D_demo_int16(int16_t* out, int16_t* src0, int32_t* src1, aclrtStream stream);
 void launchTGATHER1D_demo_int8(int8_t* out, int8_t* src0, int32_t* src1, aclrtStream stream);
 void launchTGATHER1D_demo_uint8(uint8_t* out, uint8_t* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER1D_demo_int64(int64_t* out, int64_t* src0, int32_t* src1, aclrtStream stream);
+void launchTGATHER1D_demo_uint64(uint64_t* out, uint64_t* src0, int32_t* src1, aclrtStream stream);
 
 template <typename Src0DstT, typename Src1T, typename LaunchFunc>
 void runTGATHERTest(size_t rowsSrc0, size_t colsSrc0, size_t rowsDst, size_t colsDst, LaunchFunc launchFunc)
@@ -381,7 +398,12 @@ void runTGATHERTest(size_t rowsSrc0, size_t colsSrc0, size_t rowsDst, size_t col
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", dstFileSize, devFinal.data(), dstFileSize));
 
-    bool ret = ResultCmp<Src0DstT>(golden, devFinal, 0.001f);
+    bool ret;
+    if constexpr (std::is_integral_v<Src0DstT> && sizeof(Src0DstT) == 8) {
+        ret = ResultCmpExact<Src0DstT>(golden, devFinal.data());
+    } else {
+        ret = ResultCmp<Src0DstT>(golden, devFinal, 0.001f);
+    }
 
     EXPECT_TRUE(ret);
 }
@@ -414,4 +436,14 @@ TEST_F(TGATHERTest, case_1D_int8_16x1024_16x128)
 TEST_F(TGATHERTest, case_1D_uint8_32x256_32x64)
 {
     runTGATHERTest<uint8_t, int32_t>(32, 256, 32, 64, launchTGATHER1D_demo_uint8);
+}
+
+TEST_F(TGATHERTest, case_1D_int64_32x256_32x64)
+{
+    runTGATHERTest<int64_t, int32_t>(32, 256, 32, 64, launchTGATHER1D_demo_int64);
+}
+
+TEST_F(TGATHERTest, case_1D_uint64_32x256_32x64)
+{
+    runTGATHERTest<uint64_t, int32_t>(32, 256, 32, 64, launchTGATHER1D_demo_uint64);
 }

@@ -228,6 +228,18 @@ extern "C" __global__ AICORE void launchTGATHER_27(__gm__ uint8_t* out, __gm__ u
         reinterpret_cast<__gm__ int32_t*>(out), reinterpret_cast<__gm__ int32_t*>(src));
 }
 
+extern "C" __global__ AICORE void launchTGATHER_I64_1(__gm__ uint8_t* out, __gm__ uint8_t* src)
+{
+    runTGATHER<int64_t, I64_P1010_ROW, I64_P1010_COL, I64_P1010_ROW, I64_P1010_COL, MaskPattern::P1010>(
+        reinterpret_cast<__gm__ int64_t*>(out), reinterpret_cast<__gm__ int64_t*>(src));
+}
+
+extern "C" __global__ AICORE void launchTGATHER_U64_1(__gm__ uint8_t* out, __gm__ uint8_t* src)
+{
+    runTGATHER<uint64_t, U64_P0001_ROW, U64_P0001_COL, U64_P0001_ROW, U64_P0001_COL, MaskPattern::P0001>(
+        reinterpret_cast<__gm__ uint64_t*>(out), reinterpret_cast<__gm__ uint64_t*>(src));
+}
+
 extern "C" __global__ AICORE void launchTGATHER_11(__gm__ uint8_t* out, __gm__ uint8_t* src)
 {
     runTGATHER<half, HALF_P0101_ROW, HALF_P0101_COL, HALF_P0101_ROW, HALF_P0101_COL, MaskPattern::P0101>(
@@ -412,7 +424,8 @@ static LaunchFunc GetLaunchFunction(int32_t tilingKey)
 
         {U16P0101, launchTGATHER_21},        {U16P1010, launchTGATHER_22},        {I16P0001, launchTGATHER_23},
         {I16P0010, launchTGATHER_24},        {U32P0100, launchTGATHER_25},        {I32P1000, launchTGATHER_26},
-        {I32P1111, launchTGATHER_27},        {FP1010_I32, launchTGATHER_XTYPE},
+        {I32P1111, launchTGATHER_27},        {FP1010_I32, launchTGATHER_XTYPE},   {I64P1010, launchTGATHER_I64_1},
+        {U64P0001, launchTGATHER_U64_1},
 
         {U8_0101, launchTGATHER_U8_1},       {U8_1010, launchTGATHER_U8_2},       {U8_0001, launchTGATHER_U8_3},
         {U8_0010, launchTGATHER_U8_4},       {U8_0100, launchTGATHER_U8_5},       {U8_1000, launchTGATHER_U8_6},
@@ -469,6 +482,8 @@ template void launchTGATHER_demo<I16P0010>(uint8_t* out, uint8_t* src, void* str
 template void launchTGATHER_demo<U32P0100>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTGATHER_demo<I32P1000>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTGATHER_demo<I32P1111>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTGATHER_demo<I64P1010>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTGATHER_demo<U64P0001>(uint8_t* out, uint8_t* src, void* stream);
 
 template void launchTGATHER_demo<U8_0101>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTGATHER_demo<U8_1010>(uint8_t* out, uint8_t* src, void* stream);
@@ -582,6 +597,17 @@ extern "C" __global__ AICORE void test_tgather1D_uint8(__gm__ uint8_t* out, __gm
     runTGather1D<uint8_t, int32_t, 32, 256, 32, 64, 32, 256>(out, src0, src1);
 }
 
+extern "C" __global__ AICORE void test_tgather1D_int64(__gm__ int64_t* out, __gm__ int64_t* src0, __gm__ int32_t* src1)
+{
+    runTGather1D<int64_t, int32_t, 32, 256, 32, 64, 32, 256>(out, src0, src1);
+}
+
+extern "C" __global__ AICORE void test_tgather1D_uint64(
+    __gm__ uint64_t* out, __gm__ uint64_t* src0, __gm__ int32_t* src1)
+{
+    runTGather1D<uint64_t, int32_t, 32, 256, 32, 64, 32, 256>(out, src0, src1);
+}
+
 void launchTGATHER1D_demo_float(float* out, float* src0, int32_t* src1, aclrtStream stream)
 {
     cout << "launch TGATHER float start!" << endl;
@@ -622,4 +648,18 @@ void launchTGATHER1D_demo_uint8(uint8_t* out, uint8_t* src0, int32_t* src1, aclr
     cout << "launch TGATHER uint8 start!" << endl;
     test_tgather1D_uint8(out, src0, src1);
     cout << "launch TGATHER uint8 end!" << endl;
+}
+
+void launchTGATHER1D_demo_int64(int64_t* out, int64_t* src0, int32_t* src1, aclrtStream stream)
+{
+    cout << "launch TGATHER int64 start!" << endl;
+    test_tgather1D_int64(out, src0, src1);
+    cout << "launch TGATHER int64 end!" << endl;
+}
+
+void launchTGATHER1D_demo_uint64(uint64_t* out, uint64_t* src0, int32_t* src1, aclrtStream stream)
+{
+    cout << "launch TGATHER uint64 start!" << endl;
+    test_tgather1D_uint64(out, src0, src1);
+    cout << "launch TGATHER uint64 end!" << endl;
 }

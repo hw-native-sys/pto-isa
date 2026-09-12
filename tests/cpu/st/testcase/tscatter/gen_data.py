@@ -23,6 +23,8 @@ TYPE_MAP = {
     np.int16: "int16",
     np.uint16: "uint16",
     np.uint32: "uint32",
+    np.int64: "int64",
+    np.uint64: "uint64",
 }
 
 P0101 = 1
@@ -47,6 +49,11 @@ FLOAT_P1000_ROW = 6
 FLOAT_P1000_COL = 288
 FLOAT_P1111_ROW = 7
 FLOAT_P1111_COL = 320
+
+I64_P1010_ROW = 4
+I64_P1010_DST_COL = 32
+U64_P0001_ROW = 4
+U64_P0001_DST_COL = 64
 
 HALF_P0101_ROW = 5
 HALF_P0101_COL = 128
@@ -220,6 +227,8 @@ def gen_masked_scatter_col_golden(param: TScatterParamsColMasked):
 
 if __name__ == "__main__":
     gen_case(TScatterParams(np.float32, np.uint16, 2, 32, 1, 32))
+    gen_case(TScatterParams(np.int64, np.uint32, 4, 16, 4, 16))
+    gen_case(TScatterParams(np.uint64, np.uint32, 4, 16, 4, 16))
 
     masked_cases = [
         # float
@@ -264,6 +273,11 @@ if __name__ == "__main__":
                              np.int32, FLOAT_P1000_ROW, FLOAT_P1000_COL, P1000),
         TScatterParamsMasked("TSCATTERTest.case_masked_I32_P1111",
                              np.int32, FLOAT_P1111_ROW, FLOAT_P1111_COL, P1111),
+        # int64 / uint64
+        TScatterParamsMasked("TSCATTERTest.case_masked_I64_P1010",
+                             np.int64, I64_P1010_ROW, I64_P1010_DST_COL, P1010),
+        TScatterParamsMasked("TSCATTERTest.case_masked_U64_P0001",
+                             np.uint64, U64_P0001_ROW, U64_P0001_DST_COL, P0001),
     ]
 
     col_masked_cases = [

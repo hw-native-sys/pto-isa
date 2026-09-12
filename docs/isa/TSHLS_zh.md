@@ -60,6 +60,14 @@ PTO_INST RecordEvent TSHLS(TileDataDst &dst, TileDataSrc &src, typename TileData
     - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
     - 标量仅支持零和正值。
     - 对于 `int64_t` 和 `uint64_t`，实际移位量为 `scalar & 63`。
+- **实现检查 (A6)**:
+    - 支持的元素类型为 `int32_t`、`int16_t`、`int8_t`、`uint32_t`、`int64_t`、`uint64_t`、`uint16_t` 和 `uint8_t`。
+    - `dst` 和 `src` 必须使用相同的元素类型。
+    - `dst` 和 `src` 必须是向量Tile。
+    - 两个Tile的静态有效边界都必须满足 `ValidRow <= Rows` 且 `ValidCol <= Cols`。
+    - 运行时：`src.GetValidRow() == dst.GetValidRow()` 且 `src.GetValidCol() == dst.GetValidCol()`。
+    - 标量按有符号数解释：负值会使移位方向反转（按 `|scalar|` 右移）。
+    - 对于 `int64_t` 和 `uint64_t`，实际移位量为 `scalar & 63`。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 

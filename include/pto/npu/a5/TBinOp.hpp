@@ -360,7 +360,7 @@ PTO_INTERNAL void BinaryInstr(
     }
 }
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A5)
 template <bool Right, typename T>
 PTO_INTERNAL void Int64ShiftRegs(
     vector_s32& dl, vector_s32& dh, vector_s32& sl, vector_s32& sh, vector_s32& cnt, MaskReg& mask)

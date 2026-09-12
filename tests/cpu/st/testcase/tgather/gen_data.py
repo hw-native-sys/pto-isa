@@ -55,6 +55,11 @@ FLOAT_P1000_COL = 288
 FLOAT_P1111_ROW = 7
 FLOAT_P1111_COL = 320
 
+I64_P1010_ROW = 4
+I64_P1010_COL = 16
+U64_P0001_ROW = 4
+U64_P0001_COL = 16
+
 COL_HALF_P0101_ROW = 8
 COL_HALF_P0101_COL = 128
 COL_HALF_P1010_ROW = 14
@@ -192,8 +197,12 @@ def gen_golden_data(param: TGatherParamsBase):
     elif isinstance(param, TGatherParams1D):
         output = np.zeros([param.dst_row * param.dst_col]
                           ).astype(param.src_type)
-        src_data = np.random.randint(-20, 20, (param.src_row *
-                                     param.src_col)).astype(param.src_type)
+        if np.issubdtype(param.src_type, np.unsignedinteger):
+            src_data = np.random.randint(0, 40, (param.src_row *
+                                         param.src_col)).astype(param.src_type)
+        else:
+            src_data = np.random.randint(-20, 20, (param.src_row *
+                                         param.src_col)).astype(param.src_type)
         src_data.tofile("./src0.bin")
         indices = np.random.randint(
             0, param.src_row * param.src_col, (param.dst_row * param.dst_col)).astype(np.int32)
@@ -243,6 +252,10 @@ if __name__ == "__main__":
                             np.int32, np.int32, FLOAT_P1000_ROW, FLOAT_P1000_COL, P1000),
         TGatherParamsMasked("TGATHERTest.case1_I32_P1111",
                             np.int32, np.int32, FLOAT_P1111_ROW, FLOAT_P1111_COL, P1111),
+        TGatherParamsMasked("TGATHERTest.case1_int64_P1010",
+                            np.int64, np.int64, I64_P1010_ROW, I64_P1010_COL, P1010),
+        TGatherParamsMasked("TGATHERTest.case1_uint64_P0001",
+                            np.uint64, np.uint64, U64_P0001_ROW, U64_P0001_COL, P0001),
 
         TGatherParamsColMasked("TGATHERTest.case_col_float_P0101",
                                np.float32, np.float32, COL_HALF_P0101_ROW, COL_HALF_P0101_COL, P0101),
@@ -317,6 +330,10 @@ if __name__ == "__main__":
                         np.int8, 16, 1024, 16, 128),
         TGatherParams1D("TGATHERTest.case_1D_uint8_32x256_32x64",
                         np.uint8, 32, 256, 32, 64),
+        TGatherParams1D("TGATHERTest.case_1D_int64_32x256_32x64",
+                        np.int64, 32, 256, 32, 64),
+        TGatherParams1D("TGATHERTest.case_1D_uint64_32x256_32x64",
+                        np.uint64, 32, 256, 32, 64),
     ]
 
     for case in case_params_list:

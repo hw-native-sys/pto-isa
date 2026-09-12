@@ -49,6 +49,8 @@ PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ### General constraints / checks
 
+The following constraints describe the NPU backends. CPU_SIM checks and compatibility exceptions are listed below.
+
 - `dst` and `src` must both be `TileType::Vec`.
 - `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
 - `dst` must use one of the following non-fractal layouts:
@@ -61,7 +63,7 @@ PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
     - `src.GetValidRow() == dst.GetValidRow()`
 - The intrinsic signature requires an explicit `tmp` operand.
 
-### A2A3 implementation checks
+### NPU implementation checks
 
 - Supported element types (A2A3): `half`, `float`, `int32_t`, `int16_t`.
 - Supported element types (A5): `half`, `float`, `int32_t`, `int64_t`, `uint64_t`, `int16_t`.
@@ -70,6 +72,38 @@ PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
     - `src.GetValidRow() != 0`
     - `src.GetValidCol() != 0`
     - `src.GetValidRow() == dst.GetValidRow()`
+
+### CPU_SIM implementation checks
+
+The target comes from the calling thread's memory model, not from host hardware. See
+[Selecting the simulated architecture](../coding/cpu_sim.md#selecting-the-simulated-architecture).
+
+- **A5**: Input and output types must match and be one of `half`, `float`, `int16_t`, `int32_t`,
+  `int64_t`, or `uint64_t`. Native BF16 and mixed input/output types are not supported.
+  The Vec, ND/DN layout, non-empty input, and equal valid-row constraints above are checked at runtime.
+  Source and destination physical row counts may differ.
+- **A2A3 compatibility path**: Supported source/output pairs are `half`/`half`, `half`/`float`,
+  `bfloat16_t`/`bfloat16_t`, `bfloat16_t`/`float`, `float`/`float`, `int16_t`/`int16_t`,
+  `int16_t`/`int32_t`, and `int32_t`/`int32_t`. Physical row counts must match, but the
+  A5-specific layout and valid-region assertions are not applied. These compatibility allowances
+  do not extend the A2A3 NPU contract.
+- Type pairs supported by neither CPU path are rejected at compile time; pairs unsupported by the selected
+  architecture are rejected at runtime. Architecture-specific assertions abort on failure even with `NDEBUG`.
+- Callers must keep dynamic valid shapes within the physical Tiles and provide destination storage and a valid
+  region covering all output rows and column zero. The implementation does not check `dst.GetValidCol()`
+  or provide general dynamic-shape bounds validation. Both paths write only column zero of each processed row,
+  leaving other destination elements and valid-shape metadata unchanged.
+- **Numerical differences**: A5 floating-point reduction uses grouped binary trees, converting back to the
+  element type after every addition; integers wrap at the output width without saturation. A2A3 retains
+  the legacy accumulation loop: `half`/`bfloat16_t` outputs accumulate in `float` and then convert;
+  other outputs accumulate in their own type, without A5's unsigned modular-overflow handling.
+  A2A3 row-major vectorization hints may reorder floating-point additions even without `-ffast-math`;
+  strict left-to-right order and bit-identical results across compilers are not guaranteed.
+- Full bit-exact hardware equivalence is not guaranteed: A5 NaN payloads, subnormal/flush-to-zero behavior,
+  and other floating-point details are not established as equivalent; the A2A3 path is for compatibility.
+  Do not enable reassociation options such as `-ffast-math` when relying on the A5 reduction order.
+  See [TROWSUM implementation notes](../coding/cpu_sim.md#trowsum-implementation-notes) for group order,
+  rounding, and the BF16 placeholder caveat.
 
 ## Temporary Space
 
@@ -87,11 +121,23 @@ PTO_INST RecordEvent TROWSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 `tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based reduction (`vcadd` instruction) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
 
 
+### CPU_SIM
+
+Both architecture paths accept `tmp` for API compatibility but do not access its storage. Portable kernels must
+still provide any scratch storage required by their NPU backend.
+
 ## Examples
+
+These snippets illustrate invocation and storage binding, not complete runnable programs. Initialize source
+values before the reduction. For CPU_SIM, compile with `__CPU_SIM`; the Auto example also needs `__PTO_AUTO__`.
+To exercise the A5 path, select A5 at application startup as described in the CPU_SIM guide; these functions do
+not choose the architecture themselves and otherwise use the configured default (initially A2A3).
 
 ### Auto
 
 ```cpp
+#include <cstddef>
+#include <cstdint>
 #include <pto/pto-inst.hpp>
 
 using namespace pto;
@@ -110,6 +156,8 @@ void example_auto() {
 ### Manual
 
 ```cpp
+#include <cstddef>
+#include <cstdint>
 #include <pto/pto-inst.hpp>
 
 using namespace pto;

@@ -55,6 +55,13 @@ PTO_INST RecordEvent TSHL(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - `dst`, `src0`, and `src1` must use the same element type.
     - `dst`, `src0`, and `src1` must be row-major.
     - Runtime: `src0.GetValidRow()/GetValidCol()` and `src1.GetValidRow()/GetValidCol()` must match `dst`.
+- **Implementation checks (A6)**:
+    - Supported element types are `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`, `int64_t`, and `uint64_t`.
+    - `dst`, `src0`, and `src1` must use the same element type.
+    - `dst`, `src0`, and `src1` must be row-major.
+    - Runtime: `src0.GetValidRow()/GetValidCol()` and `src1.GetValidRow()/GetValidCol()` must match `dst`.
+    - The shift amount (`src1`) is interpreted as signed: a negative amount reverses the shift direction (right shift by `|src1|`).
+    - For `int64_t` and `uint64_t`, the effective shift amount is `src1 & 63`.
 - **Valid region**:
     - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
 

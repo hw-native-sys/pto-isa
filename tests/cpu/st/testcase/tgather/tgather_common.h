@@ -49,6 +49,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define U8_1111 41
 #define FP1010_I32 42
 
+#define I64P1010 43
+#define U64P0001 44
+
 #define HALF_P0101_ROW 5
 #define HALF_P0101_COL 128
 #define HALF_P1010_ROW 7
@@ -78,6 +81,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define FLOAT_P1000_COL 288
 #define FLOAT_P1111_ROW 7
 #define FLOAT_P1111_COL 320
+
+#define I64_P1010_ROW 4
+#define I64_P1010_COL 16
+#define U64_P0001_ROW 4
+#define U64_P0001_COL 16
 
 #define COL_HALF_P0101_ROW 8
 #define COL_HALF_P0101_COL 128

@@ -36,6 +36,9 @@ std::string GetGoldenDir()
 template <int kTRows_, int kTCols_, int idxRows_, int idxCols_>
 void LaunchTScatter(float* out, float* src, uint16_t* idx, void* stream);
 
+template <typename T, typename IdxT, int kTRows_, int kTCols_, int idxRows_, int idxCols_>
+void LaunchTScatterIdx(T* out, T* src, IdxT* idx, void* stream);
+
 template <int kTRows_, int kTCols_, int idxRows_, int idxCols_>
 void test_tscatter()
 {
@@ -96,6 +99,73 @@ void test_tscatter()
 
 TEST_F(TSCATTERTest, case_float_uint16_2x32_1x32) { test_tscatter<2, 32, 1, 32>(); }
 
+template <typename T, typename IdxT, int kTRows_, int kTCols_, int idxRows_, int idxCols_>
+void test_tscatter_idx()
+{
+    const size_t tileBytes = kTRows_ * kTCols_ * sizeof(T);
+    const size_t idxBytes = idxRows_ * idxCols_ * sizeof(IdxT);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    T *dstHost, *srcHost;
+    IdxT* idxHost;
+    T *dstDevice, *srcDevice;
+    IdxT* idxDevice;
+
+    aclrtMallocHost((void**)(&dstHost), tileBytes);
+    aclrtMallocHost((void**)(&srcHost), tileBytes);
+    aclrtMallocHost((void**)(&idxHost), idxBytes);
+
+    aclrtMalloc((void**)&dstDevice, tileBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, tileBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&idxDevice, idxBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    size_t tileSize = tileBytes;
+    size_t idxSize = idxBytes;
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input1.bin", tileSize, srcHost, tileBytes));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/input2.bin", idxSize, idxHost, idxBytes));
+
+    aclrtMemcpy(srcDevice, tileBytes, srcHost, tileBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(idxDevice, idxBytes, idxHost, idxBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    LaunchTScatterIdx<T, IdxT, kTRows_, kTCols_, idxRows_, idxCols_>(dstDevice, srcDevice, idxDevice, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, tileBytes, dstDevice, tileBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, tileBytes);
+
+    aclrtFree(dstDevice);
+    aclrtFree(srcDevice);
+    aclrtFree(idxDevice);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(srcHost);
+    aclrtFreeHost(idxHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<T> golden(tileBytes / sizeof(T));
+    std::vector<T> devFinal(tileBytes / sizeof(T));
+    tileSize = tileBytes;
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", tileSize, golden.data(), tileBytes));
+    tileSize = tileBytes;
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", tileSize, devFinal.data(), tileBytes));
+
+    if constexpr (std::is_integral_v<T> && sizeof(T) == 8) {
+        EXPECT_TRUE(ResultCmpExact<T>(golden, devFinal.data()));
+    } else {
+        EXPECT_TRUE(ResultCmp<T>(golden, devFinal, 0.001f));
+    }
+}
+
+TEST_F(TSCATTERTest, case_int64_uint32_4x16_4x16) { test_tscatter_idx<int64_t, uint32_t, 4, 16, 4, 16>(); }
+
+TEST_F(TSCATTERTest, case_uint64_uint32_4x16_4x16) { test_tscatter_idx<uint64_t, uint32_t, 4, 16, 4, 16>(); }
+
 // --- Mask-pattern TSCATTER tests ---
 
 template <int32_t tilingKey>
@@ -147,8 +217,12 @@ void execute_scatter_test(const std::string& goldenDir)
     readSize = dstSize;
     CHECK_RESULT_GTEST(ReadFile(goldenDir + "/output_z.bin", readSize, devFinal.data(), dstSize));
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
-    EXPECT_TRUE(ret);
+    if constexpr (std::is_integral_v<T> && sizeof(T) == 8) {
+        EXPECT_TRUE(ResultCmpExact<T>(golden, devFinal.data()));
+    } else {
+        bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+        EXPECT_TRUE(ret);
+    }
 }
 
 template <typename T, uint8_t PATTERN, uint32_t ROW, uint32_t DST_COL, uint32_t MASK_DIVISOR>
@@ -278,4 +352,15 @@ TEST_F(TSCATTERTest, case_masked_I32_P1000)
 TEST_F(TSCATTERTest, case_masked_I32_P1111)
 {
     test_scatter_masked<int32_t, I32P1111, FLOAT_P1111_ROW, FLOAT_P1111_COL, 1>();
+}
+
+// int64 / uint64
+TEST_F(TSCATTERTest, case_masked_I64_P1010)
+{
+    test_scatter_masked<int64_t, I64P1010, I64_P1010_ROW, I64_P1010_DST_COL, 2>();
+}
+
+TEST_F(TSCATTERTest, case_masked_U64_P0001)
+{
+    test_scatter_masked<uint64_t, U64P0001, U64_P0001_ROW, U64_P0001_DST_COL, 4>();
 }

@@ -22,7 +22,29 @@ Generally, all tiles memory in CPU_SIM is allocated in system memory (contrary t
 
 CPU_SIM memory model allocates following memory locations for each thread: UB, L1, L0A, L0B, L0C. Each of this locations is basically pre-allocated array of the size corresponding to simulating NPU architecture. TASSIGN operation uses one of these arrays to assign some memory chunk from it to the tile. I.e., if TASSIGN is called for the tile with Loc==Mat and offset 10, it will assign memory starting from the L1[10] to that tile.
 
-Currently A2A3 and A5 architectures supported, specific architecture can be chosen using pto::NPUMemoryModel::Initialize function, that should be called once for each thread (can be omitted, in this case default A2A3 architecture will be used). For more information please refer to **include/pto/cpu/NPUMemoryModel.hpp**
+### Selecting the simulated architecture
+
+A2A3 and A5 identify the simulated target, not the NPU installed on the host. CPU_SIM does not need an NPU to run.
+The selection controls memory configuration and architecture-aware instruction paths such as `TROWSUM`; it does
+not mean that every CPU instruction has separate, bit-exact implementations for both architectures.
+
+- To select the default for subsequently initialized thread-local memory models, call
+  `pto::NPUMemoryModel::SetDefaultArch(pto::NPUArch::A5)` once during startup, before any thread uses the model.
+  Without this call, the default is `pto::NPUArch::A2A3`.
+- To initialize only the calling thread explicitly, use
+  `pto::NPUMemoryModel::Instance().Initialize(pto::NPUArch::A5)` before binding/accessing its Tiles.
+- For both default selection and calling-thread initialization, use `pto::NPU_MEMORY_INIT(pto::NPUArch::A5)`
+  once at startup, before other threads use the model. This helper calls both `SetDefaultArch` and `Initialize`;
+  it does not reconfigure already initialized models in other threads. Calling `NPU_MEMORY_INIT()` without an
+  argument explicitly resets the default and initializes the calling thread to A2A3.
+- `SetDefaultArch` does not reconfigure already initialized thread-local instances. Do not change the default
+  concurrently with execution or reinitialize a memory model while Tiles still reference its storage.
+
+External simulator integrations must select the target before running kernels. An integration's `a5sim` name
+alone is not an architecture selector inside pto-isa. See **include/pto/cpu/NPUMemoryModel.hpp** and
+**include/pto/cpu/TAssign.hpp**.
+
+### Memory capacity overrides
 
 The simulated memory capacities can be overridden with the following environment variables. Values are specified in
 bytes and must be positive integers:
@@ -60,6 +82,10 @@ correctness testing and does not model a specific on-chip address.
 
 ## Supported behavior and backend differences
 
+- CPU_SIM `TROWSUM` selects its reduction and validation path from the calling thread's initialized architecture.
+  Both paths accept but do not access `tmp`. See [TROWSUM](../isa/TROWSUM.md#cpu_sim-implementation-checks) for
+  types, layouts, and numerical limits, and [TROWSUM implementation notes](#trowsum-implementation-notes) below
+  for the computation.
 - CPU_SIM `TADD` and `TABS` accept independently typed operand Tiles when their element types and runtime
   valid shapes match. This includes mixing static and dynamic `ValidRow`/`ValidCol` template arguments. Each operand
   is indexed using its own Tile layout and physical shape; a runtime valid-shape mismatch triggers an assertion.
@@ -100,7 +126,47 @@ correctness testing and does not model a specific on-chip address.
   `pto::cpu_sim::register_hooks`. If callbacks are not registered directly, CPU_SIM also resolves the
   `pto_sim_get_subblock_id` and `pto_sim_get_pipe_shared_state` symbols from the host process.
 
+### TROWSUM implementation notes
+
+See [TROWSUM CPU_SIM implementation checks](../isa/TROWSUM.md#cpu_sim-implementation-checks) for type,
+layout, and valid-region constraints. The following describes the
+[CPU implementation](../../include/pto/cpu/TRowSum.hpp), not additional NPU interface constraints.
+
+- The A5 floating-point path uses `rowSumTree` with consecutive 256-byte groups: 64 lanes for `float`,
+  128 for `half`. Each group uses an adjacent-pair binary tree; unused tail lanes are zero-filled
+  without reading source padding. Group sums are accumulated in increasing column order from positive zero.
+  Every tree addition and group accumulation is cast back to the element type, including `half` rounding
+  between groups.
+- The A5 integer path uses `rowSumModular` with unsigned modular arithmetic to avoid signed-overflow
+  undefined behavior. `int16_t` uses a 32-bit accumulator followed by low-16-bit truncation; other supported
+  integers wrap at their own width. Signed outputs preserve the resulting bit pattern without saturation.
+- A2A3 retains the legacy CPU accumulation loop using `TypeSum<TileDst>`:
+  `half`/`bfloat16_t` outputs accumulate in `float` and convert on store; other outputs use their own type.
+  This path uses neither the A5 reduction tree nor its unsigned modular-overflow handling.
+  The row-major loop retains vectorization hints: Clang may reorder floating-point additions even without
+  `-ffast-math`. Strict left-to-right accumulation and bit-identical results across compilers are not guaranteed.
+- On toolchains without native BF16, `bfloat16_t` may alias `half`; that placeholder follows the half
+  path and is not BF16 simulation.
+- CPU reduction entry points and execution functions carry valid-row and valid-column counts as `uint32_t`
+  to avoid 16-bit truncation. This does not support arbitrary 32-bit sizes: Tile dimensions and `Numel`
+  still use `int`, and layout, representable element counts, and available storage constraints still apply.
+- The calling thread ensures its memory model is initialized before selecting the architecture. Internal
+  row-parallel workers receive that decision by value rather than reading their own thread-local default.
+  This does not initialize unrelated caller threads or simulated-core workers.
+  See [Multicore execution](#multicore-execution) for thread configuration.
+
+The A5 implementation models a specific reduction order, not full bit-exact A5 hardware behavior:
+NaN payloads, subnormal/flush-to-zero behavior, and other host-versus-device differences are not established
+as equivalent. The A2A3 compatibility path does not promise bit-exact hardware behavior either.
+Do not enable reassociation options such as `-ffast-math` when relying on the A5 reduction order.
+
 ## Multicore execution
+
+Simulated-core workers are separate from an instruction's internal row-parallel workers. For example, `TROWSUM`
+uses the compile-time controls in `include/pto/cpu/parallel.hpp`; `PTO_CPU_SIM_NUM_CORES` does not configure that
+group of workers. Internal row parallelism requires at least two rows and two available threads, and
+`rows * cols >= PTO_CPU_PARALLEL_THRESHOLD_ELEMS` (default 16384). `PTO_CPU_MAX_THREADS` is a compile-time cap
+(0 uses hardware concurrency), not a runtime environment variable.
 
 `pto::cpu_sim::LaunchKernelMultiCore` launches one CPU worker for each active simulated core and initializes the
 worker's block and subblock execution context. The default configured core count is 4 and can be changed with

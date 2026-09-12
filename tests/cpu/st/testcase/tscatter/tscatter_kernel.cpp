@@ -57,6 +57,51 @@ void LaunchTScatter(float* out, float* src, uint16_t* idx, void* stream)
 
 template void LaunchTScatter<2, 32, 1, 32>(float* out, float* src, uint16_t* idx, void* stream);
 
+template <typename T, typename IdxT, int kTRows_, int kTCols_, int idxRows_, int idxCols_>
+AICORE void runTScatterIdx(__gm__ T __out__* out, __gm__ T __in__* src, __gm__ IdxT __in__* idx)
+{
+    using TileT = Tile<TileType::Vec, T, kTRows_, kTCols_, BLayout::RowMajor, -1, -1>;
+    using IdxTileT = Tile<TileType::Vec, IdxT, idxRows_, idxCols_, BLayout::RowMajor, -1, -1>;
+
+    using SrcShape = Shape<1, 1, 1, kTRows_, kTCols_>;
+    using SrcStride = Stride<1, 1, 1, kTCols_, 1>;
+    using GTf = GlobalTensor<T, SrcShape, SrcStride>;
+
+    using SrcShapeIdx = Shape<1, 1, 1, idxRows_, idxCols_>;
+    using SrcStrideIdx = Stride<1, 1, 1, idxCols_, 1>;
+    using GTi = GlobalTensor<IdxT, SrcShapeIdx, SrcStrideIdx>;
+
+    TileT srcTile(kTRows_, kTCols_);
+    TileT dstTile(kTRows_, kTCols_);
+    IdxTileT idxTile(idxRows_, idxCols_);
+
+    GTf srcGlobal(src);
+    GTf dstGlobal(out);
+    GTi idxGlobal(idx);
+
+    TASSIGN(srcTile, 0);
+    TASSIGN(dstTile, kTRows_ * kTCols_ * sizeof(T));
+    TASSIGN(idxTile, 2 * kTRows_ * kTCols_ * sizeof(T));
+
+    TLOAD(srcTile, srcGlobal);
+    TLOAD(idxTile, idxGlobal);
+    TEXPANDS(dstTile, static_cast<T>(0));
+    TSCATTER(dstTile, srcTile, idxTile);
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+template <typename T, typename IdxT, int kTRows_, int kTCols_, int idxRows_, int idxCols_>
+void LaunchTScatterIdx(T* out, T* src, IdxT* idx, void* stream)
+{
+    runTScatterIdx<T, IdxT, kTRows_, kTCols_, idxRows_, idxCols_>(out, src, idx);
+}
+
+template void LaunchTScatterIdx<int64_t, uint32_t, 4, 16, 4, 16>(
+    int64_t* out, int64_t* src, uint32_t* idx, void* stream);
+template void LaunchTScatterIdx<uint64_t, uint32_t, 4, 16, 4, 16>(
+    uint64_t* out, uint64_t* src, uint32_t* idx, void* stream);
+
 // --- Mask-pattern TSCATTER ---
 template <
     typename T, int kSrcRows_, int kSrcCols_, int kDstRows_, int kDstCols_, MaskPattern maskPattern,
@@ -331,6 +376,18 @@ extern "C" __global__ AICORE void launchTSCATTER_I32P1111(__gm__ uint8_t* out, _
         reinterpret_cast<__gm__ int32_t*>(out), reinterpret_cast<__gm__ int32_t*>(src));
 }
 
+extern "C" __global__ AICORE void launchTSCATTER_I64P1010(__gm__ uint8_t* out, __gm__ uint8_t* src)
+{
+    runTScatterMasked<int64_t, I64_P1010_ROW, I64_P1010_SRC_COL, I64_P1010_ROW, I64_P1010_DST_COL, MaskPattern::P1010>(
+        reinterpret_cast<__gm__ int64_t*>(out), reinterpret_cast<__gm__ int64_t*>(src));
+}
+
+extern "C" __global__ AICORE void launchTSCATTER_U64P0001(__gm__ uint8_t* out, __gm__ uint8_t* src)
+{
+    runTScatterMasked<uint64_t, U64_P0001_ROW, U64_P0001_SRC_COL, U64_P0001_ROW, U64_P0001_DST_COL, MaskPattern::P0001>(
+        reinterpret_cast<__gm__ uint64_t*>(out), reinterpret_cast<__gm__ uint64_t*>(src));
+}
+
 // --- dispatch ---
 
 using TScatterLaunchFunc = void (*)(__gm__ uint8_t*, __gm__ uint8_t*);
@@ -350,7 +407,8 @@ static TScatterLaunchFunc GetTScatterLaunchFunction(int32_t tilingKey)
         {U16P0101, launchTSCATTER_U16P0101},     {U16P1010, launchTSCATTER_U16P1010},
         {I16P0001, launchTSCATTER_I16P0001},     {I16P0010, launchTSCATTER_I16P0010},
         {U32P0100, launchTSCATTER_U32P0100},     {I32P1000, launchTSCATTER_I32P1000},
-        {I32P1111, launchTSCATTER_I32P1111},
+        {I32P1111, launchTSCATTER_I32P1111},     {I64P1010, launchTSCATTER_I64P1010},
+        {U64P0001, launchTSCATTER_U64P0001},
 
         {COL_FP0101, launchTSCATTER_COL_FP0101}, {COL_FP1010, launchTSCATTER_COL_FP1010},
         {COL_FP0001, launchTSCATTER_COL_FP0001}, {COL_FP0010, launchTSCATTER_COL_FP0010},
@@ -398,6 +456,8 @@ template void launchTSCATTER_masked<I16P0010>(uint8_t* out, uint8_t* src, void* 
 template void launchTSCATTER_masked<U32P0100>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTSCATTER_masked<I32P1000>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTSCATTER_masked<I32P1111>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTSCATTER_masked<I64P1010>(uint8_t* out, uint8_t* src, void* stream);
+template void launchTSCATTER_masked<U64P0001>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTSCATTER_masked<COL_FP0101>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTSCATTER_masked<COL_FP1010>(uint8_t* out, uint8_t* src, void* stream);
 template void launchTSCATTER_masked<COL_FP0001>(uint8_t* out, uint8_t* src, void* stream);

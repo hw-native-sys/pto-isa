@@ -98,7 +98,8 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTileData& dst, SrcTileData& src)
     }
 
     using T = typename SrcTileData::DType;
-    static_assert(sizeof(T) == 2 || sizeof(T) == 4, "TSCATTER: src element type must be 16 or 32-bit wide");
+    static_assert(
+        sizeof(T) == 2 || sizeof(T) == 4 || sizeof(T) == 8, "TSCATTER: src element type must be 16/32/64-bit wide");
     static_assert(
         (DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec), "TSCATTER: expect vec TileType");
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "TSCATTER: expect row major");

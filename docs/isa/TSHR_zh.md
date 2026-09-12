@@ -56,6 +56,13 @@ PTO_INST RecordEvent TSHR(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
     - `dst`、`src0` 和 `src1` 必须是行主序。
     - 运行时：`src0.GetValidRow()/GetValidCol()` 和 `src1.GetValidRow()/GetValidCol()` 必须与 `dst` 一致。
+- **实现检查 (A6)**:
+    - 支持的元素类型为 `uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`、`int64_t` 和 `uint64_t`。
+    - `dst`、`src0` 和 `src1` 必须使用相同的元素类型。
+    - `dst`、`src0` 和 `src1` 必须是行主序。
+    - 运行时：`src0.GetValidRow()/GetValidCol()` 和 `src1.GetValidRow()/GetValidCol()` 必须与 `dst` 一致。
+    - 移位量（`src1`）按有符号数解释：负值会使移位方向反转（按 `|src1|` 左移）。
+    - 对于 `int64_t` 和 `uint64_t`，实际移位量为 `src1 & 63`。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 
