@@ -210,12 +210,16 @@ def gen_golden_data(case_name, param):
         min_m = min(M, golden.shape[1])
         golden[:min_k, :min_m] = x1_gm[:min_k, :min_m]
     elif param.load_type == DataFormat['DN2ZN'].value:
-        x1_gm = np.random.randint(
-            1, 5, [whole_shape4, whole_shape3]).astype(src_type)
-        golden = np.zeros([BASEK, BASEM]).astype(src_type)  # L1中Tile大小
-        min_k = min(K, golden.shape[0])
-        min_m = min(M, golden.shape[1])
-        golden[:min_k, :min_m] = x1_gm[:min_k, :min_m]
+        x1_gm = np.random.randint(1, 98, [whole_shape2, whole_shape4, whole_shape3]).astype(src_type)
+        flattened = x1_gm[:shape2, :K, :M].reshape(shape2 * K, M)
+        golden = np.zeros([BASEK, BASEM], dtype=src_type)
+        if shape2 != 1 or param.dynamic_shape:
+            golden.view(np.uint8).fill(0x33)
+        valid_cols = shape2 * K if param.valid_cols is None else param.valid_cols
+        if shape2 == 1 and not param.dynamic_shape:
+            valid_cols = K
+        golden[:valid_cols, :M] = flattened[:valid_cols]
+        golden[:valid_cols, M:((M + c0_size - 1) // c0_size) * c0_size] = 0
     elif param.load_type == DataFormat['ND2ND'].value:
         x1_gm = np.random.randint(
             1, 5, [whole_shape0, whole_shape1, whole_shape2, whole_shape3, whole_shape4]).astype(src_type)
@@ -387,7 +391,24 @@ def gen_golden_data(case_name, param):
 
 class TloadParams:
     def __init__(
-        self, atype, shape0, shape1, shape2, m, k, ws0, ws1, ws2, ws3, ws4, basem, basek, load_type, valid_rows=None
+        self,
+        atype,
+        shape0,
+        shape1,
+        shape2,
+        m,
+        k,
+        ws0,
+        ws1,
+        ws2,
+        ws3,
+        ws4,
+        basem,
+        basek,
+        load_type,
+        valid_rows=None,
+        valid_cols=None,
+        dynamic_shape=False,
     ):
         self.atype = atype
         self.m = m
@@ -405,6 +426,8 @@ class TloadParams:
         self.basem = basem  # L1 row
         self.basek = basek  # L1 col
         self.valid_rows = shape2 * m if valid_rows is None else valid_rows
+        self.valid_cols = valid_cols
+        self.dynamic_shape = dynamic_shape
         self.load_type = load_type
 
 
@@ -418,6 +441,14 @@ if __name__ == "__main__":
         "TLOADMIXTest.1_1_16_4_100_1_1_16_12_128_64_128_int8_t_ND2NZ",
         "TLOADMIXTest.1_1_32_1_64_1_1_32_4_64_32_64_float_ND2NZ",
         "TLOADMIXTest.1_1_16_3_64_1_1_16_9_64_64_64_half_ND2NZ",
+        "TLOADMIXTest.MultiNdZnFull_half",
+        "TLOADMIXTest.MultiNdZnPartial_half",
+        "TLOADMIXTest.MultiNdZnPartial_int8",
+        "TLOADMIXTest.MultiNdZnPartial_float",
+        "TLOADMIXTest.MultiNdZnTailOnly_half",
+        "TLOADMIXTest.MultiNdZnWholePrefix_half",
+        "TLOADMIXTest.MultiNdZnDynamicSingle_half",
+        "TLOADMIXTest.MultiNdZnSourceLargerThanTile_half",
         "TLOADMIXTest.MultiNdPartialRows_half",
         "TLOADMIXTest.MultiNdPartialRows_int8",
         "TLOADMIXTest.MultiNdPartialRows_float",
@@ -523,6 +554,26 @@ if __name__ == "__main__":
         TloadParams(np.int8, 1, 1, 16, 4, 100, 1, 1, 16, 12, 128, 64, 128, DataFormat["ND2NZ"].value),
         TloadParams(np.float32, 1, 1, 32, 1, 64, 1, 1, 32, 4, 64, 32, 64, DataFormat["ND2NZ"].value),
         TloadParams(np.float16, 1, 1, 16, 3, 64, 1, 1, 16, 9, 64, 64, 64, DataFormat["ND2NZ"].value),
+        TloadParams(np.float16, 1, 1, 16, 35, 3, 1, 1, 16, 64, 9, 64, 64, DataFormat["DN2ZN"].value),
+        TloadParams(
+            np.float16, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32,
+            DataFormat["DN2ZN"].value, valid_cols=16, dynamic_shape=True,
+        ),
+        TloadParams(np.int8, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 96, 32, DataFormat["DN2ZN"].value, valid_cols=17),
+        TloadParams(np.float32, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32, DataFormat["DN2ZN"].value, valid_cols=17),
+        TloadParams(
+            np.float16, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32,
+            DataFormat["DN2ZN"].value, valid_cols=2, dynamic_shape=True,
+        ),
+        TloadParams(np.float16, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32, DataFormat["DN2ZN"].value, valid_cols=6),
+        TloadParams(
+            np.float16, 1, 1, 1, 35, 3, 1, 1, 1, 64, 9, 64, 32,
+            DataFormat["DN2ZN"].value, valid_cols=2, dynamic_shape=True,
+        ),
+        TloadParams(
+            np.float16, 1, 1, 16, 35, 3, 1, 1, 16, 64, 9, 64, 32,
+            DataFormat["DN2ZN"].value, valid_cols=31, dynamic_shape=True,
+        ),
         TloadParams(np.float16, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 16),
         TloadParams(np.int8, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 17),
         TloadParams(np.float32, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 17),

@@ -112,6 +112,16 @@ On A5 all listed values are passed through to DMA. CPU / costmodel accept the te
       Runtime: `1 <= Shape2 <= 65535`, `1 <= Shape3 <= 16384`, and
       `1 <= dst.GetValidRow() <= min(TileData::Rows, Shape2 * Shape3)`. The data type must not be fp4.
     - DN->NZ requires `GlobalData::staticShape[2] == 1`.
+    - For `TileType::Mat` DN->ZN, the ZN tile uses `BLayout::RowMajor` and `SLayout::ColMajor`.
+      `GlobalData::staticShape[2] != 1` (including dynamic Shape2) selects the multi-matrix path.
+      `Shape2` is the available number of DN matrices of shape `[Shape3, Shape4]`, merged along the tile columns;
+      `Stride2` is the distance between consecutive matrices in elements. Rows within each matrix must be
+      contiguous (`Stride3 == 1`); `Stride4` is the distance between consecutive columns in elements.
+    - The multi-matrix DN->ZN path requires `GlobalData::staticShape[0..1] == 1`,
+      `TileData::SFractalSize == 512`, `sizeof(TileData::DType)` of `1`, `2`, or `4` bytes (excluding fp4/hif4),
+      and `TileData::Cols <= 65535`. Runtime: `1 <= Shape2 <= 65535`, `1 <= Shape4 <= 16384`,
+      `1 <= dst.GetValidCol() <= min(TileData::Cols, Shape2 * Shape4)`, and
+      `1 <= dst.GetValidRow() <= min(TileData::Rows, Shape3)`.
     - `TileType::Mat` loads also handle loads for mx format, which include `MX_A_ZZ/MX_A_ND/MX_A_DN` to ZZ for scalarA and `MX_B_NN/MX_B_ND/MX_B_DN` to NN for scalarB.
     - for `MX_A_ZZ/MX_B_NN`: `(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.
     - for `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`: `(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` and `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.
@@ -128,6 +138,15 @@ On A5 all listed values are passed through to DMA. CPU / costmodel accept the te
       transfer is issued. Both transfers retain the full tile's NZ column-block stride. This also applies
       when Shape2 is dynamic and its runtime value is 1. For example, `Shape3 = 3` and `dst.GetValidRow() = 17`
       load five complete matrices and the first two rows of the sixth matrix, requiring `Shape2 >= 6`.
+    - On A5, DN->ZN with `GlobalData::staticShape[2] != 1` loads the first `dst.GetValidCol()` merged columns.
+      It transfers `dst.GetValidCol() / Shape4` complete matrices in one instruction, then transfers
+      `dst.GetValidCol() % Shape4` columns from the next matrix if needed. With no complete matrices, only
+      the tail transfer is issued. This also applies when Shape2 is dynamic and its runtime value is 1.
+      Both transfers retain `TileData::Cols` as the C0-block stride (in 32-byte units).
+      Only the final partial C0 block along the valid rows is zero-filled; inactive columns and full
+      C0 blocks beyond the valid rows retain their previous contents.
+      A compile-time Shape2 of 1 uses the single-matrix path: the transfer covers `Shape4` columns and
+      `dst.GetValidRow()` rows, so the source shape must describe the columns to load.
     - On A2/A3 and A5, a `TileType::Vec` ND/DN load with a non-null `PadVal` fills only the sub-32-byte tail after each transferred burst. Full 32-byte gaps and inactive rows or columns remain unchanged; NZ loads and `PadValue::Null` do not add padding.
 
 ## Examples
@@ -172,6 +191,34 @@ void example_manual(__gm__ T* in) {
   TLOAD(t, gin);
 }
 ```
+
+### A5 multi-matrix DN-to-ZN load (Manual)
+
+The following Cube function loads 17 merged columns: five complete 3-column matrices and two columns
+from the sixth. Physical GM storage is `[8, 9, 64]` (matrix, column, row); the DN view selects 3 columns
+and 35 rows per matrix. Strides are in elements.
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+AICORE void example_dn_to_zn(__gm__ int16_t* in) {
+  using SrcShape = Shape<1, 1, 8, 35, 3>;
+  using SrcStride = pto::Stride<4608, 4608, 576, 1, 64>;
+  using SrcGlobal = GlobalTensor<int16_t, SrcShape, SrcStride, Layout::DN>;
+  using MatTile = Tile<TileType::Mat, int16_t, 64, 32, BLayout::RowMajor,
+                       35, 17, SLayout::ColMajor, 512>;
+
+  SrcGlobal src(in);
+  MatTile dst;
+  TASSIGN(dst, 0x1000);
+  TLOAD(dst, src);
+}
+```
+
+For `0 <= r < 35` and `0 <= c < 17`, the result is
+`dst[r, c] = in[(c / 3) * 576 + (c % 3) * 64 + r]`.
 
 ## ASM Form Examples
 

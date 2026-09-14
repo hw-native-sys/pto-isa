@@ -112,6 +112,16 @@ A5 上表内取值均透传给 DMA。CPU / costmodel 接受该模板并忽略。
       运行时：`1 <= Shape2 <= 65535`、`1 <= Shape3 <= 16384`，且
       `1 <= dst.GetValidRow() <= min(TileData::Rows, Shape2 * Shape3)`。数据类型不能是 fp4。
     - DN->NZ 要求 `GlobalData::staticShape[2] == 1`。
+    - 对于 `TileType::Mat` 的 DN->ZN，ZN tile 使用 `BLayout::RowMajor` 和 `SLayout::ColMajor`。
+      `GlobalData::staticShape[2] != 1`（包括动态 Shape2）时选择多矩阵路径。
+      `Shape2` 表示源中可用的 DN 矩阵数量，每个矩阵形状为 `[Shape3, Shape4]`，沿 tile 列方向合并；
+      `Stride2` 表示相邻矩阵起始地址之间的距离，单位为元素。
+      每个矩阵的行必须连续（`Stride3 == 1`）；`Stride4` 表示相邻列起始地址之间的距离，单位为元素。
+    - 多矩阵 DN->ZN 路径要求 `GlobalData::staticShape[0..1] == 1`、`TileData::SFractalSize == 512`、
+      `sizeof(TileData::DType)` 为 `1`、`2` 或 `4` 字节（不支持 fp4/hif4），且 `TileData::Cols <= 65535`。
+      运行时：`1 <= Shape2 <= 65535`、`1 <= Shape4 <= 16384`、
+      `1 <= dst.GetValidCol() <= min(TileData::Cols, Shape2 * Shape4)`，以及
+      `1 <= dst.GetValidRow() <= min(TileData::Rows, Shape3)`。
     - `TileType::Mat` 加载还处理mx格式的加载，包括 `MX_A_ZZ/MX_A_ND/MX_A_DN` 到ZZ（用于scalarA）和 `MX_B_NN/MX_B_ND/MX_B_DN` 到NN（用于scalarB）。
     - 对于 `MX_A_ZZ/MX_B_NN`：`(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。
     - 对于 `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`：`(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` 且 `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。
@@ -127,6 +137,14 @@ A5 上表内取值均透传给 DMA。CPU / costmodel 接受该模板并忽略。
       再单独搬运这些尾行；没有完整矩阵时只搬运尾块。两次搬运均保持整个 tile 的 NZ 列块步长。
       Shape2 为动态维度且运行时取值为 1 时也适用。例如 `Shape3 = 3`、`dst.GetValidRow() = 17` 时，
       搬运 5 个完整矩阵和第 6 个矩阵的前 2 行，此时要求 `Shape2 >= 6`。
+    - 在 A5 上，`GlobalData::staticShape[2] != 1` 的 DN->ZN 加载合并后的前 `dst.GetValidCol()` 列。
+      单条指令先搬运 `dst.GetValidCol() / Shape4` 个完整矩阵；若 `dst.GetValidCol() % Shape4` 非零，
+      再单独搬运下一个矩阵的这些尾列。没有完整矩阵时只搬运尾块。
+      Shape2 为动态维度且运行时取值为 1 时也适用。
+      两次搬运均保持 `TileData::Cols` 对应的 C0 块步长，单位为 32 字节。
+      仅对有效行末尾不足一个 C0 块的部分填零；未参与搬运的列以及有效行之外的完整 C0 块保留原值。
+      编译期 Shape2 为 1 时使用单矩阵路径：搬运 `Shape4` 列、`dst.GetValidRow()` 行，
+      因此源形状必须描述要搬运的列范围。
     - 在A2/A3和A5上，`PadVal` 非空时，`TileType::Vec` 的ND/DN加载仅填充每个burst传输后不足32B的尾部；完整32B间隔块以及未参与传输的行或列保持不变。NZ加载和`PadValue::Null`不增加填充。
 
 ## 示例
@@ -171,6 +189,34 @@ void example_manual(__gm__ T* in) {
   TLOAD(t, gin);
 }
 ```
+
+### A5 多矩阵 DN 到 ZN 加载（手动模式）
+
+下面的 Cube 函数加载合并后的前 17 列，即 5 个完整的 3 列矩阵和第 6 个矩阵的前 2 列。
+GM 物理存储为 `[8, 9, 64]`（矩阵、列、行），DN 视图选择每个矩阵的 3 列、35 行。
+以下步长均以元素为单位。
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+AICORE void example_dn_to_zn(__gm__ int16_t* in) {
+  using SrcShape = Shape<1, 1, 8, 35, 3>;
+  using SrcStride = pto::Stride<4608, 4608, 576, 1, 64>;
+  using SrcGlobal = GlobalTensor<int16_t, SrcShape, SrcStride, Layout::DN>;
+  using MatTile = Tile<TileType::Mat, int16_t, 64, 32, BLayout::RowMajor,
+                       35, 17, SLayout::ColMajor, 512>;
+
+  SrcGlobal src(in);
+  MatTile dst;
+  TASSIGN(dst, 0x1000);
+  TLOAD(dst, src);
+}
+```
+
+对于 `0 <= r < 35`、`0 <= c < 17`，结果为
+`dst[r, c] = in[(c / 3) * 576 + (c % 3) * 64 + r]`。
 
 ## 汇编示例（ASM）
 

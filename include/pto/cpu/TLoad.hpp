@@ -85,18 +85,33 @@ PTO_INLINE void CheckTileData(TileData& dst, GlobalData& src)
         // not row major: there DIM_2 is the nd-matrix count, so the tile has DIM_2 * DIM_3 rows.
         [[maybe_unused]] const bool ndIntoNzTile = GlobalData::layout == pto::Layout::ND && rowsMerged;
         [[maybe_unused]] bool partialMultiNd = false;
+        constexpr bool ndToNz =
+            GlobalData::layout == Layout::ND && GetTileLayoutCustom<TileData>() == TileLayoutCustom::NZ;
+        constexpr bool dnToZn =
+            GlobalData::layout == Layout::DN && TileData::isRowMajor && TileData::SFractal == SLayout::ColMajor;
+        constexpr bool validDnToZnDescriptor = GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1 &&
+                                               TileData::SFractalSize == 512 && TileData::Cols <= 65535 &&
+                                               !IsTwinType<typename TileData::DType>();
         if constexpr (
-            GlobalData::layout == Layout::ND && GlobalData::staticShape[2] != 1 && TileData::Loc == TileType::Mat &&
-            GetTileLayoutCustom<TileData>() == TileLayoutCustom::NZ && sizeof(typename TileData::DType) <= 4) {
-            partialMultiNd =
-                NPUMemoryModel::Instance().GetArch() == NPUArch::A5 && src.GetShape(GlobalTensorDim::DIM_0) == 1 &&
-                src.GetShape(GlobalTensorDim::DIM_1) == 1 && src.GetShape(GlobalTensorDim::DIM_2) > 0 &&
-                src.GetShape(GlobalTensorDim::DIM_2) <= 65535 && src.GetShape(GlobalTensorDim::DIM_3) > 0 &&
-                src.GetShape(GlobalTensorDim::DIM_3) <= 16384 && dst.GetValidRow() > 0 &&
-                dst.GetValidRow() <= TileData::Rows &&
-                dst.GetValidRow() <= src.GetShape(GlobalTensorDim::DIM_2) * src.GetShape(GlobalTensorDim::DIM_3) &&
-                dst.GetValidCol() > 0 && dst.GetValidCol() <= TileData::Cols &&
-                dst.GetValidCol() <= src.GetShape(GlobalTensorDim::DIM_4);
+            (ndToNz || (dnToZn && validDnToZnDescriptor)) && GlobalData::staticShape[2] != 1 &&
+            TileData::Loc == TileType::Mat && sizeof(typename TileData::DType) <= 4) {
+            const int64_t matrixRows = src.GetShape(dnToZn ? GlobalTensorDim::DIM_4 : GlobalTensorDim::DIM_3);
+            const int64_t matrixCols = src.GetShape(dnToZn ? GlobalTensorDim::DIM_3 : GlobalTensorDim::DIM_4);
+            const int validRows = dnToZn ? dst.GetValidCol() : dst.GetValidRow();
+            const int validCols = dnToZn ? dst.GetValidRow() : dst.GetValidCol();
+            partialMultiNd = NPUMemoryModel::Instance().GetArch() == NPUArch::A5 &&
+                             (!dnToZn || src.GetStride(GlobalTensorDim::DIM_3) == 1) &&
+                             src.GetShape(GlobalTensorDim::DIM_0) == 1 && src.GetShape(GlobalTensorDim::DIM_1) == 1 &&
+                             src.GetShape(GlobalTensorDim::DIM_2) > 0 &&
+                             src.GetShape(GlobalTensorDim::DIM_2) <= 65535 && matrixRows > 0 && matrixRows <= 16384 &&
+                             validRows > 0 && validRows <= (dnToZn ? TileData::Cols : TileData::Rows) &&
+                             validRows <= src.GetShape(GlobalTensorDim::DIM_2) * matrixRows && validCols > 0 &&
+                             validCols <= (dnToZn ? TileData::Rows : TileData::Cols) && validCols <= matrixCols;
+        }
+        if constexpr (dnToZn && GlobalData::staticShape[2] != 1 && TileData::Loc == TileType::Mat) {
+            // The row-merged fallback does not describe a DN source loaded into a ZN tile.
+            assert(partialMultiNd);
+            return;
         }
         assert(
             (rowsMerged && TileData::isRowMajor) || (colsMerged && !TileData::isRowMajor) || ndIntoNzTile ||

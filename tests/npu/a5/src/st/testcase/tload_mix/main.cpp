@@ -35,7 +35,7 @@ constexpr int NCDHW2FZ3D = 13;
 
 template <
     typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-    int BASEM, int BASEK, int ValidRows = N3 * N4, bool DynamicShape = false>
+    int BASEM, int BASEK, int ValidExtent = (format == 5 ? N3 * N5 : N3 * N4), bool DynamicShape = false>
 void launchTLOADMIX(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TLOADMIXTest : public testing::Test {
@@ -55,7 +55,7 @@ std::string GetGoldenDir()
 
 template <
     typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-    int BASEM, int BASEK, int ValidRows = N3 * N4, bool DynamicShape = false>
+    int BASEM, int BASEK, int ValidExtent = (format == 5 ? N3 * N5 : N3 * N4), bool DynamicShape = false>
 void TLOADMIXFUNC()
 {
     constexpr uint32_t c0SizeByte = 32;
@@ -101,7 +101,7 @@ void TLOADMIXFUNC()
 
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK, ValidRows, DynamicShape>(
+    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK, ValidExtent, DynamicShape>(
         dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
@@ -128,6 +128,10 @@ void TLOADMIXFUNC()
     bool ret = ResultCmp(golden, devFinal, 0.001f);
 
     EXPECT_TRUE(ret);
+    if constexpr (format == TloadMixTestFormat::DN2ZN && (N3 != 1 || DynamicShape)) {
+        // Copies must preserve every value, including small float sentinels in untouched regions.
+        EXPECT_EQ(golden, devFinal);
+    }
 }
 
 // format 0:ND2NZ 1:DN2NZ 2:ND2ND 3:DN2DN 4 NZ2NZ 5 DN2ZN
@@ -599,4 +603,41 @@ TEST_F(TLOADMIXTest, 1_1_1_59_119_1_1_1_64_128_64_128_fp4x2_e1m2_t_DN2ZN)
 {
     // T固定uint8，dtype=0 表示e1m2 dtype=1 表示e2m1 内部处理的时候最内轴按cols * 2处理
     TLOADMIXFUNCB4<uint8_t, 5, 0, 1, 1, 1, 59, 119, 1, 1, 1, 64, 128, 64, 128>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdZnFull_half) { TLOADMIXFUNC<uint16_t, 5, 1, 1, 16, 35, 3, 1, 1, 16, 64, 9, 64, 64>(); }
+
+TEST_F(TLOADMIXTest, MultiNdZnPartial_half)
+{
+    TLOADMIXFUNC<uint16_t, 5, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32, 16, true>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdZnPartial_int8)
+{
+    TLOADMIXFUNC<int8_t, 5, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 96, 32, 17, false>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdZnPartial_float)
+{
+    TLOADMIXFUNC<float, 5, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32, 17, false>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdZnTailOnly_half)
+{
+    TLOADMIXFUNC<uint16_t, 5, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32, 2, true>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdZnWholePrefix_half)
+{
+    TLOADMIXFUNC<uint16_t, 5, 1, 1, 8, 35, 3, 1, 1, 8, 64, 9, 64, 32, 6, false>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdZnDynamicSingle_half)
+{
+    TLOADMIXFUNC<uint16_t, 5, 1, 1, 1, 35, 3, 1, 1, 1, 64, 9, 64, 32, 2, true>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdZnSourceLargerThanTile_half)
+{
+    TLOADMIXFUNC<uint16_t, 5, 1, 1, 16, 35, 3, 1, 1, 16, 64, 9, 64, 32, 31, true>();
 }
