@@ -295,6 +295,8 @@ The 3-argument `tmp` overloads exclude `TileType::Scaling`; a `Scaling` third op
 
 ### A5 implementation checks
 
+A5 Vec-to-Vec moves currently do not support `int64_t` / `uint64_t`; 64-bit Scaling data support on other transfer paths does not imply support for this combination. [TSCATTER](TSCATTER.md) with `P1111` delegates to this path and has the same limitation.
+
 - `CommonCheck()` requires:
     - destination/source dtype must be identical
     - supported element types are `int8_t`, `hifloat8_t`, `float8_e5m2_t`, `float8_e4m3_t`, `half`, `bfloat16_t`, `float`, `float4_e2m1x2_t`, `float4_e1m2x2_t`

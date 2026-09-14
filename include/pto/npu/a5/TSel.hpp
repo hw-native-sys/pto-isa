@@ -27,7 +27,7 @@ PTO_INTERNAL constexpr Dist Int64SelectPldsMode()
 }
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
-template <typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
+template <typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols, bool FullLoad>
 PTO_INTERNAL void Int64SelectStore(
     __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint16_t row, uint32_t colOffset, MaskReg& selectMask,
     MaskReg& validMask, vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High,
@@ -36,8 +36,8 @@ PTO_INTERNAL void Int64SelectStore(
     uint32_t src0Offset = (row * Src0Cols + colOffset) * 2;
     uint32_t src1Offset = (row * Src1Cols + colOffset) * 2;
     uint32_t dstOffset = (row * DstCols + colOffset) * 2;
-    vlds(src0Low, src0High, (__ubuf__ int32_t*)src0, src0Offset, DINTLV_B32);
-    vlds(src1Low, src1High, (__ubuf__ int32_t*)src1, src1Offset, DINTLV_B32);
+    Int64LoadBounded<Src0Cols, FullLoad>(src0Low, src0High, (__ubuf__ int32_t*)src0 + src0Offset, colOffset);
+    Int64LoadBounded<Src1Cols, FullLoad>(src1Low, src1High, (__ubuf__ int32_t*)src1 + src1Offset, colOffset);
     vsel(dstLow, src0Low, src1Low, selectMask);
     vsel(dstHigh, src0High, src1High, selectMask);
     MaskReg lowMask, highMask;
@@ -48,7 +48,7 @@ PTO_INTERNAL void Int64SelectStore(
     vsts(half1, (__ubuf__ int32_t*)dst, dstOffset + CCE_VL / sizeof(int32_t), NORM_B32, highMask);
 }
 
-template <typename T, unsigned DstCols, unsigned SrcCols>
+template <typename T, unsigned DstCols, unsigned SrcCols, bool FullLoad>
 PTO_INTERNAL void Int64SelectScalarStore(
     __ubuf__ T* dst, __ubuf__ T* src, uint16_t row, uint32_t colOffset, MaskReg& selectMask, MaskReg& validMask,
     vector_s32& dstLow, vector_s32& dstHigh, vector_s32& srcLow, vector_s32& srcHigh, vector_s32& scalarLow,
@@ -56,7 +56,7 @@ PTO_INTERNAL void Int64SelectScalarStore(
 {
     uint32_t srcOffset = (row * SrcCols + colOffset) * 2;
     uint32_t dstOffset = (row * DstCols + colOffset) * 2;
-    vlds(srcLow, srcHigh, (__ubuf__ int32_t*)src, srcOffset, DINTLV_B32);
+    Int64LoadBounded<SrcCols, FullLoad>(srcLow, srcHigh, (__ubuf__ int32_t*)src + srcOffset, colOffset);
     vsel(dstLow, srcLow, scalarLow, selectMask);
     vsel(dstHigh, srcHigh, scalarHigh, selectMask);
     MaskReg lowMask, highMask;
@@ -91,17 +91,17 @@ PTO_INTERNAL void Int64SelectRepeatMask(
     vcmp_ne(selectMask, selectedBit, zero, validMask);
 }
 
-template <bool Scalar, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
+template <bool Scalar, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols, bool FullLoad>
 PTO_INTERNAL void Int64SelectStoreByMode(
     __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint16_t row, uint32_t colOffset, MaskReg& selectMask,
     MaskReg& validMask, vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High,
     vector_s32& src1Low, vector_s32& src1High)
 {
     if constexpr (Scalar)
-        Int64SelectScalarStore<T, DstCols, Src0Cols>(
+        Int64SelectScalarStore<T, DstCols, Src0Cols, FullLoad>(
             dst, src0, row, colOffset, selectMask, validMask, dstLow, dstHigh, src0Low, src0High, src1Low, src1High);
     else
-        Int64SelectStore<T, DstCols, Src0Cols, Src1Cols>(
+        Int64SelectStore<T, DstCols, Src0Cols, Src1Cols, FullLoad>(
             dst, src0, src1, row, colOffset, selectMask, validMask, dstLow, dstHigh, src0Low, src0High, src1Low,
             src1High);
 }
@@ -112,6 +112,9 @@ PTO_INTERNAL void Int64SelectImpl(
     unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    constexpr unsigned loadCols = Scalar ? Src0Cols : Int64MinCols<Src0Cols, Src1Cols>;
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<loadCols, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         vector_s32 dstLow, dstHigh, src0Low, src0High, src1Low, src1High;
@@ -120,15 +123,25 @@ PTO_INTERNAL void Int64SelectImpl(
             vbr(src1Low, static_cast<int32_t>(scalarBits));
             vbr(src1High, static_cast<int32_t>(scalarBits >> 32));
         }
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 uint32_t colOffset;
                 MaskReg selectMask, validMask;
                 uint32_t remainingCols = validCols - colRepeat * elementsPerRepeat;
                 Int64SelectRepeatMask<elementsPerRepeat, MaskRowBytes>(
                     packedMask, row, colRepeat, remainingCols, colOffset, selectMask, validMask);
-                Int64SelectStoreByMode<Scalar, T, DstCols, Src0Cols, Src1Cols>(
+                Int64SelectStoreByMode<Scalar, T, DstCols, Src0Cols, Src1Cols, true>(
+                    dst, src0, src1, row, colOffset, selectMask, validMask, dstLow, dstHigh, src0Low, src0High, src1Low,
+                    src1High);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset;
+                MaskReg selectMask, validMask;
+                uint32_t remainingCols = validCols - colRepeat * elementsPerRepeat;
+                Int64SelectRepeatMask<elementsPerRepeat, MaskRowBytes>(
+                    packedMask, row, colRepeat, remainingCols, colOffset, selectMask, validMask);
+                Int64SelectStoreByMode<Scalar, T, DstCols, Src0Cols, Src1Cols, false>(
                     dst, src0, src1, row, colOffset, selectMask, validMask, dstLow, dstHigh, src0Low, src0High, src1Low,
                     src1High);
             }

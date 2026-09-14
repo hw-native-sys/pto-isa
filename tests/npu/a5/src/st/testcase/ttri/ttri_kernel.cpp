@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/pto-inst.hpp>
 #include <pto/common/constants.hpp>
+#include <climits>
 #include "acl/acl.h"
 
 using namespace pto;
@@ -106,3 +107,47 @@ template void LaunchTTriDyn<int8_t, 32, 128, 32, 128, 0>(int8_t* out, int diagon
 template void LaunchTTriDyn<int8_t, 32, 128, 24, 112, 0>(int8_t* out, int diagonal, void* stream);
 template void LaunchTTriDyn<aclFloat16, 293, 16, 1, 16, 0>(aclFloat16* out, int diagonal, void* stream);
 template void LaunchTTriDyn<aclFloat16, 293, 16, 2, 16, 0>(aclFloat16* out, int diagonal, void* stream);
+
+template <typename T, int rows, int cols, int validRows, int validCols, int upperOrLower>
+__global__ AICORE void runTTriGuard(__gm__ T* out, int diagonal)
+{
+    constexpr int guardRows = PTO_DIV_ROUNDUP(512, cols * sizeof(T));
+    constexpr int totalRows = rows + guardRows;
+    using GlobalData = GlobalTensor<T, Shape<1, 1, 1, totalRows, cols>, pto::Stride<1, 1, 1, cols, 1>>;
+    using TileData = Tile<TileType::Vec, T, totalRows, cols, BLayout::RowMajor, -1, -1>;
+    GlobalData output(out);
+    TileData dst(totalRows, cols);
+    TASSIGN(dst, 0);
+    TLOAD(dst, output);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    dst.SetValidShape(validRows, validCols);
+    TTRI<TileData, upperOrLower>(dst, diagonal);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    dst.SetValidShape(totalRows, cols);
+    TSTORE(output, dst);
+}
+
+template <typename T, int kind, int rows, int cols, int validRows, int validCols, int upperOrLower, int diagonal>
+void LaunchTTriGuard(T* out, void* stream)
+{
+    if constexpr (kind == 1) {
+        runTTriGuard<half, rows, cols, validRows, validCols, upperOrLower>
+            <<<1, nullptr, stream>>>(reinterpret_cast<half*>(out), diagonal);
+    } else if constexpr (kind == 2) {
+        runTTriGuard<bfloat16_t, rows, cols, validRows, validCols, upperOrLower>
+            <<<1, nullptr, stream>>>(reinterpret_cast<bfloat16_t*>(out), diagonal);
+    } else {
+        runTTriGuard<T, rows, cols, validRows, validCols, upperOrLower><<<1, nullptr, stream>>>(out, diagonal);
+    }
+}
+
+#define PTO_TTRI_GUARD_CASE(name, type, kind, rows, cols, validRows, validCols, upper, diagonal) \
+    template void LaunchTTriGuard<type, kind, rows, cols, validRows, validCols, upper, diagonal>(type*, void*);
+#include "ttri_guard_cases.inc"
+#undef PTO_TTRI_GUARD_CASE

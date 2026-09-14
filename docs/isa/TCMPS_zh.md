@@ -94,6 +94,10 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0,
     - CPU_SIM 不断言有效shape相同。它在 `src0` 的有效区域上计算，按 `dst` 的有效shape限制位压缩结果写入，并要求 Tile 形式的 `src1` 提供对应位置的可读元素。
 - **有效区域**:
     - 该操作使用 `src0.GetValidRow()` / `src0.GetValidCol()` 作为迭代域。
+- **掩码编码**:
+    - 64 位输入（Ascend 950PR/Ascend 950DT）：列 `j` 的比较结果存于该行第 `j / 8` 字节的第 `j % 8` 位，低位在前。
+    - 对 `uint8_t` 掩码，有效形状可设为 `[R, ceil(C / 8)]`，物理 `Cols` 按 32 字节对齐，其中 `[R,C]` 为源有效形状。行地址按目标物理步长计算；最后一个有效位之后的填充值未指定。
+
 - **比较模式**:
     - 支持 `CmpMode::EQ`、`CmpMode::NE`、`CmpMode::LT`、`CmpMode::GT`、`CmpMode::LE`、`CmpMode::GE`（注：Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上当输入类型为 `int32_t` 时，仅支持 `CmpMode::EQ`，其他模式会回退至 `EQ`；Ascend 950PR/Ascend 950DT支持全部模式）。
 

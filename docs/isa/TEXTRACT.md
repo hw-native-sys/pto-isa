@@ -163,11 +163,14 @@ canonical overload.
 
 ### Vec → Vec extraction path
 
-In addition to the `Mat/Acc -> ...` paths above, `TEXTRACT` supports a `TileType::Vec -> TileType::Vec` extraction path (ND and NZ layouts), enforced via `CheckTExtractVecToVecCommon`:
+In addition to the `Mat/Acc -> ...` paths above, `TEXTRACT` supports a `TileType::Vec -> TileType::Vec` extraction path (ND and NZ layouts). A2A3 uses `CheckTExtractVecToVecCommon`; A5 checks this separately in `TEXTRACT_IMPL`:
 
 - `DstTileData::DType` must equal `SrcTileData::DType`.
-- Supported element types (both A2A3 and A5): `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `bfloat16_t`, `float` (any 1-/2-/4-byte standard type). This set differs from the primary tile path: it adds `uint8_t`/`int16_t`/`uint16_t`/`int32_t`/`uint32_t`, and on A5 it does **not** include the fp8/fp4 types.
+- A2A3 element types: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `bfloat16_t`, `float`.
+- A5 element types: `int8_t`, `int32_t`, `half`, `bfloat16_t`, `float`, `hifloat8_t`, `float8_e4m3_t`, `float8_e5m2_t`, `float8_e8m0_t`, `float4_e2m1x2_t`, `float4_e1m2x2_t`. A5 does not support `uint8_t`, `int16_t`, `uint16_t`, `uint32_t` or 64-bit integers on this path.
+- A5 ND fp4 counts packed elements (one byte contains two fp4 values); row strides, static valid-column bytes and column-offset bytes must be 32-byte aligned.
 - ND path: source/destination row strides must be 32-byte aligned; `Dst` rows/cols must not exceed `Src`.
+- A5 ND Vec-to-Vec checks `indexRow + dst.GetValidRow() <= SrcTileData::Rows` and `indexCol + dst.GetValidCol() <= SrcTileData::Cols` first. After those checks, a zero destination valid row or column count returns without reading the source or writing the destination. This applies to aligned and unaligned column offsets; it does not extend dtype support to int64.
 
 ### ND → 2×NZ extraction path
 

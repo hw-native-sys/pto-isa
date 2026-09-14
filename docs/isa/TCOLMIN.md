@@ -62,6 +62,8 @@ PTO_INST RecordEvent TCOLMIN(TileDataOut &dst, TileDataIn &src, WaitEvents &... 
 
 - Supported element types: `half`, `float`, `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `bfloat16_t`.
 
+- For `int64_t` / `uint64_t`: use output valid shape `[1, src.GetValidCol()]`. Physical `Cols` is a multiple of 4; valid columns need not be aligned. Only valid results in row 0 are written; other physical padding is preserved.
+
 ## Examples
 
 ### Auto

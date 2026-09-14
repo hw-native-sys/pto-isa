@@ -24,6 +24,8 @@ The instruction supports two modes determined by the layout of the expanded oper
 
 Let `R = dst.GetValidRow()` and `C = dst.GetValidCol()`.
 
+The formulas below use `src1` as the expanded operand. If `src0` is expanded, exchange the input roles in the formulas.
+
 ### Mode 1
 
 Let `s_i` be the per-row scalar taken from the expanded operand (one value per row, ColMajor layout).
@@ -36,7 +38,7 @@ $$
 
 ### Mode 2
 
-Let `b_i` be the 32-byte block for row `i` taken from the expanded operand (RowMajor, `32 / sizeof(T)` values per row). The block naturally repeats every `elementsPerRepeat` elements within a row.
+Let `b_i` be the 32-byte block for row `i` taken from the expanded operand (RowMajor, `32 / sizeof(T)` values per row). The block repeats every `32 / sizeof(T)` elements within a row.
 
 For `0 <= i < R` and `0 <= j < C`:
 
@@ -81,7 +83,9 @@ PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
 - `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3 and A5, `uint16`, `uint32`, `bfloat16_t`, `int8`, `uint8`, `int64`, `uint64` for A5.
 - `TileDataDst` must be **RowMajor** (`TileDataDst::isRowMajor == true`).
-- Exactly one of `src0` or `src1` must have the same valid shape as `dst` (i.e., `validRow == dst.validRow` and `validCol == dst.validCol`). That operand is the full-sized operand. The other operand is the **expanded operand** (row-broadcast source).
+- At least one of `src0` or `src1` must have the same valid shape as `dst` (i.e., `validRow == dst.validRow` and `validCol == dst.validCol`). That operand is the full-sized operand. The other operand is the **expanded operand** (row-broadcast source).
+- In automatic mode (`__PTO_AUTO__`), the full-sized operand must have the same Tile type as `dst`.
+- If both inputs qualify as the full-sized operand, `src0` is selected; the other input must still satisfy the broadcast-mode constraints.
 - The full-sized operand must be **RowMajor** (`isRowMajor == true`).
 
 ### Mode 1 — Expanded operand is ColMajor (scalar per row)
@@ -103,12 +107,9 @@ When the expanded operand is **RowMajor** (`isRowMajor == true`):
 
 ### 64-bit element types (A5)
 
-`int64` / `uint64` are supported on A5 only. A5 has no native 64-bit vector ALU, so the instruction is emulated on pairs of 32-bit registers that hold the low and the high word of every element. Both broadcast modes remain available:
-
-- Mode 1: the low and the high word of the per-row scalar are broadcast separately.
-- Mode 2: a 32-byte block holds `32 / sizeof(T) == 4` values, so the block repeats every 4 elements along the row.
-
-Results are exact 64-bit two's-complement values. Tile alignment follows the usual rule for 64-bit elements: a RowMajor tile needs `Cols % 4 == 0`, and a ColMajor expanded operand needs `Rows % 4 == 0`.
+- `int64_t` / `uint64_t` support both broadcast modes; Mode 2 repeats 4 elements per row.
+- Physical alignment requires `Cols % 4 == 0` for RowMajor and `Rows % 4 == 0` for a ColMajor expanded operand.
+- Results are exact 64-bit integer values.
 
 ### Additional target-specific constraints
 
@@ -116,7 +117,7 @@ Exact layout, fractal, and alignment constraints may vary by backend target. See
 
 ### Temporary tile
 
-The C++ API provides an overload with an explicit `TileDataTmp &tmp`. This overload only supports **Mode 1** (ColMajor expanded operand, scalar per row).
+The C++ API provides an overload with an explicit `TileDataTmp &tmp`. A2A3 supports only Mode 1; A5 supports both modes and ignores `tmp`.
 
 - **A2A3**: The tmp tile is used as a broadcast buffer. The per-row scalar values from the ColMajor expanded operand are broadcast via the `vbrcb` instruction into the tmp buffer, creating a 32-byte block per row, which is then used as the expanded operand in the binary operation. The `vbrcb` instruction uses a repeat stride of 8 blocks (256 bytes) between repeat groups, processing 8 rows per repeat. Minimum tmp size calculation:
     - **Common parameters**:

@@ -33,11 +33,11 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="0" y="0" width="1200" height="720" class="frame" />
 <rect x="24" y="24" width="1152" height="672" class="panel"/>
 <text x="40" y="46" class="title">TSCATTER</text>
-<text x="40" y="72" class="subtitle">Scatter rows of a source tile into a destination tile using per-element row indices.</text>
+<text x="40" y="72" class="subtitle">Scatter source elements using flat destination element offsets.</text>
 <text x="40" y="92" class="meta">Template: complex</text>
 <text x="1160" y="92" class="meta" text-anchor="end">Legend: outline=example; dashed=valid rows/cols (Rv,Cv); shaded=masked; r down / c right; ortho arrows=dataflow</text>
 <line x1="36" y1="104" x2="1164" y2="104" stroke="#e2e8f0" stroke-width="1.5" />
-<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#C53A79">dst[ idx[r,c], c ] = src[r,c]</text>
+<text x="600" y="140" class="subtitle" text-anchor="middle" fill="#C53A79">dst.data()[ idx[r,c] ] = src[r,c]</text>
 <text x="485" y="168" class="tileLabel" text-anchor="middle">src</text>
 <rect x="430" y="178" width="110" height="110" class="tileBorder" />
 <rect x="430" y="178" width="22" height="22" class="cell" />
@@ -151,9 +151,9 @@ svg { font-family: Arial, Helvetica, sans-serif; }
 <rect x="40" y="502" width="1120" height="194" class="procBox" />
 <text x="56" y="528" class="procTitle">Procedure (conceptual)</text>
 <text x="56" y="554" class="procText" xml:space="preserve">
-  <tspan x="56" dy="0">for r,c in valid(src):</tspan>
-  <tspan x="56" dy="16">  rr = idx[r,c]</tspan>
-  <tspan x="56" dy="16">  dst[rr, c] = src[r,c]</tspan>
+  <tspan x="56" dy="0">for r,c in valid(idx):</tspan>
+  <tspan x="56" dy="16">  k = idx[r,c]  // flat element offset</tspan>
+  <tspan x="56" dy="16">  dst.data()[k] = src[r,c]</tspan>
 </text>
 <text x="56" y="680" class="meta">Note: semantics apply to the valid region unless stated otherwise.</text>
 </svg>

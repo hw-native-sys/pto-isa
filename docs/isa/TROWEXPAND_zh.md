@@ -49,12 +49,16 @@ PTO_INST RecordEvent TROWEXPAND(TileDataDst &dst, TileDataSrc &src, WaitEvents &
 实现检查 (NPU):
 
 - Tile类型：`dst` 和 `src` 必须是 `TileType::Vec`。
-- Tile布局：`src` 和 `dst` 均为ND分形（`isRowMajor` 且 `SLayout::NoneBox`）。
+- Tile布局：`dst` 为非分形 RowMajor；`src` 可为非分形 RowMajor 或 ColMajor（`SLayout::NoneBox`）。输入输出元素类型必须相同。
+- A5 的源静态 `ValidCol` 必须为 1 或动态值 -1；单标量行广播应使用有效列数 1。
 - 数据类型（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）：元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
 - 数据类型（Ascend 950PR/Ascend 950DT）：元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`。
 - 运行期有效区域检查：
     - Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品：若 `dstValidRow`、`dstValidCol`、`srcValidRow`、`srcValidCol` 中任意一个为零则提前返回。
     - Ascend 950PR/Ascend 950DT：断言 `srcValidRow == dstValidRow`，且断言 `srcValidRow != 0 && srcValidCol != 0`。
+
+- 64 位输入（Ascend 950PR/Ascend 950DT）：ND 源可使用物理 `[64,4]`、有效 `[64,1]`，DN 源可使用紧凑 `[64,1]`。每行广播 `src[i,0]`，地址使用物理 `RowStride`。
+- 与 [TROWEXPANDADD](TROWEXPANDADD_zh.md) 等二元行广播不同，本指令的 ND 源仍提供每行单标量，不重复广播 32 字节块。
 
 ## 示例
 
@@ -66,7 +70,7 @@ PTO_INST RecordEvent TROWEXPAND(TileDataDst &dst, TileDataSrc &src, WaitEvents &
 using namespace pto;
 
 void example_auto() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using SrcT = Tile<TileType::Vec, float, 16, 8, BLayout::RowMajor, 16, 1>;
   using DstT = Tile<TileType::Vec, float, 16, 16>;
   SrcT src;
   DstT dst;
@@ -82,7 +86,7 @@ void example_auto() {
 using namespace pto;
 
 void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using SrcT = Tile<TileType::Vec, float, 16, 8, BLayout::RowMajor, 16, 1>;
   using DstT = Tile<TileType::Vec, float, 16, 16>;
   SrcT src;
   DstT dst;

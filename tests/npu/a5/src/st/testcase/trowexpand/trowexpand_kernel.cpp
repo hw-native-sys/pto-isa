@@ -79,4 +79,51 @@ template void launchTROWEXPAND<int64_t, 4, 16, 64, 64>(int64_t* out, int64_t* sr
 template void launchTROWEXPAND<uint64_t, 4, 16, 64, 64>(uint64_t* out, uint64_t* src, void* stream);
 template void launchTROWEXPAND<int64_t, 1, 1, 16368, 16368>(int64_t* out, int64_t* src, void* stream);
 template void launchTROWEXPAND<uint64_t, 1, 1, 16368, 16368>(uint64_t* out, uint64_t* src, void* stream);
+
+template <typename T, bool compact>
+__global__ AICORE void runTROWEXPANDGuard(__gm__ T* out, __gm__ T* src)
+{
+    constexpr int srcCols = compact ? 1 : 4;
+    constexpr BLayout srcLayout = compact ? BLayout::ColMajor : BLayout::RowMajor;
+    constexpr Layout globalLayout = compact ? Layout::DN : Layout::ND;
+    using SrcView = Tile<TileType::Vec, T, 8, srcCols, srcLayout, 8, srcCols>;
+    using SrcTile = Tile<TileType::Vec, T, 8, srcCols, srcLayout, 5, 1>;
+    using DstTile = Tile<TileType::Vec, T, 8, 4, BLayout::RowMajor, 5, 3>;
+    using OutputView = Tile<TileType::Vec, T, 1, 96, BLayout::RowMajor, 1, 96>;
+    using SrcGlobal = GlobalTensor<T, Shape<1, 1, 1, 8, srcCols>, pto::Stride<1, 1, 1, srcCols, 1>, globalLayout>;
+    using OutputGlobal = GlobalTensor<T, Shape<1, 1, 1, 1, 96>, pto::Stride<1, 1, 1, 96, 1>>;
+    SrcView srcView;
+    SrcTile srcTile;
+    DstTile dst;
+    OutputView outputView;
+    TASSIGN(srcView, 0);
+    TASSIGN(srcTile, 0);
+    TASSIGN(dst, 32768);
+    TASSIGN(outputView, 32768);
+    SrcGlobal input(src);
+    OutputGlobal output(out);
+    TLOAD(srcView, input);
+    TLOAD(outputView, output);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    TROWEXPAND(dst, srcTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(output, outputView);
+}
+
+template <typename T, bool compact>
+void launchTROWEXPANDGuard(T* out, T* src, void* stream)
+{
+    runTROWEXPANDGuard<T, compact><<<1, nullptr, stream>>>(out, src);
+}
+
+template void launchTROWEXPANDGuard<int64_t, true>(int64_t*, int64_t*, void*);
+template void launchTROWEXPANDGuard<int64_t, false>(int64_t*, int64_t*, void*);
+template void launchTROWEXPANDGuard<uint64_t, true>(uint64_t*, uint64_t*, void*);
+template void launchTROWEXPANDGuard<uint64_t, false>(uint64_t*, uint64_t*, void*);
 } // namespace TRowExpandTest

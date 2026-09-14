@@ -230,17 +230,40 @@ template <typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
 PTO_INTERNAL void Int64Div(__ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<Int64MinCols<Src0Cols, Src1Cols>, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         vector_s32 dstLow, dstHigh, lhsLow, lhsHigh, rhsLow, rhsHigh, half0, half1;
         MaskReg lowMask, highMask;
         uint16_t rows = validRows;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rows; ++row) {
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
-                vlds(lhsLow, lhsHigh, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset) * 2, 0, DINTLV_B32);
-                vlds(rhsLow, rhsHigh, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset) * 2, 0, DINTLV_B32);
+                Int64LoadBounded<Src0Cols, true>(
+                    lhsLow, lhsHigh, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset) * 2, colOffset);
+                Int64LoadBounded<Src1Cols, true>(
+                    rhsLow, rhsHigh, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset) * 2, colOffset);
+                uint32_t sreg = validCols - colOffset;
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                if constexpr (std::is_same_v<T, int64_t>)
+                    Int64DivSignedRegs(dstLow, dstHigh, lhsLow, lhsHigh, rhsLow, rhsHigh, preg);
+                else
+                    Int64DivUnsignedRegs(dstLow, dstHigh, lhsLow, lhsHigh, rhsLow, rhsHigh, preg);
+                pintlv_b32(lowMask, highMask, preg, preg);
+                vintlv(half0, half1, dstLow, dstHigh);
+                vsts(half0, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, lowMask);
+                vsts(
+                    half1, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2 + CCE_VL / sizeof(int32_t), 0,
+                    NORM_B32, highMask);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                Int64LoadBounded<Src0Cols, false>(
+                    lhsLow, lhsHigh, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset) * 2, colOffset);
+                Int64LoadBounded<Src1Cols, false>(
+                    rhsLow, rhsHigh, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset) * 2, colOffset);
                 uint32_t sreg = validCols - colOffset;
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
                 if constexpr (std::is_same_v<T, int64_t>)
@@ -281,10 +304,10 @@ PTO_INTERNAL void Int64DivScalarRegs(
     }
 }
 
-template <typename T, unsigned SrcCols>
+template <typename T, unsigned SrcCols, bool FullLoad>
 PTO_INTERNAL void Int64LoadRegs(vector_s32& low, vector_s32& high, __ubuf__ T* src, unsigned row, unsigned colOffset)
 {
-    vlds(low, high, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, 0, DINTLV_B32);
+    Int64LoadBounded<SrcCols, FullLoad>(low, high, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, colOffset);
 }
 
 template <typename T, unsigned DstCols>
@@ -305,6 +328,8 @@ template <bool ScalarFirst, typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void Int64DivScalar(__ubuf__ T* dst, __ubuf__ T* src, T scalar, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<SrcCols, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         vector_s32 dstLow, dstHigh, srcLow, srcHigh, scalarLow, scalarHigh;
@@ -312,11 +337,19 @@ PTO_INTERNAL void Int64DivScalar(__ubuf__ T* dst, __ubuf__ T* src, T scalar, uns
         Int64DuplicateRegs(
             scalarLow, scalarHigh, static_cast<uint32_t>(scalarBits), static_cast<uint32_t>(scalarBits >> 32));
         uint16_t rows = validRows;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rows; ++row) {
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
-                Int64LoadRegs<T, SrcCols>(srcLow, srcHigh, src, row, colOffset);
+                Int64LoadRegs<T, SrcCols, true>(srcLow, srcHigh, src, row, colOffset);
+                uint32_t sreg = validCols - colOffset;
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                Int64DivScalarRegs<ScalarFirst, T>(dstLow, dstHigh, srcLow, srcHigh, scalarLow, scalarHigh, preg);
+                Int64StoreRegs<T, DstCols>(dstLow, dstHigh, dst, row, colOffset, preg);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                Int64LoadRegs<T, SrcCols, false>(srcLow, srcHigh, src, row, colOffset);
                 uint32_t sreg = validCols - colOffset;
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
                 Int64DivScalarRegs<ScalarFirst, T>(dstLow, dstHigh, srcLow, srcHigh, scalarLow, scalarHigh, preg);

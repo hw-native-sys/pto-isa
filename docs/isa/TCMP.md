@@ -41,8 +41,8 @@ pto.tcmp ins(%src0, %src1{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, !pto.tile
 Declared in `include/pto/common/pto_instr.hpp` and `include/pto/common/type.hpp`:
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1, CmpMode cmpMode, WaitEvents &... events);
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, CmpMode cmpMode, WaitEvents &... events);
 ```
 
 ## Constraints
@@ -52,15 +52,17 @@ PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1
     - Output type must be `uint8_t`.
     - `src0/src1/dst` tile location must be `TileType::Vec`.
     - Static valid bounds: `TileDataSrc::ValidRow <= TileDataSrc::Rows` and `TileDataSrc::ValidCol <= TileDataSrc::Cols`.
-    - Runtime: `src0.GetValidRow() == dst.GetValidRow()` and `src0.GetValidCol() == dst.GetValidCol()`.
-    - Note: `src1` shape/valid is not validated by explicit runtime assertions in this implementation.
-    - For `TileDataSrc::DType == int32_t`, the implementation uses the `EQ` compare path regardless of `cmpMode`.
+    - Runtime: `src0` and `src1` must have equal valid row and column counts, and `src0.GetValidRow() == dst.GetValidRow()`.
+    - Destination valid columns describe packed capacity and need not equal source valid columns.
+    - For `int32_t` input, `EQ` and `NE` are supported. `NE` inverts the equality result; other modes use the `EQ` path.
 - **Implementation checks (A5)**:
     - Input type must be one of: `uint32_t`, `int32_t`, `int64_t`, `uint64_t`, `uint16_t`, `int16_t`, `uint8_t`, `int8_t`, `float`, `half`, `bfloat16_t`.
-    - Output type must be `uint32_t`.
+    - Output is packed predicate bytes; a RowMajor `uint8_t` mask tile may be used.
     - Implemented (see `include/pto/npu/a5/TCmp.hpp`).
-    - The A5 implementation uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain and writes a packed predicate mask into `dst` (target-defined packing).
+    - The iteration domain is `src0.GetValidRow()` / `src0.GetValidCol()`; `src1` must provide the corresponding valid elements. Destination valid columns describe packed capacity, not the comparison count.
 - **Mask encoding**:
+    - For 64-bit input (A5), the predicate for column `j` occupies bit `j % 8` of byte `j / 8` in that row, least significant bit first.
+    - A `uint8_t` mask may use valid shape `[R, ceil(C / 8)]` with physical `Cols` aligned to 32 bytes, where `[R,C]` is the source valid shape. Rows use the physical destination stride; padding after the last valid bit is unspecified.
     - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
 ## Examples

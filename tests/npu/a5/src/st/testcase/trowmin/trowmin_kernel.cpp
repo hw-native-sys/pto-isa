@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace pto;
 
-template <typename T, int row, int validRow, int srcCol, int srcValidCol, int dstCol>
+template <typename T, int row, int validRow, int srcCol, int srcValidCol, int dstCol, int dstTileCol = 16>
 PTO_INTERNAL void runTRowMin(__gm__ T* out, __gm__ T* src)
 {
     using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
@@ -27,7 +27,7 @@ PTO_INTERNAL void runTRowMin(__gm__ T* out, __gm__ T* src)
     GlobalDataSrc srcGlobal(src, DynDim2Shape(validRow, srcValidCol), DynDim2StrideSrc(row, srcCol));
     GlobalDataDst dstGlobal(out, DynDim2Shape(validRow, dstCol), DynDim2StrideDst(dstCol, row));
     using srcTileData = Tile<TileType::Vec, T, row, srcCol, BLayout::RowMajor, -1, -1>;
-    using dstTileData = Tile<TileType::Vec, T, row, 16, BLayout::RowMajor, -1, -1>;
+    using dstTileData = Tile<TileType::Vec, T, row, dstTileCol, BLayout::RowMajor, -1, -1>;
     srcTileData srcTile(validRow, srcValidCol);
     srcTileData tmpTile(validRow, srcValidCol);
     dstTileData dstTile(validRow, dstCol);
@@ -246,6 +246,112 @@ extern "C" __global__ AICORE void launchTROWMINCase38(__gm__ uint64_t* out, __gm
     runTRowMinDNDst<uint64_t, 32, 32, 148, 145, 1, 145>(out, src);
 }
 
+extern "C" __global__ AICORE void launchTROWMINCase39(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMin<int64_t, 64, 64, 16, 16, 1, 4>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMINCase40(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMinDNDst<int64_t, 64, 64, 16, 16, 1>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMINCase41(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMin<int64_t, 64, 64, 16, 16, 1, 4>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMINCase42(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMinDNDst<int64_t, 64, 64, 16, 16, 1>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMINCase43(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    using SrcTile = Tile<TileType::Vec, int64_t, 64, 16, BLayout::RowMajor, -1, -1>;
+    using DstTile = Tile<TileType::Vec, int64_t, 64, 4, BLayout::RowMajor, -1, -1>;
+    using GuardTile = Tile<TileType::Vec, int64_t, 1, 64, BLayout::RowMajor, 1, 64>;
+    using SrcGlobal = GlobalTensor<int64_t, Shape<1, 1, 1, 64, 16>, pto::Stride<1024, 1024, 1024, 16, 1>>;
+    using DstGlobal = GlobalTensor<int64_t, Shape<1, 1, 1, 64, 1>, pto::Stride<64, 64, 64, 1, 1>>;
+    using GuardGlobal = GlobalTensor<int64_t, Shape<1, 1, 1, 1, 64>, pto::Stride<64, 64, 64, 64, 1>>;
+    SrcTile srcTile(64, 16);
+    SrcTile tmpTile(64, 16);
+    DstTile dstTile(64, 1);
+    GuardTile guardTile;
+    SrcGlobal srcGlobal(src);
+    DstGlobal dstGlobal(out);
+    GuardGlobal guardGlobal(out + 64);
+    TASSIGN<0>(srcTile);
+    TASSIGN<8192>(tmpTile);
+    TASSIGN<16384>(dstTile);
+    // Keep the sentinel immediately after the destination's physical 64 x 4 elements.
+    TASSIGN<16384 + 64 * 4 * sizeof(int64_t)>(guardTile);
+    TLOAD(srcTile, srcGlobal);
+    TLOAD(guardTile, guardGlobal);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    TROWMIN(dstTile, srcTile, tmpTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, dstTile);
+    TSTORE(guardGlobal, guardTile);
+}
+
+template <int validRows>
+PTO_INTERNAL void runTRowMinDNDstTail(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    constexpr int outputElements = 8 + 64;
+    using SrcTile = Tile<TileType::Vec, int64_t, 8, 16, BLayout::RowMajor, validRows, 16>;
+    using DstTile = Tile<TileType::Vec, int64_t, 8, 1, BLayout::ColMajor, validRows, 1>;
+    using OutputTile = Tile<TileType::Vec, int64_t, 1, outputElements, BLayout::RowMajor, 1, outputElements>;
+    using SrcGlobal = GlobalTensor<int64_t, Shape<1, 1, 1, validRows, 16>, pto::Stride<128, 128, 128, 16, 1>>;
+    using OutputGlobal = GlobalTensor<
+        int64_t, Shape<1, 1, 1, 1, outputElements>,
+        pto::Stride<outputElements, outputElements, outputElements, outputElements, 1>>;
+    SrcTile srcTile;
+    SrcTile tmpTile;
+    DstTile dstTile;
+    OutputTile outputTile;
+    SrcGlobal srcGlobal(src);
+    OutputGlobal outputGlobal(out);
+    TASSIGN<0>(srcTile);
+    TASSIGN<1024>(tmpTile);
+    TASSIGN<2048>(dstTile);
+    // This view includes inactive destination rows and the adjacent guard.
+    TASSIGN<2048>(outputTile);
+    TLOAD(srcTile, srcGlobal);
+    TLOAD(outputTile, outputGlobal);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    TROWMIN(dstTile, srcTile, tmpTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(outputGlobal, outputTile);
+}
+
+extern "C" __global__ AICORE void launchTROWMINCase44(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMinDNDstTail<5>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMINCase45(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMinDNDstTail<6>(out, src);
+}
+
+extern "C" __global__ AICORE void launchTROWMINCase46(__gm__ int64_t* out, __gm__ int64_t* src)
+{
+    runTRowMinDNDstTail<7>(out, src);
+}
+
 template <uint32_t caseId>
 void launchTROWMINTestCase(void* out, void* src, aclrtStream stream)
 {
@@ -402,6 +508,38 @@ void launchTROWMINTestCase(void* out, void* src, aclrtStream stream)
             launchTROWMINCase38<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
             break;
         }
+        case 39: {
+            launchTROWMINCase39<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 40: {
+            launchTROWMINCase40<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 41: {
+            launchTROWMINCase41<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 42: {
+            launchTROWMINCase42<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 43: {
+            launchTROWMINCase43<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 44: {
+            launchTROWMINCase44<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 45: {
+            launchTROWMINCase45<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 46: {
+            launchTROWMINCase46<<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
         default: {
         }
     }
@@ -445,3 +583,11 @@ template void launchTROWMINTestCase<35>(void* out, void* src, aclrtStream stream
 template void launchTROWMINTestCase<36>(void* out, void* src, aclrtStream stream);
 template void launchTROWMINTestCase<37>(void* out, void* src, aclrtStream stream);
 template void launchTROWMINTestCase<38>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<39>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<40>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<41>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<42>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<43>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<44>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<45>(void* out, void* src, aclrtStream stream);
+template void launchTROWMINTestCase<46>(void* out, void* src, aclrtStream stream);

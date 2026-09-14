@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -29,8 +30,7 @@ def gen_half_nonbinary_golden(input_arr, valid_row, valid_col):
             tmp_arr = (input_arr[i, :valid_col] + input_arr[i + 1, :valid_col]).astype(np.float16)
             output_arr[:valid_col] = (output_arr[:valid_col] + tmp_arr).astype(np.float16)
         if (valid_row - 1) % 2:
-            output_arr[:valid_col] = (output_arr[:valid_col] + input_arr[valid_row - 1, :valid_col]).astype(
-                np.float16)
+            output_arr[:valid_col] = (output_arr[:valid_col] + input_arr[valid_row - 1, :valid_col]).astype(np.float16)
     return output_arr
 
 
@@ -74,16 +74,75 @@ def gen_half_cancel_input(row, valid_row, col):
 
 
 def gen_sensitive_half_input(row, col):
-    pattern = np.array([
-        -0.9970703, 0.9355469, 0.9980469, 0.9814453, -0.9492188, 0.9697266, -0.9804688, -0.9316406,
-        0.9794922, -0.8994141, -0.8911133, 0.9960938, -0.9951172, -0.9169922, -0.9667969, 0.9785156,
-        0.9990234, -0.9902344, -0.9287109, 0.9951172, -0.9277344, 0.9252930, 0.9370117, -0.9047852,
-        0.9277344, -0.9936523, -0.9165039, -0.9243164, 0.9672852, 0.9287109, 0.9960938, 0.9790039,
-        0.9462891, 0.9052734, -0.9296875, 0.9873047, -0.9106445, 0.9072266, 0.9267578, -0.9174805,
-        0.9433594, 0.9350586, -0.9492188, -0.9965820, -0.9848633, 0.9897461, 0.9819336, 0.9335938,
-        0.9648438, 0.9667969, -0.9355469, 0.9785156, -0.9082031, -0.9912109, 0.9667969, 0.9560547,
-        0.9448242, -0.9326172, 0.9682617, -0.9130859, -0.9619141, -0.9360352, 0.9648438, -0.9785156,
-    ], dtype=np.float16)
+    pattern = np.array(
+        [
+            -0.9970703,
+            0.9355469,
+            0.9980469,
+            0.9814453,
+            -0.9492188,
+            0.9697266,
+            -0.9804688,
+            -0.9316406,
+            0.9794922,
+            -0.8994141,
+            -0.8911133,
+            0.9960938,
+            -0.9951172,
+            -0.9169922,
+            -0.9667969,
+            0.9785156,
+            0.9990234,
+            -0.9902344,
+            -0.9287109,
+            0.9951172,
+            -0.9277344,
+            0.9252930,
+            0.9370117,
+            -0.9047852,
+            0.9277344,
+            -0.9936523,
+            -0.9165039,
+            -0.9243164,
+            0.9672852,
+            0.9287109,
+            0.9960938,
+            0.9790039,
+            0.9462891,
+            0.9052734,
+            -0.9296875,
+            0.9873047,
+            -0.9106445,
+            0.9072266,
+            0.9267578,
+            -0.9174805,
+            0.9433594,
+            0.9350586,
+            -0.9492188,
+            -0.9965820,
+            -0.9848633,
+            0.9897461,
+            0.9819336,
+            0.9335938,
+            0.9648438,
+            0.9667969,
+            -0.9355469,
+            0.9785156,
+            -0.9082031,
+            -0.9912109,
+            0.9667969,
+            0.9560547,
+            0.9448242,
+            -0.9326172,
+            0.9682617,
+            -0.9130859,
+            -0.9619141,
+            -0.9360352,
+            0.9648438,
+            -0.9785156,
+        ],
+        dtype=np.float16,
+    )
     return np.tile(pattern[:row].reshape(row, 1), (1, col)).astype(np.float16)
 
 
@@ -93,6 +152,17 @@ def gen_golden_data(param):
     valid_row = param.valid_row
     col = param.col
     valid_col = param.valid_col
+
+    if param.check_guard:
+        values = np.arange(row * col, dtype=np.uint64).reshape(row, col)
+        input_arr = ((1 << 54) + values * 1009 + 3).astype(data_type)
+        if data_type == np.int64:
+            input_arr[values % 3 == 0] *= -1
+        output_arr = np.full(col + 64, 0x5A5A5A5A5A5A5A5A, dtype=data_type)
+        output_arr[:valid_col] = input_arr[:valid_row, :valid_col].sum(axis=0, dtype=data_type)
+        input_arr.tofile("input.bin")
+        output_arr.tofile("golden.bin")
+        return
     value_max = 1
     value_min = -1
     if data_type == np.int8:
@@ -106,7 +176,10 @@ def gen_golden_data(param):
         input_arr = gen_sensitive_half_input(row, col)
     else:
         input_arr = np.random.uniform(low=value_min, high=value_max, size=(row, col)).astype(data_type)
-    if data_type == np.float16:
+    if data_type in (np.int64, np.uint64):
+        output_arr = np.zeros(col, dtype=data_type)
+        output_arr[:valid_col] = input_arr[:valid_row, :valid_col].sum(axis=0, dtype=data_type)
+    elif data_type == np.float16:
         output_arr = gen_half_fp32_acc_golden(input_arr, valid_row, valid_col)
     else:
         output_arr = np.zeros((col))
@@ -116,12 +189,15 @@ def gen_golden_data(param):
 
     # 先计算, 再强转类型, 保证结果精度不裂化
     output_arr = output_arr.astype(data_type)
-    input_arr.tofile('input.bin')
-    output_arr.tofile('golden.bin')
+    input_arr.tofile("input.bin")
+    output_arr.tofile("golden.bin")
 
 
 class TColsumParams:
-    def __init__(self, name, data_type, row, valid_row, col, valid_col, is_binary=False, fp32_acc_guard=False):
+    def __init__(
+        self, name, data_type, row, valid_row, col, valid_col, is_binary=False, fp32_acc_guard=False, check_guard=False
+    ):
+        self.check_guard = check_guard
         self.name = name
         self.data_type = data_type
         self.row = row
@@ -130,6 +206,7 @@ class TColsumParams:
         self.valid_col = valid_col
         self.is_binary = is_binary
         self.fp32_acc_guard = fp32_acc_guard
+
 
 if __name__ == "__main__":
     case_params_list = [
@@ -158,6 +235,14 @@ if __name__ == "__main__":
         TColsumParams("TCOLSUMTest.case_int64_tmp_nonbinary_4x16", np.int64, 4, 4, 16, 16),
         TColsumParams("TCOLSUMTest.case_uint64_tmp_binary_4x16", np.uint64, 4, 4, 16, 16, True),
         TColsumParams("TCOLSUMTest.case_uint64_tmp_nonbinary_4x16", np.uint64, 4, 4, 16, 16),
+        TColsumParams("TCOLSUMTest.case_int64_2x4_valid1_guard", np.int64, 2, 2, 4, 1, check_guard=True),
+        TColsumParams("TCOLSUMTest.case_int64_2x4_valid4_guard", np.int64, 2, 2, 4, 4, check_guard=True),
+        TColsumParams("TCOLSUMTest.case_int64_2x36_valid33_guard", np.int64, 2, 2, 36, 33, check_guard=True),
+        TColsumParams("TCOLSUMTest.case_int64_2x68_valid65_guard", np.int64, 2, 2, 68, 65, check_guard=True),
+        TColsumParams("TCOLSUMTest.case_uint64_2x4_valid1_guard", np.uint64, 2, 2, 4, 1, check_guard=True),
+        TColsumParams("TCOLSUMTest.case_uint64_2x4_valid4_guard", np.uint64, 2, 2, 4, 4, check_guard=True),
+        TColsumParams("TCOLSUMTest.case_uint64_2x36_valid33_guard", np.uint64, 2, 2, 36, 33, check_guard=True),
+        TColsumParams("TCOLSUMTest.case_uint64_2x68_valid65_guard", np.uint64, 2, 2, 68, 65, check_guard=True),
     ]
 
     for _, case in enumerate(case_params_list):

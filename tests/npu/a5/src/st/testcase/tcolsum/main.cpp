@@ -67,16 +67,18 @@ protected:
         return ResultCmp(golden, result, eps, 0, 1000, false, true);
     }
 
-    template <uint32_t caseId, typename T, int srcRow, int srcValidRow, int dstRow, int col, int validCol>
+    template <
+        uint32_t caseId, typename T, int srcRow, int srcValidRow, int dstRow, int col, int validCol,
+        bool checkGuard = false>
     bool TCOLSUMTestFramework()
     {
-        size_t dstByteSize = dstRow * col * sizeof(T);
+        size_t dstByteSize = (dstRow * col + (checkGuard ? 64 : 0)) * sizeof(T);
         size_t srcByteSize = srcRow * col * sizeof(T);
         aclrtMallocHost(&dstHost, dstByteSize);
         aclrtMallocHost(&srcHost, srcByteSize);
         aclrtMalloc(&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
         aclrtMalloc(&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
-        aclrtMemset(dstDevice, dstByteSize, 0, dstByteSize);
+        aclrtMemset(dstDevice, dstByteSize, checkGuard ? 0x5a : 0, dstByteSize);
 
         ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
         aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -197,4 +199,44 @@ TEST_F(TCOLSUMTest, case_uint64_tmp_binary_4x16)
 TEST_F(TCOLSUMTest, case_uint64_tmp_nonbinary_4x16)
 {
     EXPECT_TRUE((TCOLSUMTestFramework<48, uint64_t, 4, 4, 1, 16, 16>()));
+}
+
+TEST_F(TCOLSUMTest, case_int64_2x4_valid1_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<100, int64_t, 2, 2, 1, 4, 1, true>()));
+}
+
+TEST_F(TCOLSUMTest, case_int64_2x4_valid4_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<101, int64_t, 2, 2, 1, 4, 4, true>()));
+}
+
+TEST_F(TCOLSUMTest, case_int64_2x36_valid33_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<102, int64_t, 2, 2, 1, 36, 33, true>()));
+}
+
+TEST_F(TCOLSUMTest, case_int64_2x68_valid65_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<103, int64_t, 2, 2, 1, 68, 65, true>()));
+}
+
+TEST_F(TCOLSUMTest, case_uint64_2x4_valid1_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<104, uint64_t, 2, 2, 1, 4, 1, true>()));
+}
+
+TEST_F(TCOLSUMTest, case_uint64_2x4_valid4_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<105, uint64_t, 2, 2, 1, 4, 4, true>()));
+}
+
+TEST_F(TCOLSUMTest, case_uint64_2x36_valid33_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<106, uint64_t, 2, 2, 1, 36, 33, true>()));
+}
+
+TEST_F(TCOLSUMTest, case_uint64_2x68_valid65_guard)
+{
+    EXPECT_TRUE((TCOLSUMTestFramework<107, uint64_t, 2, 2, 1, 68, 65, true>()));
 }

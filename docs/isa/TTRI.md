@@ -45,6 +45,9 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
     - Lower (`upperOrLower == 0`) and upper (`upperOrLower == 1`) are distinguished by `if constexpr` branches.
 - Valid region is obtained via `dst.GetValidRow()` / `dst.GetValidCol()`.
 
+- **64-bit types (A5)**: use a RowMajor Vec tile with physical `Cols % 4 == 0`. Only the valid region is written; padding is preserved and an empty valid region causes no writes.
+- **Diagonal range (A5)**: the full `int` range is supported, including `INT_MIN` / `INT_MAX`. Diagonals outside the matrix produce all-zero or all-one results according to the math above.
+
 ## Assembly Syntax
 
 ### AS Level 1 (SSA)
@@ -70,14 +73,14 @@ void example_lower() {
   using TileT = Tile<TileType::Vec, float, 16, 16>;
   TileT dst;
   TASSIGN(dst, 0x1000);
-  TTRI<0>(dst, /*diagonal=*/0);   // lower triangular
+  TTRI<TileT, 0>(dst, /*diagonal=*/0);   // lower triangular
 }
 
 void example_upper() {
   using TileT = Tile<TileType::Vec, float, 16, 16>;
   TileT dst;
   TASSIGN(dst, 0x1000);
-  TTRI<1>(dst, /*diagonal=*/-1);  // upper triangular
+  TTRI<TileT, 1>(dst, /*diagonal=*/-1);  // upper triangular
 }
 ```
 

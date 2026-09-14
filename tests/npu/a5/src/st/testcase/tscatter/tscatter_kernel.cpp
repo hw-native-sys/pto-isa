@@ -11,6 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/pto-inst.hpp>
 #include <acl/acl.h>
 
+#include "../int64_gather_scatter_guard_kernel.h"
+
 using namespace std;
 using namespace pto;
 
@@ -235,3 +237,20 @@ template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P10
 template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P0100>(void* out, void* src, void* stream);
 template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P0010>(void* out, void* src, void* stream);
 template void launchTScatterMask<int32_t, 16, 256, 16, 64, pto::MaskPattern::P0001>(void* out, void* src, void* stream);
+
+template void LaunchInt64GatherScatterGuard<int64_t, 2, 4, 40, 3, 33, 48>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 2, 4, 40, 3, 33, 48>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<int64_t, 3, 4, 8, 3, 5, 16>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 3, 4, 40, 3, 33, 80>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<int64_t, 4, 4, 8, 3, 1, 8>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 4, 4, 8, 3, 1, 8>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<int64_t, 4, 4, 40, 3, 33, 48>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 4, 4, 40, 3, 33, 48>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);

@@ -26,6 +26,8 @@ PTO_INTERNAL void Int64CompareScalarMode(
 {
     constexpr unsigned elementsPerRepeat = 64;
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat) + 1;
+    uint16_t fullRepeats =
+        Int64FullLoadRepeats<SrcCols, 2 * elementsPerRepeat, 2 * elementsPerRepeat>((uint16_t)(repeatTimes / 2));
     __VEC_SCOPE__
     {
         vector_s32 lhsLow0, lhsHigh0, lhsLow1, lhsHigh1;
@@ -37,15 +39,34 @@ PTO_INTERNAL void Int64CompareScalarMode(
         for (uint16_t row = 0; row < rows; ++row) {
             __ubuf__ uint32_t* rowDst = (__ubuf__ uint32_t*)(dst + row * DstRowBytes);
             uint32_t sreg = validCols;
-            for (uint16_t j = 0; j < (uint16_t)(repeatTimes / 2); ++j) {
+
+            for (uint16_t j = 0; j < fullRepeats; ++j) {
                 MaskReg preg;
                 MaskReg result0, result1, dstReg, tmpMask;
                 uint32_t colOffset0 = j * 2 * elementsPerRepeat;
-                vlds(lhsLow0, lhsHigh0, (__ubuf__ int32_t*)src, (row * SrcCols + colOffset0) * 2, DINTLV_B32);
+                Int64LoadBounded<SrcCols, true>(
+                    lhsLow0, lhsHigh0, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset0) * 2, colOffset0);
                 preg = plt_b32(sreg, POST_UPDATE);
                 Int64CompareRegs<Mode, T>(result0, lhsLow0, lhsHigh0, rhsLow, rhsHigh, preg);
                 uint32_t colOffset1 = (j * 2 + 1) * elementsPerRepeat;
-                vlds(lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src, (row * SrcCols + colOffset1) * 2, DINTLV_B32);
+                Int64LoadBounded<SrcCols, true>(
+                    lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset1) * 2, colOffset1);
+                preg = plt_b32(sreg, POST_UPDATE);
+                Int64CompareRegs<Mode, T>(result1, lhsLow1, lhsHigh1, rhsLow, rhsHigh, preg);
+                pdintlv_b8(dstReg, tmpMask, result0, result1);
+                psts(dstReg, rowDst + j * dstRepeatStride, 0, PK);
+            }
+            for (uint16_t j = fullRepeats; j < (uint16_t)(repeatTimes / 2); ++j) {
+                MaskReg preg;
+                MaskReg result0, result1, dstReg, tmpMask;
+                uint32_t colOffset0 = j * 2 * elementsPerRepeat;
+                Int64LoadBounded<SrcCols, false>(
+                    lhsLow0, lhsHigh0, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset0) * 2, colOffset0);
+                preg = plt_b32(sreg, POST_UPDATE);
+                Int64CompareRegs<Mode, T>(result0, lhsLow0, lhsHigh0, rhsLow, rhsHigh, preg);
+                uint32_t colOffset1 = (j * 2 + 1) * elementsPerRepeat;
+                Int64LoadBounded<SrcCols, false>(
+                    lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset1) * 2, colOffset1);
                 preg = plt_b32(sreg, POST_UPDATE);
                 Int64CompareRegs<Mode, T>(result1, lhsLow1, lhsHigh1, rhsLow, rhsHigh, preg);
                 pdintlv_b8(dstReg, tmpMask, result0, result1);

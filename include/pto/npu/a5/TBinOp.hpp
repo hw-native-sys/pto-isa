@@ -33,11 +33,60 @@ PTO_INTERNAL constexpr unsigned Int64MaskPatternOffset()
 }
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
-PTO_INTERNAL MaskReg Int64TailMask(uint32_t cols, MaskReg& fullMask)
+template <unsigned Left, unsigned Right>
+constexpr unsigned Int64MinCols = Left < Right ? Left : Right;
+
+// Count repeats whose complete load footprint remains inside the physical row.
+template <unsigned SrcCols, unsigned Step, unsigned LoadElements = CCE_VL / sizeof(int32_t)>
+PTO_INTERNAL uint16_t Int64FullLoadRepeats(unsigned repeats)
 {
-    if (cols == 0)
-        return fullMask;
-    return plt_b32(cols, POST_UPDATE);
+    if constexpr (SrcCols >= LoadElements) {
+        constexpr unsigned fullRepeats = (SrcCols - LoadElements) / Step + 1;
+        return min(repeats, fullRepeats);
+    } else {
+        return 0;
+    }
+}
+
+// Full and boundary repeats are selected by the caller's separate loops.
+template <unsigned SrcCols, bool FullLoad = false>
+PTO_INTERNAL void Int64LoadBounded(vector_s32& low, vector_s32& high, __ubuf__ int32_t* src, unsigned colOffset)
+{
+    if constexpr (FullLoad) {
+        vlds(low, high, src, 0, DINTLV_B32);
+    } else {
+        uint32_t remaining = SrcCols - min(colOffset, SrcCols);
+        MaskReg mask = plt_b32(remaining, POST_UPDATE);
+        vector_u32 lowIndex, highIndex;
+        vci((vector_s32&)lowIndex, 0, INC_ORDER);
+        vadd(lowIndex, lowIndex, lowIndex, mask, MODE_ZEROING);
+        vadds(highIndex, lowIndex, 1u, mask, MODE_ZEROING);
+        vgather2((vector_u32&)low, (__ubuf__ uint32_t*)src, lowIndex, mask);
+        vgather2((vector_u32&)high, (__ubuf__ uint32_t*)src, highIndex, mask);
+    }
+}
+
+template <unsigned IdxCols, bool FullLoad = false>
+PTO_INTERNAL void Int64LoadIndices(vector_u32& index, __ubuf__ uint32_t* src, unsigned colOffset, MaskReg& mask)
+{
+    if constexpr (FullLoad) {
+        vlds(index, src, 0, NORM);
+    } else {
+        vector_u32 lane;
+        vci((vector_s32&)lane, 0, INC_ORDER);
+        vgather2(index, src, lane, mask);
+    }
+}
+
+// Each predicate lane selects one int64; both 32-bit halves must share its mask.
+PTO_INTERNAL void Int64StoreMasked(vector_s32& low, vector_s32& high, __ubuf__ int32_t* dst, MaskReg& mask)
+{
+    vector_s32 packedLow, packedHigh;
+    MaskReg lowMask, highMask;
+    pintlv_b32(lowMask, highMask, mask, mask);
+    vintlv(packedLow, packedHigh, low, high);
+    vsts(packedLow, dst, 0, NORM_B32, lowMask);
+    vsts(packedHigh, dst, CCE_VL / sizeof(int32_t), NORM_B32, highMask);
 }
 
 PTO_INTERNAL void Int64AddRegs(
@@ -461,7 +510,7 @@ PTO_INTERNAL void Int64BinaryCalcRegs(
     }
 }
 
-template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
+template <Int64Op Op, typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols, bool FullLoad>
 PTO_INTERNAL void Int64BinaryRepeat(
     __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint16_t row, uint32_t colOffset, MaskReg& mask)
 {
@@ -470,8 +519,8 @@ PTO_INTERNAL void Int64BinaryRepeat(
     uint32_t src0Offset = (row * Src0Cols + colOffset) * 2;
     uint32_t src1Offset = (row * Src1Cols + colOffset) * 2;
     uint32_t dstOffset = (row * DstCols + colOffset) * 2;
-    vlds(src0Low, src0High, (__ubuf__ int32_t*)src0, src0Offset, DINTLV_B32);
-    vlds(src1Low, src1High, (__ubuf__ int32_t*)src1, src1Offset, DINTLV_B32);
+    Int64LoadBounded<Src0Cols, FullLoad>(src0Low, src0High, (__ubuf__ int32_t*)src0 + src0Offset, colOffset);
+    Int64LoadBounded<Src1Cols, FullLoad>(src1Low, src1High, (__ubuf__ int32_t*)src1 + src1Offset, colOffset);
     Int64BinaryCalcRegs<Op, T>(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, mask);
     pintlv_b32(lowMask, highMask, mask, mask);
     vintlv(half0, half1, dstLow, dstHigh);
@@ -484,15 +533,23 @@ PTO_INTERNAL void Int64Binary(
     __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<Int64MinCols<Src0Cols, Src1Cols>, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         uint16_t rowCount = validRows;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rowCount; ++row) {
             uint32_t sreg = validCols;
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
-                Int64BinaryRepeat<Op, T, DstCols, Src0Cols, Src1Cols>(
+                Int64BinaryRepeat<Op, T, DstCols, Src0Cols, Src1Cols, true>(
+                    dst, src0, src1, row, colRepeat * elementsPerRepeat, preg);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                Int64BinaryRepeat<Op, T, DstCols, Src0Cols, Src1Cols, false>(
                     dst, src0, src1, row, colRepeat * elementsPerRepeat, preg);
             }
         }

@@ -59,6 +59,9 @@ PTO_INST RecordEvent TTRI(TileData &dst, int diagonal, WaitEvents &... events);
     - 下三角（`upperOrLower == 0`）和上三角（`upperOrLower == 1`）由 `if constexpr` 分支区分。
 - 有效区域通过 `dst.GetValidRow()` / `dst.GetValidCol()` 获取。
 
+- **64 位类型（Ascend 950PR/Ascend 950DT）**：使用 RowMajor Vec Tile，物理 `Cols % 4 == 0`；只写入有效区域，保留填充，空有效区域不写入。
+- **对角线范围（Ascend 950PR/Ascend 950DT）**：支持整个 `int` 范围，包括 `INT_MIN` / `INT_MAX`；超出矩阵边界时仍按数学语义生成全零或全一结果。
+
 ## 示例
 
 ```cpp
@@ -70,14 +73,14 @@ void example_lower() {
   using TileT = Tile<TileType::Vec, float, 16, 16>;
   TileT dst;
   TASSIGN(dst, 0x1000);
-  TTRI<0>(dst, /*diagonal=*/0);   // 下三角
+  TTRI<TileT, 0>(dst, /*diagonal=*/0);   // 下三角
 }
 
 void example_upper() {
   using TileT = Tile<TileType::Vec, float, 16, 16>;
   TileT dst;
   TASSIGN(dst, 0x1000);
-  TTRI<1>(dst, /*diagonal=*/-1);  // 上三角
+  TTRI<TileT, 1>(dst, /*diagonal=*/-1);  // 上三角
 }
 ```
 

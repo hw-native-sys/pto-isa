@@ -32,7 +32,7 @@ PTO_INTERNAL void Int64TriRepeat(
         vsel(low, zero, one, prefixMask);
     else
         vsel(low, one, zero, prefixMask);
-    vsts(low, zero, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, INTLV_B32, storeMask);
+    Int64StoreMasked(low, zero, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, storeMask);
 }
 
 template <bool Upper>
@@ -113,7 +113,7 @@ __tf__ PTO_INTERNAL void TTriu(
 
         // store zeros
         for (uint16_t i = start_row; i < (uint16_t)validRows; ++i) {
-            uint32_t num_zeros = i + start_num;
+            uint32_t num_zeros = min(static_cast<uint32_t>(i + start_num), validCols);
             for (uint16_t j = 0; j < (uint16_t)numRepeatPerRow; ++j) {
                 vector_bool preg_zeros = CreatePredicate<T>(num_zeros);
                 vsts(v_zeros, dstPtr, i * rowStride + j * elementsPerRepeat, distValue, preg_zeros);
@@ -150,7 +150,7 @@ __tf__ PTO_INTERNAL void TTril(
 
         // store ones
         for (uint16_t i = start_row; i < (uint16_t)validRows; ++i) {
-            uint32_t num_ones = i + start_num;
+            uint32_t num_ones = min(static_cast<uint32_t>(i + start_num), validCols);
             for (uint16_t j = 0; j < (uint16_t)numRepeatPerRow; ++j) {
                 vector_bool preg_ones = CreatePredicate<T>(num_ones);
                 vsts(v_ones, dstPtr, i * rowStride + j * elementsPerRepeat, distValue, preg_ones);
@@ -170,6 +170,10 @@ PTO_INTERNAL void TTRI_IMPL(TileData& dst, int diagonal)
             std::is_same<T, float16_t>::value || std::is_same<T, float32_t>::value ||
             std::is_same<T, bfloat16_t>::value,
         "Fix: TTRI has invalid data type.");
+
+    // Diagonals outside the valid matrix have the same result as its boundary diagonals.
+    diagonal = max(diagonal, -static_cast<int>(dst.GetValidRow()));
+    diagonal = min(diagonal, static_cast<int>(dst.GetValidCol()));
 
     if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
         Int64Tri<upperOrLower != 0, T, TileData::Cols>(

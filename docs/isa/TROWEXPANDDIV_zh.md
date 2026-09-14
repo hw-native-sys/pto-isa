@@ -12,7 +12,7 @@
 
 ## 简介
 
-行广播除法：将全尺寸操作数（`src0` 或 `src1`）的每一行除以扩展操作数的每行标量。
+行广播除法：将扩展操作数广播后，按 `src0 / src1` 的顺序逐元素计算。
 
 指令支持两种模式，由扩展操作数的布局决定（当 `src0` 与 `dst` 形状匹配时为 `src1`，当 `src1` 与 `dst` 形状匹配时为 `src0`）：
 
@@ -22,6 +22,8 @@
 ## 数学语义
 
 设 `R = dst.GetValidRow()` 和 `C = dst.GetValidCol()`。
+
+以下公式以 `src1` 为扩展操作数。若扩展 `src0`，模式1为 `dst[i,j] = s_i / src1[i,j]`；模式2将 `s_i` 替换为该行重复块中的对应元素。
 
 ### 模式1
 
@@ -33,7 +35,7 @@ $$ \mathrm{dst}_{i,j} = \frac{\mathrm{src0}_{i,j}}{s_i} $$
 
 ### 模式2
 
-设 `b_i` 为第 `i` 行从扩展操作数中获取的32字节块（RowMajor布局，每行 `32 / sizeof(T)` 个值）。该块在每个向量重复步长内自然重复。
+设 `b_i` 为第 `i` 行从扩展操作数中获取的32字节块（RowMajor布局，每行 `32 / sizeof(T)` 个值）。该块沿行方向每 `32 / sizeof(T)` 个元素重复一次。
 
 对于 `0 <= i < R` 和 `0 <= j < C`：
 
@@ -78,7 +80,9 @@ PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
 - `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`（适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT）、`int16`、`int32`、`uint16`、`uint32`、`bfloat16_t`、`int8`、`uint8`、`int64`、`uint64`（仅适用于Ascend 950PR/Ascend 950DT）。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
-- `src0` 或 `src1` 中必须恰好一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
+- `src0` 或 `src1` 中必须至少一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
+- 自动模式（`__PTO_AUTO__`）下，全尺寸操作数必须与 `dst` 具有相同的 Tile 类型。
+- 两个输入都满足全尺寸操作数的选择条件时，优先选择 `src0`；另一个输入仍须满足对应广播模式的约束。
 - 全尺寸操作数必须为 **RowMajor**（`isRowMajor == true`）。
 
 ### 模式1—扩展操作数为ColMajor（每行标量）
@@ -100,12 +104,9 @@ PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ### 64位元素类型（Ascend 950PR/Ascend 950DT）
 
-`int64` / `uint64` 仅在Ascend 950PR/Ascend 950DT上支持。该架构没有原生的64位向量运算单元，指令通过一对32位寄存器（分别保存每个元素的低32位和高32位）模拟实现，两种广播模式均可使用：
-
-- 模式1：每行标量的低32位和高32位分别广播。
-- 模式2：32字节块包含 `32 / sizeof(T) == 4` 个元素，因此该块沿行方向每4个元素重复一次。
-
-除法向零取整，与32位整数的行为一致；除零行为由目标定义。Tile对齐遵循64位元素的通用规则：RowMajor的Tile要求 `Cols % 4 == 0`，ColMajor的扩展操作数要求 `Rows % 4 == 0`。
+- `int64_t` / `uint64_t` 支持上述两种广播模式；模式2每行重复 4 个元素。
+- 物理对齐要求：RowMajor 的 `Cols % 4 == 0`，ColMajor 扩展操作数的 `Rows % 4 == 0`。
+- 整数除法向零取整；除零行为由目标定义。
 
 ### 其他目标特定约束
 
@@ -113,7 +114,7 @@ PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 
 ### 临时Tile
 
-C++ API提供了显式传入 `TileDataTmp &tmp` 的重载。该重载仅支持**模式1**（ColMajor扩展操作数，每行标量）。
+C++ API提供了显式传入 `TileDataTmp &tmp` 的重载。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品仅支持模式1；Ascend 950PR/Ascend 950DT支持模式1和模式2，且不使用 `tmp`。
 
 - **Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品**：tmp Tile作为广播缓冲区使用。ColMajor扩展操作数的每行标量值通过 `vbrcb` 指令广播到tmp缓冲区，为每行创建一个32字节块，然后在二元运算中作为扩展操作数使用。`vbrcb` 指令的repeat stride为8个块（256字节），每个repeat处理8行。最小tmp大小计算：
     - **公共参数**：

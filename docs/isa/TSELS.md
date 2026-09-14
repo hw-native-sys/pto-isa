@@ -58,13 +58,15 @@ PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &sr
     - Runtime: `src.GetValidRow()/GetValidCol()` must match `dst.GetValidRow()/GetValidCol()`.
 - **Implementation checks (A5)**:
     - `sizeof(TileDataDst::DType)` may be `1`, `2`, `4`, or `8` bytes.
-    - Supported data types are `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, and `float`.
+    - Supported data types are `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `bfloat16_t`, and `float`.
     - `dst` and `src` must use the same element type.
     - `dst`, `mask`, and `src` must be row-major.
     - Runtime: `src.GetValidRow()/GetValidCol()` must match `dst.GetValidRow()/GetValidCol()`.
 - **Valid region**:
     - The op uses `dst.GetValidRow()` / `dst.GetValidCol()` as the iteration domain.
 - **Mask encoding**:
+    - For 64-bit data (A5), use a RowMajor packed mask with one bit per element. Column `j` uses bit `j % 8` of byte `j / 8`; rows use the physical mask stride in bytes.
+    - Masks from [TCMP](TCMP.md) or [TCMPS](TCMPS.md) may be used directly. Mask capacity must cover the destination valid region; data-tile valid columns are still counted in data elements.
     - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
 ## Temporary Space

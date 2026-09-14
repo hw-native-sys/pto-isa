@@ -15,6 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "acl/acl.h"
 #include "tgather_common.h"
 
+#include "../int64_gather_scatter_guard_kernel.h"
+
 using namespace std;
 using namespace pto;
 
@@ -225,15 +227,16 @@ template <typename T, int staticRows, int staticCols, int validRows, int validCo
 __global__ AICORE void runTGATHERDynamic(__gm__ T* out, __gm__ T* src)
 {
     constexpr int outputCols = validCols / GetTimesByMask<maskPattern>();
-    constexpr int staticOutputCols = staticCols / GetTimesByMask<maskPattern>();
+    constexpr int outputElements = validRows * outputCols;
+    constexpr int staticOutputCols = (outputElements + 3) / 4 * 4;
     using SrcGlobal = GlobalTensor<T, pto::Shape<1, 1, 1, validRows, validCols>, pto::Stride<1, 1, 1, validCols, 1>>;
-    using DstGlobal = GlobalTensor<T, pto::Shape<1, 1, 1, validRows, outputCols>, pto::Stride<1, 1, 1, outputCols, 1>>;
+    using DstGlobal = GlobalTensor<T, pto::Shape<1, 1, 1, 1, outputElements>, pto::Stride<1, 1, 1, outputElements, 1>>;
     using SrcTile = Tile<TileType::Vec, T, staticRows, staticCols, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, T, staticRows, staticCols, BLayout::RowMajor, -1, -1>;
-    using StoreTile = Tile<TileType::Vec, T, staticRows, staticOutputCols, BLayout::RowMajor, -1, -1>;
+    using StoreTile = Tile<TileType::Vec, T, 1, staticOutputCols, BLayout::RowMajor, -1, -1>;
     SrcTile srcTile(validRows, validCols);
     DstTile dstTile(validRows, outputCols);
-    StoreTile storeTile(validRows, outputCols);
+    StoreTile storeTile(1, outputElements);
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstTile, 0x10000);
     TASSIGN(storeTile, 0x10000);
@@ -498,3 +501,22 @@ template void LaunchTGATHER_CMP<int8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32
     int8_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
 template void LaunchTGATHER_CMP<uint8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32, CmpMode::GT>(
     uint8_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
+
+template void LaunchInt64GatherScatterGuard<int64_t, 0, 4, 8, 3, 1, 8>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 0, 4, 8, 3, 1, 8>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<int64_t, 0, 4, 72, 3, 65, 80>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 0, 4, 72, 3, 65, 80>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<int64_t, 1, 4, 24, 3, 15, 8>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 1, 4, 24, 3, 15, 12, pto::MaskPattern::P0101>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<int64_t, 1, 4, 24, 3, 15, 4, pto::MaskPattern::P1000>(
+    int64_t* out, int64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 1, 4, 80, 3, 67, 36, pto::MaskPattern::P0101>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+template void LaunchInt64GatherScatterGuard<uint64_t, 1, 4, 8, 3, 1, 4, pto::MaskPattern::P1000>(
+    uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);

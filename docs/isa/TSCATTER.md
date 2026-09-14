@@ -9,30 +9,34 @@
 
 TSCATTER provides two operation modes:
 
-1. **Index-based Scatter**: Scatter rows of a source tile into a destination tile using per-element row indices.
+1. **Index-based Scatter**: Scatter source elements into a destination tile using per-element flat element offsets.
 2. **Mask Scatter**: Scatter source elements into destination with a mask pattern, interleaving zeros between elements. Supports both row-wise (`SCATTER_ROW`) and column-wise (`SCATTER_COL`) scatter modes.
 
 ## Math Interpretation
 
 ### Index-based Scatter
 
-For each source element `(i, j)`, write:
+Let `R = idx.GetValidRow()` and `C = idx.GetValidCol()`. For `0 <= i < R` and `0 <= j < C`, write:
 
-$$ \mathrm{dst}_{\mathrm{idx}_{i,j},\ j} = \mathrm{src}_{i,j} $$
+$$ \mathrm{dst.data()}[\mathrm{idx}_{i,j}] = \mathrm{src}_{i,j} $$
 
-If multiple elements map to the same destination location, the final value is implementation-defined (last writer wins in the current implementation).
+`idx[i,j]` is an element offset from `dst.data()`, not a byte offset or row number. Coordinate `(r,c)` has index `r * DstTile::Cols + c` in a RowMajor destination and `c * DstTile::Rows + r` in ColMajor. The source valid region must cover the index valid region. Indices must be nonnegative and below the physical destination element count; the implementation does not check bounds.
+
+If multiple elements map to the same destination location, the final value is implementation-defined; no write order is guaranteed.
 
 ### Mask Scatter
 
 For mask pattern `P`, scatter source elements with interleaved zeros. The scatter direction is controlled by `ScatterAxis`:
 
+Let `f` be the expansion factor, `pos_P` the selected position, and `q` range over all other positions `0 <= q < f`. The offsets for `P0101/P1010` are 0/1; for `P0001/P0010/P0100/P1000` they are 0/1/2/3; `P1111` uses 0.
+
 #### SCATTER_ROW (default)
 
 Scatter along columns, expanding column dimension:
 
-$$ \mathrm{dst}_{i, P \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
+$$ \mathrm{dst}_{i, f \cdot j + \mathrm{pos}_P} = \mathrm{src}_{i,j} $$
 
-$$ \mathrm{dst}_{i, P \cdot j + \mathrm{zeros}_P} = 0 $$
+$$ \mathrm{dst}_{i, f \cdot j + q} = 0 $$
 
 Where:
 - `DstTileData::ValidCol` = `SrcTileData::ValidCol` × expansion_factor
@@ -42,9 +46,9 @@ Where:
 
 Scatter along rows, expanding row dimension:
 
-$$ \mathrm{dst}_{P \cdot i + \mathrm{pos}_P, j} = \mathrm{src}_{i,j} $$
+$$ \mathrm{dst}_{f \cdot i + \mathrm{pos}_P, j} = \mathrm{src}_{i,j} $$
 
-$$ \mathrm{dst}_{P \cdot i + \mathrm{zeros}_P, j} = 0 $$
+$$ \mathrm{dst}_{f \cdot i + q, j} = 0 $$
 
 Where:
 - `DstTileData::ValidRow` = `SrcTileData::ValidRow` × expansion_factor
@@ -142,6 +146,8 @@ Defined in `include/pto/common/type.hpp`:
     - When size of `TileDataD::DType` is 2 bytes, the size of `TileDataI::DType` must be 2 bytes.
     - When size of `TileDataD::DType` is 1 bytes, the size of `TileDataI::DType` must be 2 bytes.
 
+    - 64-bit data requires `int32_t` / `uint32_t` indices. Source and index tiles support RowMajor/ColMajor using their own physical row/column strides.
+
 ### Mask Scatter
 
 - **Implementation checks (A2A3)**:
@@ -158,18 +164,20 @@ Defined in `include/pto/common/type.hpp`:
     - `maskPattern` must be in range `P0101` to `P1111`.
     - Static valid bounds: `DstTileData::ValidRow <= DstTileData::Rows`, `DstTileData::ValidCol <= DstTileData::Cols`, `SrcTileData::ValidRow <= SrcTileData::Rows`, `SrcTileData::ValidCol <= SrcTileData::Cols`.
     - Runtime assertions for `SCATTER_ROW`:
-        - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow`.
-        - `SrcTileData::ValidCol` must equal `DstTileData::ValidCol * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
+        - `src.GetValidRow()` must equal `dst.GetValidRow()`.
+        - `dst.GetValidCol()` must equal `src.GetValidCol() * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
     - Runtime assertions for `SCATTER_COL`:
-        - `SrcTileData::ValidCol` must equal `DstTileData::ValidCol`.
-        - `SrcTileData::ValidRow` must equal `DstTileData::ValidRow / expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
+        - `src.GetValidCol()` must equal `dst.GetValidCol()`.
+        - `dst.GetValidRow()` must equal `src.GetValidRow() * expansion_factor`, where expansion_factor depends on mask pattern (1 for P1111, 2 for P1010/P0101, 4 for P0001/P0010/P0100/P1000).
+
+    - The 64-bit mask path requires RowMajor source and destination, and supports all six expansion patterns and both `ScatterAxis` values.
+    - `P1111` delegates to [TMOV](TMOV.md) without full-tile zeroing. Current A5 does not support `int64_t` / `uint64_t` Vec-to-Vec moves for this pattern.
 
 ## Important Notes
 
-> **Warning**: Before scattering, the destination tile buffer is **fully initialized to zero** across the entire tile size (`Rows × Cols`), **not** limited by `ValidRow` and `ValidCol`. This means:
-> - The entire UB buffer allocated for `dstTile` will be written with zeros.
-> - Elements outside `ValidRow`/`ValidCol` will be zero after the operation.
-> - Ensure the destination tile's UB buffer does not overlap with other active data.
+A5 indexed scatter and non-`P1111` mask scatter first zero the complete physical destination tile (`Rows * Cols` elements), then write selected locations. Unselected locations, including physical padding, are zero; padding explicitly selected by an index still receives the source value. Active source, index and destination storage must not overlap.
+
+CPU simulator indexed scatter updates only indexed locations and preserves all others; an empty index valid region also leaves the destination unchanged. Initialize the destination explicitly when portable zero-fill behavior is required. `P1111` follows `TMOV` write semantics and does not follow the full-tile zeroing rule above.
 
 ## Examples
 
@@ -182,7 +190,7 @@ using namespace pto;
 
 void example_auto() {
   using TileT = Tile<TileType::Vec, float, 16, 16>;
-  using IdxT = Tile<TileType::Vec, uint16_t, 16, 16>;
+  using IdxT = Tile<TileType::Vec, uint32_t, 16, 16>;
   TileT src, dst;
   IdxT idx;
   TSCATTER(dst, src, idx);
@@ -198,7 +206,7 @@ using namespace pto;
 
 void example_manual() {
   using TileT = Tile<TileType::Vec, float, 16, 16>;
-  using IdxT = Tile<TileType::Vec, uint16_t, 16, 16>;
+  using IdxT = Tile<TileType::Vec, uint32_t, 16, 16>;
   TileT src, dst;
   IdxT idx;
   TASSIGN(src, 0x1000);

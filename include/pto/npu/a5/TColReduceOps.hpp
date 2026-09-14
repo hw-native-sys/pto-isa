@@ -18,37 +18,51 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols, bool FullLoad>
+PTO_INTERNAL void Int64ColReduceRepeat(
+    __ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols, unsigned colOffset)
+{
+    vector_s32 dl, dh, sl, sh, nl, nh;
+    uint32_t fullMaskCols = CCE_VL / sizeof(T);
+    MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
+    uint32_t remainingCols = validCols - colOffset;
+    MaskReg validMask = plt_b32(remainingCols, POST_UPDATE);
+    MaskReg repeatMask;
+    pand(repeatMask, validMask, allMask, allMask);
+    Int64LoadBounded<SrcCols, FullLoad>(dl, dh, (__ubuf__ int32_t*)src + colOffset * 2, colOffset);
+    uint16_t rows = validRows;
+    for (uint16_t row = 1; row < rows; ++row) {
+        Int64LoadBounded<SrcCols, FullLoad>(
+            sl, sh, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, colOffset);
+        if constexpr (Op == Int64Op::Add) {
+            MaskReg carry, carryOut;
+            vaddc(carry, nl, dl, sl, repeatMask);
+            vaddcs(carryOut, nh, dh, sh, carry, repeatMask);
+        } else {
+            Int64MinMax<Op, T>(nl, nh, dl, dh, sl, sh, repeatMask);
+        }
+        dl = nl;
+        dh = nh;
+    }
+    Int64StoreMasked(dl, dh, (__ubuf__ int32_t*)dst + colOffset * 2, repeatMask);
+}
+
 template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void Int64ColReduce(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<SrcCols, elementsPerRepeat>(colRepeats);
+    uint16_t tailRepeats = colRepeats - fullRepeats;
     __VEC_SCOPE__
     {
-        vector_s32 dl, dh, sl, sh, nl, nh;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
-        uint32_t fullMaskCols = elementsPerRepeat;
-        MaskReg allMask = plt_b32(fullMaskCols, POST_UPDATE);
-        for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
-            uint32_t colOffset = colRepeat * elementsPerRepeat;
-            uint32_t remainingCols = validCols - colOffset;
-            MaskReg validMask = plt_b32(remainingCols, POST_UPDATE);
-            MaskReg repeatMask;
-            pand(repeatMask, validMask, allMask, allMask);
-            vlds(dl, dh, (__ubuf__ int32_t*)src + colOffset * 2, 0, DINTLV_B32);
-            uint16_t rows = validRows;
-            for (uint16_t row = 1; row < rows; ++row) {
-                vlds(sl, sh, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, 0, DINTLV_B32);
-                if constexpr (Op == Int64Op::Add) {
-                    MaskReg carry, carryOut;
-                    vaddc(carry, nl, dl, sl, repeatMask);
-                    vaddcs(carryOut, nh, dh, sh, carry, repeatMask);
-                } else {
-                    Int64MinMax<Op, T>(nl, nh, dl, dh, sl, sh, repeatMask);
-                }
-                dl = nl;
-                dh = nh;
-            }
-            vsts(dl, dh, (__ubuf__ int32_t*)dst + colOffset * 2, 0, INTLV_B32, repeatMask);
+        for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
+            Int64ColReduceRepeat<Op, T, DstCols, SrcCols, true>(
+                dst, src, validRows, validCols, colRepeat * elementsPerRepeat);
+        }
+        for (uint16_t tailRepeat = 0; tailRepeat < tailRepeats; ++tailRepeat) {
+            Int64ColReduceRepeat<Op, T, DstCols, SrcCols, false>(
+                dst, src, validRows, validCols, (fullRepeats + tailRepeat) * elementsPerRepeat);
         }
     }
 }

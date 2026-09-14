@@ -221,6 +221,8 @@ PTO_INST RecordEvent TMOV(DstTileData &dst, SrcTileData &src, TmpTileData &tmp, 
 
 ### Ascend 950PR/Ascend 950DT实现检查
 
+A5 的 Vec→Vec 移动当前不支持 `int64_t` / `uint64_t`；其他传输路径中的 64 位 Scaling 数据支持不代表该组合可用。[TSCATTER](TSCATTER_zh.md) 的 `P1111` 直接委托给此路径，受同一限制。
+
 - `CommonCheck()` 要求：
     - 目标/源dtype必须相同
     - 支持的元素类型为 `int8_t`、`hifloat8_t`、`float8_e5m2_t`、`float8_e4m3_t`、`half`、`bfloat16_t`、`float`、`float4_e2m1x2_t`、`float4_e1m2x2_t`

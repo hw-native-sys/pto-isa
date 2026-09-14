@@ -60,13 +60,15 @@ PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &sr
     - 运行时：`src.GetValidRow()/GetValidCol()` 必须与 `dst.GetValidRow()/GetValidCol()` 一致。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `sizeof(TileDataDst::DType)` 可以是 `1`、`2`、`4`或`8`字节。
-    - 支持的数据类型为 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half` 和 `float`。
+    - 支持的数据类型为 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t` 和 `float`。
     - `dst` 和 `src` 必须使用相同的元素类型。
     - `dst`、`mask` 和 `src` 必须是行主序。
     - 运行时：`src.GetValidRow()/GetValidCol()` 必须与 `dst.GetValidRow()/GetValidCol()` 一致。
 - **有效区域**:
     - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
 - **掩码编码**:
+    - 64 位数据（Ascend 950PR/Ascend 950DT）：使用 RowMajor 打包掩码，每个元素对应一位；列 `j` 使用第 `j / 8` 字节的第 `j % 8` 位，行地址按掩码物理字节步长计算。
+    - 可直接使用 [TCMP](TCMP_zh.md) 或 [TCMPS](TCMPS_zh.md) 产生的掩码。掩码容量须覆盖目标有效区域；数据 Tile 的有效列数仍按数据元素计数。
     - 掩码Tile被解释为目标定义布局中的打包谓词位。
 
 ## 临时空间

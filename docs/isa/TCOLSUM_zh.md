@@ -14,7 +14,7 @@
 
 $$ \mathrm{dst}_{0,j} = \sum_{i=0}^{R-1} \mathrm{src}_{i,j} $$
 
-`isBinary` 选择实现路径（二叉树累加vs. 顺序累加）。
+`isBinary` 选择二叉树或顺序累加；A5 的 64 位整数路径忽略该参数。
 
 ## 汇编语法
 
@@ -24,7 +24,7 @@ $$ \mathrm{dst}_{0,j} = \sum_{i=0}^{R-1} \mathrm{src}_{i,j} $$
 %dst = tcolsum %src {isBinary = false} : !pto.tile<...> -> !pto.tile<...>
 ```
 
-降阶时可能引入内部临时Tile；C++内建接口需要显式传入 `tmp` 操作数。
+降阶时可能引入内部临时 Tile；C++ 接口同时提供不带 `tmp` 和带 `tmp, isBinary` 的重载。
 
 ### AS Level 1（SSA）
 
@@ -64,8 +64,8 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
     - `src.GetValidCol() == dst.GetValidCol()`
     - `src.GetValidRow() != 0`（为零时实现静默返回，不执行计算）
     - `src.GetValidCol() != 0`（为零时实现静默返回，不执行计算）
-    - `src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度（即 `tmp.RowStride * sizeof(TmpDType) / sizeof(DType) >= src.GetValidCol()`）
-- `isBinary` 选择已检查到的后端路径：
+    - 仅在使用 `tmp` 的二叉累加路径：`src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度（即 `tmp.RowStride * sizeof(TmpDType) / sizeof(DType) >= src.GetValidCol()`）
+- 对非 64 位整数类型，`isBinary` 选择后端路径：
     - `true`：使用 `tmp` 做二叉树累加
     - `false`：直接在 `dst` 上做顺序累加
 
@@ -79,7 +79,9 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 ### Ascend 950PR/Ascend 950DT实现检查
 
 - Ascend 950PR/Ascend 950DT共享列归约检查允许的元素类型为：`half`、`float`、`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`bfloat16_t`。
-- 已检查到的Ascend 950PR/Ascend 950DT `TCOLSUM` 路径中，`tmp` 仍只用于二叉累加路径；`TCOLSUM_IMPL` 中没有额外显式加入 `tmp` 的编译期类型/布局断言。
+- 已检查到的Ascend 950PR/Ascend 950DT `TCOLSUM` 路径中，`tmp` 仅用于非 64 位整数的二叉累加路径；`TCOLSUM_IMPL` 中没有额外显式加入 `tmp` 的编译期类型/布局断言。
+
+- 对于 `int64_t` / `uint64_t`：输出有效形状应为 `[1, src.GetValidCol()]`；物理 `Cols` 是 4 的倍数，有效列数不必对齐。只写入第 0 行的有效结果，保留其余物理填充。
 
 ## 临时空间
 
@@ -99,6 +101,8 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 - 当 `isBinary = false` 时：`tmp` 被接受但实现使用直接在 `dst` 上的顺序累加；`tmp` 未被主动使用。
 
 #### Ascend 950PR/Ascend 950DT
+
+对于 `int64_t` / `uint64_t`，两种重载都使用同一整数列归约路径；`tmp` 与 `isBinary` 均被忽略，不使用临时 Tile 存储。以下临时空间要求仅适用于其他支持类型。
 
 - 当 `isBinary = true` 时：`tmp` **被使用**于基于向量寄存器的二叉树累加（使用UB存储）。
   - `tmp` 必须与 `src`/`dst` 具有相同的元素类型。

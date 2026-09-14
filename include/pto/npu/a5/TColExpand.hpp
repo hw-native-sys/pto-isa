@@ -25,15 +25,28 @@ PTO_INTERNAL void Int64ColExpand(__ubuf__ T* dst, __ubuf__ T* src, unsigned vali
 {
     constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = validCols / elementsPerRepeat;
     __VEC_SCOPE__
     {
         vector_s32 wordReg;
         uint16_t rows = validRows;
-        for (uint16_t colRepeat = 0; colRepeat < repeatTimes; ++colRepeat) {
+
+        for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
             uint32_t colOffset = colRepeat * elementsPerRepeat;
             uint32_t remainingWords = (validCols - colOffset) * 2;
             MaskReg storeMask = plt_b32(remainingWords, POST_UPDATE);
             vlds(wordReg, (__ubuf__ int32_t*)src + colOffset * 2, 0, NORM);
+            for (uint16_t row = 0; row < rows; ++row) {
+                vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, storeMask);
+            }
+        }
+        for (uint16_t colRepeat = fullRepeats; colRepeat < repeatTimes; ++colRepeat) {
+            uint32_t colOffset = colRepeat * elementsPerRepeat;
+            uint32_t remainingWords = (validCols - colOffset) * 2;
+            MaskReg storeMask = plt_b32(remainingWords, POST_UPDATE);
+            vector_u32 lane;
+            vci((vector_s32&)lane, 0, INC_ORDER);
+            vgather2((vector_u32&)wordReg, (__ubuf__ uint32_t*)src + colOffset * 2, lane, storeMask);
             for (uint16_t row = 0; row < rows; ++row) {
                 vsts(wordReg, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, storeMask);
             }

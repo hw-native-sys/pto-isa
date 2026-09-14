@@ -15,7 +15,7 @@ Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= j < C`:
 
 $$ \mathrm{dst}_{0,j} = \sum_{i=0}^{R-1} \mathrm{src}_{i,j} $$
 
-`isBinary` selects the implementation path (binary-tree accumulation vs. sequential accumulation).
+`isBinary` selects binary-tree or sequential accumulation; the A5 64-bit integer path ignores it.
 
 ## Assembly Syntax
 
@@ -24,7 +24,7 @@ Synchronous form:
 ```text
 %dst = tcolsum %src {isBinary = false} : !pto.tile<...> -> !pto.tile<...>
 ```
-Lowering may introduce internal scratch tiles; the C++ intrinsic requires an explicit `tmp` operand.
+Lowering may introduce scratch tiles; the C++ API provides both an overload without `tmp` and one with `tmp, isBinary`.
 
 ### AS Level 1 (SSA)
 
@@ -62,8 +62,8 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
     - `src.GetValidCol() == dst.GetValidCol()`
     - `src.GetValidRow() != 0` (implementation silently returns early when zero, no computation performed)
     - `src.GetValidCol() != 0` (implementation silently returns early when zero, no computation performed)
-    - `src.GetValidCol() <= tmp` row stride measured in `src` elements
-- `isBinary` selects the checked backend path:
+    - Only for binary accumulation that uses `tmp`: `src.GetValidCol() <= tmp` row stride measured in `src` elements
+- For types other than 64-bit integers, `isBinary` selects the backend path:
     - `true`: binary-tree accumulation using `tmp`
     - `false`: sequential accumulation into `dst`
 
@@ -77,7 +77,9 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 ### A5 implementation checks
 
 - Shared A5 column-reduce checks allow `half`, `float`, `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `bfloat16_t`.
-- The checked A5 `TCOLSUM` path still takes `tmp` only for the binary accumulation path; no extra compile-time `tmp` type/layout assertions are explicitly enforced in `TCOLSUM_IMPL`.
+- The checked A5 `TCOLSUM` path still uses `tmp` only for binary accumulation of types other than 64-bit integers; no extra compile-time `tmp` type/layout assertions are explicitly enforced in `TCOLSUM_IMPL`.
+
+- For `int64_t` / `uint64_t`: use output valid shape `[1, src.GetValidCol()]`. Physical `Cols` is a multiple of 4; valid columns need not be aligned. Only valid results in row 0 are written; other physical padding is preserved.
 
 ## Temporary Space
 
@@ -97,6 +99,8 @@ No `tmp` is required. Both A2A3 and A5 use sequential accumulation directly into
 - When `isBinary = false`: `tmp` is accepted but the implementation uses sequential accumulation into `dst`; `tmp` is not actively used.
 
 #### A5
+
+For `int64_t` / `uint64_t`, both overloads use the same integer column-reduction path; `tmp` and `isBinary` are ignored and no temporary tile storage is used. The following scratch requirements apply only to other supported types.
 
 - When `isBinary = true`: `tmp` **is used** for binary-tree accumulation in vector registers with UB storage.
   - `tmp` must have the same element type as `src`/`dst`.

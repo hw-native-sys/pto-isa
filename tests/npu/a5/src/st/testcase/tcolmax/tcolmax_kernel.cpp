@@ -168,6 +168,42 @@ extern "C" __global__ AICORE void launchTCOLMAXCase86(__gm__ uint64_t* out, __gm
     runTColMax<uint64_t, 1, 1, 1, 4092, 4092>(out, src, false);
 }
 
+template <typename T, int rows, int validRows, int cols, int validCols, int dstCols>
+__global__ AICORE void launchTCOLMAXGuard(__gm__ T* out, __gm__ T* src)
+{
+    constexpr int outputElements = dstCols + 64;
+    constexpr BLayout dstLayout = BLayout::RowMajor;
+    using SrcView = Tile<TileType::Vec, T, rows, cols, BLayout::RowMajor, rows, cols>;
+    using SrcTile = Tile<TileType::Vec, T, rows, cols, BLayout::RowMajor, validRows, validCols>;
+    using DstTile = Tile<TileType::Vec, T, 1, dstCols, dstLayout, 1, validCols>;
+    using OutputView = Tile<TileType::Vec, T, 1, outputElements, BLayout::RowMajor, 1, outputElements>;
+    using SrcGlobal = GlobalTensor<T, Shape<1, 1, 1, rows, cols>, pto::Stride<1, 1, 1, cols, 1>>;
+    using OutputGlobal = GlobalTensor<T, Shape<1, 1, 1, 1, outputElements>, pto::Stride<1, 1, 1, outputElements, 1>>;
+    SrcView srcView;
+    SrcTile srcTile;
+    DstTile dstTile;
+    OutputView outputView;
+    SrcGlobal srcGlobal(src);
+    OutputGlobal outputGlobal(out);
+    TASSIGN(srcView, 0);
+    TASSIGN(srcTile, 0);
+    TASSIGN(dstTile, 32768);
+    // Read back padding, inactive rows, and the adjacent allocation guard.
+    TASSIGN(outputView, 32768);
+    TLOAD(srcView, srcGlobal);
+    TLOAD(outputView, outputGlobal);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    TCOLMAX(dstTile, srcTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(outputGlobal, outputView);
+}
+
 template <uint32_t caseId>
 void launchTCOLMAXTestCase(void* out, void* src, aclrtStream stream)
 {
@@ -292,6 +328,38 @@ void launchTCOLMAXTestCase(void* out, void* src, aclrtStream stream)
             launchTCOLMAXCase86<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
             break;
         }
+        case 100: {
+            launchTCOLMAXGuard<int64_t, 2, 2, 4, 1, 4><<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 101: {
+            launchTCOLMAXGuard<int64_t, 2, 2, 4, 4, 4><<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 102: {
+            launchTCOLMAXGuard<int64_t, 2, 2, 36, 33, 36><<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 103: {
+            launchTCOLMAXGuard<int64_t, 2, 2, 68, 65, 68><<<1, nullptr, stream>>>((int64_t*)out, (int64_t*)src);
+            break;
+        }
+        case 104: {
+            launchTCOLMAXGuard<uint64_t, 2, 2, 4, 1, 4><<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
+        case 105: {
+            launchTCOLMAXGuard<uint64_t, 2, 2, 4, 4, 4><<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
+        case 106: {
+            launchTCOLMAXGuard<uint64_t, 2, 2, 36, 33, 36><<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
+        case 107: {
+            launchTCOLMAXGuard<uint64_t, 2, 2, 68, 65, 68><<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src);
+            break;
+        }
         default: {
         }
     }
@@ -327,3 +395,11 @@ template void launchTCOLMAXTestCase<83>(void* out, void* src, aclrtStream stream
 template void launchTCOLMAXTestCase<84>(void* out, void* src, aclrtStream stream);
 template void launchTCOLMAXTestCase<85>(void* out, void* src, aclrtStream stream);
 template void launchTCOLMAXTestCase<86>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<100>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<101>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<102>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<103>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<104>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<105>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<106>(void* out, void* src, aclrtStream stream);
+template void launchTCOLMAXTestCase<107>(void* out, void* src, aclrtStream stream);

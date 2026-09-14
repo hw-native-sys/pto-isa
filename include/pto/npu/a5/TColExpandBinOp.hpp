@@ -165,19 +165,39 @@ PTO_INTERNAL void Int64ColExpandBinary(
     using T = typename TileData::DType;
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
 
+    uint16_t colRepeats = CeilDivision(kValidCols, elementsPerRepeat);
+    uint16_t fullRepeats =
+        Int64FullLoadRepeats<Int64MinCols<TileDataSrc0::Cols, TileDataSrc1::Cols>, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         vector_s32 dstLow, dstHigh, src0Low, src0High, src1Low, src1High, half0, half1;
         MaskReg lowMask, highMask;
         uint16_t rowCount = kValidRows;
-        uint16_t colRepeats = CeilDivision(kValidCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rowCount; ++row) {
             uint32_t sreg = kValidCols;
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
-                vlds(src0Low, src0High, (__ubuf__ int32_t*)src0Ptr, (row * Src0RowStride + colOffset) * 2, DINTLV_B32);
-                vlds(src1Low, src1High, (__ubuf__ int32_t*)src1Ptr, colOffset * 2, DINTLV_B32);
+                Int64LoadBounded<TileDataSrc0::Cols, true>(
+                    src0Low, src0High, (__ubuf__ int32_t*)src0Ptr + (row * Src0RowStride + colOffset) * 2, colOffset);
+                Int64LoadBounded<TileDataSrc1::Cols, true>(
+                    src1Low, src1High, (__ubuf__ int32_t*)src1Ptr + colOffset * 2, colOffset);
+                Op::Int64ColExpandBinaryInstr(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
+                pintlv_b32(lowMask, highMask, preg, preg);
+                vintlv(half0, half1, dstLow, dstHigh);
+                uint32_t dstOffset = (row * DstRowStride + colOffset) * 2;
+                vsts(half0, (__ubuf__ int32_t*)dstPtr, dstOffset, NORM_B32, lowMask);
+                vsts(half1, (__ubuf__ int32_t*)dstPtr, dstOffset + CCE_VL / sizeof(int32_t), NORM_B32, highMask);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                Int64LoadBounded<TileDataSrc0::Cols, false>(
+                    src0Low, src0High, (__ubuf__ int32_t*)src0Ptr + (row * Src0RowStride + colOffset) * 2, colOffset);
+                Int64LoadBounded<TileDataSrc1::Cols, false>(
+                    src1Low, src1High, (__ubuf__ int32_t*)src1Ptr + colOffset * 2, colOffset);
                 Op::Int64ColExpandBinaryInstr(dstLow, dstHigh, src0Low, src0High, src1Low, src1High, preg);
                 pintlv_b32(lowMask, highMask, preg, preg);
                 vintlv(half0, half1, dstLow, dstHigh);

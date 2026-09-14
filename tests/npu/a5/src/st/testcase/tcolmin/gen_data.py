@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+
 np.random.seed(19)
 
 
@@ -21,6 +22,17 @@ def gen_golden_data(param):
     col = param.col
     valid_row = param.valid_row
     valid_col = param.valid_col
+
+    if param.check_guard:
+        values = np.arange(row * col, dtype=np.uint64).reshape(row, col)
+        input_arr = ((1 << 54) + values * 1009 + 3).astype(data_type)
+        if data_type == np.int64:
+            input_arr[values % 3 == 0] *= -1
+        output_arr = np.full(col + 64, 0x5A5A5A5A5A5A5A5A, dtype=data_type)
+        output_arr[:valid_col] = input_arr[:valid_row, :valid_col].min(axis=0)
+        input_arr.tofile("input.bin")
+        output_arr.tofile("golden.bin")
+        return
     if np.issubdtype(data_type, np.integer):
         value_max = np.iinfo(data_type).max
         value_min = np.iinfo(data_type).min
@@ -35,7 +47,7 @@ def gen_golden_data(param):
         value_max = 200
     else:
         input_arr = np.random.uniform(low=value_min, high=value_max, size=(row, col)).astype(data_type)
-    output_arr = np.zeros((col))
+    output_arr = np.zeros(col, dtype=data_type)
     for i in range(valid_col):
         output_arr[i] = value_max
         for j in range(valid_row):
@@ -44,18 +56,20 @@ def gen_golden_data(param):
 
     # 先计算, 再强转类型, 保证结果精度不裂化
     output_arr = output_arr.astype(data_type)
-    output_arr.tofile('golden.bin')
-    input_arr.tofile('input.bin')
+    output_arr.tofile("golden.bin")
+    input_arr.tofile("input.bin")
 
 
 class TColMinParam:
-    def __init__(self, name, data_type, row, valid_row, col, valid_col):
+    def __init__(self, name, data_type, row, valid_row, col, valid_col, check_guard=False):
+        self.check_guard = check_guard
         self.name = name
         self.data_type = data_type
         self.row = row
         self.col = col
         self.valid_row = valid_row
         self.valid_col = valid_col
+
 
 if __name__ == "__main__":
     case_params_list = [
@@ -89,6 +103,14 @@ if __name__ == "__main__":
         TColMinParam("TCOLMINTest.case_uint64_4x64", np.uint64, 4, 4, 64, 64),
         TColMinParam("TCOLMINTest.case_int64_1x4092", np.int64, 1, 1, 4092, 4092),
         TColMinParam("TCOLMINTest.case_uint64_1x4092", np.uint64, 1, 1, 4092, 4092),
+        TColMinParam("TCOLMINTest.case_int64_2x4_valid1_guard", np.int64, 2, 2, 4, 1, check_guard=True),
+        TColMinParam("TCOLMINTest.case_int64_2x4_valid4_guard", np.int64, 2, 2, 4, 4, check_guard=True),
+        TColMinParam("TCOLMINTest.case_int64_2x36_valid33_guard", np.int64, 2, 2, 36, 33, check_guard=True),
+        TColMinParam("TCOLMINTest.case_int64_2x68_valid65_guard", np.int64, 2, 2, 68, 65, check_guard=True),
+        TColMinParam("TCOLMINTest.case_uint64_2x4_valid1_guard", np.uint64, 2, 2, 4, 1, check_guard=True),
+        TColMinParam("TCOLMINTest.case_uint64_2x4_valid4_guard", np.uint64, 2, 2, 4, 4, check_guard=True),
+        TColMinParam("TCOLMINTest.case_uint64_2x36_valid33_guard", np.uint64, 2, 2, 36, 33, check_guard=True),
+        TColMinParam("TCOLMINTest.case_uint64_2x68_valid65_guard", np.uint64, 2, 2, 68, 65, check_guard=True),
     ]
 
     for _, case in enumerate(case_params_list):

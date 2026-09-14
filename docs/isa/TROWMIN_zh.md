@@ -64,13 +64,15 @@ PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
-- 支持的元素类型 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）：`half`、`float`、`int32_t`、`int16_t`。
-- 支持的元素类型 (Ascend 950PR/Ascend 950DT)：`half`、`float`、`int32_t`、`int64_t`、`uint64_t`、`int16_t`、`int8_t`、`uint8_t`。
-- 实现同时接受ND输出和 `Cols == 1` 的DN输出。
-- 运行时检查遵循共享的行归约检查路径：
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+- 支持的元素类型：`half`、`float`、`int32_t`、`int16_t`。
+
+### Ascend 950PR/Ascend 950DT实现检查
+
+- 支持的元素类型：`half`、`float`、`int32_t`、`int64_t`、`uint64_t`、`int16_t`、`int8_t`、`uint8_t`。
+- 对于 `int64_t` / `uint64_t`：
+    - 输出有效列数应为 1；只写入每个有效行的第 0 列，保留其余物理填充。
+    - ND 输出要求物理 `Cols % 4 == 0`；DN 输出要求物理 `Cols == 1` 且 `Rows % 4 == 0`。有效行数不必是 4 的倍数。
+    - 行步长由物理形状决定，见[形状与布局约定](conventions_zh.md)。
 
 ## 临时空间
 
@@ -85,7 +87,7 @@ PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ### Ascend 950PR/Ascend 950DT
 
-`tmp` 被接口接受但Ascend 950PR/Ascend 950DT实现**不使用**。Ascend 950PR/Ascend 950DT后端使用基于向量寄存器的归约（`vcmin` 指令），不需要暂存Tile存储。`tmp` 仅为了与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品的API兼容性而保留在C++内建接口签名中。
+`tmp` 被接口接受但不使用。64 位整数使用精确整数归约，不经过浮点转换。
 
 ## 示例
 
@@ -124,6 +126,25 @@ void example_manual() {
   TASSIGN(src, 0x1000);
   TASSIGN(dst, 0x2000);
   TASSIGN(tmp, 0x3000);
+  TROWMIN(dst, src, tmp);
+}
+```
+
+### 64 位 ND 输出（Ascend 950PR/Ascend 950DT）
+
+输出物理形状为 `[64,4]`、有效形状为 `[64,1]`，每隔 32 字节写入一个 8 字节结果。
+
+```cpp
+#include <cstdint>
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_int64() {
+  using SrcT = Tile<TileType::Vec, int64_t, 64, 16>;
+  using DstT = Tile<TileType::Vec, int64_t, 64, 4, BLayout::RowMajor, 64, 1>;
+  SrcT src, tmp;
+  DstT dst;
   TROWMIN(dst, src, tmp);
 }
 ```

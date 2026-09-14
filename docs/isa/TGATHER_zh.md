@@ -16,9 +16,21 @@
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src0}\!\left[\mathrm{indices}_{i,j}\right] $$
 
-确切的索引解释和边界行为由实现定义。
+`indices[i,j]` 是相对于 `src0.data()` 的扁平元素偏移，单位是源元素，不是字节或行号；物理填充也占用偏移。调用者须保证索引非负、位于已分配的源 Tile 内，并指向已初始化的数据。实现不执行索引边界检查。
 
-基于掩码模式的gather是由 `pto::MaskPattern` 控制的实现定义的选择/归约操作。
+### 64 位模式 gather 的输出（A5 / Ascend 950PR/Ascend 950DT）
+
+每个源有效行选择列 `offset, offset + factor, ...`，且列号必须小于 `C = src.GetValidCol()`：
+
+| 模式 | factor | offset |
+| --- | ---: | ---: |
+| `P0101` / `P1010` | 2 | 0 / 1 |
+| `P0001` / `P0010` / `P0100` / `P1000` | 4 | 0 / 1 / 2 / 3 |
+| `P1111` | 1 | 0 |
+
+每行选中数 `N = C > offset ? ceil((C - offset) / factor) : 0`。各行结果连续拼接到 `dst.data()`，总数为 `src.GetValidRow() * N`，行间不按 `DstTileData::Cols` 插入填充。调用者须提供足够的连续物理容量，并选择能够表示这段连续输出的有效形状。源有效行数为 0 或 `N == 0` 时不写入。
+
+例如源物理形状 `[2,8]`、有效形状 `[2,5]` 使用 `P0101` 时，每行选择列 0、2、4，输出为连续 6 个元素；可用物理 `[1,8]`、有效 `[1,6]` 的目标承接，末尾 2 个填充元素保持不变。
 
 ## 汇编语法
 
@@ -63,7 +75,8 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1,
 ### 基于掩码模式的Gather
 
 ```cpp
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, typename... WaitEvents>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern = MaskPattern::P1111,
+          auto gatherType = GatherAxis::GATHER_ROW, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 ```
 
@@ -73,7 +86,7 @@ PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &...
 
 ```cpp
 template <typename TileDataD, typename TileDataS, typename TileDataS1, typename TileDataC, typename TileDataTmp, CmpMode cmpMode, typename... WaitEvents>
-PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_value, TileDataC &cdst, TileDataTmp &tmp, uint32_t offset, WaitEvents &... events);
+PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_value, TileDataC &cdst, TileDataTmp &tmp, int offset, WaitEvents &... events);
 ```
 
 对于 `src0` 的每一行 `i`，使用 `cmpMode`（GT或EQ）将每个元素 `src0[i, j]` 与阈值 `k_value[i]` 比较。匹配元素的索引被收集到 `dst[i]` 中。每行的匹配数量存储在 `cdst[i]` 中。`offset` 参数指定起始索引值。
@@ -102,9 +115,10 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
     - `dst.GetValidCol() == DstTileData::Cols`（连续的目标存储）。
 - **基于索引的gather：实现检查 (Ascend 950PR/Ascend 950DT)**:
     - `DstTileData::DType` 必须为 1、2、4 或 8 字节类型：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float` 之一。
-    - `sizeof(Src1TileData::DType)` 对应类型必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t` 之一。
+    - `Src1TileData::DType` 必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t` 之一。
     - `DstTileData::DType` 必须与 `Src0TileData::DType` 类型相同。
-    - `src1.GetValidCol() == Src1TileData::Cols` 且 `dst.GetValidCol() == DstTileData::Cols`。
+    - 64 位数据要求 32 位索引（`int32_t` 或 `uint32_t`）。
+    - 64 位索引 gather 支持 RowMajor/ColMajor 的目标和索引 Tile，并按各自物理行列步长访问；有效列数可以小于物理列数。索引 Tile 的有效区域须覆盖目标有效区域。
 - **基于掩码模式的gather：实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 源元素大小必须是`2`或`4`字节。
     - `SrcTileData::DType`/`DstTileData::DType` 必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t` 或 `float` 之一。
@@ -114,7 +128,8 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
     - 源元素大小必须是`1`、`2`、`4`或`8`字节。
     - `dst` 和 `src` 必须都是 `TileType::Vec` 且行主序。
     - `SrcTileData::DType`/`DstTileData::DType` 必须是 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`、`float8_e4m3_t`、`float8_e5m2_t` 或 `hifloat8_t` 之一。
-    - 支持的数据类型限制为目标定义的集合（通过实现中的 `static_assert` 强制执行），且 `sizeof(dst element) == sizeof(src element)`，`dst.GetValidCol() == DstTileData::Cols`（连续的目标存储）。
+    - `sizeof(dst element) == sizeof(src element)`。输出按连续流写入；目标容量必须足够，目标有效形状不会截断写入。
+    - 64 位模式 gather 只支持 `GatherAxis::GATHER_ROW`，具体输出长度与排列见数学语义。
 - **基于比较的gather：实现检查**：类型与 `cmpMode` 约束详见 [C++内建接口 → 基于比较的Gather约束](#基于比较的gather约束) 一节。
 - **边界 / 有效性**:
     - 索引边界不通过显式运行时断言进行验证；超出范围的索引行为由目标定义。
@@ -160,7 +175,7 @@ using namespace pto;
 
 void example_manual() {
   using SrcT = Tile<TileType::Vec, float, 16, 16>;
-  using DstT = Tile<TileType::Vec, float, 1, 16>;
+  using DstT = Tile<TileType::Vec, float, 1, 128>;
   SrcT src;
   DstT dst;
   TASSIGN(src, 0x1000);

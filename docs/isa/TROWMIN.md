@@ -63,13 +63,15 @@ PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ### A2A3 implementation checks
 
-- Supported element types (A2A3): `half`, `float`, `int32_t`, `int16_t`.
-- Supported element types (A5): `half`, `float`, `int32_t`, `int64_t`, `uint64_t`, `int16_t`, `int8_t`, `uint8_t`.
-- The implementation accepts both ND output and DN output with `Cols == 1`.
-- Runtime checks follow the shared row-reduce check path:
-    - `src.GetValidRow() != 0`
-    - `src.GetValidCol() != 0`
-    - `src.GetValidRow() == dst.GetValidRow()`
+- Supported element types: `half`, `float`, `int32_t`, `int16_t`.
+
+### A5 implementation checks
+
+- Supported element types: `half`, `float`, `int32_t`, `int64_t`, `uint64_t`, `int16_t`, `int8_t`, `uint8_t`.
+- For `int64_t` / `uint64_t`:
+    - Set the output valid column count to 1. Only column 0 of valid rows is written; other physical padding is preserved.
+    - ND output requires physical `Cols % 4 == 0`; DN output requires physical `Cols == 1` and `Rows % 4 == 0`. Valid rows need not be a multiple of 4.
+    - Row strides follow physical shapes; see [shape and layout conventions](conventions.md).
 
 ## Temporary Space
 
@@ -84,8 +86,7 @@ PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 ### A5
 
-`tmp` is accepted by the interface but **not used** by the A5 implementation. The A5 backend uses vector register-based reduction (`vcmin` instruction) and does not require scratch tile storage. `tmp` is retained in the C++ intrinsic signature solely for API compatibility with A2A3.
-
+`tmp` is accepted but not used. The 64-bit integer path performs exact integer reduction without floating-point conversion.
 
 ## Examples
 
@@ -124,6 +125,25 @@ void example_manual() {
   TASSIGN(src, 0x1000);
   TASSIGN(dst, 0x2000);
   TASSIGN(tmp, 0x3000);
+  TROWMIN(dst, src, tmp);
+}
+```
+
+### 64-bit ND output (A5)
+
+The output has physical shape `[64,4]` and valid shape `[64,1]`, with one 8-byte result every 32 bytes.
+
+```cpp
+#include <cstdint>
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_int64() {
+  using SrcT = Tile<TileType::Vec, int64_t, 64, 16>;
+  using DstT = Tile<TileType::Vec, int64_t, 64, 4, BLayout::RowMajor, 64, 1>;
+  SrcT src, tmp;
+  DstT dst;
   TROWMIN(dst, src, tmp);
 }
 ```

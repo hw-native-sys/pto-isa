@@ -9,6 +9,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <gtest/gtest.h>
+#include <climits>
+#include <cstring>
 #include "acl/acl.h"
 #include "test_common.h"
 
@@ -155,3 +157,53 @@ TEST_F(TTRITest, case_int8_s32x128_v32x128_lower_diag_0) { test_ttri_dyn<int8_t,
 TEST_F(TTRITest, case_int8_s32x128_v24x112_lower_diag_0) { test_ttri_dyn<int8_t, 32, 128, 24, 112, 0>(0); }
 TEST_F(TTRITest, case_fp16_s293x16_v1x16_lower_diag_0) { test_ttri_dyn<aclFloat16, 293, 16, 1, 16, 0>(0); }
 TEST_F(TTRITest, case_fp16_s293x16_v2x16_lower_diag_0) { test_ttri_dyn<aclFloat16, 293, 16, 2, 16, 0>(0); }
+
+template <typename T, int kind, int rows, int cols, int validRows, int validCols, int upperOrLower, int diagonal>
+void LaunchTTriGuard(T* out, void* stream);
+
+template <typename T, int kind, int rows, int cols, int validRows, int validCols, int upperOrLower, int diagonal>
+void test_ttri_guard()
+{
+    constexpr int guardRows = (512 + cols * sizeof(T) - 1) / (cols * sizeof(T));
+    constexpr size_t fileSize = (rows + guardRows) * cols * sizeof(T);
+    std::vector<uint8_t> expected(fileSize, 0x5a);
+    std::vector<uint8_t> actual(fileSize);
+    for (int row = 0; row < validRows; ++row) {
+        for (int col = 0; col < validCols; ++col) {
+            const int64_t boundary = static_cast<int64_t>(row) + diagonal;
+            const bool selected = upperOrLower ? col >= boundary : col <= boundary;
+            T value = static_cast<T>(selected);
+            if constexpr (kind == 1) {
+                value = static_cast<T>(selected ? 0x3c00 : 0);
+            } else if constexpr (kind == 2) {
+                value = static_cast<T>(selected ? 0x3f80 : 0);
+            }
+            std::memcpy(expected.data() + (row * cols + col) * sizeof(T), &value, sizeof(T));
+        }
+    }
+
+    ASSERT_EQ(aclInit(nullptr), ACL_SUCCESS);
+    ASSERT_EQ(aclrtSetDevice(0), ACL_SUCCESS);
+    aclrtStream stream;
+    ASSERT_EQ(aclrtCreateStream(&stream), ACL_SUCCESS);
+    T* dstDevice;
+    ASSERT_EQ(aclrtMalloc(reinterpret_cast<void**>(&dstDevice), fileSize, ACL_MEM_MALLOC_HUGE_FIRST), ACL_SUCCESS);
+    EXPECT_EQ(aclrtMemset(dstDevice, fileSize, 0x5a, fileSize), ACL_SUCCESS);
+    LaunchTTriGuard<T, kind, rows, cols, validRows, validCols, upperOrLower, diagonal>(dstDevice, stream);
+    EXPECT_EQ(aclrtSynchronizeStream(stream), ACL_SUCCESS);
+    EXPECT_EQ(aclrtMemcpy(actual.data(), fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST), ACL_SUCCESS);
+    EXPECT_EQ(aclrtFree(dstDevice), ACL_SUCCESS);
+    EXPECT_EQ(aclrtDestroyStream(stream), ACL_SUCCESS);
+    EXPECT_EQ(aclrtResetDevice(0), ACL_SUCCESS);
+    EXPECT_EQ(aclFinalize(), ACL_SUCCESS);
+
+    // Check valid elements, row padding, invalid rows, and the trailing guard byte for byte.
+    for (size_t byte = 0; byte < fileSize; ++byte) {
+        ASSERT_EQ(actual[byte], expected[byte]) << "byte offset " << byte;
+    }
+}
+
+#define PTO_TTRI_GUARD_CASE(name, type, kind, rows, cols, validRows, validCols, upper, diagonal) \
+    TEST_F(TTRITest, name) { test_ttri_guard<type, kind, rows, cols, validRows, validCols, upper, diagonal>(); }
+#include "ttri_guard_cases.inc"
+#undef PTO_TTRI_GUARD_CASE

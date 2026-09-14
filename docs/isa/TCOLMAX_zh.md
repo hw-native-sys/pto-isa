@@ -63,6 +63,8 @@ PTO_INST RecordEvent TCOLMAX(TileDataOut &dst, TileDataIn &src, WaitEvents &... 
 
 - 支持的元素类型：`half`、`float`、`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`bfloat16_t`。
 
+- 对于 `int64_t` / `uint64_t`：输出有效形状应为 `[1, src.GetValidCol()]`；物理 `Cols` 是 4 的倍数，有效列数不必对齐。只写入第 0 行的有效结果，保留其余物理填充。
+
 ## 示例
 
 ### 自动（Auto）

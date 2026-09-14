@@ -271,6 +271,10 @@ PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTileData& dst, SrcTileData& src,
     PTO_ASSERT(indexRow + validRow <= SrcTileData::Rows, "TEXTRACT ND_VEC : indexRow + dstValidRows exceeds srcRows!");
     PTO_ASSERT(indexCol + validCol <= SrcTileData::Cols, "TEXTRACT ND_VEC : indexCol + dstValidCols exceeds srcCols!");
 
+    if (validRow == 0 || validCol == 0) {
+        return;
+    }
+
     // fp4 (float4_e2m1x2_t / float4_e1m2x2_t) is sub-byte: each T packs 2 elements into 1 byte.
     // Vector intrinsics cannot address individual fp4 elements, so only the byte-DMA path
     // (TExtractVecToVecNDImpl) is valid. The DMA path treats T as one packed unit (1 byte),

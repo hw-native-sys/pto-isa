@@ -67,10 +67,13 @@ protected:
         return ResultCmp(golden, result, eps, 0, 1000, false, true);
     }
 
-    template <uint32_t caseId, typename T, int row, int validRow, int srcCol, int srcValidCol, int dstCol>
+    template <
+        uint32_t caseId, typename T, int row, int validRow, int srcCol, int srcValidCol, int dstCol,
+        bool checkGuard = false>
     bool TRowMaxTestFramework()
     {
-        size_t dstByteSize = row * dstCol * sizeof(T);
+        constexpr size_t guardElements = checkGuard ? 64 : 0;
+        size_t dstByteSize = (row * dstCol + guardElements) * sizeof(T);
         size_t srcByteSize = row * srcCol * sizeof(T);
         aclrtMallocHost(&dstHost, dstByteSize);
         aclrtMallocHost(&srcHost, srcByteSize);
@@ -79,7 +82,7 @@ protected:
         aclrtMemset(dstDevice, dstByteSize, 0, dstByteSize);
 
         ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
-        aclrtMemset(dstHost, dstByteSize, 0, dstByteSize);
+        aclrtMemset(dstHost, dstByteSize, checkGuard ? 0x5a : 0, dstByteSize);
 
         aclrtMemcpy(dstDevice, dstByteSize, dstHost, dstByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
         aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
@@ -88,7 +91,8 @@ protected:
         aclrtSynchronizeStream(stream);
 
         aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
-        WriteFile(GetGoldenDir() + "/output.bin", dstHost, validRow * dstCol * sizeof(T));
+        size_t resultByteSize = checkGuard ? dstByteSize : validRow * dstCol * sizeof(T);
+        WriteFile(GetGoldenDir() + "/output.bin", dstHost, resultByteSize);
 
         aclrtFree(dstDevice);
         aclrtFree(srcDevice);
@@ -286,4 +290,44 @@ TEST_F(TROWMAXTest, case_int64_32x145_dndst)
 TEST_F(TROWMAXTest, case_uint64_32x145_dndst)
 {
     EXPECT_TRUE((TRowMaxTestFramework<38, uint64_t, 32, 32, 145, 145, 1>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_64x16_nddst4_small)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<39, int64_t, 64, 64, 16, 16, 1>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_64x16_dndst_small)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<40, int64_t, 64, 64, 16, 16, 1>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_64x16_nddst4_wide)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<41, int64_t, 64, 64, 16, 16, 1>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_64x16_dndst_wide)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<42, int64_t, 64, 64, 16, 16, 1>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_64x16_nddst4_guard)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<43, int64_t, 64, 64, 16, 16, 1, true>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_8x16_dndst_valid5_guard)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<44, int64_t, 8, 5, 16, 16, 1, true>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_8x16_dndst_valid6_guard)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<45, int64_t, 8, 6, 16, 16, 1, true>()));
+}
+
+TEST_F(TROWMAXTest, case_int64_8x16_dndst_valid7_guard)
+{
+    EXPECT_TRUE((TRowMaxTestFramework<46, int64_t, 8, 7, 16, 16, 1, true>()));
 }

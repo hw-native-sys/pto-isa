@@ -16,6 +16,42 @@ import numpy as np
 np.random.seed(23)
 
 
+def gen_int64_stride_input(row, col, input_mode):
+    input_arr = np.empty((row, col), dtype=np.int64)
+    low_words = [
+        0,
+        1,
+        2,
+        3,
+        0x7FFFFFFD,
+        0x7FFFFFFE,
+        0x7FFFFFFF,
+        0x80000000,
+        0x80000001,
+        0x80000002,
+        0xFFFFFFFA,
+        0xFFFFFFFB,
+        0xFFFFFFFC,
+        0xFFFFFFFD,
+        0xFFFFFFFE,
+        0xFFFFFFFF,
+    ]
+    for i in range(row):
+        if input_mode == "small":
+            values = np.arange(col, dtype=np.int64) + i * 64 - 2048
+        elif i % 4 == 0:
+            values = [-(1 << 63) + i, (1 << 63) - 1 - i] + list(range(-7, 7))
+        elif i % 4 == 1:
+            values = [(1 << 40) + (i << 32) + low for low in low_words]
+        elif i % 4 == 2:
+            values = [-(1 << 40) + (i << 32) + low for low in low_words]
+        else:
+            values = [((j - 8) << 40) + (i << 32) + low_words[15 - j] for j in range(col)]
+        # Move extrema through every column while retaining distinct results per row.
+        input_arr[i] = np.roll(np.asarray(values, dtype=np.int64), i // 4 if input_mode == "wide" else i)
+    return input_arr
+
+
 def gen_golden_data(param):
     data_type = param.data_type
     row = param.row
@@ -39,21 +75,30 @@ def gen_golden_data(param):
         input_arr = np.random.uniform(low=-16, high=16, size=(row, col)).astype(data_type)
         output_arr = np.full((valid_row), np.finfo(data_type).max).astype(data_type)
 
+    if param.input_mode is not None:
+        input_arr = gen_int64_stride_input(row, col, param.input_mode)
+
     for i in range(valid_row):
         output_arr[i] = np.min(input_arr[i][:valid_col])
+
+    if param.guard_elements:
+        guard = np.full(param.guard_elements, 0x5A5A5A5A5A5A5A5A, dtype=data_type)
+        output_arr = np.concatenate((output_arr, guard))
 
     input_arr.tofile("input.bin")
     output_arr.tofile("golden.bin")
 
 
 class TRowMinParams:
-    def __init__(self, name, data_type, row, valid_row, col, valid_col):
+    def __init__(self, name, data_type, row, valid_row, col, valid_col, input_mode=None, guard_elements=0):
         self.name = name
         self.data_type = data_type
         self.row = row
         self.valid_row = valid_row
         self.col = col
         self.valid_col = valid_col
+        self.input_mode = input_mode
+        self.guard_elements = guard_elements
 
 
 if __name__ == "__main__":
@@ -96,6 +141,14 @@ if __name__ == "__main__":
         TRowMinParams("TROWMINTest.case_uint64_32x32_dndst", np.uint64, 32, 32, 32, 32),
         TRowMinParams("TROWMINTest.case_int64_32x145_dndst", np.int64, 32, 32, 145, 145),
         TRowMinParams("TROWMINTest.case_uint64_32x145_dndst", np.uint64, 32, 32, 145, 145),
+        TRowMinParams("TROWMINTest.case_int64_64x16_nddst4_small", np.int64, 64, 64, 16, 16, "small"),
+        TRowMinParams("TROWMINTest.case_int64_64x16_dndst_small", np.int64, 64, 64, 16, 16, "small"),
+        TRowMinParams("TROWMINTest.case_int64_64x16_nddst4_wide", np.int64, 64, 64, 16, 16, "wide"),
+        TRowMinParams("TROWMINTest.case_int64_64x16_dndst_wide", np.int64, 64, 64, 16, 16, "wide"),
+        TRowMinParams("TROWMINTest.case_int64_64x16_nddst4_guard", np.int64, 64, 64, 16, 16, "small", 64),
+        TRowMinParams("TROWMINTest.case_int64_8x16_dndst_valid5_guard", np.int64, 8, 5, 16, 16, "wide", 64 + 8 - 5),
+        TRowMinParams("TROWMINTest.case_int64_8x16_dndst_valid6_guard", np.int64, 8, 6, 16, 16, "wide", 64 + 8 - 6),
+        TRowMinParams("TROWMINTest.case_int64_8x16_dndst_valid7_guard", np.int64, 8, 7, 16, 16, "wide", 64 + 8 - 7),
     ]
 
     for _, case in enumerate(case_params_list):

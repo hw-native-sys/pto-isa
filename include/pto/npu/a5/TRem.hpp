@@ -42,13 +42,13 @@ PTO_INTERNAL void Int64RemRegs(
     Int64SelectRegs(dstLow, dstHigh, zeroLow, zeroHigh, dstLow, dstHigh, zeroMask);
 }
 
-template <typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
+template <typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols, bool FullLoad>
 PTO_INTERNAL void Int64RemRepeat(
     __ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, uint16_t row, uint32_t colOffset, MaskReg& mask)
 {
     vector_s32 dstLow, dstHigh, lhsLow, lhsHigh, rhsLow, rhsHigh;
-    Int64LoadRegs<T, Src0Cols>(lhsLow, lhsHigh, src0, row, colOffset);
-    Int64LoadRegs<T, Src1Cols>(rhsLow, rhsHigh, src1, row, colOffset);
+    Int64LoadRegs<T, Src0Cols, FullLoad>(lhsLow, lhsHigh, src0, row, colOffset);
+    Int64LoadRegs<T, Src1Cols, FullLoad>(rhsLow, rhsHigh, src1, row, colOffset);
     Int64RemRegs<T>(dstLow, dstHigh, lhsLow, lhsHigh, rhsLow, rhsHigh, mask);
     Int64StoreRegs<T, DstCols>(dstLow, dstHigh, dst, row, colOffset, mask);
 }
@@ -57,18 +57,38 @@ template <typename T, unsigned DstCols, unsigned Src0Cols, unsigned Src1Cols>
 PTO_INTERNAL void Int64Rem(__ubuf__ T* dst, __ubuf__ T* src0, __ubuf__ T* src1, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<Int64MinCols<Src0Cols, Src1Cols>, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         vector_s32 dl, dh, al, ah, bl, bh, half0, half1;
         MaskReg lowMask, highMask;
         uint16_t rows = validRows;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rows; ++row) {
             uint32_t sreg = validCols;
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
-                vlds(al, ah, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset) * 2, 0, DINTLV_B32);
-                vlds(bl, bh, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset) * 2, 0, DINTLV_B32);
+                Int64LoadBounded<Src0Cols, true>(
+                    al, ah, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset) * 2, colOffset);
+                Int64LoadBounded<Src1Cols, true>(
+                    bl, bh, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset) * 2, colOffset);
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                Int64RemRegs<T>(dl, dh, al, ah, bl, bh, preg);
+                pintlv_b32(lowMask, highMask, preg, preg);
+                vintlv(half0, half1, dl, dh);
+                vsts(half0, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, lowMask);
+                vsts(
+                    half1, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2 + CCE_VL / sizeof(int32_t), 0,
+                    NORM_B32, highMask);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                Int64LoadBounded<Src0Cols, false>(
+                    al, ah, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset) * 2, colOffset);
+                Int64LoadBounded<Src1Cols, false>(
+                    bl, bh, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset) * 2, colOffset);
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
                 Int64RemRegs<T>(dl, dh, al, ah, bl, bh, preg);
                 pintlv_b32(lowMask, highMask, preg, preg);
@@ -119,6 +139,8 @@ PTO_INTERNAL void Int64RemScalar(__ubuf__ T* dst, __ubuf__ T* src, T scalar, uns
         }
     }
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<SrcCols, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         vector_s32 dl, dh, al, ah, bl, bh, half0, half1;
@@ -126,12 +148,27 @@ PTO_INTERNAL void Int64RemScalar(__ubuf__ T* dst, __ubuf__ T* src, T scalar, uns
         uint64_t bits = static_cast<uint64_t>(scalar);
         Int64DuplicateRegs(bl, bh, static_cast<uint32_t>(bits), static_cast<uint32_t>(bits >> 32));
         uint16_t rows = validRows;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rows; ++row) {
             uint32_t sreg = validCols;
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;
-                vlds(al, ah, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, 0, DINTLV_B32);
+                Int64LoadBounded<SrcCols, true>(
+                    al, ah, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, colOffset);
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                Int64RemRegs<T>(dl, dh, al, ah, bl, bh, preg);
+                pintlv_b32(lowMask, highMask, preg, preg);
+                vintlv(half0, half1, dl, dh);
+                vsts(half0, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2, 0, NORM_B32, lowMask);
+                vsts(
+                    half1, (__ubuf__ int32_t*)dst + (row * DstCols + colOffset) * 2 + CCE_VL / sizeof(int32_t), 0,
+                    NORM_B32, highMask);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                uint32_t colOffset = colRepeat * elementsPerRepeat;
+                Int64LoadBounded<SrcCols, false>(
+                    al, ah, (__ubuf__ int32_t*)src + (row * SrcCols + colOffset) * 2, colOffset);
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
                 Int64RemRegs<T>(dl, dh, al, ah, bl, bh, preg);
                 pintlv_b32(lowMask, highMask, preg, preg);

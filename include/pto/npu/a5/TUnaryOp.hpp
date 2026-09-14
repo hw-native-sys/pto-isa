@@ -155,14 +155,14 @@ PTO_INTERNAL void TUnaryCheck()
 }
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
-template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols>
+template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols, bool FullLoad>
 PTO_INTERNAL void Int64UnaryRepeat(__ubuf__ T* dst, __ubuf__ T* src, uint16_t row, uint32_t colOffset, MaskReg& mask)
 {
     vector_s32 dstLow, dstHigh, srcLow, srcHigh, half0, half1;
     MaskReg lowMask, highMask;
     uint32_t srcOffset = (row * SrcCols + colOffset) * 2;
     uint32_t dstOffset = (row * DstCols + colOffset) * 2;
-    vlds(srcLow, srcHigh, (__ubuf__ int32_t*)src, srcOffset, DINTLV_B32);
+    Int64LoadBounded<SrcCols, FullLoad>(srcLow, srcHigh, (__ubuf__ int32_t*)src + srcOffset, colOffset);
     if constexpr (Op == Int64Op::Not) {
         vnot((vector_u32&)dstLow, (vector_u32&)srcLow, mask, MODE_ZEROING);
         vnot((vector_u32&)dstHigh, (vector_u32&)srcHigh, mask, MODE_ZEROING);
@@ -179,15 +179,22 @@ template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void Int64Unary(__ubuf__ T* dst, __ubuf__ T* src, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<SrcCols, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         uint16_t rowCount = validRows;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rowCount; ++row) {
             uint32_t sreg = validCols;
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
-                Int64UnaryRepeat<Op, T, DstCols, SrcCols>(dst, src, row, colRepeat * elementsPerRepeat, preg);
+                Int64UnaryRepeat<Op, T, DstCols, SrcCols, true>(dst, src, row, colRepeat * elementsPerRepeat, preg);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                Int64UnaryRepeat<Op, T, DstCols, SrcCols, false>(dst, src, row, colRepeat * elementsPerRepeat, preg);
             }
         }
     }

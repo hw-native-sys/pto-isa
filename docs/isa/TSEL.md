@@ -64,6 +64,8 @@ PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, Tile
     - `dst`, `src0`, and `src1` must be row-major.
     - The selection domain is `dst.GetValidRow()` / `dst.GetValidCol()`.
 - **Mask encoding**:
+    - For 64-bit data (A5), use a RowMajor packed mask with one bit per element. Column `j` uses bit `j % 8` of byte `j / 8`; rows use the physical mask stride in bytes.
+    - Masks from [TCMP](TCMP.md) or [TCMPS](TCMPS.md) may be used directly. Mask capacity must cover the destination valid region; data-tile valid columns are still counted in data elements.
     - The mask tile is interpreted as packed predicate bits in a target-defined layout.
 
 ## Temporary Space

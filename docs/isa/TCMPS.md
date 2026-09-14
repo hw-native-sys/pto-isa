@@ -95,6 +95,10 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0,
     - CPU_SIM does not assert valid-shape equality. It evaluates the valid region of `src0`, bounds packed writes by the valid shape of `dst`, and expects Tile-form `src1` to provide the corresponding readable elements.
 - **Valid region**:
     - The op uses `src0.GetValidRow()` / `src0.GetValidCol()` as the iteration domain.
+- **Mask encoding**:
+    - For 64-bit input (A5), the predicate for column `j` occupies bit `j % 8` of byte `j / 8` in that row, least significant bit first.
+    - A `uint8_t` mask may use valid shape `[R, ceil(C / 8)]` with physical `Cols` aligned to 32 bytes, where `[R,C]` is the source valid shape. Rows use the physical destination stride; padding after the last valid bit is unspecified.
+
 - **Comparison modes**:
     - Supports `CmpMode::EQ`, `CmpMode::NE`, `CmpMode::LT`, `CmpMode::GT`, `CmpMode::LE`, `CmpMode::GE`.
 

@@ -65,6 +65,8 @@ PTO_INST RecordEvent TSEL(TileData &dst, MaskTile &selMask, TileData &src0, Tile
     - `dst`、`src0` 和 `src1` 必须是行主序。
     - 选择域由 `dst.GetValidRow()` / `dst.GetValidCol()` 决定。
 - **掩码编码**:
+    - 64 位数据（Ascend 950PR/Ascend 950DT）：使用 RowMajor 打包掩码，每个元素对应一位；列 `j` 使用第 `j / 8` 字节的第 `j % 8` 位，行地址按掩码物理字节步长计算。
+    - 可直接使用 [TCMP](TCMP_zh.md) 或 [TCMPS](TCMPS_zh.md) 产生的掩码。掩码容量须覆盖目标有效区域；数据 Tile 的有效列数仍按数据元素计数。
     - 掩码tile被解释为目标定义布局中的打包谓词位。
 
 ## 临时空间

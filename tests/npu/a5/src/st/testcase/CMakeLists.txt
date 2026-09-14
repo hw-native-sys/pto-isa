@@ -141,6 +141,7 @@ set(ALL_TESTCASES
     trowexpandsub
     trowexpandexpdif
     tcolgather
+    tint64_memory
     tgather
     tcvt
     tsub

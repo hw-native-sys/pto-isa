@@ -86,6 +86,9 @@ PTO_INTERNAL void Int64CompareMode(
 {
     constexpr unsigned elementsPerRepeat = 64; // vlds+DINTLV_B32 loads 64 int64 elements (512B)
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat) + 1; // +1 to ensure even pair
+    uint16_t fullRepeats =
+        Int64FullLoadRepeats<Int64MinCols<Src0Cols, Src1Cols>, 2 * elementsPerRepeat, 2 * elementsPerRepeat>(
+            (uint16_t)(repeatTimes / 2));
     __VEC_SCOPE__
     {
         vector_s32 lhsLow0, lhsHigh0, rhsLow0, rhsHigh0;
@@ -95,20 +98,49 @@ PTO_INTERNAL void Int64CompareMode(
         for (uint16_t row = 0; row < rows; ++row) {
             __ubuf__ uint32_t* rowDst = (__ubuf__ uint32_t*)(dst + row * DstRowBytes);
             uint32_t sreg = validCols;
-            for (uint16_t j = 0; j < (uint16_t)(repeatTimes / 2); ++j) {
+
+            for (uint16_t j = 0; j < fullRepeats; ++j) {
                 MaskReg preg;
                 MaskReg result0, result1, dstReg, tmpMask;
                 // batch 0
                 uint32_t colOffset0 = j * 2 * elementsPerRepeat;
-                vlds(lhsLow0, lhsHigh0, (__ubuf__ int32_t*)src0, (row * Src0Cols + colOffset0) * 2, DINTLV_B32);
-                vlds(rhsLow0, rhsHigh0, (__ubuf__ int32_t*)src1, (row * Src1Cols + colOffset0) * 2, DINTLV_B32);
+                Int64LoadBounded<Src0Cols, true>(
+                    lhsLow0, lhsHigh0, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset0) * 2, colOffset0);
+                Int64LoadBounded<Src1Cols, true>(
+                    rhsLow0, rhsHigh0, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset0) * 2, colOffset0);
                 preg = plt_b32(sreg, POST_UPDATE);
 
                 Int64CompareRegs<Mode, T>(result0, lhsLow0, lhsHigh0, rhsLow0, rhsHigh0, preg);
                 // batch 1
                 uint32_t colOffset1 = (j * 2 + 1) * elementsPerRepeat;
-                vlds(lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src0, (row * Src0Cols + colOffset1) * 2, DINTLV_B32);
-                vlds(rhsLow1, rhsHigh1, (__ubuf__ int32_t*)src1, (row * Src1Cols + colOffset1) * 2, DINTLV_B32);
+                Int64LoadBounded<Src0Cols, true>(
+                    lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset1) * 2, colOffset1);
+                Int64LoadBounded<Src1Cols, true>(
+                    rhsLow1, rhsHigh1, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset1) * 2, colOffset1);
+                preg = plt_b32(sreg, POST_UPDATE);
+                Int64CompareRegs<Mode, T>(result1, lhsLow1, lhsHigh1, rhsLow1, rhsHigh1, preg);
+                // Same pattern as TCmp_32B: pdintlv_b8 + PK
+                pdintlv_b8(dstReg, tmpMask, result0, result1);
+                psts(dstReg, rowDst + j * dstRepeatStride, 0, PK);
+            }
+            for (uint16_t j = fullRepeats; j < (uint16_t)(repeatTimes / 2); ++j) {
+                MaskReg preg;
+                MaskReg result0, result1, dstReg, tmpMask;
+                // batch 0
+                uint32_t colOffset0 = j * 2 * elementsPerRepeat;
+                Int64LoadBounded<Src0Cols, false>(
+                    lhsLow0, lhsHigh0, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset0) * 2, colOffset0);
+                Int64LoadBounded<Src1Cols, false>(
+                    rhsLow0, rhsHigh0, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset0) * 2, colOffset0);
+                preg = plt_b32(sreg, POST_UPDATE);
+
+                Int64CompareRegs<Mode, T>(result0, lhsLow0, lhsHigh0, rhsLow0, rhsHigh0, preg);
+                // batch 1
+                uint32_t colOffset1 = (j * 2 + 1) * elementsPerRepeat;
+                Int64LoadBounded<Src0Cols, false>(
+                    lhsLow1, lhsHigh1, (__ubuf__ int32_t*)src0 + (row * Src0Cols + colOffset1) * 2, colOffset1);
+                Int64LoadBounded<Src1Cols, false>(
+                    rhsLow1, rhsHigh1, (__ubuf__ int32_t*)src1 + (row * Src1Cols + colOffset1) * 2, colOffset1);
                 preg = plt_b32(sreg, POST_UPDATE);
                 Int64CompareRegs<Mode, T>(result1, lhsLow1, lhsHigh1, rhsLow1, rhsHigh1, preg);
                 // Same pattern as TCmp_32B: pdintlv_b8 + PK

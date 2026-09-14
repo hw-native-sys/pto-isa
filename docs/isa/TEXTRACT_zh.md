@@ -144,11 +144,14 @@ Ascend 950PR/Ascend 950DT 和 CPU 模拟器），适用范围与配对规则见�
 
 ### Vec → Vec 抽取路径
 
-除上述 `Mat/Acc -> ...` 路径外，`TEXTRACT` 还支持 `TileType::Vec -> TileType::Vec` 抽取路径（ND 与 NZ 布局），由 `CheckTExtractVecToVecCommon` 强制：
+除上述 `Mat/Acc -> ...` 路径外，`TEXTRACT` 还支持 `TileType::Vec -> TileType::Vec` 抽取路径（ND 与 NZ 布局）。A2A3 使用 `CheckTExtractVecToVecCommon`，A5 在 `TEXTRACT_IMPL` 中单独检查：
 
 - `DstTileData::DType` 必须等于 `SrcTileData::DType`。
-- 支持的元素类型（A2A3 与 A5 均同）：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`（任意 1/2/4 字节标准类型）。该集合与主 tile 路径不同：新增 `uint8_t`/`int16_t`/`uint16_t`/`int32_t`/`uint32_t`，且在 A5 上**不含** fp8/fp4 类型。
+- A2A3 元素类型：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
+- A5 元素类型：`int8_t`、`int32_t`、`half`、`bfloat16_t`、`float`、`hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`、`float4_e2m1x2_t`、`float4_e1m2x2_t`。A5 不支持此路径的 `uint8_t`、`int16_t`、`uint16_t`、`uint32_t` 或 64 位整数。
+- A5 ND fp4 路径以打包元素（每个 1 字节包含两个 fp4 值）计数；行步长、静态有效列字节数以及列偏移字节数须 32 字节对齐。
 - ND 路径：源/目标行步进须 32 字节对齐；`Dst` 行/列不得超过 `Src`。
+- A5 ND Vec→Vec 路径先检查 `indexRow + dst.GetValidRow() <= SrcTileData::Rows` 和 `indexCol + dst.GetValidCol() <= SrcTileData::Cols`；通过检查后，目标有效行数或列数为 0 时直接返回，不读取源或写入目标。对齐与非对齐列偏移均遵循此规则；这不扩展该路径的类型支持，仍不支持 int64。
 
 ## 示例
 

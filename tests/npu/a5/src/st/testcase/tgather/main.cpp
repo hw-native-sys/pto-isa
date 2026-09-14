@@ -13,6 +13,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <gtest/gtest.h>
 #include "tgather_common.h"
 
+#include "../int64_gather_scatter_guard_test.h"
+
 using namespace std;
 using namespace PtoTestCommon;
 
@@ -466,3 +468,36 @@ TEST_F(TGATHERTest, case8_i8_topk) { test_gather_cmp<int8_t, uint16_t, uint32_t,
 TEST_F(TGATHERTest, case9_i8_topk) { test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::EQ>(); }
 
 TEST_F(TGATHERTest, case10_u8_topk) { test_gather_cmp<uint8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>(); }
+
+TEST_F(TGATHERTest, case_guard_index_int64_padded_3x1) { TestInt64GatherScatterGuard<int64_t, 0, 4, 8, 3, 1, 8>(); }
+
+TEST_F(TGATHERTest, case_guard_index_uint64_padded_3x1) { TestInt64GatherScatterGuard<uint64_t, 0, 4, 8, 3, 1, 8>(); }
+
+TEST_F(TGATHERTest, case_guard_index_int64_tail_3x65) { TestInt64GatherScatterGuard<int64_t, 0, 4, 72, 3, 65, 80>(); }
+
+TEST_F(TGATHERTest, case_guard_index_uint64_tail_3x65) { TestInt64GatherScatterGuard<uint64_t, 0, 4, 72, 3, 65, 80>(); }
+
+TEST_F(TGATHERTest, case_guard_pattern_int64_packed_3x15_P1010)
+{
+    TestInt64GatherScatterGuard<int64_t, 1, 4, 24, 3, 15, 8>();
+}
+
+TEST_F(TGATHERTest, case_guard_pattern_uint64_packed_3x15_P0101)
+{
+    TestInt64GatherScatterGuard<uint64_t, 1, 4, 24, 3, 15, 12, pto::MaskPattern::P0101>();
+}
+
+TEST_F(TGATHERTest, case_guard_pattern_int64_packed_3x15_P1000)
+{
+    TestInt64GatherScatterGuard<int64_t, 1, 4, 24, 3, 15, 4, pto::MaskPattern::P1000>();
+}
+
+TEST_F(TGATHERTest, case_guard_pattern_uint64_tail_3x67_P0101)
+{
+    TestInt64GatherScatterGuard<uint64_t, 1, 4, 80, 3, 67, 36, pto::MaskPattern::P0101>();
+}
+
+TEST_F(TGATHERTest, case_guard_pattern_uint64_empty_3x1_P1000)
+{
+    TestInt64GatherScatterGuard<uint64_t, 1, 4, 8, 3, 1, 4, pto::MaskPattern::P1000>();
+}

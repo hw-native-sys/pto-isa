@@ -19,6 +19,14 @@ For the detailed C++ programming model behind these terms, see:
 - **Row-major vs. column-major**: Unless stated otherwise, CPU simulator kernels assume row-major tiles. Instructions that support multiple layouts will state supported layouts explicitly.
 - **Valid region**: The runtime compute region of a tile, expressed as `(valid_row, valid_col)` and queried via `GetValidRow()` / `GetValidCol()`.
 
+### Physical shape and valid shape
+
+`Rows` / `Cols` describe the physical storage shape; `GetValidRow()` / `GetValidCol()` describe the active region. Changing the valid shape does not change physical strides. For a non-fractal tile, element `(i, j)` has element offset `i * RowStride + j * ColStride`: RowMajor strides are `(Cols, 1)` and ColMajor strides are `(1, Rows)`.
+
+For example, an A5 `int64_t` / `uint64_t` RowMajor output with physical shape `[64,4]` and valid shape `[64,1]` still has a row stride of 4 elements (32 bytes). Row-reduction results occupy offsets `0, 4, 8, ...`; using valid column count 1 as the physical stride misplaces results between rows. A compact ColMajor `[64,1]` output instead uses consecutive element offsets.
+
+The 32-byte alignment requirement for 64-bit Vec tiles applies to physical dimensions: RowMajor requires `Cols % 4 == 0`, and ColMajor requires `Rows % 4 == 0`. Valid dimensions may be smaller, subject to instruction constraints. Allocate the complete physical tile; padding outside the valid region is distinct from adjacent independent allocations. See each instruction's padding-write semantics, particularly [TSCATTER](TSCATTER.md).
+
 ### Valid Region Semantics
 
 For instruction pages, when we say “for each element `(i, j)` in the valid region”, we mean:

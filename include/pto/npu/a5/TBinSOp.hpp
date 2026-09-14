@@ -57,7 +57,7 @@ PTO_INTERNAL void Int64ScalarCalcRegs(
     }
 }
 
-template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols>
+template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols, bool FullLoad>
 PTO_INTERNAL void Int64ScalarRepeat(
     __ubuf__ T* dst, __ubuf__ T* src, uint16_t row, uint32_t colOffset, vector_s32& scalarLow, vector_s32& scalarHigh,
     uint64_t scalarBits, MaskReg& mask)
@@ -66,7 +66,7 @@ PTO_INTERNAL void Int64ScalarRepeat(
     MaskReg lowMask, highMask;
     uint32_t srcOffset = (row * SrcCols + colOffset) * 2;
     uint32_t dstOffset = (row * DstCols + colOffset) * 2;
-    vlds(srcLow, srcHigh, (__ubuf__ int32_t*)src, srcOffset, DINTLV_B32);
+    Int64LoadBounded<SrcCols, FullLoad>(srcLow, srcHigh, (__ubuf__ int32_t*)src + srcOffset, colOffset);
     Int64ScalarCalcRegs<Op, T>(dstLow, dstHigh, srcLow, srcHigh, scalarLow, scalarHigh, scalarBits, mask);
     pintlv_b32(lowMask, highMask, mask, mask);
     vintlv(half0, half1, dstLow, dstHigh);
@@ -78,6 +78,8 @@ template <Int64Op Op, typename T, unsigned DstCols, unsigned SrcCols>
 PTO_INTERNAL void Int64Scalar(__ubuf__ T* dst, __ubuf__ T* src, T scalar, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = CCE_VL * 2 / sizeof(T);
+    uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+    uint16_t fullRepeats = Int64FullLoadRepeats<SrcCols, elementsPerRepeat>(colRepeats);
     __VEC_SCOPE__
     {
         vector_s32 scalarLow, scalarHigh;
@@ -85,12 +87,18 @@ PTO_INTERNAL void Int64Scalar(__ubuf__ T* dst, __ubuf__ T* src, T scalar, unsign
         vbr(scalarLow, static_cast<int32_t>(scalarBits));
         vbr(scalarHigh, static_cast<int32_t>(scalarBits >> 32));
         uint16_t rowCount = validRows;
-        uint16_t colRepeats = CeilDivision(validCols, elementsPerRepeat);
+
         for (uint16_t row = 0; row < rowCount; ++row) {
             uint32_t sreg = validCols;
-            for (uint16_t colRepeat = 0; colRepeat < colRepeats; ++colRepeat) {
+
+            for (uint16_t colRepeat = 0; colRepeat < fullRepeats; ++colRepeat) {
                 MaskReg preg = CreatePredicate<uint32_t>(sreg);
-                Int64ScalarRepeat<Op, T, DstCols, SrcCols>(
+                Int64ScalarRepeat<Op, T, DstCols, SrcCols, true>(
+                    dst, src, row, colRepeat * elementsPerRepeat, scalarLow, scalarHigh, scalarBits, preg);
+            }
+            for (uint16_t colRepeat = fullRepeats; colRepeat < colRepeats; ++colRepeat) {
+                MaskReg preg = CreatePredicate<uint32_t>(sreg);
+                Int64ScalarRepeat<Op, T, DstCols, SrcCols, false>(
                     dst, src, row, colRepeat * elementsPerRepeat, scalarLow, scalarHigh, scalarBits, preg);
             }
         }

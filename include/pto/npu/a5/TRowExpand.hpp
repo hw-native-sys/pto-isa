@@ -27,13 +27,12 @@ PTO_INTERNAL void Int64RowExpand(__ubuf__ T* dst, __ubuf__ T* src, unsigned vali
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat);
     __VEC_SCOPE__
     {
-        vector_s32 lowReg, highReg, srcLow, srcHigh, wordReg, dummy;
-        MaskReg allMask = pset_b32(PAT_ALL);
+        vector_s32 lowReg, highReg, wordReg, dummy;
         uint16_t rows = validRows;
         for (uint16_t row = 0; row < rows; ++row) {
-            vlds(srcLow, srcHigh, (__ubuf__ int32_t*)src + row * SrcRowStride * 2, 0, DINTLV_B32);
-            vdup(lowReg, srcLow, allMask, POS_LOWEST, MODE_ZEROING);
-            vdup(highReg, srcHigh, allMask, POS_LOWEST, MODE_ZEROING);
+            // Compact DN rows are only 8 bytes apart; load each word with scalar broadcast.
+            vlds(lowReg, (__ubuf__ int32_t*)src, row * SrcRowStride * 2, BRC_B32);
+            vlds(highReg, (__ubuf__ int32_t*)src, row * SrcRowStride * 2 + 1, BRC_B32);
             vintlv(wordReg, dummy, lowReg, highReg);
             for (uint16_t colRepeat = 0; colRepeat < repeatTimes; ++colRepeat) {
                 uint32_t colOffset = colRepeat * elementsPerRepeat;

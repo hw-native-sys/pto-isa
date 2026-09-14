@@ -17,9 +17,21 @@ Let `R = dst.GetValidRow()` and `C = dst.GetValidCol()`. For `0 <= i < R` and `0
 
 $$ \mathrm{dst}_{i,j} = \mathrm{src0}\!\left[\mathrm{indices}_{i,j}\right] $$
 
-Exact index interpretation and bounds behavior are implementation-defined.
+`indices[i,j]` is a flat element offset from `src0.data()`, measured in source elements, not bytes or row numbers; physical padding contributes to the offset. The caller must provide nonnegative indices within the allocated source tile and select initialized data. The implementation does not check index bounds.
 
-Mask-pattern gather is an implementation-defined selection/reduction controlled by `pto::MaskPattern`.
+### 64-bit pattern gather output (A5)
+
+Each valid source row selects columns `offset, offset + factor, ...` below `C = src.GetValidCol()`:
+
+| Pattern | factor | offset |
+| --- | ---: | ---: |
+| `P0101` / `P1010` | 2 | 0 / 1 |
+| `P0001` / `P0010` / `P0100` / `P1000` | 4 | 0 / 1 / 2 / 3 |
+| `P1111` | 1 | 0 |
+
+The selected count per row is `N = C > offset ? ceil((C - offset) / factor) : 0`. Rows are concatenated at `dst.data()` into `src.GetValidRow() * N` consecutive elements, without inserting padding according to `DstTileData::Cols`. The caller must provide sufficient contiguous physical capacity and a valid shape that represents this packed output. No writes occur when the source valid row count is zero or `N == 0`.
+
+For example, source physical shape `[2,8]`, valid shape `[2,5]` and `P0101` select columns 0, 2, 4 per row, producing 6 consecutive elements. A destination with physical shape `[1,8]` and valid shape `[1,6]` holds this output; its last 2 padding elements remain unchanged.
 
 ## Assembly Syntax
 
@@ -62,7 +74,8 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS0 &src0, TileDataS1 &src1,
 ### Mask-pattern Gather
 
 ```cpp
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, typename... WaitEvents>
+template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern = MaskPattern::P1111,
+          auto gatherType = GatherAxis::GATHER_ROW, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(DstTileData &dst, SrcTileData &src, WaitEvents &... events);
 ```
 
@@ -72,7 +85,7 @@ Gather indices of elements that satisfy a comparison condition with a scalar thr
 
 ```cpp
 template <typename TileDataD, typename TileDataS, typename TileDataS1, typename TileDataC, typename TileDataTmp, CmpMode cmpMode, typename... WaitEvents>
-PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_value, TileDataC &cdst, TileDataTmp &tmp, uint32_t offset, WaitEvents &... events);
+PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_value, TileDataC &cdst, TileDataTmp &tmp, int offset, WaitEvents &... events);
 ```
 
 For each row `i` in `src0`, compare each element `src0[i, j]` against threshold `k_value[i]` using `cmpMode` (GT or EQ). The indices of matching elements are gathered into `dst[i]`. The count of matches per row is stored in `cdst[i]`. The `offset` parameter specifies the starting index value.
@@ -101,9 +114,10 @@ For each row `i` in `src0`, compare each element `src0[i, j]` against threshold 
     - `dst.GetValidCol() == DstTileData::Cols` (continuous dst storage).
 - **Index-based gather: implementation checks (A5)**:
     - `sizeof(DstTileData::DType)` must be 1, 2, 4, or 8 bytes: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `bfloat16_t`, `float`.
-    - `sizeof(Src1TileData::DType)` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
+    - `Src1TileData::DType` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
     - `DstTileData::DType` must be the same type as `Src0TileData::DType`.
-    - `src1.GetValidCol() == Src1TileData::Cols` and `dst.GetValidCol() == DstTileData::Cols`.
+    - 64-bit data requires 32-bit indices (`int32_t` or `uint32_t`).
+    - The 64-bit indexed path supports RowMajor/ColMajor destination and index tiles using their physical row/column strides; valid columns may be smaller than physical columns. The index valid region must cover the destination valid region.
 - **Mask-pattern gather: implementation checks (A2A3)**:
     - Source element size must be `2` or `4` bytes.
     - `SrcTileData::DType`/`DstTileData::DType` must be `int16_t` or `uint16_t` or `int32_t` or `uint32_t`
@@ -115,7 +129,8 @@ For each row `i` in `src0`, compare each element `src0[i, j]` against threshold 
     - `dst` and `src` must both be `TileType::Vec` and row-major.
     - `SrcTileData::DType`/`DstTileData::DType` must be `int8_t` or `uint8_t` or `int16_t` or `uint16_t` or `int32_t` or `uint32_t`
     or `int64_t` or `uint64_t` or `half` or `bfloat16_t` or `float` or `float8_e4m3_t`or `float8_e5m2_t` or `hifloat8_t`.
-    - Supported dtypes are restricted to a target-defined set (checked via `static_assert` in the implementation), and `sizeof(dst element) == sizeof(src element)`, `dst.GetValidCol() == DstTileData::Cols` (continuous dst storage).
+    - `sizeof(dst element) == sizeof(src element)`. Output is a continuous stream; destination capacity must be sufficient, and its valid shape does not truncate writes.
+    - The 64-bit pattern path supports only `GatherAxis::GATHER_ROW`; see Math Interpretation for output length and packing.
 - **Comparison-based gather: implementation checks**: type and `cmpMode` constraints are detailed in [C++ Built-in Interface → Comparison-based Gather Constraints](#comparison-based-gather-constraints).
 - **Bounds / validity**:
     - Index bounds are not validated by explicit runtime assertions; out-of-range indices are target-defined.
@@ -146,7 +161,8 @@ void example_auto() {
   SrcT src0;
   IdxT idx;
   DstT dst;
-  TGATHER(dst, src0, idx);
+  IdxT tmp;
+  TGATHER(dst, src0, idx, tmp);
 }
 ```
 
@@ -159,7 +175,7 @@ using namespace pto;
 
 void example_manual() {
   using SrcT = Tile<TileType::Vec, float, 16, 16>;
-  using DstT = Tile<TileType::Vec, float, 1, 16>;
+  using DstT = Tile<TileType::Vec, float, 1, 128>;
   SrcT src;
   DstT dst;
   TASSIGN(src, 0x1000);

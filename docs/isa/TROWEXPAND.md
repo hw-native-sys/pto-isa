@@ -48,12 +48,16 @@ PTO_INST RecordEvent TROWEXPAND(TileDataDst &dst, TileDataSrc &src, WaitEvents &
 Implementation checks (NPU):
 
 - Tile Type: `dst` and `src` must be `TileType::Vec`.
-- Tile layout: ND fractal (`isRowMajor` and `SLayout::NoneBox`) for both `src` and `dst`.
+- Tile layout: non-fractal RowMajor `dst`; non-fractal RowMajor or ColMajor `src` (`SLayout::NoneBox`). Input and output element types must match.
+- A5 requires source static `ValidCol` to be 1 or dynamic (-1); use valid column count 1 for scalar row broadcast.
 - Data type (A2A3): element types must be one of: `int8_t` or `uint8_t` or `int16_t` or `uint16_t` or `int32_t` or `uint32_t` or `half` or `bfloat16_t` or `float`.
 - Data type (A5): element types must be one of: `int8_t` or `uint8_t` or `int16_t` or `uint16_t` or `int32_t` or `uint32_t` or `int64_t` or `uint64_t` or `half` or `bfloat16_t` or `float`.
 - Runtime valid checks:
     - A2A3: returns early if any of `dstValidRow`, `dstValidCol`, `srcValidRow`, `srcValidCol` is zero.
     - A5: asserts `srcValidRow == dstValidRow` and asserts `srcValidRow != 0 && srcValidCol != 0`.
+
+- 64-bit input (A5): an ND source may use physical `[64,4]`, valid `[64,1]`; a DN source may use compact `[64,1]`. Each row broadcasts `src[i,0]` using the physical `RowStride`.
+- Unlike binary row-broadcast instructions such as [TROWEXPANDADD](TROWEXPANDADD.md), this instruction uses one scalar per row for ND sources as well, without repeating a 32-byte block.
 
 ## Examples
 
@@ -65,7 +69,7 @@ Implementation checks (NPU):
 using namespace pto;
 
 void example_auto() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using SrcT = Tile<TileType::Vec, float, 16, 8, BLayout::RowMajor, 16, 1>;
   using DstT = Tile<TileType::Vec, float, 16, 16>;
   SrcT src;
   DstT dst;
@@ -81,7 +85,7 @@ void example_auto() {
 using namespace pto;
 
 void example_manual() {
-  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using SrcT = Tile<TileType::Vec, float, 16, 8, BLayout::RowMajor, 16, 1>;
   using DstT = Tile<TileType::Vec, float, 16, 16>;
   SrcT src;
   DstT dst;

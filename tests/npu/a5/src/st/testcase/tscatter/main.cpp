@@ -12,6 +12,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <gtest/gtest.h>
 #include <acl/acl.h>
 
+#include "../int64_gather_scatter_guard_test.h"
+
 using namespace std;
 using namespace PtoTestCommon;
 
@@ -328,3 +330,22 @@ TEST_F(TSCATTERTest, case_mask_int32_16x64_16x256_P0001)
 {
     test_scatter_mask<int32_t, pto::MaskPattern::P0001, 16, 256, 16, 64>();
 }
+
+TEST_F(TSCATTERTest, case_guard_index_int64_tail_3x33) { TestInt64GatherScatterGuard<int64_t, 2, 4, 40, 3, 33, 48>(); }
+
+TEST_F(TSCATTERTest, case_guard_index_uint64_tail_3x33)
+{
+    TestInt64GatherScatterGuard<uint64_t, 2, 4, 40, 3, 33, 48>();
+}
+
+TEST_F(TSCATTERTest, case_guard_row_int64_padded_3x5) { TestInt64GatherScatterGuard<int64_t, 3, 4, 8, 3, 5, 16>(); }
+
+TEST_F(TSCATTERTest, case_guard_row_uint64_tail_3x33) { TestInt64GatherScatterGuard<uint64_t, 3, 4, 40, 3, 33, 80>(); }
+
+TEST_F(TSCATTERTest, case_guard_col_int64_padded_3x1) { TestInt64GatherScatterGuard<int64_t, 4, 4, 8, 3, 1, 8>(); }
+
+TEST_F(TSCATTERTest, case_guard_col_uint64_padded_3x1) { TestInt64GatherScatterGuard<uint64_t, 4, 4, 8, 3, 1, 8>(); }
+
+TEST_F(TSCATTERTest, case_guard_col_int64_tail_3x33) { TestInt64GatherScatterGuard<int64_t, 4, 4, 40, 3, 33, 48>(); }
+
+TEST_F(TSCATTERTest, case_guard_col_uint64_tail_3x33) { TestInt64GatherScatterGuard<uint64_t, 4, 4, 40, 3, 33, 48>(); }

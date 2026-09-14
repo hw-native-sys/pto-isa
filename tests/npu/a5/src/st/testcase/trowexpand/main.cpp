@@ -99,4 +99,65 @@ TEST_F(TROWEXPANDTest, case8_int64_4_16_4_64) { test_trowexpand<int64_t, 4, 16, 
 TEST_F(TROWEXPANDTest, case9_uint64_4_16_4_64) { test_trowexpand<uint64_t, 4, 16, 64, 64>(); }
 TEST_F(TROWEXPANDTest, case10_int64_1_1_1_16368) { test_trowexpand<int64_t, 1, 1, 16368, 16368>(); }
 TEST_F(TROWEXPANDTest, case11_uint64_1_1_1_16368) { test_trowexpand<uint64_t, 1, 1, 16368, 16368>(); }
+
+template <typename T, bool compact>
+void launchTROWEXPANDGuard(T* out, T* src, void* stream);
+
+template <typename T, bool compact>
+void test_trowexpand_guard()
+{
+    constexpr int srcCols = compact ? 1 : 4;
+    constexpr size_t inputBytes = 8 * srcCols * sizeof(T);
+    constexpr size_t outputBytes = 96 * sizeof(T);
+    std::vector<T> input(8 * srcCols);
+    std::vector<T> expected(96, static_cast<T>(0x5a5a5a5a5a5a5a5aULL));
+    std::vector<T> actual(96);
+    for (int row = 0; row < 8; ++row) {
+        T value = static_cast<T>((1LL << 54) + (static_cast<int64_t>(row + 1) << 32) + 19 * row + 3);
+        if constexpr (std::is_same_v<T, int64_t>) {
+            if (row % 3 == 0) {
+                value = -value;
+            }
+        } else {
+            value += 1ULL << 63;
+        }
+        for (int col = 0; col < srcCols; ++col) {
+            input[row * srcCols + col] = value + col * 1000003;
+        }
+        if (row < 5) {
+            for (int col = 0; col < 3; ++col) {
+                expected[row * 4 + col] = value;
+            }
+        }
+    }
+
+    ASSERT_EQ(aclInit(nullptr), ACL_SUCCESS);
+    ASSERT_EQ(aclrtSetDevice(0), ACL_SUCCESS);
+    aclrtStream stream;
+    ASSERT_EQ(aclrtCreateStream(&stream), ACL_SUCCESS);
+    T *srcDevice, *dstDevice;
+    ASSERT_EQ(aclrtMalloc(reinterpret_cast<void**>(&srcDevice), inputBytes, ACL_MEM_MALLOC_HUGE_FIRST), ACL_SUCCESS);
+    ASSERT_EQ(aclrtMalloc(reinterpret_cast<void**>(&dstDevice), outputBytes, ACL_MEM_MALLOC_HUGE_FIRST), ACL_SUCCESS);
+    EXPECT_EQ(aclrtMemcpy(srcDevice, inputBytes, input.data(), inputBytes, ACL_MEMCPY_HOST_TO_DEVICE), ACL_SUCCESS);
+    EXPECT_EQ(aclrtMemset(dstDevice, outputBytes, 0x5a, outputBytes), ACL_SUCCESS);
+    launchTROWEXPANDGuard<T, compact>(dstDevice, srcDevice, stream);
+    EXPECT_EQ(aclrtSynchronizeStream(stream), ACL_SUCCESS);
+    EXPECT_EQ(aclrtMemcpy(actual.data(), outputBytes, dstDevice, outputBytes, ACL_MEMCPY_DEVICE_TO_HOST), ACL_SUCCESS);
+    EXPECT_EQ(aclrtFree(srcDevice), ACL_SUCCESS);
+    EXPECT_EQ(aclrtFree(dstDevice), ACL_SUCCESS);
+    EXPECT_EQ(aclrtDestroyStream(stream), ACL_SUCCESS);
+    EXPECT_EQ(aclrtResetDevice(0), ACL_SUCCESS);
+    EXPECT_EQ(aclFinalize(), ACL_SUCCESS);
+
+    // Include physical padding, inactive rows, and the 512-byte guard in the exact comparison.
+    EXPECT_TRUE(ResultCmpExact(expected, actual.data()));
+}
+
+TEST_F(TROWEXPANDTest, guard_int64_dn8x1_v5x1_to8x4_v5x3) { test_trowexpand_guard<int64_t, true>(); }
+
+TEST_F(TROWEXPANDTest, guard_int64_nd8x4_v5x1_to8x4_v5x3) { test_trowexpand_guard<int64_t, false>(); }
+
+TEST_F(TROWEXPANDTest, guard_uint64_dn8x1_v5x1_to8x4_v5x3) { test_trowexpand_guard<uint64_t, true>(); }
+
+TEST_F(TROWEXPANDTest, guard_uint64_nd8x4_v5x1_to8x4_v5x3) { test_trowexpand_guard<uint64_t, false>(); }
 } // namespace TRowExpandTest

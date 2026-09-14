@@ -42,8 +42,8 @@ pto.tcmp ins(%src0, %src1{cmpMode = #pto<cmp xx>}: !pto.tile_buf<...>, !pto.tile
 > 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
 
 ```cpp
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1, CmpMode cmpMode, WaitEvents &... events);
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, CmpMode cmpMode, WaitEvents &... events);
 ```
 
 ## 约束
@@ -53,15 +53,17 @@ PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc &src0, TileDataSrc &src1
     - 输出类型必须是 `uint8_t`。
     - `src0/src1/dst` tile位置必须是 `TileType::Vec`。
     - 静态有效边界：`TileDataSrc::ValidRow <= TileDataSrc::Rows` 且 `TileDataSrc::ValidCol <= TileDataSrc::Cols`。
-    - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
-    - 注意：`src1` 的形状/有效性在此实现中不通过显式运行时断言进行验证。
-    - 对于 `TileDataSrc::DType == int32_t`，实现使用 `EQ` 比较路径，无论 `cmpMode` 如何。
+    - 运行时：`src0` 与 `src1` 的有效行列数分别相等，且 `src0.GetValidRow() == dst.GetValidRow()`。
+    - 目标有效列数表示打包容量，不要求等于源有效列数。
+    - 对于 `int32_t` 输入，支持 `EQ` 和 `NE`；`NE` 对相等比较结果取反，其他模式使用 `EQ` 路径。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - 输入类型必须是以下之一：`uint32_t`、`int32_t`、`int64_t`、`uint64_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half`、`bfloat16_t`。
-    - 输出类型必须是 `uint32_t`。
+    - 输出为打包谓词字节，可使用 RowMajor `uint8_t` 掩码 Tile。
     - 已实现（参见 `include/pto/npu/a5/TCmp.hpp`）。
-    - Ascend 950PR/Ascend 950DT实现使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域，并将打包的谓词掩码写入 `dst`（目标定义的打包方式）。
+    - 迭代域为 `src0.GetValidRow()` / `src0.GetValidCol()`；`src1` 须提供对应有效元素。目标有效列数表示打包容量，不决定比较次数。
 - **掩码编码**:
+    - 64 位输入（Ascend 950PR/Ascend 950DT）：列 `j` 的比较结果存于该行第 `j / 8` 字节的第 `j % 8` 位，低位在前。
+    - 对 `uint8_t` 掩码，有效形状可设为 `[R, ceil(C / 8)]`，物理 `Cols` 按 32 字节对齐，其中 `[R,C]` 为源有效形状。行地址按目标物理步长计算；最后一个有效位之后的填充值未指定。
     - 掩码tile被解释为目标定义布局中的打包谓词位。
 
 ## 示例
