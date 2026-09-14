@@ -351,6 +351,7 @@ PTO_INTERNAL void CopyRowsWithMask(
 #endif
         }
     }
+    set_mask_norm();
     set_vector_mask(-1, -1);
 }
 
@@ -405,7 +406,7 @@ PTO_INTERNAL void TransTail2DTiles(
 }
 
 template <typename T, unsigned blockSizeElem>
-PTO_INTERNAL void TTransOperation(
+PTO_INTERNAL void TransB16WVTrans(
     __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, __ubuf__ T* tmpPtr, unsigned validRow, unsigned validCol,
     unsigned dstStride, unsigned srcStride)
 {
@@ -414,58 +415,61 @@ PTO_INTERNAL void TTransOperation(
     // (>= 16x16), routing only the remaining tail rows/columns/corner to the tail path.
     // 注意 b32 不可用：实测 vtranspose 输出下半块数据错位（硬件 VA 寄存器组布局与线性行序不一致），
     // 需行序自适应搬移后才能复用（待后续验证），当前仅 b16。
-    if constexpr (sizeof(T) == 2) {
-        constexpr unsigned blk = Y_ELEM_OTHER; // 16 行
-        constexpr unsigned blkCol = BLOCK_BYTE_SIZE / sizeof(T);
-        unsigned numBlkRow = validRow / blk;
-        unsigned numBlkCol = validCol / blkCol;
-        if ((validRow % blk == 0) && (validCol % blkCol == 0)) {
-            TTransVtransposeB16<T>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride, srcStride);
-            return;
-        }
-        constexpr unsigned yTileSizeElem = Y_ELEM_OTHER;
-        unsigned tmpStride = (validRow + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
-        if (numBlkRow > 0 && numBlkCol > 0) {
-            TTransVtransposeB16<T>(dstPtr, srcPtr, tmpPtr, numBlkRow * blk, numBlkCol * blkCol, dstStride, srcStride);
-        }
-        unsigned remainRow = validRow - numBlkRow * blk;
-        unsigned remainCol = validCol - numBlkCol * blkCol;
-        if (remainRow > 0) {
-            // 尾行带 x 对齐列: src[16n:][0:8m] -> dst[0:8m][16n:]
-            TransTail2DTiles<T, blockSizeElem, yTileSizeElem>(
-                dstPtr + numBlkRow * blk, srcPtr + numBlkRow * blk * srcStride, tmpPtr, tmpStride, remainRow,
-                numBlkCol * blkCol, dstStride, srcStride);
-        }
-        if (remainCol > 0) {
-            // 对齐行 x 尾列带: src[0:16n][8m:] -> dst[8m:][0:16n]
-            TransTail2DTiles<T, blockSizeElem, yTileSizeElem>(
-                dstPtr + numBlkCol * blkCol * dstStride, srcPtr + numBlkCol * blkCol, tmpPtr, tmpStride,
-                numBlkRow * blk, remainCol, dstStride, srcStride);
-        }
-        if (remainRow > 0 && remainCol > 0) {
-            // 角区：标量
-#ifndef __PTO_AUTO__
-            PtoSetWaitFlag<PIPE_V, PIPE_S>();
-#else
-            set_flag(PIPE_V, PIPE_S, EVENT_ID0);
-            wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
-#endif
-            for (unsigned i = 0; i < remainRow; ++i) {
-                for (unsigned j = 0; j < remainCol; ++j) {
-                    dstPtr[(numBlkCol * blkCol + j) * dstStride + numBlkRow * blk + i] =
-                        srcPtr[(numBlkRow * blk + i) * srcStride + numBlkCol * blkCol + j];
-                }
-            }
-#ifndef __PTO_AUTO__
-            PtoSetWaitFlag<PIPE_S, PIPE_V>();
-#else
-            set_flag(PIPE_S, PIPE_V, EVENT_ID0);
-            wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
-#endif
-        }
+    constexpr unsigned blk = Y_ELEM_OTHER; // 16 行
+    constexpr unsigned blkCol = BLOCK_BYTE_SIZE / sizeof(T);
+    unsigned numBlkRow = validRow / blk;
+    unsigned numBlkCol = validCol / blkCol;
+    if ((validRow % blk == 0) && (validCol % blkCol == 0)) {
+        TTransVtransposeB16<T>(dstPtr, srcPtr, tmpPtr, validRow, validCol, dstStride, srcStride);
         return;
     }
+    constexpr unsigned yTileSizeElem = Y_ELEM_OTHER;
+    unsigned tmpStride = (validRow + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
+    if (numBlkRow > 0 && numBlkCol > 0) {
+        TTransVtransposeB16<T>(dstPtr, srcPtr, tmpPtr, numBlkRow * blk, numBlkCol * blkCol, dstStride, srcStride);
+    }
+    unsigned remainRow = validRow - numBlkRow * blk;
+    unsigned remainCol = validCol - numBlkCol * blkCol;
+    if (remainRow > 0) {
+        // 尾行带 x 对齐列: src[16n:][0:8m] -> dst[0:8m][16n:]
+        TransTail2DTiles<T, blockSizeElem, yTileSizeElem>(
+            dstPtr + numBlkRow * blk, srcPtr + numBlkRow * blk * srcStride, tmpPtr, tmpStride, remainRow,
+            numBlkCol * blkCol, dstStride, srcStride);
+    }
+    if (remainCol > 0) {
+        // 对齐行 x 尾列带: src[0:16n][8m:] -> dst[8m:][0:16n]
+        TransTail2DTiles<T, blockSizeElem, yTileSizeElem>(
+            dstPtr + numBlkCol * blkCol * dstStride, srcPtr + numBlkCol * blkCol, tmpPtr, tmpStride, numBlkRow * blk,
+            remainCol, dstStride, srcStride);
+    }
+    if (remainRow > 0 && remainCol > 0) {
+        // 角区：标量
+#ifndef __PTO_AUTO__
+        PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
+        for (unsigned i = 0; i < remainRow; ++i) {
+            for (unsigned j = 0; j < remainCol; ++j) {
+                dstPtr[(numBlkCol * blkCol + j) * dstStride + numBlkRow * blk + i] =
+                    srcPtr[(numBlkRow * blk + i) * srcStride + numBlkCol * blkCol + j];
+            }
+        }
+#ifndef __PTO_AUTO__
+        PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
+    }
+}
 
+template <typename T, unsigned blockSizeElem>
+PTO_INTERNAL void TTransOperation(
+    __ubuf__ T* dstPtr, __ubuf__ T* srcPtr, __ubuf__ T* tmpPtr, unsigned validRow, unsigned validCol,
+    unsigned dstStride, unsigned srcStride)
+{
     constexpr unsigned yTileSizeElem = (sizeof(T) == 1) ? Y_ELEM_B8 : Y_ELEM_OTHER;
     // tmpStride should computed in static way
     unsigned tmpStride = (validRow + yTileSizeElem - 1) / yTileSizeElem * yTileSizeElem;
