@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TSYNC_HPP
 #include <pto/common/type.hpp>
 #include <pto/common/event.hpp>
+#include <pto/cpu/ffts.hpp>
 
 namespace pto {
 

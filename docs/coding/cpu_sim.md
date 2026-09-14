@@ -126,6 +126,57 @@ correctness testing and does not model a specific on-chip address.
   `pto::cpu_sim::register_hooks`. If callbacks are not registered directly, CPU_SIM also resolves the
   `pto_sim_get_subblock_id` and `pto_sim_get_pipe_shared_state` symbols from the host process.
 
+### A2/A3 FFTS cross-core events
+
+The normal `<pto/pto-inst.hpp>` CPU include path exposes `pto::getFFTSMsg`,
+`__builtin_cce_ffts_cross_core_sync` / `ffts_cross_core_sync`, and
+`__builtin_cce_wait_flag_dev` / `wait_flag_dev` through [ffts.hpp](../../include/pto/cpu/ffts.hpp).
+Compile AIC kernels with `__DAV_CUBE__` and AIV kernels with `__DAV_VEC__`, in addition to `__CPU_SIM`.
+Exactly one role must be selected. Generic CPU headers enable both role macros by default;
+that ambiguous combination is rejected when an FFTS signal/wait is executed.
+The CPU include structure follows the NPU A2/A3 `TSync.hpp`, which also provides FFTS helpers. `TSYNC` is no longer a
+public instruction; the internal CPU `TSYNC_IMPL()` remains empty, while the NPU implementation
+uses `pipe_barrier` in manual mode.
+
+- Supported protocol: mode 2, base count 1, event IDs 0–15, AIV lane IDs 0 or 1.
+  Invalid protocol arguments throw `std::invalid_argument`; missing shared storage or a missing
+  or ambiguous kernel role throws `std::runtime_error`. Credit counter overflow throws
+  `std::overflow_error`; an overflowing AIC broadcast leaves both lane counters unchanged.
+- An AIC signal publishes one credit to each AIV lane. An AIV wait consumes its lane's credit;
+  an AIV signal publishes one credit from that lane to the AIC. An AIC wait consumes one credit
+  from **each** lane, so two signals from the same lane cannot substitute for the other lane.
+  Credits accumulate across repeated signals.
+- Release/acquire synchronization makes producer data visible after the matching wait. CPU
+  operations execute synchronously; the pipe argument is ignored. Waiting polls and yields
+  until a credit arrives, with no internal deadline. Any timeout must be supplied by the caller/runtime.
+- `set_ffts_base_addr` accepts but ignores the hardware address. It neither accesses MMIO nor
+  resets events; CPU event storage comes from the runtime.
+
+Shared storage is selected in this order: the callback injected by `pto::cpu_sim::register_hooks`,
+then the process-visible `pto_sim_get_pipe_shared_state` symbol, then (only if neither is available)
+`pto_cpu_sim_get_shared_storage`. A selected callback returning null is an error, not a request to
+try another provider. There is no library-local fallback pool.
+
+The numeric-key callbacks use a separate FFTS key namespace from TPipe. They must return the same
+stable, aligned, initially zero-filled allocation of at least the requested size for a given key
+and device/group, shared by one AIC worker and its two AIV workers. Each role/lane has one
+producer; concurrent AIC publishers for the same group are not supported. The string-key provider uses
+`pto-ffts-<task_cookie>-<block_idx>-<event_id>`; it must additionally isolate devices/runs. The runtime
+must keep storage alive until all participants finish, and reset or replace it between runs with
+workers stopped. ISA initializes event counters on first use, not at each task or base-address call.
+AIV lane identity comes from the existing `get_subblockid()` hook/context path and must identify
+the calling lane correctly. Configure hooks and context before executing kernels.
+
+Run `python3 tests/run_cpu.py --testcase ffts --clean` for the cross-library regression.
+Its 12 cases cover injected and dynamically resolved **numeric-key** hooks, queued events,
+two-lane joins, consumption, device/group/event isolation, runtime reset, invalid arguments,
+a null storage callback, and a three-slot producer/consumer pipeline.
+Run `python3 tests/run_cpu.py --testcase ffts_hooks --clean` for 9 additional cases covering the
+string-key fallback, task/block isolation, injected-provider precedence, null providers, ambiguous
+kernel roles, and overflow without counter wraparound or a partial AIC broadcast.
+The suites use separate executables: `ffts_hooks` omits the process-visible numeric-key provider
+so that the lower-priority string-key fallback can be exercised.
+
 ### TROWSUM implementation notes
 
 See [TROWSUM CPU_SIM implementation checks](../isa/TROWSUM.md#cpu_sim-implementation-checks) for type,
