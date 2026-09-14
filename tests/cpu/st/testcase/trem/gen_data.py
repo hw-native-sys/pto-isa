@@ -72,6 +72,7 @@ if __name__ == "__main__":
 
     case_params_list = [
         TRemParams(np.float32, 64, 64, 64, 64),
+        TRemParams(np.int64, 64, 64, 64, 64),
         TRemParams(np.float16, 16, 256, 16, 256),
         TRemParams(np.float32, 64, 512, 64, 64),
         TRemParams(np.float16, 32, 512, 16, 256)

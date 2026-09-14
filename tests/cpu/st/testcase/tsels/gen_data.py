@@ -85,6 +85,7 @@ if __name__ == "__main__":
     case_params_list = [
         TSelsParams(np.float32, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.int32, 64, 64, 64, 64, 64, 64),
+        TSelsParams(np.int64, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.int16, 64, 64, 64, 64, 64, 64),
         TSelsParams(np.float16, 16, 256, 16, 256, 16, 256),
         TSelsParams(np.uint16, 64, 64, 64, 64, 64, 64),

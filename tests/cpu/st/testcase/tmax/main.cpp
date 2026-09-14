@@ -93,6 +93,7 @@ void test_tmax()
 
 TEST_F(TMAXTest, case_float_64x64_64x64_64x64) { test_tmax<float, 64, 64, 64, 64>(); }
 TEST_F(TMAXTest, case_int32_64x64_64x64_64x64) { test_tmax<int32_t, 64, 64, 64, 64>(); }
+TEST_F(TMAXTest, case_int64_64x64_64x64_64x64) { test_tmax<int64_t, 64, 64, 64, 64>(); }
 TEST_F(TMAXTest, case_int16_64x64_64x64_64x64) { test_tmax<int16_t, 64, 64, 64, 64>(); }
 TEST_F(TMAXTest, case_half_16x256_16x256_16x256) { test_tmax<aclFloat16, 16, 256, 16, 256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED

@@ -94,3 +94,4 @@ void test_tshl()
 
 TEST_F(TSHLTest, case_int16_64x64_64x64_64x64) { test_tshl<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TSHLTest, case_int32_16x256_16x256_16x256) { test_tshl<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TSHLTest, case_int64_16x256_16x256_16x256) { test_tshl<int64_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }

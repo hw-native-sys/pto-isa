@@ -51,6 +51,8 @@ void LaunchTMin(T* out, T* src0, T* src1, void* stream)
 template void LaunchTMin<float, NUM_64, NUM_64, NUM_64, NUM_64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTMin<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTMin<int64_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
 template void LaunchTMin<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);
 template void LaunchTMin<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(

@@ -50,6 +50,7 @@ void LaunchTMins(T* out, T* src0, T* src1, void* stream)
 
 template void LaunchTMins<float, 64, 64, 64, 64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTMins<int32_t, 64, 64, 64, 64>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTMins<int64_t, 64, 64, 64, 64>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
 template void LaunchTMins<int16_t, 64, 64, 64, 64>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
 template void LaunchTMins<aclFloat16, 64, 64, 64, 64>(
     aclFloat16* out, aclFloat16* src0, aclFloat16* src1, void* stream);

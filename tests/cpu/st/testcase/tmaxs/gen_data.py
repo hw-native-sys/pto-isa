@@ -78,6 +78,7 @@ if __name__ == "__main__":
     case_params_list = [
         TMaxsParams(np.float32, 64, 64, 64, 64, 64, 64),
         TMaxsParams(np.int32, 64, 64, 64, 64, 64, 64),
+        TMaxsParams(np.int64, 64, 64, 64, 64, 64, 64),
         TMaxsParams(np.int16, 64, 64, 64, 64, 64, 64),
         TMaxsParams(np.float16, 16, 256, 16, 256, 16, 256)
     ]

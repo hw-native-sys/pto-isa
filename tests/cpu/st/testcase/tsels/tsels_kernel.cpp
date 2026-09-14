@@ -41,9 +41,9 @@ __aicore__ void runTSelS(__gm__ T* out, T scalar, __gm__ uint32_t* src0, __gm__ 
     TmpTile tmpTile(1, 32);
 
     TASSIGN(src0Tile, 0x0);
-    TASSIGN(src1Tile, 0x4000);
-    TASSIGN(dstTile, 0x8000);
-    TASSIGN(tmpTile, 0x12000);
+    TASSIGN(src1Tile, src0Tile.GetSizeInBytes());
+    TASSIGN(dstTile, src0Tile.GetSizeInBytes() + src1Tile.GetSizeInBytes());
+    TASSIGN(tmpTile, src0Tile.GetSizeInBytes() + src1Tile.GetSizeInBytes() + dstTile.GetSizeInBytes());
 
     GlobalMask src0Global(src0);
     GlobalData src1Global(src1);
@@ -77,6 +77,8 @@ void LaunchTSelS(T* out, T scalar, uint32_t* src0, T* src1, void* stream)
 template void LaunchTSelS<float, 64, 64, 64, 64>(float* out, float scalar, uint32_t* src0, float* src1, void* stream);
 template void LaunchTSelS<int32_t, 64, 64, 64, 64>(
     int32_t* out, int32_t scalar, uint32_t* src0, int32_t* src1, void* stream);
+template void LaunchTSelS<int64_t, 64, 64, 64, 64>(
+    int64_t* out, int64_t scalar, uint32_t* src0, int64_t* src1, void* stream);
 template void LaunchTSelS<aclFloat16, 16, 256, 16, 256>(
     aclFloat16* out, aclFloat16 scalar, uint32_t* src0, aclFloat16* src1, void* stream);
 template void LaunchTSelS<int16_t, 64, 64, 64, 64>(

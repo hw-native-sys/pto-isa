@@ -90,11 +90,12 @@ PTO_INTERNAL void TCmpCheck(const TileDataDst& dst, const TileDataSrc0& src0, co
                 std::is_same_v<T, int16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> ||
                 std::is_same_v<T, float> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t>,
             "TCMP: src0 and src1 data type must be "
-            "uint32_t/int32_t/uint16_t/int16_t/uint8_t/int8_t/float/half/bfloat16_t");
+            "uint32_t/int32_t/uint16_t/int16_t/uint8_t/int8_t/float/hal f/bfloat16_t");
     } else {
         static_assert(
-            std::is_same_v<T, int32_t> || std::is_same_v<T, half> || std::is_same_v<T, float>,
-            "TCMP: src0 and src1 data type must be int32_t, half or float");
+            std::is_same_v<T, int32_t> || std::is_same_v<T, int64_t> || std::is_same_v<T, half> ||
+                std::is_same_v<T, float>,
+            "TCMP: src0 and src1 data type must be int64_t, int32_t, half or float");
     }
     static_assert(
         std::is_same_v<TDst, uint8_t> || std::is_same_v<TDst, uint32_t>,

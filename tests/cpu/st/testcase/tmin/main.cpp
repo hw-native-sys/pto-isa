@@ -95,6 +95,7 @@ void test_tmin()
 
 TEST_F(TMINTest, case_float_64x64_64x64_64x64) { test_tmin<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMINTest, case_int32_64x64_64x64_64x64) { test_tmin<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TMINTest, case_int64_64x64_64x64_64x64) { test_tmin<int64_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMINTest, case_int16_64x64_64x64_64x64) { test_tmin<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMINTest, case_half_16x256_16x256_16x256) { test_tmin<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED

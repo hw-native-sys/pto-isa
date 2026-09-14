@@ -94,6 +94,7 @@ void test_trems()
 
 TEST_F(TREMSTest, case_float_64x64_64x64) { test_trems<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TREMSTest, case_int32_64x64_64x64) { test_trems<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TREMSTest, case_int64_64x64_64x64) { test_trems<int64_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TREMSTest, case_int16_64x64_64x64) { test_trems<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TREMSTest, case_half_16x256_16x256) { test_trems<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 

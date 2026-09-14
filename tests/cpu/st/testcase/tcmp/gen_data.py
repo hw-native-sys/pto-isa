@@ -101,6 +101,7 @@ if __name__ == "__main__":
     case_params_list = [
         TCmpParams(np.float32, 64, 64, 64, 64, 64, 64, "EQ"),
         TCmpParams(np.int32, 64, 64, 64, 64, 64, 64, "NE"),
+        TCmpParams(np.int64, 64, 64, 64, 64, 64, 64, "NE"),
         TCmpParams(np.float16, 16, 256, 16, 256, 16, 256, "GT"),
         TCmpParams(np.uint32, 64, 64, 64, 64, 64, 64, "GE", np.uint32),
         TCmpParams(np.int32, 64, 64, 64, 64, 64, 64, "LT", np.uint32),

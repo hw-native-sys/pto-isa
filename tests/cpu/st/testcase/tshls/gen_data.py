@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from utils import NumExt
 np.random.seed(19)
 
 
@@ -52,22 +53,16 @@ class TSHLSParams:
 
 
 def generate_case_name(param):
-    dtype_str = {
-        np.uint32: 'uint32',
-        np.uint16: 'uint16',
-        np.int8: 'int8',
-        np.int32: 'int32',
-        np.int16: 'int16'
-    }[param.dtype]
-    
+    dtype_str = NumExt.get_short_type_name(param.dtype)
+
     def substring(a, b) -> str:
         return f"_{a}x{b}"
-        
-    name = f"TSHLSTest.case_{dtype_str}" 
+
+    name = f"TSHLSTest.case_{dtype_str}"
     name += substring(param.dst_row, param.dst_col)
     name += substring(param.src_row, param.src_col)
     name += substring(param.valid_row, param.valid_col)
-    
+
     return name
 
 
@@ -82,7 +77,8 @@ if __name__ == "__main__":
 
     case_params_list = [
         TSHLSParams(np.int16, 64, 64, 64, 64, 64, 64),
-        TSHLSParams(np.int32, 16, 256, 16, 256, 16, 256)
+        TSHLSParams(np.int32, 16, 256, 16, 256, 16, 256),
+        TSHLSParams(np.int64, 16, 256, 16, 256, 16, 256)
     ]
 
     for param in case_params_list:

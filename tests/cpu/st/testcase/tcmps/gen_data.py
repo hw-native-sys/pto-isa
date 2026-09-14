@@ -106,6 +106,7 @@ if __name__ == "__main__":
         tcmpsParams(np.uint16, 32, 32, 32, 32, 32, 32, "CmpMode::EQ"),
         tcmpsParams(np.uint16, 16, 32, 16, 32, 16, 32, "CmpMode::GT"),
         tcmpsParams(np.int32, 64, 64, 64, 64, 64, 64, "CmpMode::EQ"),
+        tcmpsParams(np.int64, 64, 64, 64, 64, 64, 64, "CmpMode::EQ"),
         tcmpsParams(np.int32, 16, 32, 16, 32, 16, 32, "CmpMode::LE"),
         tcmpsParams(np.int32, 77, 96, 77, 96, 77, 96, "CmpMode::GT"),
         tcmpsParams(np.int32, 32, 32, 32, 32, 32, 32, "CmpMode::GE"),

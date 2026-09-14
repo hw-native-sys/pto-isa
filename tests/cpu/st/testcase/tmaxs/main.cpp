@@ -94,6 +94,7 @@ void test_tmaxs()
 
 TEST_F(TMAXSTest, case_float_64x64_64x64_64x64) { test_tmaxs<float, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMAXSTest, case_int32_64x64_64x64_64x64) { test_tmaxs<int32_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TMAXSTest, case_int64_64x64_64x64_64x64) { test_tmaxs<int64_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMAXSTest, case_int16_64x64_64x64_64x64) { test_tmaxs<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TMAXSTest, case_half_16x256_16x256_16x256) { test_tmaxs<aclFloat16, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 #ifdef CPU_SIM_BFLOAT_ENABLED

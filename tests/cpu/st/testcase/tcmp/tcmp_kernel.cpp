@@ -62,6 +62,8 @@ template void LaunchTCmp<float, uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     uint8_t* out, float* src0, float* src1, pto::CmpMode mode, void* stream);
 template void LaunchTCmp<int32_t, uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     uint8_t* out, int32_t* src0, int32_t* src1, pto::CmpMode mode, void* stream);
+template void LaunchTCmp<int64_t, uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint8_t* out, int64_t* src0, int64_t* src1, pto::CmpMode mode, void* stream);
 template void LaunchTCmp<aclFloat16, uint8_t, NUM_16, NUM_256, NUM_16, NUM_256>(
     uint8_t* out, aclFloat16* src0, aclFloat16* src1, pto::CmpMode mode, void* stream);
 template void LaunchTCmp<uint32_t, uint32_t, NUM_64, NUM_64, NUM_64, NUM_64>(

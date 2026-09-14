@@ -103,6 +103,7 @@ void test_tsels()
 
 TEST_F(TSELSTest, case_float_64x64_64x64_64x64) { test_tsels<float, 64, 64, 64, 64>(); }
 TEST_F(TSELSTest, case_int32_64x64_64x64_64x64) { test_tsels<int32_t, 64, 64, 64, 64>(); }
+TEST_F(TSELSTest, case_int64_64x64_64x64_64x64) { test_tsels<int64_t, 64, 64, 64, 64>(); }
 TEST_F(TSELSTest, case_int16_64x64_64x64_64x64) { test_tsels<int16_t, 64, 64, 64, 64>(); }
 TEST_F(TSELSTest, case_half_16x256_16x256_16x256) { test_tsels<aclFloat16, 16, 256, 16, 256>(); }
 TEST_F(TSELSTest, case_uint16_64x64_64x64_64x64) { test_tsels<uint16_t, 64, 64, 64, 64>(); }

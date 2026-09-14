@@ -111,6 +111,7 @@ TEST_F(TCMPSTest, case_int16_64x64_64x64_64x64_LE) { test_tcmps<int16_t, 64, 64,
 TEST_F(TCMPSTest, case_uint16_32x32_32x32_32x32_EQ) { test_tcmps<uint16_t, 32, 32, 32, 32, 0>(); }
 TEST_F(TCMPSTest, case_uint16_16x32_16x32_16x32_GT) { test_tcmps<uint16_t, 16, 32, 16, 32, 4>(); }
 TEST_F(TCMPSTest, case_int32_64x64_64x64_64x64_EQ) { test_tcmps<int32_t, 64, 64, 64, 64, 0>(); }
+TEST_F(TCMPSTest, case_int64_64x64_64x64_64x64_EQ) { test_tcmps<int64_t, 64, 64, 64, 64, 0>(); }
 TEST_F(TCMPSTest, case_int32_16x32_16x32_16x32_LE) { test_tcmps<int32_t, 16, 32, 16, 32, 3>(); }
 TEST_F(TCMPSTest, case_int32_77x96_77x96_77x96_GT) { test_tcmps<int32_t, 77, 96, 77, 96, 4>(); }
 TEST_F(TCMPSTest, case_int32_32x32_32x32_32x32_GE) { test_tcmps<int32_t, 32, 32, 32, 32, 5>(); }
