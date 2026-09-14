@@ -215,16 +215,21 @@ PTO_INTERNAL void TLoadCubeND2NZ(
     if constexpr (GlobalData::layout == pto::Layout::DN) {
         loop1SrcStride = GetByteSize<typename TileData::DType>(gStride4);
     }
-    // DIM_2 drives the hardware nd-matrix loop: ndNum matrices of [nValue, dValue] are stacked
-    // along the NZ row direction, so the tile row index is i2 * nValue + i3.
+    // Complete matrices from DIM_2 stack along NZ rows; the tile row index is i2 * nValue + i3.
+    // validRow selects the complete matrix count and any partial final matrix.
     uint16_t ndNum = 1;
+    uint16_t tailRows = 0;
     uint16_t loop4DstStride = 0;
     uint64_t loop4SrcStride = 0;
     if constexpr (GlobalData::layout == pto::Layout::ND && GlobalData::staticShape[2] != 1) {
         PTO_ASSERT(gShape2 > 0 && gShape2 <= 65535, "The Shape2 (ndNum) of GlobalTensor must be in [1, 65535]!");
-        PTO_ASSERT(gShape2 * gShape3 <= TileData::Rows, "The ndNum * nValue must not exceed TileData::Rows!");
-        PTO_ASSERT(validRow == gShape2 * gShape3, "The validRow must be equal to Shape2 * Shape3 in multi-ND ND2NZ!");
-        ndNum = static_cast<uint16_t>(gShape2);
+        PTO_ASSERT(gShape3 > 0 && gShape3 <= 16384, "The Shape3 of GlobalTensor must be in range of [1, 16384]!");
+        PTO_ASSERT(validRow > 0 && validRow <= TileData::Rows, "The validRow must be in [1, TileData::Rows]!");
+        PTO_ASSERT(
+            validRow <= static_cast<int64_t>(gShape2) * gShape3,
+            "The validRow must not exceed Shape2 * Shape3 in multi-ND ND2NZ!");
+        ndNum = static_cast<uint16_t>(validRow / gShape3);
+        tailRows = static_cast<uint16_t>(validRow % gShape3);
         loop4DstStride = nValue; // one nd matrix takes nValue rows in the NZ tile, unit is 32B
         loop4SrcStride = static_cast<uint64_t>(gStride2) * sizeof(typename TileData::DType);
     }
@@ -234,9 +239,23 @@ PTO_INTERNAL void TLoadCubeND2NZ(
     mte2NzPara |= static_cast<uint64_t>(loop3DstStride) << 32;         // MTE2_NZ_PARA[47:32]
     mte2NzPara |= static_cast<uint64_t>(loop2DstStride) << 16;         // MTE2_NZ_PARA[31:16]
     mte2NzPara |= static_cast<uint64_t>(ndNum);                        // MTE2_NZ_PARA[15:0]
-    set_mte2_nz_para(mte2NzPara);                                      // only set once
-
-    Op::template TLoadCubeInstr<GlobalData::layout>(dst, src, loop1SrcStride, nValue, dValue, loop4SrcStride);
+    if (ndNum != 0) {
+        set_mte2_nz_para(mte2NzPara);
+        Op::template TLoadCubeInstr<GlobalData::layout>(dst, src, loop1SrcStride, nValue, dValue, loop4SrcStride);
+    }
+    if constexpr (GlobalData::layout == pto::Layout::ND && GlobalData::staticShape[2] != 1) {
+        if (tailRows != 0) {
+            // Keep the full tile's C0-block stride when appending the partial ND matrix.
+            const uint64_t tailPara =
+                (static_cast<uint64_t>(loop3DstStride) << 32) | (static_cast<uint64_t>(loop2DstStride) << 16) | 1ULL;
+            set_mte2_nz_para(tailPara);
+            const uint64_t dstOffset =
+                static_cast<uint64_t>(validRow - tailRows) * (BLOCK_BYTE_SIZE / sizeof(typename TileData::DType));
+            const uint64_t srcOffset = static_cast<uint64_t>(ndNum) * gStride2;
+            Op::template TLoadCubeInstr<GlobalData::layout>(
+                dst + dstOffset, src + srcOffset, loop1SrcStride, tailRows, dValue, 0);
+        }
+    }
 }
 template <typename Op, typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadCubeNZ2NZ(

@@ -107,11 +107,11 @@ On A5 all listed values are passed through to DMA. CPU / costmodel accept the te
     - For row-major ND->ND with compile-time-known shapes, `TileData::ValidCol` must equal `GlobalData::staticShape[4]`, and `TileData::ValidRow` must equal the product of `GlobalData::staticShape[0..3]`.
     - `TileType::Mat` loads are additionally constrained by `TLoadCubeCheck` (e.g., only specific ND/DN/NZ conversions and L1-size limits).
     - For `TileType::Mat` ND->NZ and DN->NZ: `TileData::SFractalSize == 512`, `sizeof(TileData::DType) != 8`, and `GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1`.
-    - ND->NZ additionally accepts `GlobalData::staticShape[2] != 1`. `Shape2` is then the number of ND matrices
-      a single instruction moves (the hardware `ndNum` loop), each matrix being `[Shape3, Shape4]`. The matrices are
-      stacked along the tile rows, so `dst.GetValidRow() == Shape2 * Shape3`, and it requires
-      `Shape2 * Shape3 <= TileData::Rows`, `1 <= Shape2 <= 65535`, and a data type that is not fp4.
-      DN->NZ still requires `Shape2 == 1`.
+    - ND->NZ additionally accepts `GlobalData::staticShape[2] != 1` (including dynamic Shape2).
+      `Shape2` is the available number of ND matrices of shape `[Shape3, Shape4]`, stacked along the tile rows.
+      Runtime: `1 <= Shape2 <= 65535`, `1 <= Shape3 <= 16384`, and
+      `1 <= dst.GetValidRow() <= min(TileData::Rows, Shape2 * Shape3)`. The data type must not be fp4.
+    - DN->NZ requires `GlobalData::staticShape[2] == 1`.
     - `TileType::Mat` loads also handle loads for mx format, which include `MX_A_ZZ/MX_A_ND/MX_A_DN` to ZZ for scalarA and `MX_B_NN/MX_B_ND/MX_B_DN` to NN for scalarB.
     - for `MX_A_ZZ/MX_B_NN`: `(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.
     - for `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`: `(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` and `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.
@@ -122,6 +122,12 @@ On A5 all listed values are passed through to DMA. CPU / costmodel accept the te
     - The implementation uses `dst.GetValidRow()` / `dst.GetValidCol()` as the transfer size.
     - On A2/A3, same-layout, block-aligned `TileType::Mat` loads write only this valid region. ND-to-NZ/DN-to-ZN loads (and the single-row/single-column Mat special paths) additionally zero-fill the final partial C0 block. Other data remains unchanged, including data owned by tile views that share the same backing storage.
     - On A5, same-layout `TileType::Mat` ND/DN loads fill only the final partial 32-byte block according to `PadVal`; ND/DN-to-fractal loads zero-fill the final partial C0 block. Full 32-byte gaps and inactive rows or columns remain unchanged.
+    - On A5, ND->NZ with `GlobalData::staticShape[2] != 1` loads the first `dst.GetValidRow()` merged rows.
+      It transfers `dst.GetValidRow() / Shape3` complete matrices in one instruction, then transfers
+      `dst.GetValidRow() % Shape3` tail rows separately if needed. With no complete matrices, only the tail
+      transfer is issued. Both transfers retain the full tile's NZ column-block stride. This also applies
+      when Shape2 is dynamic and its runtime value is 1. For example, `Shape3 = 3` and `dst.GetValidRow() = 17`
+      load five complete matrices and the first two rows of the sixth matrix, requiring `Shape2 >= 6`.
     - On A2/A3 and A5, a `TileType::Vec` ND/DN load with a non-null `PadVal` fills only the sub-32-byte tail after each transferred burst. Full 32-byte gaps and inactive rows or columns remain unchanged; NZ loads and `PadValue::Null` do not add padding.
 
 ## Examples

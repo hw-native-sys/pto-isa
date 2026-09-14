@@ -35,7 +35,7 @@ constexpr int NCDHW2FZ3D = 13;
 
 template <
     typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-    int BASEM, int BASEK>
+    int BASEM, int BASEK, int ValidRows = N3 * N4, bool DynamicShape = false>
 void launchTLOADMIX(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 class TLOADMIXTest : public testing::Test {
@@ -55,7 +55,7 @@ std::string GetGoldenDir()
 
 template <
     typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-    int BASEM, int BASEK>
+    int BASEM, int BASEK, int ValidRows = N3 * N4, bool DynamicShape = false>
 void TLOADMIXFUNC()
 {
     constexpr uint32_t c0SizeByte = 32;
@@ -101,7 +101,7 @@ void TLOADMIXFUNC()
 
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(
+    launchTLOADMIX<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK, ValidRows, DynamicShape>(
         dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
@@ -166,6 +166,41 @@ TEST_F(TLOADMIXTest, 1_1_32_1_64_1_1_32_4_64_32_64_float_ND2NZ)
 TEST_F(TLOADMIXTest, 1_1_16_3_64_1_1_16_9_64_64_64_half_ND2NZ)
 {
     TLOADMIXFUNC<uint16_t, 0, 1, 1, 16, 3, 64, 1, 1, 16, 9, 64, 64, 64>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdPartialRows_half)
+{
+    TLOADMIXFUNC<uint16_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 16, true>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdPartialRows_int8)
+{
+    TLOADMIXFUNC<int8_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 17, false>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdPartialRows_float)
+{
+    TLOADMIXFUNC<float, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 17, false>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdTailOnly_half)
+{
+    TLOADMIXFUNC<uint16_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 2, true>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdWholePrefix_half)
+{
+    TLOADMIXFUNC<uint16_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 6, false>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdDynamicSingle_half)
+{
+    TLOADMIXFUNC<uint16_t, 0, 1, 1, 1, 3, 35, 1, 1, 1, 9, 64, 32, 64, 2, true>();
+}
+
+TEST_F(TLOADMIXTest, MultiNdSourceLargerThanTile_half)
+{
+    TLOADMIXFUNC<uint16_t, 0, 1, 1, 16, 3, 35, 1, 1, 16, 9, 64, 32, 64, 31, true>();
 }
 
 TEST_F(TLOADMIXTest, 1_1_1_64_128_half_DN2NZ)

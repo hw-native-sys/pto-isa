@@ -61,28 +61,32 @@ AICORE inline void MovL1ToUbuf(DstTileData& dstTile, SrcTileData& srcTile)
 }
 
 template <
-    typename T, int N1, int N2, int N3, int M, int K, int WN1, int WN2, int WN3, int WN4, int WN5, int baseM, int baseK>
+    typename T, int N1, int N2, int N3, int M, int K, int WN1, int WN2, int WN3, int WN4, int WN5, int baseM, int baseK,
+    int ValidRows = N3 * M, bool DynamicShape = false>
 AICORE inline void runTLOAD_MIX_ND2NZ(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
 {
-    // static shape
-    using GlobalDataSrc0 = GlobalTensor<
-        T, pto::Shape<N1, N2, N3, M, K>, pto::Stride<WN2 * WN3 * WN4 * WN5, WN3 * WN4 * WN5, WN4 * WN5, WN5, 1>,
-        Layout::ND>;
+    using SrcShape = pto::Shape<N1, N2, DynamicShape ? -1 : N3, DynamicShape ? -1 : M, K>;
+    using GlobalDataSrc0 =
+        GlobalTensor<T, SrcShape, pto::Stride<WN2 * WN3 * WN4 * WN5, WN3 * WN4 * WN5, WN4 * WN5, WN5, 1>, Layout::ND>;
     using GlobalDataOut = GlobalTensor<
         T, pto::Shape<1, 1, 1, baseM, baseK>,
         pto::Stride<1 * baseM * baseK, 1 * baseM * baseK, baseM * baseK, baseK, 1>, Layout::ND>;
 
-    GlobalDataSrc0 src0Global(src0);
+    GlobalDataSrc0 src0Global(src0, SrcShape(N1, N2, N3, M, K));
     GlobalDataOut dstGlobal(out);
 
-    // N3 nd matrices of [M, K] stack along the row direction, so the tile has N3 * M rows.
-    using TileMatAData =
-        Tile<TileType::Mat, T, baseM, baseK, BLayout::ColMajor, N3 * M, K, SLayout::RowMajor, 512>; // 大N小Z
+    // Load the valid prefix of the N3 ND matrices, including a partial final matrix.
+    using TileMatAData = Tile<
+        TileType::Mat, T, baseM, baseK, BLayout::ColMajor, DynamicShape ? -1 : ValidRows, K, SLayout::RowMajor,
+        512>; // 大N小Z
     using TileUBData = Tile<TileType::Vec, T, baseM, baseK, BLayout::RowMajor, -1, -1>;
     TileUBData srcTile(baseM, baseK);
     TASSIGN(srcTile, 0x0);
 
     TileMatAData aMatTile;
+    if constexpr (DynamicShape) {
+        aMatTile.SetValidRow(ValidRows);
+    }
     TASSIGN(aMatTile, 0x0);
 
     TFILLPAD(aMatTile, aMatTile);
@@ -639,11 +643,11 @@ AICORE inline void runTLOAD_MIX_NCDHW2FZ3D(__gm__ T __out__* out, __gm__ T __in_
 
 template <
     typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-    int BASEM, int BASEK>
+    int BASEM, int BASEK, int ValidRows = N3 * N4, bool DynamicShape = false>
 __global__ AICORE void TLOAD_MIX_KERNEL(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
 {
     if constexpr (format == 0) { // ND2NZ
-        runTLOAD_MIX_ND2NZ<T, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(
+        runTLOAD_MIX_ND2NZ<T, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK, ValidRows, DynamicShape>(
             reinterpret_cast<__gm__ T*>(out), reinterpret_cast<__gm__ T*>(src0), reinterpret_cast<__gm__ T*>(src1));
     } else if constexpr (format == 1) { // DN2NZ
         runTLOAD_MIX_DN2NZ<T, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>(
@@ -692,10 +696,10 @@ __global__ AICORE void TLOAD_MIX_KERNEL(__gm__ uint8_t* out, __gm__ uint8_t* src
 
 template <
     typename T, int format, int N1, int N2, int N3, int N4, int N5, int WN1, int WN2, int WN3, int WN4, int WN5,
-    int BASEM, int BASEK>
+    int BASEM, int BASEK, int ValidRows = N3 * N4, bool DynamicShape = false>
 void launchTLOADMIX(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
 {
-    TLOAD_MIX_KERNEL<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK>
+    TLOAD_MIX_KERNEL<T, format, N1, N2, N3, N4, N5, WN1, WN2, WN3, WN4, WN5, BASEM, BASEK, ValidRows, DynamicShape>
         <<<1, nullptr, stream>>>(out, src0, src1);
 }
 
@@ -959,4 +963,19 @@ template void launchTLOADMIX_B4<uint8_t, 4, 0, 1, 8, 4, 16, 32, 1, 9, 4, 16, 32,
 template void launchTLOADMIX_B4<uint8_t, 3, 0, 1, 1, 1, 37, 126, 1, 1, 1, 37, 126, 64, 126>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTLOADMIX_B4<uint8_t, 5, 0, 1, 1, 1, 59, 119, 1, 1, 1, 64, 128, 64, 128>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+
+template void launchTLOADMIX<uint16_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 16, true>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<int8_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 17, false>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<float, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 17, false>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<uint16_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 2, true>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<uint16_t, 0, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, 6, false>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<uint16_t, 0, 1, 1, 1, 3, 35, 1, 1, 1, 9, 64, 32, 64, 2, true>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTLOADMIX<uint16_t, 0, 1, 1, 16, 3, 35, 1, 1, 16, 9, 64, 32, 64, 31, true>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);

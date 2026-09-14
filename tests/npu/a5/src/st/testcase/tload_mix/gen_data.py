@@ -178,7 +178,7 @@ def gen_golden_data(case_name, param):
     whole_shape4 = param.ws4
     convtile_formats = {DataFormat["NC1HWC02NC1HWC0"].value, DataFormat["FZ2FZ"].value, DataFormat["FZ4D2FZ4D"].value}
 
-    M, K, BASEM, BASEK, is_atrans = param.m, param.k, param.basem, param.basek, False
+    M, K, BASEM, BASEK = param.m, param.k, param.basem, param.basek
     c0_size = 16
     if src_type == np.float32:
         c0_size = 8
@@ -199,7 +199,7 @@ def gen_golden_data(case_name, param):
         ]
         flattened_submatrix = submatrix.reshape(shape2 * M, K)
         golden = np.zeros([BASEM, BASEK]).astype(src_type)  # L1中Tile大小
-        min_m = min(flattened_submatrix.shape[0], golden.shape[0])
+        min_m = min(param.valid_rows, golden.shape[0])
         min_k = min(flattened_submatrix.shape[1], golden.shape[1])
         golden[:min_m, :min_k] = flattened_submatrix[:min_m, :min_k]
     elif param.load_type == DataFormat['DN2NZ'].value:
@@ -386,7 +386,9 @@ def gen_golden_data(case_name, param):
 
 
 class TloadParams:
-    def __init__(self, atype, shape0, shape1, shape2, m, k, ws0, ws1, ws2, ws3, ws4, basem, basek, load_type):
+    def __init__(
+        self, atype, shape0, shape1, shape2, m, k, ws0, ws1, ws2, ws3, ws4, basem, basek, load_type, valid_rows=None
+    ):
         self.atype = atype
         self.m = m
         self.k = k
@@ -402,6 +404,7 @@ class TloadParams:
 
         self.basem = basem  # L1 row
         self.basek = basek  # L1 col
+        self.valid_rows = shape2 * m if valid_rows is None else valid_rows
         self.load_type = load_type
 
 
@@ -415,6 +418,13 @@ if __name__ == "__main__":
         "TLOADMIXTest.1_1_16_4_100_1_1_16_12_128_64_128_int8_t_ND2NZ",
         "TLOADMIXTest.1_1_32_1_64_1_1_32_4_64_32_64_float_ND2NZ",
         "TLOADMIXTest.1_1_16_3_64_1_1_16_9_64_64_64_half_ND2NZ",
+        "TLOADMIXTest.MultiNdPartialRows_half",
+        "TLOADMIXTest.MultiNdPartialRows_int8",
+        "TLOADMIXTest.MultiNdPartialRows_float",
+        "TLOADMIXTest.MultiNdTailOnly_half",
+        "TLOADMIXTest.MultiNdWholePrefix_half",
+        "TLOADMIXTest.MultiNdDynamicSingle_half",
+        "TLOADMIXTest.MultiNdSourceLargerThanTile_half",
         "TLOADMIXTest.1_1_1_64_128_half_DN2NZ",
         "TLOADMIXTest.1_1_1_63_127_half_ND2NZ",
         "TLOADMIXTest.1_1_1_128_128_float_ND2ND",
@@ -513,6 +523,13 @@ if __name__ == "__main__":
         TloadParams(np.int8, 1, 1, 16, 4, 100, 1, 1, 16, 12, 128, 64, 128, DataFormat["ND2NZ"].value),
         TloadParams(np.float32, 1, 1, 32, 1, 64, 1, 1, 32, 4, 64, 32, 64, DataFormat["ND2NZ"].value),
         TloadParams(np.float16, 1, 1, 16, 3, 64, 1, 1, 16, 9, 64, 64, 64, DataFormat["ND2NZ"].value),
+        TloadParams(np.float16, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 16),
+        TloadParams(np.int8, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 17),
+        TloadParams(np.float32, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 17),
+        TloadParams(np.float16, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 2),
+        TloadParams(np.float16, 1, 1, 8, 3, 35, 1, 1, 8, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 6),
+        TloadParams(np.float16, 1, 1, 1, 3, 35, 1, 1, 1, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 2),
+        TloadParams(np.float16, 1, 1, 16, 3, 35, 1, 1, 16, 9, 64, 32, 64, DataFormat["ND2NZ"].value, 31),
         TloadParams(np.float16, 1, 1, 1, 64, 128, 1, 1, 1, 64, 128, 64, 128, DataFormat["DN2NZ"].value),
         TloadParams(np.float16, 1, 1, 1, 63, 127, 1, 1, 1, 63, 127, 64, 128, DataFormat["ND2NZ"].value),
         TloadParams(np.float32, 1, 1, 1, 128, 128, 1, 1, 1, 128, 128, 128, 128, DataFormat["ND2ND"].value),

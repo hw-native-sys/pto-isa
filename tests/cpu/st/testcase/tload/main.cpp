@@ -662,3 +662,58 @@ TEST_F(TLOADTest, A2A3MatNdToNzMultiNdStacksRows)
         }
     }
 }
+
+// Row and matrix strides both include gaps; the source can be taller than the destination tile.
+template <typename T, bool DynamicShape>
+void CheckA5MultiNdPartialRows()
+{
+    pto::NPU_MEMORY_INIT(pto::NPUArch::A5);
+    pto::NPU_MEMORY_CLEAR();
+    constexpr int kC0 = 32 / sizeof(T);
+    constexpr int kRows = 32;
+    constexpr int kCols = 3 * kC0;
+    constexpr int kD = kC0 + 3;
+    constexpr int kRowStride = 2 * kC0;
+    constexpr int kMatrixStride = 9 * kRowStride;
+    using SrcShape = pto::Shape<1, 1, DynamicShape ? -1 : 16, DynamicShape ? -1 : 3, kD>;
+    using SrcGlobal = pto::GlobalTensor<
+        T, SrcShape, pto::Stride<16 * kMatrixStride, 16 * kMatrixStride, kMatrixStride, kRowStride, 1>,
+        pto::Layout::ND>;
+    using MatTile =
+        pto::Tile<pto::TileType::Mat, T, kRows, kCols, pto::BLayout::ColMajor, -1, kD, pto::SLayout::RowMajor, 512>;
+    std::vector<T> src(16 * kMatrixStride);
+    for (size_t i = 0; i < src.size(); ++i) {
+        src[i] = static_cast<T>(i % 97 + 1);
+    }
+    SrcGlobal srcGlobal(src.data(), SrcShape(1, 1, 16, 3, kD));
+    for (int validRows : {1, 2, 3, 4, 8, 15, 16, 31, 32}) {
+        SCOPED_TRACE(validRows);
+        MatTile dst(validRows);
+        pto::TASSIGN(dst, 4096);
+        for (int row = 0; row < kRows; ++row) {
+            for (int col = 0; col < kCols; ++col) {
+                dst.SetElement(row, col, static_cast<T>(-7));
+            }
+        }
+        pto::TLOAD(dst, srcGlobal);
+        for (int row = 0; row < kRows; ++row) {
+            for (int col = 0; col < kCols; ++col) {
+                T expected = static_cast<T>(-7);
+                if (row < validRows && col < kD) {
+                    expected = src[(row / 3) * kMatrixStride + (row % 3) * kRowStride + col];
+                } else if (row < validRows && col < 2 * kC0) {
+                    expected = static_cast<T>(0);
+                }
+                EXPECT_EQ(dst.GetElement(row, col), expected) << "row=" << row << " col=" << col;
+            }
+        }
+    }
+}
+
+TEST_F(TLOADTest, A5MatNdToNzMultiNdPartialRowsInt8) { CheckA5MultiNdPartialRows<int8_t, false>(); }
+
+TEST_F(TLOADTest, A5MatNdToNzMultiNdPartialRowsInt16) { CheckA5MultiNdPartialRows<int16_t, false>(); }
+
+TEST_F(TLOADTest, A5MatNdToNzMultiNdPartialRowsFloat) { CheckA5MultiNdPartialRows<float, false>(); }
+
+TEST_F(TLOADTest, A5MatNdToNzMultiNdPartialRowsDynamic) { CheckA5MultiNdPartialRows<int16_t, true>(); }

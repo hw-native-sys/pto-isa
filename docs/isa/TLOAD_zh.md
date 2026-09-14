@@ -107,10 +107,11 @@ A5 上表内取值均透传给 DMA。CPU / costmodel 接受该模板并忽略。
     - `TileType::Mat` 加载还受到 `TLoadCubeCheck` 的约束（例如，仅特定的ND/DN/NZ转换和L1大小限制）。
     - 对于 `TileType::Mat` 的 ND->NZ 和 DN->NZ：`TileData::SFractalSize == 512`、`sizeof(TileData::DType) != 8`，
       且 `GlobalData::staticShape[0] == 1 && GlobalData::staticShape[1] == 1`。
-    - ND->NZ 额外支持 `GlobalData::staticShape[2] != 1`。此时 `Shape2` 是单条指令搬运的 ND 小矩阵个数
-      （硬件 `ndNum` 循环），每个小矩阵形状为 `[Shape3, Shape4]`，多个小矩阵沿 tile 行方向堆叠，
-      因此 `dst.GetValidRow() == Shape2 * Shape3`，并要求 `Shape2 * Shape3 <= TileData::Rows`、
-      `1 <= Shape2 <= 65535`，且数据类型不是 fp4。DN->NZ 仍要求 `Shape2 == 1`。
+    - ND->NZ 额外支持 `GlobalData::staticShape[2] != 1`（包括动态 Shape2）。`Shape2` 表示源中可用的
+      ND 小矩阵个数，每个小矩阵形状为 `[Shape3, Shape4]`，多个小矩阵沿 tile 行方向堆叠。
+      运行时：`1 <= Shape2 <= 65535`、`1 <= Shape3 <= 16384`，且
+      `1 <= dst.GetValidRow() <= min(TileData::Rows, Shape2 * Shape3)`。数据类型不能是 fp4。
+    - DN->NZ 要求 `GlobalData::staticShape[2] == 1`。
     - `TileType::Mat` 加载还处理mx格式的加载，包括 `MX_A_ZZ/MX_A_ND/MX_A_DN` 到ZZ（用于scalarA）和 `MX_B_NN/MX_B_ND/MX_B_DN` 到NN（用于scalarB）。
     - 对于 `MX_A_ZZ/MX_B_NN`：`(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。
     - 对于 `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`：`(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` 且 `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。
@@ -121,6 +122,11 @@ A5 上表内取值均透传给 DMA。CPU / costmodel 接受该模板并忽略。
     - 实现使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为传输大小。
     - 在A2/A3上，同布局且按块对齐的 `TileType::Mat` 加载仅写入有效区域。ND到NZ、DN到ZN加载（以及单行/单列Mat特殊路径）还会将最后一个不完整C0块的尾部填零。其他数据保持不变，包括共享同一底层存储的其他tile视图所对应的数据。
     - 在A5上，同布局 `TileType::Mat` 的ND/DN加载仅按 `PadVal` 填充最后一个不完整32B块；ND/DN到分形布局的加载将最后一个不完整C0块的尾部填零。完整32B间隔块以及未参与传输的行或列保持不变。
+    - 在A5上，`GlobalData::staticShape[2] != 1` 的 ND->NZ 加载合并后的前 `dst.GetValidRow()` 行。
+      先用一条指令搬运 `dst.GetValidRow() / Shape3` 个完整矩阵，若 `dst.GetValidRow() % Shape3` 非零，
+      再单独搬运这些尾行；没有完整矩阵时只搬运尾块。两次搬运均保持整个 tile 的 NZ 列块步长。
+      Shape2 为动态维度且运行时取值为 1 时也适用。例如 `Shape3 = 3`、`dst.GetValidRow() = 17` 时，
+      搬运 5 个完整矩阵和第 6 个矩阵的前 2 行，此时要求 `Shape2 >= 6`。
     - 在A2/A3和A5上，`PadVal` 非空时，`TileType::Vec` 的ND/DN加载仅填充每个burst传输后不足32B的尾部；完整32B间隔块以及未参与传输的行或列保持不变。NZ加载和`PadValue::Null`不增加填充。
 
 ## 示例

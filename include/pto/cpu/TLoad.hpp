@@ -84,7 +84,23 @@ PTO_INLINE void CheckTileData(TileData& dst, GlobalData& src)
         // An ND source always merges DIM_0..DIM_3 into rows, including ND2NZ into a Mat tile that is
         // not row major: there DIM_2 is the nd-matrix count, so the tile has DIM_2 * DIM_3 rows.
         [[maybe_unused]] const bool ndIntoNzTile = GlobalData::layout == pto::Layout::ND && rowsMerged;
-        assert((rowsMerged && TileData::isRowMajor) || (colsMerged && !TileData::isRowMajor) || ndIntoNzTile);
+        [[maybe_unused]] bool partialMultiNd = false;
+        if constexpr (
+            GlobalData::layout == Layout::ND && GlobalData::staticShape[2] != 1 && TileData::Loc == TileType::Mat &&
+            GetTileLayoutCustom<TileData>() == TileLayoutCustom::NZ && sizeof(typename TileData::DType) <= 4) {
+            partialMultiNd =
+                NPUMemoryModel::Instance().GetArch() == NPUArch::A5 && src.GetShape(GlobalTensorDim::DIM_0) == 1 &&
+                src.GetShape(GlobalTensorDim::DIM_1) == 1 && src.GetShape(GlobalTensorDim::DIM_2) > 0 &&
+                src.GetShape(GlobalTensorDim::DIM_2) <= 65535 && src.GetShape(GlobalTensorDim::DIM_3) > 0 &&
+                src.GetShape(GlobalTensorDim::DIM_3) <= 16384 && dst.GetValidRow() > 0 &&
+                dst.GetValidRow() <= TileData::Rows &&
+                dst.GetValidRow() <= src.GetShape(GlobalTensorDim::DIM_2) * src.GetShape(GlobalTensorDim::DIM_3) &&
+                dst.GetValidCol() > 0 && dst.GetValidCol() <= TileData::Cols &&
+                dst.GetValidCol() <= src.GetShape(GlobalTensorDim::DIM_4);
+        }
+        assert(
+            (rowsMerged && TileData::isRowMajor) || (colsMerged && !TileData::isRowMajor) || ndIntoNzTile ||
+            partialMultiNd);
     }
 }
 
