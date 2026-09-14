@@ -12,24 +12,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 using namespace pto;
 
-namespace {
-
-constexpr int kRows = 64;
-constexpr int kCols = 64;
-constexpr int kValidRows1 = 32;
-constexpr int kValidCols1 = 32;
-
-} // namespace
-
-template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-AICORE void runTPARTADD(__gm__ float __out__* out, __gm__ float __in__* src0, __gm__ float __in__* src1)
+template <typename T, int kRows, int kCols, int kValidRows1, int kValidCols1>
+AICORE inline void runTPARTADD(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
 {
     using DynShapeDim5 = Shape<1, 1, 1, kRows, kCols>;
     using DynStridDim5 = Stride<1, 1, 1, kCols, 1>;
-    using GlobalData = GlobalTensor<float, DynShapeDim5, DynStridDim5>;
-    using GlobalData1 = GlobalTensor<float, Shape<1, 1, 1, kValidRows1, kValidCols1>, DynStridDim5>;
+    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5>;
+    using GlobalData1 = GlobalTensor<T, Shape<1, 1, 1, kValidRows1, kValidCols1>, DynStridDim5>;
 
-    using TileT = Tile<TileType::Vec, float, kRows, kCols, BLayout::RowMajor, -1, -1>;
+    using TileT = Tile<TileType::Vec, T, kRows, kCols, BLayout::RowMajor, -1, -1>;
     TileT src0Tile(kRows, kCols);
     TileT src1Tile(kValidRows1, kValidCols1);
     TileT dstTile(kRows, kCols);
@@ -49,12 +40,25 @@ AICORE void runTPARTADD(__gm__ float __out__* out, __gm__ float __in__* src0, __
     out = dstGlobal.data();
 }
 
-template <int kRows, int kCols, int kValidRows1, int kValidCols1>
-void LaunchTPARTADD(float* out, float* src0, float* src1, void* stream)
+template <typename T, int kRows, int kCols, int kValidRows1, int kValidCols1>
+void LaunchTPARTADD(T* out, T* src0, T* src1, void* stream)
 {
     (void)stream;
-    runTPARTADD<kRows, kCols, kValidRows1, kValidCols1>(out, src0, src1);
+    if constexpr (std::is_same_v<T, aclFloat16>) {
+        runTPARTADD<half, kRows, kCols, kValidRows1, kValidCols1>((half*)(out), (half*)src0, (half*)src1);
+    } else {
+        runTPARTADD<T, kRows, kCols, kValidRows1, kValidCols1>(out, src0, src1);
+    }
 }
 
-template void LaunchTPARTADD<kRows, kCols, kValidRows1, kValidCols1>(
-    float* out, float* src0, float* src1, void* stream);
+template void LaunchTPARTADD<float, 64, 64, 32, 32>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTPARTADD<int32_t, 64, 64, 32, 32>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTPARTADD<int64_t, 64, 64, 32, 32>(int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTPARTADD<uint64_t, 64, 64, 32, 32>(uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
+template void LaunchTPARTADD<int16_t, 64, 64, 32, 32>(int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTPARTADD<uint16_t, 64, 64, 32, 32>(uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTPARTADD<uint32_t, 64, 64, 32, 32>(uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+#ifdef CPU_SIM_BFLOAT_ENABLED
+template void LaunchTPARTADD<bfloat16_t, 64, 64, 32, 32>(
+    bfloat16_t* out, bfloat16_t* src0, bfloat16_t* src1, void* stream);
+#endif

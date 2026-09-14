@@ -23,8 +23,15 @@ def gen_golden_data_trowmax(case_name, param):
     h_valid, w_valid = [min(row, param.valid_row), min(col, param.valid_col)]
 
     # Generate random input array
-    input1 = NumExt.astype(np.random.uniform(
-        low=-16, high=16, size=[row, col]), dtype)
+    if NumExt.is_unsigned_integer(dtype):
+        input1 = np.random.randint(low=0, high=256, size=[
+                                   row, col]).astype(dtype)
+    elif NumExt.is_signed_integer(dtype):
+        input1 = np.random.randint(
+            low=-128, high=127, size=[row, col]).astype(dtype)
+    else:
+        input1 = NumExt.astype(np.random.uniform(
+            low=-16, high=16, size=[row, col]), dtype)
 
     # Apply valid region constraints
     golden = NumExt.astype(np.full((h_valid), 0, dtype=np.float32), dtype)
@@ -79,7 +86,9 @@ if __name__ == "__main__":
         TRowmaxParams(np.float32, 77, 81, 32, 16, 77, 81),
         TRowmaxParams(np.float32, 32, 32, 32, 16, 32, 32),
         TRowmaxParams(np.int8, 64, 64, 64, 64, 64, 64),
-        TRowmaxParams(np.uint8, 64, 64, 64, 64, 64, 64)
+        TRowmaxParams(np.uint8, 64, 64, 64, 64, 64, 64),
+        TRowmaxParams(np.int64, 64, 64, 64, 64, 64, 64),
+        TRowmaxParams(np.uint64, 64, 64, 64, 64, 64, 64)
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(TRowmaxParams(

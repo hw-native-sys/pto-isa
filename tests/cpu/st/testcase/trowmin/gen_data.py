@@ -66,6 +66,12 @@ if __name__ == "__main__":
         TRowminParams(np.float32, 32, 32, 32, 16, 32, 32),
         TRowminParams(np.int8, 64, 64, 64, 64, 64, 64),
         TRowminParams(np.uint8, 64, 64, 64, 64, 64, 64),
+        TRowminParams(np.int16, 64, 64, 64, 64, 64, 64),
+        TRowminParams(np.uint16, 64, 64, 64, 64, 64, 64),
+        TRowminParams(np.int32, 64, 64, 64, 64, 64, 64),
+        TRowminParams(np.uint32, 64, 64, 64, 64, 64, 64),
+        TRowminParams(np.int64, 64, 64, 64, 64, 64, 64),
+        TRowminParams(np.uint64, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(TRowminParams(

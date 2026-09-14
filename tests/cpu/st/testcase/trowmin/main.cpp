@@ -91,3 +91,9 @@ TEST_F(TROWMINTest, case_float_77x81_32x16_77x81) { test_trowmin<float, 77, 81, 
 TEST_F(TROWMINTest, case_float_32x32_32x16_32x32) { test_trowmin<float, 32, 32, 32, 16>(); }
 TEST_F(TROWMINTest, case_int8_64x64_64x64_64x64) { test_trowmin<int8_t, 64, 64, 64, 64>(); }
 TEST_F(TROWMINTest, case_uint8_64x64_64x64_64x64) { test_trowmin<uint8_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_int16_64x64_64x64_64x64) { test_trowmin<int16_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_uint16_64x64_64x64_64x64) { test_trowmin<uint16_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_int32_64x64_64x64_64x64) { test_trowmin<int32_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_uint32_64x64_64x64_64x64) { test_trowmin<uint32_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_int64_64x64_64x64_64x64) { test_trowmin<int64_t, 64, 64, 64, 64>(); }
+TEST_F(TROWMINTest, case_uint64_64x64_64x64_64x64) { test_trowmin<uint64_t, 64, 64, 64, 64>(); }

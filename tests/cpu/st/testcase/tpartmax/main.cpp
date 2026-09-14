@@ -87,3 +87,9 @@ void test_tpartmax()
 TEST_F(TPARTMAX_Test, case_float_64x64_src1_32x32) { test_tpartmax<float>(); }
 TEST_F(TPARTMAX_Test, case_int8_64x64_src1_32x32) { test_tpartmax<int8_t>(); }
 TEST_F(TPARTMAX_Test, case_uint8_64x64_src1_32x32) { test_tpartmax<uint8_t>(); }
+TEST_F(TPARTMAX_Test, case_int16_64x64_src1_32x32) { test_tpartmax<int16_t>(); }
+TEST_F(TPARTMAX_Test, case_uint16_64x64_src1_32x32) { test_tpartmax<uint16_t>(); }
+TEST_F(TPARTMAX_Test, case_int32_64x64_src1_32x32) { test_tpartmax<int32_t>(); }
+TEST_F(TPARTMAX_Test, case_uint32_64x64_src1_32x32) { test_tpartmax<uint32_t>(); }
+TEST_F(TPARTMAX_Test, case_int64_64x64_src1_32x32) { test_tpartmax<int64_t>(); }
+TEST_F(TPARTMAX_Test, case_uint64_64x64_src1_32x32) { test_tpartmax<uint64_t>(); }

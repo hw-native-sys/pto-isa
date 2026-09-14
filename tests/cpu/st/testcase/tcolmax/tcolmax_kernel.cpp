@@ -53,6 +53,12 @@ template void LaunchTCOLMAX<float, 64, 64, 64, 64>(float* out, float* src, void*
 template void LaunchTCOLMAX<aclFloat16, 16, 256, 16, 256>(aclFloat16* out, aclFloat16* src, void* stream);
 template void LaunchTCOLMAX<int8_t, 64, 64, 64, 64>(int8_t* out, int8_t* src, void* stream);
 template void LaunchTCOLMAX<uint8_t, 64, 64, 64, 64>(uint8_t* out, uint8_t* src, void* stream);
+template void LaunchTCOLMAX<int16_t, 64, 64, 64, 64>(int16_t* out, int16_t* src, void* stream);
+template void LaunchTCOLMAX<uint16_t, 64, 64, 64, 64>(uint16_t* out, uint16_t* src, void* stream);
+template void LaunchTCOLMAX<int32_t, 64, 64, 64, 64>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTCOLMAX<uint32_t, 64, 64, 64, 64>(uint32_t* out, uint32_t* src, void* stream);
+template void LaunchTCOLMAX<int64_t, 64, 64, 64, 64>(int64_t* out, int64_t* src, void* stream);
+template void LaunchTCOLMAX<uint64_t, 64, 64, 64, 64>(uint64_t* out, uint64_t* src, void* stream);
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTCOLMAX<bfloat16_t, 16, 256, 16, 256>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif

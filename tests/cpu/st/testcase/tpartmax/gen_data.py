@@ -12,6 +12,7 @@
 
 import os
 import numpy as np
+from utils import NumExt
 
 RANDOM_SEED = 19
 H = 64
@@ -22,7 +23,7 @@ VALID_W = 32
 
 def gen_case(dtype, low, high):
     rng = np.random.default_rng(RANDOM_SEED)
-    if dtype in [np.int8, np.uint8]:
+    if NumExt.is_integer(dtype):
         src0 = rng.integers(low, high, size=(H, W), dtype=dtype)
         src1 = rng.integers(low, high, size=(H, W), dtype=dtype)
     else:
@@ -45,6 +46,12 @@ if __name__ == "__main__":
         (np.float32, -1.0, 1.0, "float"),
         (np.int8, -128, 127, "int8"),
         (np.uint8, 0, 255, "uint8"),
+        (np.int16, -128, 127, "int16"),
+        (np.uint16, 0, 255, "uint16"),
+        (np.int32, -128, 127, "int32"),
+        (np.uint32, 0, 255, "uint32"),
+        (np.int64, -128, 127, "int64"),
+        (np.uint64, 0, 255, "uint64"),
     ]
 
     for dtype, low, high, dtype_name in test_cases:

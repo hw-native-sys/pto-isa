@@ -10,28 +10,42 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # --------------------------------------------------------------------------------
 
-import os
-import numpy as np
 from utils import NumExt
+import os
+import sys
+import numpy as np
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 np.random.seed(19)
+
 
 def gen_golden_data_tcolsum(case_name, param):
     dtype = param.dtype
 
     srcRow, srcCols = [param.tile_row, param.tile_col]
     dstRow, dstCols = [1, param.tile_col]
-    row_valid, col_valid = [min(dstRow, param.valid_row), min(dstCols, param.valid_col)]
+    row_valid, col_valid = [
+        min(dstRow, param.valid_row), min(dstCols, param.valid_col)]
 
     # Generate random input arrays
-    input1 = NumExt.astype(np.random.randint(low=-16, high=16, size=[srcRow, srcCols]), dtype)
+    if NumExt.is_unsigned_integer(dtype):
+        input1 = np.random.randint(low=0, high=256, size=[
+                                   srcRow, srcCols]).astype(dtype)
+    elif NumExt.is_signed_integer(dtype):
+        input1 = NumExt.astype(np.random.randint(
+            low=-16, high=16, size=[srcRow, srcCols]), dtype)
+    else:
+        input1 = NumExt.astype(np.random.randint(
+            low=-16, high=16, size=[srcRow, srcCols]), dtype)
 
     # Perform the addbtraction
-    golden = NumExt.astype(np.sum(input1, axis=0, dtype=np.float32).reshape(1, col_valid), dtype)
+    golden = NumExt.astype(
+        np.sum(input1, axis=0, dtype=np.float32).reshape(1, col_valid), dtype)
     # Save the input and golden data to binary files
     NumExt.write_array("input.bin", input1, dtype)
     NumExt.write_array("golden.bin", golden, dtype)
 
     return input1, golden
+
 
 class TColsumParams:
     def __init__(self, dtype, global_row, global_col, tile_row, tile_col, valid_row, valid_col):
@@ -43,6 +57,7 @@ class TColsumParams:
         self.valid_row = valid_row
         self.valid_col = valid_col
 
+
 def generate_case_name(param):
     dtype_str = NumExt.get_short_type_name(param.dtype)
 
@@ -50,8 +65,9 @@ def generate_case_name(param):
     name += f"_{param.global_row}x{param.global_col}"
     name += f"_{param.tile_row}x{param.tile_col}"
     name += f"_{param.valid_row}x{param.valid_col}"
-    
+
     return name
+
 
 if __name__ == "__main__":
     # Get the absolute path of the script
@@ -65,9 +81,16 @@ if __name__ == "__main__":
     case_params_list = [
         TColsumParams(np.float32, 64, 64, 64, 64, 64, 64),
         TColsumParams(np.float16, 16, 256, 16, 256, 16, 256),
+        TColsumParams(np.int64, 64, 64, 64, 64, 64, 64),
+        TColsumParams(np.uint64, 64, 64, 64, 64, 64, 64),
+        TColsumParams(np.int32, 64, 64, 64, 64, 64, 64),
+        TColsumParams(np.uint32, 64, 64, 64, 64, 64, 64),
+        TColsumParams(np.int16, 64, 64, 64, 64, 64, 64),
+        TColsumParams(np.uint16, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
-        case_params_list.append(TColsumParams(NumExt.bf16, 16, 256, 16, 256, 16, 256))
+        case_params_list.append(TColsumParams(
+            NumExt.bf16, 16, 256, 16, 256, 16, 256))
 
     for i, param in enumerate(case_params_list):
         case_name = generate_case_name(param)

@@ -102,3 +102,9 @@ TEST_F(TCOLMAXTest, case_bf16_16x256_16x256_16x256) { test_tcolmax<bfloat16_t, 1
 #endif
 TEST_F(TCOLMAXTest, case_int8_64x64_64x64_64x64) { test_tcolmax<int8_t, 64, 64, 64, 64>(); }
 TEST_F(TCOLMAXTest, case_uint8_64x64_64x64_64x64) { test_tcolmax<uint8_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLMAXTest, case_int16_64x64_64x64_64x64) { test_tcolmax<int16_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLMAXTest, case_uint16_64x64_64x64_64x64) { test_tcolmax<uint16_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLMAXTest, case_int32_64x64_64x64_64x64) { test_tcolmax<int32_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLMAXTest, case_uint32_64x64_64x64_64x64) { test_tcolmax<uint32_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLMAXTest, case_int64_64x64_64x64_64x64) { test_tcolmax<int64_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLMAXTest, case_uint64_64x64_64x64_64x64) { test_tcolmax<uint64_t, 64, 64, 64, 64>(); }

@@ -62,3 +62,15 @@ template void LaunchTPARTMAX<int8_t, kRows, kCols, kValidRows1, kValidCols1>(
     int8_t* out, int8_t* src0, int8_t* src1, void* stream);
 template void LaunchTPARTMAX<uint8_t, kRows, kCols, kValidRows1, kValidCols1>(
     uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTPARTMAX<int16_t, kRows, kCols, kValidRows1, kValidCols1>(
+    int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTPARTMAX<uint16_t, kRows, kCols, kValidRows1, kValidCols1>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+template void LaunchTPARTMAX<int32_t, kRows, kCols, kValidRows1, kValidCols1>(
+    int32_t* out, int32_t* src0, int32_t* src1, void* stream);
+template void LaunchTPARTMAX<uint32_t, kRows, kCols, kValidRows1, kValidCols1>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTPARTMAX<int64_t, kRows, kCols, kValidRows1, kValidCols1>(
+    int64_t* out, int64_t* src0, int64_t* src1, void* stream);
+template void LaunchTPARTMAX<uint64_t, kRows, kCols, kValidRows1, kValidCols1>(
+    uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);

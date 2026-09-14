@@ -87,3 +87,9 @@ TEST_F(TCOLSUMTest, case_half_16x256_16x256_16x256) { test_tcolsum<aclFloat16, 1
 #ifdef CPU_SIM_BFLOAT_ENABLED
 TEST_F(TCOLSUMTest, case_bf16_16x256_16x256_16x256) { test_tcolsum<bfloat16_t, 16, 256, 16, 256>(); }
 #endif
+TEST_F(TCOLSUMTest, case_int64_64x64_64x64_64x64) { test_tcolsum<int64_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLSUMTest, case_uint64_64x64_64x64_64x64) { test_tcolsum<uint64_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLSUMTest, case_int16_64x64_64x64_64x64) { test_tcolsum<int16_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLSUMTest, case_uint16_64x64_64x64_64x64) { test_tcolsum<uint16_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLSUMTest, case_int32_64x64_64x64_64x64) { test_tcolsum<int32_t, 64, 64, 64, 64>(); }
+TEST_F(TCOLSUMTest, case_uint32_64x64_64x64_64x64) { test_tcolsum<uint32_t, 64, 64, 64, 64>(); }

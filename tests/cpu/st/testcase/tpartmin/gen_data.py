@@ -47,6 +47,12 @@ if __name__ == "__main__":
         (np.float32, -1.0, 1.0, "float"),
         (np.int8, -128, 127, "int8"),
         (np.uint8, 0, 255, "uint8"),
+        (np.int16, -100, 100, "int16"),
+        (np.uint16, 0, 100, "uint16"),
+        (np.int32, -100, 100, "int32"),
+        (np.uint32, 0, 100, "uint32"),
+        (np.int64, -100, 100, "int64"),
+        (np.uint64, 0, 100, "uint64"),
     ]
 
     for dtype, low, high, dtype_name in test_cases:

@@ -38,9 +38,17 @@ PTO_INTERNAL void CheckCSValid()
             (std::is_same_v<SrcNonDuplicateType, bfloat16_t> &&
              std::is_same_v<DstNonDuplicateType, bfloat16_t>) || // bf162bf16
             (std::is_same_v<SrcNonDuplicateType, bfloat16_t> &&
-             std::is_same_v<DstNonDuplicateType, float>) ||                                              // bf162f32
-            (std::is_same_v<SrcNonDuplicateType, half> && std::is_same_v<DstNonDuplicateType, float>) || // f162f32
-            (std::is_same_v<SrcNonDuplicateType, float> && std::is_same_v<DstNonDuplicateType, float>)   // f322f32
+             std::is_same_v<DstNonDuplicateType, float>) ||                                               // bf162f32
+            (std::is_same_v<SrcNonDuplicateType, half> && std::is_same_v<DstNonDuplicateType, float>) ||  // f162f32
+            (std::is_same_v<SrcNonDuplicateType, float> && std::is_same_v<DstNonDuplicateType, float>) || // f322f32
+            (std::is_same_v<SrcNonDuplicateType, int64_t> && std::is_same_v<DstNonDuplicateType, int64_t>) || // i642i64
+            (std::is_same_v<SrcNonDuplicateType, uint64_t> &&
+             std::is_same_v<DstNonDuplicateType, uint64_t>) ||                                                // u642u64
+            (std::is_same_v<SrcNonDuplicateType, int16_t> && std::is_same_v<DstNonDuplicateType, int16_t>) || // i162i16
+            (std::is_same_v<SrcNonDuplicateType, uint16_t> &&
+             std::is_same_v<DstNonDuplicateType, uint16_t>) ||                                                // u162u16
+            (std::is_same_v<SrcNonDuplicateType, int32_t> && std::is_same_v<DstNonDuplicateType, int32_t>) || // i322i32
+            (std::is_same_v<SrcNonDuplicateType, uint32_t> && std::is_same_v<DstNonDuplicateType, uint32_t>)  // u322u32
         ,
         "Not supported data type");
     static_assert((TileSrc::Cols == TileDst::Cols), "Assert: Inconsistent number of cols");

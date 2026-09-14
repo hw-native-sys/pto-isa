@@ -57,3 +57,8 @@ template void LaunchTROWSUM<aclFloat16, 16, 256, 16, 256>(aclFloat16* out, aclFl
 #ifdef CPU_SIM_BFLOAT_ENABLED
 template void LaunchTROWSUM<bfloat16_t, 16, 256, 16, 256>(bfloat16_t* out, bfloat16_t* src, void* stream);
 #endif
+template void LaunchTROWSUM<int32_t, 64, 64, 64, 64>(int32_t* out, int32_t* src, void* stream);
+template void LaunchTROWSUM<int64_t, 64, 64, 64, 64>(int64_t* out, int64_t* src, void* stream);
+template void LaunchTROWSUM<uint64_t, 64, 64, 64, 64>(uint64_t* out, uint64_t* src, void* stream);
+template void LaunchTROWSUM<int16_t, 64, 64, 64, 64>(int16_t* out, int16_t* src, void* stream);
+;

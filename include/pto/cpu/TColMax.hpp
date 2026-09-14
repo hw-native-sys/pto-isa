@@ -42,8 +42,14 @@ PTO_INTERNAL void CheckCMValid()
             (std::is_same_v<SrcType, half> && std::is_same_v<DstType, float>) ||        // f162f32
             (std::is_same_v<SrcType, bfloat16_t> && std::is_same_v<DstType, float>) ||  // bf162f32
             (std::is_same_v<SrcType, float> && std::is_same_v<DstType, float>) ||       // f322f32
-            (std::is_same_v<SrcType, int8_t> && std::is_same_v<DstType, int8_t>) ||     // f322f32
-            (std::is_same_v<SrcType, uint8_t> && std::is_same_v<DstType, uint8_t>)      // f322f32
+            (std::is_same_v<SrcType, int8_t> && std::is_same_v<DstType, int8_t>) ||     // i8i8
+            (std::is_same_v<SrcType, uint8_t> && std::is_same_v<DstType, uint8_t>) ||   // u8u8
+            (std::is_same_v<SrcType, int16_t> && std::is_same_v<DstType, int16_t>) ||   // i16i16
+            (std::is_same_v<SrcType, uint16_t> && std::is_same_v<DstType, uint16_t>) || // u16u16
+            (std::is_same_v<SrcType, int32_t> && std::is_same_v<DstType, int32_t>) ||   // i32i32
+            (std::is_same_v<SrcType, uint32_t> && std::is_same_v<DstType, uint32_t>) || // u32u32
+            (std::is_same_v<SrcType, int64_t> && std::is_same_v<DstType, int64_t>) ||   // i64i64
+            (std::is_same_v<SrcType, uint64_t> && std::is_same_v<DstType, uint64_t>)    // u64u64
         ,
         "TCOLMAX: Not supported data type");
     static_assert((TileSrc::Cols == TileDst::Cols), "Inconsistent number of cols");

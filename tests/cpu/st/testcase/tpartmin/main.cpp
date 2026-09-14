@@ -87,3 +87,9 @@ void test_tpartmin()
 TEST_F(TPARTMIN_Test, case_float_64x64_src1_32x32) { test_tpartmin<float>(); }
 TEST_F(TPARTMIN_Test, case_int8_64x64_src1_32x32) { test_tpartmin<int8_t>(); }
 TEST_F(TPARTMIN_Test, case_uint8_64x64_src1_32x32) { test_tpartmin<uint8_t>(); }
+TEST_F(TPARTMIN_Test, case_int16_64x64_src1_32x32) { test_tpartmin<int16_t>(); }
+TEST_F(TPARTMIN_Test, case_uint16_64x64_src1_32x32) { test_tpartmin<uint16_t>(); }
+TEST_F(TPARTMIN_Test, case_int32_64x64_src1_32x32) { test_tpartmin<int32_t>(); }
+TEST_F(TPARTMIN_Test, case_uint32_64x64_src1_32x32) { test_tpartmin<uint32_t>(); }
+TEST_F(TPARTMIN_Test, case_int64_64x64_src1_32x32) { test_tpartmin<int64_t>(); }
+TEST_F(TPARTMIN_Test, case_uint64_64x64_src1_32x32) { test_tpartmin<uint64_t>(); }

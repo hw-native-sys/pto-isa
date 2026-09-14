@@ -25,8 +25,15 @@ def gen_golden_data_tcolmax(case_name, param):
         min(dstRow, param.valid_row), min(dstCols, param.valid_col)]
 
     # Generate random input arrays
-    input1 = NumExt.astype(np.random.randint(
-        low=-16, high=16, size=[srcRow, srcCols]), dtype)
+    if NumExt.is_unsigned_integer(dtype):
+        input1 = np.random.randint(low=0, high=256, size=[
+                                   srcRow, srcCols]).astype(dtype)
+    elif NumExt.is_signed_integer(dtype):
+        input1 = np.random.randint(
+            low=-16, high=16, size=[srcRow, srcCols]).astype(dtype)
+    else:
+        input1 = NumExt.astype(np.random.uniform(
+            low=-16, high=16, size=[srcRow, srcCols]), dtype)
 
     # Perform the addbtraction
     golden = NumExt.zeros([dstRow, dstCols], dtype)
@@ -83,6 +90,12 @@ if __name__ == "__main__":
         tcolmaxParams(np.float16, 16, 256, 16, 256, 16, 256),
         tcolmaxParams(np.int8, 64, 64, 64, 64, 64, 64),
         tcolmaxParams(np.uint8, 64, 64, 64, 64, 64, 64),
+        tcolmaxParams(np.int16, 64, 64, 64, 64, 64, 64),
+        tcolmaxParams(np.uint16, 64, 64, 64, 64, 64, 64),
+        tcolmaxParams(np.int32, 64, 64, 64, 64, 64, 64),
+        tcolmaxParams(np.uint32, 64, 64, 64, 64, 64, 64),
+        tcolmaxParams(np.int64, 64, 64, 64, 64, 64, 64),
+        tcolmaxParams(np.uint64, 64, 64, 64, 64, 64, 64),
     ]
     if os.getenv("PTO_CPU_SIM_ENABLE_BF16") == "1":
         case_params_list.append(tcolmaxParams(
