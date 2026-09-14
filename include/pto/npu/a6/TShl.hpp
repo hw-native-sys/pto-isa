@@ -40,8 +40,11 @@ struct ShlOp {
     PTO_INTERNAL static void BinInstr(
         RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
     {
-        using SS = std::conditional_t<sizeof(T) == 1, int8_t, std::conditional_t<sizeof(T) == 2, int16_t, int32_t>>;
-        using US = std::conditional_t<sizeof(T) == 1, uint8_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint32_t>>;
+        using SS = std::conditional_t<
+            sizeof(T) == sizeof(int8_t), int8_t, std::conditional_t<sizeof(T) == sizeof(int16_t), int16_t, int32_t>>;
+        using US = std::conditional_t<
+            sizeof(T) == sizeof(uint8_t), uint8_t,
+            std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
         RegTensor<SS>& sSrc1 = (RegTensor<SS>&)reg_src1;
         RegTensor<SS> zeroVec, negSrc1, absSrc1S;
         RegTensor<US>& absSrc1 = (RegTensor<US>&)absSrc1S;

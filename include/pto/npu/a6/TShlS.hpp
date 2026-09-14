@@ -37,7 +37,7 @@ struct ShlSOp {
     PTO_INTERNAL static void BinSInstr(RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, T src1, MaskReg& preg)
     {
         // `src1` arrives already as the non-negative magnitude (resolved in __tf__).
-        using ScT = std::conditional_t<sizeof(T) <= 2, uint16_t, uint32_t>;
+        using ScT = std::conditional_t<sizeof(T) <= sizeof(uint16_t), uint16_t, uint32_t>;
         if constexpr (kIsNeg) {
             // a negative amount reverses a left shift into a right shift by |src1|
             vshrs(reg_dst, reg_src0, (ScT)src1, preg, MODE_ZEROING);
@@ -64,9 +64,12 @@ __tf__ PTO_INTERNAL OP_NAME(TSHLS) OP_TYPE(element_wise) void TShlS(
         // Resolve the sign of the scalar amount here, in __tf__ (outside __VEC_SCOPE),
         // where a runtime branch is idiomatic.  Feed the result into the template bool
         // kIsNeg by instantiating both variants and selecting one at runtime.
-        using SS = std::conditional_t<sizeof(T) == 1, int8_t, std::conditional_t<sizeof(T) == 2, int16_t, int32_t>>;
-        using US = std::conditional_t<sizeof(T) == 1, uint8_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint32_t>>;
-        using ScT = std::conditional_t<sizeof(T) <= 2, uint16_t, uint32_t>;
+        using SS = std::conditional_t<
+            sizeof(T) == sizeof(int8_t), int8_t, std::conditional_t<sizeof(T) == sizeof(int16_t), int16_t, int32_t>>;
+        using US = std::conditional_t<
+            sizeof(T) == sizeof(uint8_t), uint8_t,
+            std::conditional_t<sizeof(T) == sizeof(uint16_t), uint16_t, uint32_t>>;
+        using ScT = std::conditional_t<sizeof(T) <= sizeof(uint16_t), uint16_t, uint32_t>;
         SS signedSrc1 = (SS)src1;
         bool isNeg = signedSrc1 < 0;
         ScT absScalar = isNeg ? (ScT)(-signedSrc1) : (ScT)(US)signedSrc1;
