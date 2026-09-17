@@ -119,8 +119,7 @@ static bool RunSetFalseShareKernel(
     // Skip HCCL's reserved prefix (same constant as tnotify/twait). The race
     // is *inside* `slots`, not between this prefix and the array.
     WindowAlloc(win, off, HCCL_WIN_SYNC_PREFIX);
-    int32_t* slots =
-        static_cast<int32_t*>(WindowAlloc(win, off, static_cast<size_t>(n_elems) * sizeof(int32_t)));
+    int32_t* slots = static_cast<int32_t*>(WindowAlloc(win, off, static_cast<size_t>(n_elems) * sizeof(int32_t)));
 
     int32_t* scratch = nullptr;
     std::vector<int32_t> copy(static_cast<size_t>(n_elems));
@@ -135,8 +134,7 @@ static bool RunSetFalseShareKernel(
         aclrtSynchronizeStream(ctx.stream);
         HcclHostBarrier(ctx.comm, ctx.stream);
 
-        TNotifySetFalseShareKernel<<<1, nullptr, ctx.stream>>>(
-            slots, ctx.deviceCtx, n_ranks, slot_stride, kSlotBase);
+        TNotifySetFalseShareKernel<<<1, nullptr, ctx.stream>>>(slots, ctx.deviceCtx, n_ranks, slot_stride, kSlotBase);
         ctx.aclStatus = aclrtSynchronizeStream(ctx.stream);
         HcclHostBarrier(ctx.comm, ctx.stream);
         // Overwrite with a smaller value. If Set were SUM we'd see 1042+rank, not 42+rank.
@@ -153,8 +151,9 @@ static bool RunSetFalseShareKernel(
         }
         WindowMemRead<<<1, nullptr, ctx.stream>>>(scratch, slots, n_elems);
         aclrtSynchronizeStream(ctx.stream);
-        aclrtMemcpy(copy.data(), copy.size() * sizeof(int32_t), scratch, copy.size() * sizeof(int32_t),
-                    ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(
+            copy.data(), copy.size() * sizeof(int32_t), scratch, copy.size() * sizeof(int32_t),
+            ACL_MEMCPY_DEVICE_TO_HOST);
 
         bool ok = true;
         for (int r = 0; r < n_ranks; ++r) {
@@ -171,8 +170,8 @@ static bool RunSetFalseShareKernel(
 
     if (rank_id == 0) {
         aclrtFree(scratch);
-        std::cout << "TNOTIFY Set false-share: slot_stride=" << slot_stride << " failed " << fail_count << "/"
-                  << kIters << " (" << (fail_count * 100 / kIters) << "%)\n";
+        std::cout << "TNOTIFY Set false-share: slot_stride=" << slot_stride << " failed " << fail_count << "/" << kIters
+                  << " (" << (fail_count * 100 / kIters) << "%)\n";
     }
     return ctx.Finalize() && (fail_count == 0);
 }
