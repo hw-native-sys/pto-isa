@@ -38,7 +38,7 @@ PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp o
     - `dstSignalData` 必须指向远端地址（目标NPU）。
     - `dstSignalData` 应4字节对齐。
 - **操作语义**：
-    - `NotifyOp::Set`：直接存储到远端内存。
+    - `NotifyOp::Set`：按字发布 `value`（不是整行 `dcci` 回写）。a2a3 上 `st_atomic` 只接受 `ATOMIC_SUM`，因此实现为对 `(value - current)` 的原子加。同一地址上的并发 Set 有竞争。
     - `NotifyOp::AtomicAdd`：使用 `st_atomic` 指令执行硬件原子加。
 
 ## 示例
