@@ -38,7 +38,7 @@ PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp o
     - `dstSignalData` must point to remote address (on target NPU).
     - `dstSignalData` should be 4-byte aligned.
 - **Operation semantics**:
-    - `NotifyOp::Set`: Direct store to remote memory.
+    - `NotifyOp::Set`: Word-published store of `value` (not a whole-line `dcci` write-back). On a2a3 this is `st_atomic` SUM of `(value - current)` because `st_atomic` only accepts `ATOMIC_SUM`. Concurrent Sets to the same word are racy.
     - `NotifyOp::AtomicAdd`: Hardware atomic add using `st_atomic` instruction.
 
 ## Examples

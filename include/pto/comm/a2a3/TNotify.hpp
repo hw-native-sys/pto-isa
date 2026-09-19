@@ -49,11 +49,21 @@ PTO_INTERNAL void TNOTIFY_IMPL(GlobalSignalData& dstSignalData, int32_t value, N
         detail::DcciSignal((__gm__ int32_t*)sigPtr);
         dsb(DSB_DDR);
     } else {
-        // Set operation - direct store to remote memory
-        // Invalidate cache first to prevent stale cached data from overwriting the new value
-        detail::DcciSignal((__gm__ int32_t*)sigPtr);
-        *sigPtr = value;
-        detail::DcciSignal((__gm__ int32_t*)sigPtr);
+        // Word-safe Set. A scalar store + dcci(SINGLE_CACHE_LINE) write-backs
+        // the whole 64 B line (see SYNCALL_SOFT_WORKSPACE_INT32), so packed
+        // neighbor slots go to 0. a2a3 st_atomic only accepts ATOMIC_SUM, so
+        // Set is published as an atomic add of (value - current). Delta is
+        // uint32 wrap so int32 overflow is well-defined; wrapping SUM then
+        // yields `value`. One writer per address (the usual notify pattern).
+        // Concurrent Sets to the same word can observe a stale current and
+        // publish neither value (not last-writer-wins).
+        __gm__ int32_t* ptr = (__gm__ int32_t*)sigPtr;
+        const uint32_t old = ld_dev(reinterpret_cast<__gm__ uint32_t*>(ptr), 0);
+        const int32_t delta = static_cast<int32_t>(static_cast<uint32_t>(value) - old);
+        set_st_atomic_cfg(ATOMIC_S32, ATOMIC_SUM);
+        detail::DcciSignal(ptr);
+        st_atomic<int32_t>(delta, ptr);
+        detail::DcciSignal(ptr);
         dsb(DSB_DDR);
     }
 

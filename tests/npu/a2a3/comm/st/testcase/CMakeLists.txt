@@ -103,6 +103,7 @@ tput_async_notify
 tget_async
 # Signal-Based Synchronization
 tnotify
+tnotify_set_false_share
 twait
 ttest
 # Collective Communication
