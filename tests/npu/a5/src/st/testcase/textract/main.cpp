@@ -8,12 +8,9 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include <gtest/gtest.h>
-#include "acl/acl.h"
-
-#include "../tmov_ub2l1/ub2l1_nd2nz_test.h"
-#include "nd2nz_cases.h"
 #include "test_common.h"
+#include "acl/acl.h"
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -428,18 +425,3 @@ TEST_F(TMOVTest, case15) { tmov_mx_test<15, float, int8_t, int8_t>(128, 64, 128)
 TEST_F(TMOVTest, case16) { tmov_mx_test<16, float, int8_t, int8_t>(128, 64, 128); }
 
 TEST_F(TMOVTest, case17) { tmov_mx_test<17, float, int8_t, int8_t>(128, 64, 128); }
-
-template <int32_t TestKey>
-void launchTExtractNd2Nz(uint64_t* out, uint64_t* src, void* stream);
-
-#define TEST_ND2NZ(                                                                                               \
-    TestKey, Name, T, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols, Operation, IndexRow, \
-    IndexCol, Dynamic, SrcValidRows, SrcValidCols)                                                                \
-    TEST_F(TEXTRACTTest, Name)                                                                                    \
-    {                                                                                                             \
-        PtoTestCommon::testUbToL1Nd2Nz(                                                                           \
-            launchTExtractNd2Nz<TestKey>, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols,  \
-            Operation, IndexRow, IndexCol);                                                                       \
-    }
-TEXTRACT_UB2L1_ND2NZ_CASES(TEST_ND2NZ)
-#undef TEST_ND2NZ

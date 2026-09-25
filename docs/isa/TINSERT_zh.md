@@ -236,10 +236,6 @@ Ascend 950PR/Ascend 950DT 和 CPU 模拟器），适用范围与配对规则见�
 - **Vec → Mat**（`TileType::Vec → TileType::Mat`，UB → L1）：
     - `DstTileData::DType` 必须等于 `SrcTileData::DType`。
     - 支持的元素类型：`half`、`bfloat16_t`、`float`、`int32_t`、`int8_t`、`hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`、`float4_e2m1x2_t`、`float4_e1m2x2_t`。
-    - ND→NZ 路径（A5）：ND（`RowMajor`、`NoneBox`）Vec 源可插入非 compact 的 NZ512 Mat 目标。
-      源物理行跨度、有效列宽和 `indexCol` 须 32 字节对齐，`indexRow` 无需分形对齐。
-      仅写入源有效区域，周围数据保持不变，窗口须位于目标物理形状内。
-      packed FP4 列数按逻辑元素计数。MTE3 同步及其他共享约束见 [UB ND → L1 NZ](TMOV_zh.md#ub-nd--l1-nza5)。
     - ND路径：源必须为 `isRowMajor`；使用 `copy_ubuf_to_cbuf`。每行数据字节数必须与 `BLOCK_BYTE_SIZE`（32字节）对齐。
     - NZ路径：源必须为 `(!isRowMajor, SFractal: RowMajor)`；使用 `ComputeNZBlockParams` 进行分形块 `copy_ubuf_to_cbuf`。
 

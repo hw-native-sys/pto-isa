@@ -9,9 +9,3 @@
 # --------------------------------------------------------------------------------
 
 pto_mix_st(tmov_ub2l1)
-
-if(AUTO_MODE)
-    # The ND-to-NZ tests alias raw and typed Tiles using manual TASSIGN addresses.
-    target_compile_definitions(tmov_ub2l1 PRIVATE PTO_SKIP_UB2L1_ND2NZ_ST)
-    target_compile_definitions(tmov_ub2l1_kernel_mix PRIVATE PTO_SKIP_UB2L1_ND2NZ_ST)
-endif()

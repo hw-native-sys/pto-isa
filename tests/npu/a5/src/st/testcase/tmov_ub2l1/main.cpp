@@ -8,15 +8,9 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include <cstdint>
-#include <cstdlib>
-
-#include <gtest/gtest.h>
-#include "acl/acl.h"
-
-#include "nd2nz_cases.h"
 #include "test_common.h"
-#include "ub2l1_nd2nz_test.h"
+#include "acl/acl.h"
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -43,9 +37,7 @@ template <int32_t testKey, typename dType>
 void testTMovUb2L1(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t dstCols)
 {
     aclInit(nullptr);
-    const char* deviceEnv = std::getenv("PTO_DEVICE_ID");
-    const int deviceId = deviceEnv ? std::atoi(deviceEnv) : 0;
-    aclrtSetDevice(deviceId);
+    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -73,7 +65,7 @@ void testTMovUb2L1(int32_t srcRows, int32_t srcCols, int32_t dstRows, int32_t ds
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(deviceId);
+    aclrtResetDevice(0);
     aclFinalize();
 
     std::vector<dType> golden(dstByteSize / sizeof(dType));
@@ -101,15 +93,3 @@ TEST_F(TMovUb2l1Test, case7) { testTMovUb2L1<7, uint16_t>(64, 64, 48, 48); }
 TEST_F(TMovUb2l1Test, case8) { testTMovUb2L1<8, float>(128, 128, 64, 64); }
 
 TEST_F(TMovUb2l1Test, case9) { testTMovUb2L1<9, int8_t>(256, 256, 32, 32); }
-
-#define TEST_ND2NZ(                                                                                               \
-    TestKey, Name, T, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols, Operation, IndexRow, \
-    IndexCol, Dynamic, SrcValidRows, SrcValidCols)                                                                \
-    TEST_F(TMovUb2l1Test, Name)                                                                                   \
-    {                                                                                                             \
-        PtoTestCommon::testUbToL1Nd2Nz(                                                                           \
-            launchTmovUb2l1<TestKey>, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols,      \
-            Operation, IndexRow, IndexCol);                                                                       \
-    }
-TMOV_UB2L1_ND2NZ_CASES(TEST_ND2NZ)
-#undef TEST_ND2NZ

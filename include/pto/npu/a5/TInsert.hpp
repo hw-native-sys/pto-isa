@@ -12,9 +12,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TINSERT_HPP
 #include "common.hpp"
 #include "utils.hpp"
-#if defined(PTO_NPU_ARCH_A5)
-#include "TExtractCommon.hpp"
-#endif
 #include "pto/common/arch/register/tinsert_common.hpp"
 
 #ifndef COPY_CC_TO_CUBF
@@ -414,13 +411,6 @@ PTO_INTERNAL void TInsertVecToMatImpl(DstTileData& dst, SrcTileData& src, uint16
         PTO_ASSERT(validRow % irSize == 0, "TINSERT ZN : validRow must be aligned to the fractal row size!");
         TInsertZNImpl<T, DstTileData, SrcTileData>(
             dst.data(), src.data(), validRow, validCol, dstCol, indexRow, indexCol);
-#if defined(PTO_NPU_ARCH_A5)
-    } else if constexpr (
-        SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox && !DstTileData::isRowMajor &&
-        DstTileData::SFractal == SLayout::RowMajor) {
-        TCopyNdToNzUbToMat<DstTileData, SrcTileData>(
-            dst.data(), src.data(), src.GetValidRow(), src.GetValidCol(), 0, 0, indexRow, indexCol);
-#endif
     } else if constexpr (SrcTileData::isRowMajor) {
         uint16_t dstCols = static_cast<uint16_t>(DstTileData::Cols);
         TInsertNDImpl<T, DstTileData, SrcTileData>(

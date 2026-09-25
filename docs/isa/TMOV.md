@@ -26,17 +26,17 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $$
 ### ND → NZ (data repack for the Cube Unit)
 
 The Cube Unit consumes operands in **NZ** (Normal-ZigZag) fractal format: the tile is
-tiled into `16 × C0` fractals, each fractal stored with `BLayout = ColMajor` (the "N" —
+tiled into `C0 × C0` fractals, each fractal stored with `BLayout = ColMajor` (the "N" —
 column-major outer blocks) and `SLayout = RowMajor` (the "Z" — row-major within each
-fractal). `TMOV(dstNZ, src)` repacks a RowMajor `Vec` tile (`NoneBox`) into an NZ `Vec`
-or, on A5, an NZ `Mat` tile. No `tmp` is required.
+fractal). `TMOV(dstNZ, src)` repacks a RowMajor `Vec`/`Mat` tile (`NoneBox`) into this
+NZ layout. No `tmp` is required.
 
 | Operand (GM/L1 side) | `BLayout` | `SLayout` | Meaning |
 |----------------------|-----------|-----------|---------|
 | Left (A, NT)         | `ColMajor` | `RowMajor` | normal NZ |
 | Right (B, NT)        | `RowMajor` | `ColMajor` | transposed NZ |
 
-For UB-to-UB repacking, a `CompactMode::RowPlusOne` destination (`Rows = Vec_S0 + 1`) is the canonical idiom to
+A `CompactMode::RowPlusOne` destination (`Rows = Vec_S0 + 1`) is the canonical idiom to
 avoid UB bank conflicts on the `vsstb` scatter.
 
 ### ND → ZN (within-fractal transpose for the transposed Cube operand)
@@ -50,7 +50,7 @@ $N \bmod 16 = 0$. Supported element types: `half`, `bfloat16_t`, `float`, `int32
 `int8_t`, `uint8_t`, `float8_e4m3_t`, `float8_e5m2_t`, `hifloat8_t`,
 `float4_e2m1x2_t`, `float4_e1m2x2_t` (all 1/2/4-byte storage types).
 
-Unlike UB-to-UB ND→NZ (which only rearranges 32 B blocks on the block grid via `vsstb` and leaves
+Unlike ND→NZ (which only rearranges 32 B blocks on the block grid via `vsstb` and leaves
 within-block data untouched), ND→ZN must also transpose the elements **inside** each
 $K_0 \times 16$ fractal, so `vsstb` alone is insufficient. Each output fractal is the
 transpose of a $K_0 \times 16$ source slice:
@@ -108,36 +108,6 @@ For fixed $(c_b, p)$ the 32 B of the ZZ box come from two contiguous 16-B source
 Only the **X→ZZ** transforms take a `tmp` operand (the 3-arg overload). ND→ZZ uses it as
 the `vgather2` index buffer; DN→ZZ accepts it for interface parity but does not access it
 (the `vsstb` scatter needs no scratch). ND→NZ has no `tmp`.
-
-### UB ND → L1 NZ (A5)
-
-`TMOV(dst, src)` converts an ND `TileType::Vec` source (`RowMajor`, `NoneBox`) directly
-into an NZ512 `TileType::Mat` destination (`ColMajor`, `RowMajor`, `CompactMode::Null`).
-The data type and valid shape must match. This path preserves the bits of the supported
-b8/b16/b32 types and packed FP4 types; it performs no numerical conversion.
-
-The implementation uses multiple strided 32-byte MTE3 transfers, selecting a row or
-column-block traversal. It requires neither a temporary UB tile nor GM staging.
-Source row stride and valid column width must be 32-byte aligned; FP4 widths count
-logical 4-bit elements (64 elements per 32-byte block). Addresses must be 32-byte aligned.
-Physical source row stride and destination row count determine storage offsets, independently
-of the valid shape. The source row stride in 32-byte blocks and the destination row count
-must each be at most 65536 so that the DMA gaps fit in 16 bits. Both windows must fit their
-allocated storage. Row tails need no 16-row alignment; padding outside the valid region is
-preserved. An empty region performs no transfer. Non-aligned column tails and compact/NZ1024 destinations are not supported.
-Static layout/stride constraints are checked at compile time; dynamic bounds and alignment
-checks use `PTO_ASSERT` and are enabled by `_DEBUG`.
-
-Issue the operation on AIV. Synchronize the producer with `PIPE_MTE3`, then notify AIC
-after MTE3 completes and wait on `PIPE_MTE1` before consuming L1. Multiple AIVs must write
-disjoint destination regions, and AIC must wait for every participating AIV. Calls that
-write overlapping L1 regions require MTE3 synchronization between them.
-
-`TEXTRACT(dst, src, row, col)` uses the same conversion for an ND source window; its
-column offset must be 32-byte aligned and the window must fit the source valid shape.
-`TINSERT(dst, src, row, col)` converts into a destination window with a 32-byte-aligned
-column offset. The destination window must fit its physical shape. Row offsets need
-no fractal alignment. These ordinary forms do not require a `tmp` operand.
 
 ## Assembly Syntax
 
@@ -364,9 +334,6 @@ A5 Vec-to-Vec moves currently do not support `int64_t` / `uint64_t`; 64-bit Scal
 
 ### ND → NZ (data) — (128, 256) BF16
 
-This Vec-to-Mat example targets A5. Issue it on AIV and follow the
-[MTE3 synchronization requirements](#ub-nd--l1-nz-a5) before AIC consumes the result.
-
 ```cpp
 // Source: 128 rows × 256 cols BF16 RowMajor Vec tile (ND).
 // Destination: NZ fractal Mat tile for the Cube Unit (Left operand).
@@ -377,8 +344,7 @@ SrcT src; DstT dst;
 TMOV(dst, src);   // ND -> NZ, no tmp
 ```
 
-**`tmp` for ND→NZ:** none. This Vec-to-Mat example uses strided MTE3 transfers;
-Vec-to-Vec repacking uses `vsstb` in UB.
+**`tmp` for ND→NZ:** none — the 2-arg overload repacks in-place via `vsstb`.
 
 ### ND → ZZ (exponents) — `tmp` size derivation
 

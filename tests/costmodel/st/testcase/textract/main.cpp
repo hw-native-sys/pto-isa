@@ -8,71 +8,45 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include <cstddef>
-#include <cstdint>
-
-#include <gtest/gtest.h>
 #include <pto/pto-inst.hpp>
 #include <pto/common/constants.hpp>
+#include <gtest/gtest.h>
+
+#include "cost_check.hpp"
 
 using namespace pto;
 
 namespace {
 
 template <
-    typename T, size_t Rows, size_t Cols, size_t ValidRows, size_t ValidCols, uint16_t IndexRow, uint16_t IndexCol,
-    BLayout Layout = BLayout::RowMajor, SLayout Fractal = SLayout::NoneBox>
-void runTExtract(int expectedDmaCopies = 1, int expectedVectorCopies = 0)
+    typename ST, typename DT, size_t rows, size_t cols, size_t validRows, size_t validCols, uint16_t idxRow,
+    uint16_t idxCol, float profiling, float accuracy>
+void runTExtract()
 {
-    constexpr int DST_VALID_ROWS = ValidRows - IndexRow;
-    constexpr int DST_VALID_COLS = ValidCols - IndexCol;
+    constexpr int validRowsDst = validRows - idxRow;
+    constexpr int validColsDst = validCols - idxCol;
 
-    Tile<TileType::Vec, T, Rows, Cols, Layout, ValidRows, ValidCols, Fractal> srcTile;
-    Tile<TileType::Vec, T, Rows, Cols, Layout, DST_VALID_ROWS, DST_VALID_COLS, Fractal> dstTile;
+    Tile<TileType::Mat, ST, rows, cols, BLayout::RowMajor, validRows, validCols, SLayout::NoneBox, 512> srcTile;
+    Tile<TileType::Mat, DT, rows, cols, BLayout::RowMajor, validRowsDst, validColsDst, SLayout::NoneBox, 512> dstTile;
 
     TASSIGN(srcTile, 0x0);
     TASSIGN(dstTile, 0x10000);
 
-    mocker::ResetTrace();
-    TEXTRACT(dstTile, srcTile, IndexRow, IndexCol);
+    TEXTRACT(dstTile, srcTile, idxRow, idxCol);
 
-    const auto& instructions = mocker::GetTrace().executed_pto;
-    ASSERT_EQ(instructions.size(), 1);
-    EXPECT_EQ(instructions[0].name, "TEXTRACT");
-    EXPECT_GT(instructions[0].total_cycles, 0);
-    int dmaCopies = 0;
-    int vectorCopies = 0;
-    for (const auto& call : instructions[0].cce_calls) {
-        if (call.name == "copy_ubuf_to_ubuf") {
-            ++dmaCopies;
-        } else if (call.name == "vcopy") {
-            ++vectorCopies;
-        }
-    }
-    EXPECT_EQ(dmaCopies, expectedDmaCopies);
-    EXPECT_EQ(vectorCopies, expectedVectorCopies);
+    EXPECT_CYCLE_NEAR(profiling, accuracy);
 }
 
 } // namespace
 
-TEST(TExtract, half_32x32_idx_0_0) { runTExtract<half, 32, 32, 32, 32, 0, 0>(); }
+TEST(TExtract, half_32x32_idx_0_0) { runTExtract<half, half, 32, 32, 32, 32, 0, 0, 0.0f, 0.0f>(); }
 
-TEST(TExtract, float_128x96_idx_0_0) { runTExtract<float, 128, 96, 128, 96, 0, 0>(); }
+TEST(TExtract, float_128x96_idx_0_0) { runTExtract<float, float, 128, 96, 128, 96, 0, 0, 0.0f, 0.0f>(); }
 
-TEST(TExtract, half_32x32_idx_8_16) { runTExtract<half, 32, 32, 32, 32, 8, 16>(); }
+TEST(TExtract, half_32x32_idx_8_16) { runTExtract<half, half, 32, 32, 32, 32, 8, 16, 0.0f, 0.0f>(); }
 
-TEST(TExtract, float_128x96_idx_8_16) { runTExtract<float, 128, 96, 128, 96, 8, 16>(); }
+TEST(TExtract, float_128x96_idx_8_16) { runTExtract<float, float, 128, 96, 128, 96, 8, 16, 0.0f, 0.0f>(); }
 
-TEST(TExtract, half_32x32_valid31_idx_8_16) { runTExtract<half, 32, 32, 31, 31, 8, 16>(0, 1); }
+TEST(TExtract, half_32x32_valid31_idx_8_16) { runTExtract<half, half, 32, 32, 31, 31, 8, 16, 0.0f, 0.0f>(); }
 
-TEST(TExtract, float_128x96_valid125_idx_8_16) { runTExtract<float, 128, 96, 125, 93, 8, 16>(1, 1); }
-
-TEST(TExtract, half_nz_32x32_idx_0_0)
-{
-    runTExtract<half, 32, 32, 32, 32, 0, 0, BLayout::ColMajor, SLayout::RowMajor>();
-}
-
-TEST(TExtract, float_nz_128x96_idx_16_16)
-{
-    runTExtract<float, 128, 96, 128, 96, 16, 16, BLayout::ColMajor, SLayout::RowMajor>();
-}
+TEST(TExtract, float_128x96_valid125_idx_8_16) { runTExtract<float, float, 128, 96, 125, 93, 8, 16, 0.0f, 0.0f>(); }

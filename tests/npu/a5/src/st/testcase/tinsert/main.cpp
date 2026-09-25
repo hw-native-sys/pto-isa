@@ -8,12 +8,9 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include <gtest/gtest.h>
-#include "acl/acl.h"
-
-#include "../tmov_ub2l1/ub2l1_nd2nz_test.h"
-#include "nd2nz_cases.h"
 #include "test_common.h"
+#include "acl/acl.h"
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -541,18 +538,3 @@ TEST_F(TInsertTest, case_compact_rowplusone_tmov_bf16_idx0_16)
 {
     testTInsertCompactTMov<4, uint16_t, 64, 48, 128, 128>(launchTInsertCompactRowPlusOneTMov<4>);
 }
-
-template <int32_t TestKey>
-void launchTInsertNd2Nz(uint64_t* out, uint64_t* src, void* stream);
-
-#define TEST_ND2NZ(                                                                                               \
-    TestKey, Name, T, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols, Operation, IndexRow, \
-    IndexCol, Dynamic, SrcValidRows, SrcValidCols)                                                                \
-    TEST_F(TInsertTest, Name)                                                                                     \
-    {                                                                                                             \
-        PtoTestCommon::testUbToL1Nd2Nz(                                                                           \
-            launchTInsertNd2Nz<TestKey>, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols,   \
-            Operation, IndexRow, IndexCol);                                                                       \
-    }
-TINSERT_UB2L1_ND2NZ_CASES(TEST_ND2NZ)
-#undef TEST_ND2NZ

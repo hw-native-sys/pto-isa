@@ -24,14 +24,14 @@ $$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,j} $$
 
 ### ND → NZ（为Cube Unit重新打包数据）
 
-Cube Unit 以 **NZ**（Normal-ZigZag）fractal 格式消费操作数：Tile 被划分为 `16 × C0` fractal，每个 fractal 以 `BLayout = ColMajor`（"N"——列主序外层块）和 `SLayout = RowMajor`（"Z"——fractal 内行主序）存储。`TMOV(dstNZ, src)` 将 RowMajor `Vec` Tile（`NoneBox`）重新打包为 NZ `Vec` Tile，或在 A5 上转换到 NZ `Mat` Tile。无需 `tmp`。
+Cube Unit以 **NZ**（Normal-ZigZag）fractal格式消费操作数：Tile被划分为 `C0 × C0` fractal，每个fractal以 `BLayout = ColMajor`（"N"——列主序外层块）和 `SLayout = RowMajor`（"Z"——fractal内行主序）存储。`TMOV(dstNZ, src)` 将RowMajor `Vec`/`Mat` Tile（`NoneBox`）重新打包为NZ布局。无需 `tmp`。
 
 | 操作数（GM/L1侧） | `BLayout` | `SLayout` | 含义 |
 |-------------------|-----------|-----------|------|
 | Left（A，NT）      | `ColMajor` | `RowMajor` | 标准NZ |
 | Right（B，NT）     | `RowMajor` | `ColMajor` | 转置NZ |
 
-UB 内重排时，`CompactMode::RowPlusOne` 目标（`Rows = Vec_S0 + 1`）是避免 `vsstb` scatter 上 UB bank 冲突的标准用法。
+`CompactMode::RowPlusOne` 目标（`Rows = Vec_S0 + 1`）是避免 `vsstb` scatter上UB bank冲突的标准用法。
 
 ### X → ZZ（microscaling指数重新打包）
 
@@ -54,32 +54,6 @@ $$E_{ZZ}[c_b, p, q, \delta] = E_{DN}^{T}[16c_b + q][2p + \delta] = E_{DN}[2p + \
 ### `tmp` Tile的作用
 
 仅 **X→ZZ** 转换接受 `tmp` 操作数（3参数重载）。ND→ZZ用作 `vgather2` 索引缓冲；DN→ZZ为接口一致接受但**不访问**（`vsstb` scatter无需scratch）。ND→NZ无 `tmp`。
-
-### UB ND → L1 NZ（A5）
-
-`TMOV(dst, src)` 将 ND `TileType::Vec` 源（`RowMajor`、`NoneBox`）直接转换到
-NZ512 `TileType::Mat` 目标（`ColMajor`、`RowMajor`、`CompactMode::Null`）。
-源和目标的数据类型、有效形状必须相同。此路径按位保留支持的 b8/b16/b32 类型及
-packed FP4 类型的数据，不进行数值类型转换。
-
-实现使用多条跨步 32 字节 MTE3 搬运指令，按形状选择逐行或逐列块遍历，
-无需 UB 临时 Tile 或 GM 中转。源物理行跨度和有效列宽须 32 字节对齐；
-FP4 列数按逻辑 4-bit 元素计数（每 32 字节块含 64 个元素），源和目标地址须 32 字节对齐。
-地址计算使用源物理行跨度和目标物理行数，不以有效形状替代。
-源物理行跨度（以 32 字节块为单位）和目标物理行数均不得超过 65536，以满足 DMA 间隔的 16 位限制。
-搬运窗口必须位于已分配存储内。
-有效行数无需 16 行对齐，有效区域外的 padding 保持不变；空区域不执行搬运。
-不支持非对齐列尾、compact 目标或 NZ1024 目标。
-静态布局和跨度约束在编译期检查，动态边界和对齐检查使用 `PTO_ASSERT`，仅在 `_DEBUG` 下生效。
-
-此操作由 AIV 发起。数据生产者须同步到 `PIPE_MTE3`，MTE3 搬运完成后通知 AIC，
-AIC 在 `PIPE_MTE1` 上等待后再消费 L1。多个 AIV 须写入互不重叠的目标区域，
-AIC 须等待所有参与搬运的 AIV。连续调用写入重叠的 L1 区域时，须在调用间同步 MTE3。
-
-`TEXTRACT(dst, src, row, col)` 对 ND 源窗口执行同样的转换；列偏移须 32 字节对齐，
-窗口须位于源有效形状内。`TINSERT(dst, src, row, col)` 转换到目标窗口，
-列偏移须 32 字节对齐，窗口须位于目标物理形状内。行偏移无需分形对齐。
-这些普通形式均不需要 `tmp` 操作数。
 
 ## 汇编语法
 
@@ -285,9 +259,6 @@ A5 的 Vec→Vec 移动当前不支持 `int64_t` / `uint64_t`；其他传输路�
 
 ### ND → NZ（数据）— (128, 256) BF16
 
-此 Vec→Mat 示例适用于 A5，在 AIV 上执行；AIC 使用结果前须遵循
-[MTE3 同步要求](#ub-nd--l1-nza5)。
-
 ```cpp
 // 源：128 行 × 256 列 BF16 RowMajor Vec Tile（ND）。
 // 目标：Cube Unit 的 NZ fractal Mat Tile（Left 操作数）。
@@ -298,7 +269,7 @@ SrcT src; DstT dst;
 TMOV(dst, src);   // ND -> NZ，无 tmp
 ```
 
-**ND→NZ 的 `tmp`：** 无。此 Vec→Mat 示例通过 MTE3 跨步搬运转换布局；Vec→Vec 路径在 UB 内使用 `vsstb` 重排。
+**ND→NZ的 `tmp`：** 无——2参数重载通过 `vsstb` 原地重新打包。
 
 ### ND → ZZ（指数）— `tmp` 尺寸推导
 

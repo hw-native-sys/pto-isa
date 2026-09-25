@@ -119,9 +119,6 @@ Ascend 950PR/Ascend 950DT 和 CPU 模拟器），适用范围与配对规则见�
 
 ### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
 
-对于普通 Tile 输入，双 Tile 重载在 Vec→Vec 路径外支持 `Mat -> Left/Right`
-和 `Acc -> Mat`。未匹配的组合（包括 `Mat -> Mat` 和 `Vec -> Mat`）在编译期报错。
-
 对于 Mat→Left/Right 布局提取：
 
 - 支持的元素类型：`int8_t`、`half`、`bfloat16_t`、`float`。
@@ -147,14 +144,6 @@ Ascend 950PR/Ascend 950DT 和 CPU 模拟器），适用范围与配对规则见�
   （A5、kirin9030、kirinX90 和 CPU 模拟器），接受
   `mode = AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`。
 - 对于 `TileType::Acc -> TileType::Vec`，当目标为32位类型（`float`/`int32_t`）且使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
-
-### A5 Vec ND→Mat NZ 提取
-
-ND Vec 源可直接提取到非 compact 的 NZ512 Mat 目标。目标有效形状定义从
-`(indexRow, indexCol)` 开始的源窗口，完整窗口须位于源有效形状内。
-列宽、源物理行跨度及列偏移须 32 字节对齐，行偏移和有效行数无需分形对齐。
-仅写入有效窗口，目标 padding 保持不变。共享的存储与 MTE3 同步要求见
-[UB ND → L1 NZ](TMOV_zh.md#ub-nd--l1-nza5)。
 
 ### A5 Acc→Mat NZ 布局转换
 
@@ -328,8 +317,6 @@ A5 主机测试模拟底层搬运指令并执行真实 A5 后端分发入口及 
 
 除上述 `Mat/Acc -> ...` 路径外，`TEXTRACT` 还支持 `TileType::Vec -> TileType::Vec` 抽取路径（ND 与 NZ 布局）。A2A3 使用 `CheckTExtractVecToVecCommon`，A5 在 `TEXTRACT_IMPL` 中单独检查：
 
-- A2A3 普通双 Tile 重载要求两个 Vec Tile 同为 ND（`RowMajor`、`NoneBox`）
-  或同为 NZ（`ColMajor`、`RowMajor`）；其他布局组合在编译期报错。
 - `DstTileData::DType` 必须等于 `SrcTileData::DType`。
 - A2A3 元素类型：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
 - A5 元素类型：`int8_t`、`int32_t`、`half`、`bfloat16_t`、`float`、`hifloat8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`、`float4_e2m1x2_t`、`float4_e1m2x2_t`。A5 不支持此路径的 `uint8_t`、`int16_t`、`uint16_t`、`uint32_t` 或 64 位整数。

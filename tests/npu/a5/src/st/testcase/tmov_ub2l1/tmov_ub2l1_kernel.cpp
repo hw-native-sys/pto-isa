@@ -9,13 +9,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include <iostream>
-
 #include <pto/pto-inst.hpp>
 #include <pto/common/pto_tile.hpp>
 #include <pto/common/constants.hpp>
-
-#include "nd2nz_cases.h"
-#include "ub2l1_nd2nz_kernel.h"
 
 using namespace std;
 using namespace pto;
@@ -25,7 +21,7 @@ __tf__ PTO_INTERNAL void tf_copy_cbuf_to_ubuf(
     typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t vector,
     uint16_t blockLen)
 {
-    __cbuf__ T* srcMatAddr = (__cbuf__ T*)__cce_get_tile_ptr(src);
+    __cbuf__ T* srcMatAddr = __cce_get_tile_ptr(src);
     __ubuf__ T* dstUbAddr = __cce_get_tile_ptr(dst);
     copy_cbuf_to_ubuf(
         (__ubuf__ void*)dstUbAddr, (__cbuf__ void*)srcMatAddr, vector, 1, blockLen, 0,
@@ -162,18 +158,3 @@ template void launchTmovUb2l1<6>(uint64_t* out, uint64_t* src, void* stream);
 template void launchTmovUb2l1<7>(uint64_t* out, uint64_t* src, void* stream);
 template void launchTmovUb2l1<8>(uint64_t* out, uint64_t* src, void* stream);
 template void launchTmovUb2l1<9>(uint64_t* out, uint64_t* src, void* stream);
-
-#define LAUNCH_ND2NZ(                                                                                                \
-    TestKey, Name, T, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols, Operation, IndexRow,    \
-    IndexCol, Dynamic, SrcValidRows, SrcValidCols)                                                                   \
-    template <>                                                                                                      \
-    void launchTmovUb2l1<TestKey>(uint64_t * out, uint64_t * src, void* stream)                                      \
-    {                                                                                                                \
-        PtoTestCommon::runUbToL1Nd2Nz<                                                                               \
-            T, ElementBits, SrcRows, SrcCols, DstRows, DstCols, ValidRows, ValidCols, Operation, IndexRow, IndexCol, \
-            Dynamic, SrcValidRows, SrcValidCols><<<1, nullptr, stream>>>(                                            \
-            reinterpret_cast<uint8_t*>(out), reinterpret_cast<uint8_t*>(src), ValidRows, ValidCols, SrcValidRows,    \
-            SrcValidCols);                                                                                           \
-    }
-TMOV_UB2L1_ND2NZ_CASES(LAUNCH_ND2NZ)
-#undef LAUNCH_ND2NZ

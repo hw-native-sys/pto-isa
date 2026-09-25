@@ -177,19 +177,9 @@ PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTileData& dst, SrcTileData& src, uint16_
     } else if constexpr (DstTileData::Loc == TileType::Right) {
         TExtractToRight(dst, src, indexRow, indexCol);
     } else if constexpr (SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Mat) {
-        if constexpr (
-            SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox && !DstTileData::isRowMajor &&
-            DstTileData::SFractal == SLayout::RowMajor) {
-            PTO_ASSERT(
-                indexRow + dst.GetValidRow() <= src.GetValidRow() && indexCol + dst.GetValidCol() <= src.GetValidCol(),
-                "TEXTRACT ND-to-NZ source window exceeds valid shape.");
-            TCopyNdToNzUbToMat<DstTileData, SrcTileData>(
-                dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol);
-        } else {
-            TExtractVecToMat<DstTileData, SrcTileData>(
-                dst.data(), src.data(), indexRow, indexCol, src.GetValidRow(), src.GetValidCol(), dst.GetValidRow(),
-                dst.GetValidCol());
-        }
+        TExtractVecToMat<DstTileData, SrcTileData>(
+            dst.data(), src.data(), indexRow, indexCol, src.GetValidRow(), src.GetValidCol(), dst.GetValidRow(),
+            dst.GetValidCol());
     } else if constexpr (DstTileData::Loc == TileType::ScaleLeft) {
         TExtractToAmx<DstTileData, SrcTileData>(
             dst.data(), src.data(), indexRow, indexCol, dst.GetValidRow(), dst.GetValidCol());
