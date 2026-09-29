@@ -1,162 +1,323 @@
-# PTO虚拟指令集
+# PTO Virtual Instruction Set
 
-- [头文件和库文件说明](menu/header_and_library_zh.md)
-  - [头文件和库文件说明](PTO-ISA-Header-and-Library-Description.md)
-- [逐元素双目运算](menu/arithmetic_zh.md)
-  - [算术运算](menu/arithmetic_zh.md)
-    - [TADD](isa/TADD_zh.md)
-    - [TSUB](isa/TSUB_zh.md)
-    - [TMUL](isa/TMUL_zh.md)
-    - [TMAX](isa/TMAX_zh.md)
-    - [TMIN](isa/TMIN_zh.md)
-  - [逻辑运算](menu/binary_logic_zh.md)
-    - [TAND](isa/TAND_zh.md)
-    - [TOR](isa/TOR_zh.md)
-    - [TXOR](isa/TXOR_zh.md)
-    - [TSHL](isa/TSHL_zh.md)
-    - [TSHR](isa/TSHR_zh.md)
-    - [TCMP](isa/TCMP_zh.md)
-    - [TSEL](isa/TSEL_zh.md)
-- [逐元素单目运算](menu/unary_zh.md)
-  - [TABS](isa/TABS_zh.md)
-  - [TNOT](isa/TNOT_zh.md)
-  - [TNEG](isa/TNEG_zh.md)
-  - [TRELU](isa/TRELU_zh.md)
-- [逐元素算术与超越函数](menu/transcendental_zh.md)
-  - [TDIV](isa/TDIV_zh.md)
-  - [TREM](isa/TREM_zh.md)
-  - [TSQRT](isa/TSQRT_zh.md)
-  - [TLOG](isa/TLOG_zh.md)
-  - [TRECIP](isa/TRECIP_zh.md)
-  - [TEXP](isa/TEXP_zh.md)
-  - [TRSQRT](isa/TRSQRT_zh.md)
-- [逐元素与标量运算](menu/scalar_arithmetic_zh.md)
-  - [算术运算](menu/scalar_arithmetic_zh.md)
-    - [TADDS](isa/TADDS_zh.md)
-    - [TAXPY](isa/TAXPY_zh.md)
-    - [TSUBS](isa/TSUBS_zh.md)
-    - [TMULS](isa/TMULS_zh.md)
-    - [TDIVS](isa/TDIVS_zh.md)
-    - [TMINS](isa/TMINS_zh.md)
-    - [TMAXS](isa/TMAXS_zh.md)
-    - [TREMS](isa/TREMS_zh.md)
-  - [逻辑运算](menu/scalar_logic_zh.md)
-    - [TANDS](isa/TANDS_zh.md)
-    - [TORS](isa/TORS_zh.md)
-    - [TXORS](isa/TXORS_zh.md)
-    - [TCMPS](isa/TCMPS_zh.md)
-    - [TSELS](isa/TSELS_zh.md)
-    - [TSHLS](isa/TSHLS_zh.md)
-    - [TSHRS](isa/TSHRS_zh.md)
-- [归约运算](menu/reduce_to_col_zh.md)
-  - [归约为一列](menu/reduce_to_col_zh.md)
-    - [TROWSUM](isa/TROWSUM_zh.md)
-    - [TROWPROD](isa/TROWPROD_zh.md)
-    - [TROWMAX](isa/TROWMAX_zh.md)
-    - [TROWMIN](isa/TROWMIN_zh.md)
-    - [TROWARGMAX](isa/TROWARGMAX_zh.md)
-    - [TROWARGMIN](isa/TROWARGMIN_zh.md)
-  - [归约为一行](menu/reduce_to_row_zh.md)
-    - [TCOLSUM](isa/TCOLSUM_zh.md)
-    - [TCOLPROD](isa/TCOLPROD_zh.md)
-    - [TCOLMAX](isa/TCOLMAX_zh.md)
-    - [TCOLMIN](isa/TCOLMIN_zh.md)
-    - [TCOLARGMAX](isa/TCOLARGMAX_zh.md)
-    - [TCOLARGMIN](isa/TCOLARGMIN_zh.md)
-- [广播运算](menu/broadcast_row_zh.md)
-  - [按行广播](menu/broadcast_row_zh.md)
-    - [TROWEXPAND](isa/TROWEXPAND_zh.md)
-    - [TROWEXPANDADD](isa/TROWEXPANDADD_zh.md)
-    - [TROWEXPANDSUB](isa/TROWEXPANDSUB_zh.md)
-    - [TROWEXPANDMUL](isa/TROWEXPANDMUL_zh.md)
-    - [TROWEXPANDDIV](isa/TROWEXPANDDIV_zh.md)
-    - [TROWEXPANDMAX](isa/TROWEXPANDMAX_zh.md)
-    - [TROWEXPANDMIN](isa/TROWEXPANDMIN_zh.md)
-    - [TROWEXPANDEXPDIF](isa/TROWEXPANDEXPDIF_zh.md)
-  - [按列广播](menu/broadcast_col_zh.md)
-    - [TCOLEXPAND](isa/TCOLEXPAND_zh.md)
-    - [TCOLEXPANDADD](isa/TCOLEXPANDADD_zh.md)
-    - [TCOLEXPANDSUB](isa/TCOLEXPANDSUB_zh.md)
-    - [TCOLEXPANDMUL](isa/TCOLEXPANDMUL_zh.md)
-    - [TCOLEXPANDDIV](isa/TCOLEXPANDDIV_zh.md)
-    - [TCOLEXPANDMAX](isa/TCOLEXPANDMAX_zh.md)
-    - [TCOLEXPANDMIN](isa/TCOLEXPANDMIN_zh.md)
-    - [TCOLEXPANDEXPDIF](isa/TCOLEXPANDEXPDIF_zh.md)
-- [矩阵运算](menu/matmul_mat_zh.md)
-  - [矩阵乘矩阵](menu/matmul_mat_zh.md)
-    - [TMATMUL](isa/TMATMUL_zh.md)
-    - [TMATMUL_BIAS](isa/TMATMUL_BIAS_zh.md)
-    - [TMATMUL_ACC](isa/TMATMUL_ACC_zh.md)
-    - [TMATMUL_MX](isa/TMATMUL_MX_zh.md)
-  - [矩阵乘向量](menu/matmul_vec_zh.md)
-    - [TGEMV](isa/TGEMV_zh.md)
-    - [TGEMV_BIAS](isa/TGEMV_BIAS_zh.md)
-    - [TGEMV_ACC](isa/TGEMV_ACC_zh.md)
-    - [TGEMV_MX](isa/TGEMV_MX_zh.md)
-- [数据搬运与访存](menu/regular_access_zh.md)
-  - [规则访存](menu/regular_access_zh.md)
-    - [TLOAD](isa/TLOAD_zh.md)
-    - [TSTORE](isa/TSTORE_zh.md)
-    - [TPREFETCH](isa/TPREFETCH_zh.md)
-  - [不规则访存](menu/irregular_access_zh.md)
-    - [MGATHER](isa/MGATHER_zh.md)
-    - [MSCATTER](isa/MSCATTER_zh.md)
-- [复杂变换计算](menu/init_zh.md)
-  - [初始化](menu/init_zh.md)
-    - [TEXPANDS](isa/TEXPANDS_zh.md)
-    - [TCI](isa/TCI_zh.md)
-    - [TTRI](isa/TTRI_zh.md)
-    - [TRANDOM](isa/TRANDOM_zh.md)
-    - [TFILLPAD](isa/TFILLPAD_zh.md)
-  - [数据类型转换](menu/cast_zh.md)
-    - [TCVT](isa/TCVT_zh.md)
-    - [TQUANT](isa/TQUANT_zh.md)
-    - [TDEQUANT](isa/TDEQUANT_zh.md)
-  - [布局变换](menu/layout_zh.md)
-    - [TEXTRACT](isa/TEXTRACT_zh.md)
-    - [TINSERT](isa/TINSERT_zh.md)
-    - [TGATHER](isa/TGATHER_zh.md)
-    - [TSCATTER](isa/TSCATTER_zh.md)
-    - [TCONCAT](isa/TCONCAT_zh.md)
-    - [TTRANS](isa/TTRANS_zh.md)
-    - [TIMG2COL](isa/TIMG2COL_zh.md)
-    - [TMOV](isa/TMOV_zh.md)
-    - [TGATHERB](isa/TGATHERB_zh.md)
-    - [TDEINTERLEAVE](isa/TDEINTERLEAVE_zh.md)
-    - [TINTERLEAVE](isa/TINTERLEAVE_zh.md)
-    - [TRESHAPE](isa/TRESHAPE_zh.md)
-  - [排序](menu/sort_zh.md)
-    - [TSORT32](isa/TSORT32_zh.md)
-    - [TMRGSORT](isa/TMRGSORT_zh.md)
-    - [THISTOGRAM](isa/THISTOGRAM_zh.md)
-  - [Union计算](menu/union_zh.md)
-    - [TPARTADD](isa/TPARTADD_zh.md)
-    - [TPARTMUL](isa/TPARTMUL_zh.md)
-    - [TPARTMAX](isa/TPARTMAX_zh.md)
-    - [TPARTMIN](isa/TPARTMIN_zh.md)
-    - [TPARTARGMAX](isa/TPARTARGMAX_zh.md)
-    - [TPARTARGMIN](isa/TPARTARGMIN_zh.md)
-- [系统与控制](menu/debug_zh.md)
-  - [调试](menu/debug_zh.md)
-    - [TASSIGN](isa/TASSIGN_zh.md)
-    - [TPRINT](isa/TPRINT_zh.md)
-  - [CV通信](menu/cv_comm_zh.md)
-    - [TPUSH](isa/TPUSH_zh.md)
-    - [TPOP](isa/TPOP_zh.md)
-    - [TALLOC](isa/TALLOC_zh.md)
-    - [TFREE](isa/TFREE_zh.md)
-  - [同步](menu/sync_zh.md)
-    - [SYNCALL](isa/SYNCALL_zh.md)
-- [通信](menu/sync_comm_zh.md)
-  - [同步通信](menu/sync_comm_zh.md)
-    - [TPUT](isa/comm/TPUT_zh.md)
-    - [TGET](isa/comm/TGET_zh.md)
-    - [TBROADCAST](isa/comm/TBROADCAST_zh.md)
-    - [TREDUCE](isa/comm/TREDUCE_zh.md)
-    - [TNOTIFY](isa/comm/TNOTIFY_zh.md)
-    - [TWAIT](isa/comm/TWAIT_zh.md)
-    - [TTEST](isa/comm/TTEST_zh.md)
-  - [异步通信](menu/async_comm_zh.md)
-    - [TPUT_ASYNC](isa/comm/TPUT_ASYNC_zh.md)
-    - [TPUT_ASYNC_NOTIFY](isa/comm/TPUT_ASYNC_NOTIFY_zh.md)
-    - [TGET_ASYNC](isa/comm/TGET_ASYNC_zh.md)
+<!-- md-trans-meta sourceCommit=unknown translatedAt=2026-08-26T05:36:15.526Z pushedAt=2026-08-29T09:05:18.489Z -->
+
+- [Header Files and Library Files](menu/header_and_library.md)
+
+  - [Header Files and Library Files](PTO-ISA-Header-and-Library-Description.md)
+
+- [Element-Wise Binary Operations](menu/arithmetic.md)
+
+  - [Arithmetic Operations](menu/arithmetic.md)
+
+    - [TADD](isa/TADD.md)
+
+    - [TSUB](isa/TSUB.md)
+
+    - [TMUL](isa/TMUL.md)
+
+    - [TMAX](isa/TMAX.md)
+
+    - [TMIN](isa/TMIN.md)
+
+  - [Logical Operations](menu/binary_logic.md)
+
+    - [TAND](isa/TAND.md)
+
+    - [TOR](isa/TOR.md)
+
+    - [TXOR](isa/TXOR.md)
+
+    - [TSHL](isa/TSHL.md)
+
+    - [TSHR](isa/TSHR.md)
+
+    - [TCMP](isa/TCMP.md)
+
+    - [TSEL](isa/TSEL.md)
+
+- [Element-Wise Unary Operations](menu/unary.md)
+
+  - [TABS](isa/TABS.md)
+
+  - [TNOT](isa/TNOT.md)
+
+  - [TNEG](isa/TNEG.md)
+
+  - [TRELU](isa/TRELU.md)
+
+- [Element-Wise Arithmetic and Transcendental Functions](menu/transcendental.md)
+
+  - [TDIV](isa/TDIV.md)
+
+  - [TREM](isa/TREM.md)
+
+  - [TSQRT](isa/TSQRT.md)
+
+  - [TLOG](isa/TLOG.md)
+
+  - [TRECIP](isa/TRECIP.md)
+
+  - [TEXP](isa/TEXP.md)
+
+  - [TRSQRT](isa/TRSQRT.md)
+
+- [Element-Wise Scalar Operations](menu/scalar_arithmetic.md)
+
+  - [Arithmetic Operations](menu/scalar_arithmetic.md)
+
+    - [TADDS](isa/TADDS.md)
+
+    - [TAXPY](isa/TAXPY.md)
+
+    - [TSUBS](isa/TSUBS.md)
+
+    - [TMULS](isa/TMULS.md)
+
+    - [TDIVS](isa/TDIVS.md)
+
+    - [TMINS](isa/TMINS.md)
+
+    - [TMAXS](isa/TMAXS.md)
+
+    - [TREMS](isa/TREMS.md)
+
+  - [Logical Operations](menu/scalar_logic.md)
+
+    - [TANDS](isa/TANDS.md)
+
+    - [TORS](isa/TORS.md)
+
+    - [TXORS](isa/TXORS.md)
+
+    - [TCMPS](isa/TCMPS.md)
+
+    - [TSELS](isa/TSELS.md)
+
+    - [TSHLS](isa/TSHLS.md)
+
+    - [TSHRS](isa/TSHRS.md)
+
+- [Reduction Operations](menu/reduce_to_col.md)
+
+  - [Reduction to a Column](menu/reduce_to_col.md)
+
+    - [TROWSUM](isa/TROWSUM.md)
+
+    - [TROWPROD](isa/TROWPROD.md)
+
+    - [TROWMAX](isa/TROWMAX.md)
+
+    - [TROWMIN](isa/TROWMIN.md)
+
+    - [TROWARGMAX](isa/TROWARGMAX.md)
+
+    - [TROWARGMIN](isa/TROWARGMIN.md)
+
+  - [Reduction to a Row](menu/reduce_to_row.md)
+
+    - [TCOLSUM](isa/TCOLSUM.md)
+
+    - [TCOLPROD](isa/TCOLPROD.md)
+
+    - [TCOLMAX](isa/TCOLMAX.md)
+
+    - [TCOLMIN](isa/TCOLMIN.md)
+
+    - [TCOLARGMAX](isa/TCOLARGMAX.md)
+
+    - [TCOLARGMIN](isa/TCOLARGMIN.md)
+
+- [Broadcast Operations](menu/broadcast_row.md)
+
+  - [Row-Wise Broadcast](menu/broadcast_row.md)
+
+    - [TROWEXPAND](isa/TROWEXPAND.md)
+
+    - [TROWEXPANDADD](isa/TROWEXPANDADD.md)
+
+    - [TROWEXPANDSUB](isa/TROWEXPANDSUB.md)
+
+    - [TROWEXPANDMUL](isa/TROWEXPANDMUL.md)
+
+    - [TROWEXPANDDIV](isa/TROWEXPANDDIV.md)
+
+    - [TROWEXPANDMAX](isa/TROWEXPANDMAX.md)
+
+    - [TROWEXPANDMIN](isa/TROWEXPANDMIN.md)
+
+    - [TROWEXPANDEXPDIF](isa/TROWEXPANDEXPDIF.md)
+
+  - [Column-Wise Broadcast](menu/broadcast_col.md)
+
+    - [TCOLEXPAND](isa/TCOLEXPAND.md)
+
+    - [TCOLEXPANDADD](isa/TCOLEXPANDADD.md)
+
+    - [TCOLEXPANDSUB](isa/TCOLEXPANDSUB.md)
+
+    - [TCOLEXPANDMUL](isa/TCOLEXPANDMUL.md)
+
+    - [TCOLEXPANDDIV](isa/TCOLEXPANDDIV.md)
+
+    - [TCOLEXPANDMAX](isa/TCOLEXPANDMAX.md)
+
+    - [TCOLEXPANDMIN](isa/TCOLEXPANDMIN.md)
+
+    - [TCOLEXPANDEXPDIF](isa/TCOLEXPANDEXPDIF.md)
+
+- [Matrix Operations](menu/matmul_mat.md)
+
+  - [Matrix-Matrix Multiplication](menu/matmul_mat.md)
+
+    - [TMATMUL](isa/TMATMUL.md)
+
+    - [TMATMUL_BIAS](isa/TMATMUL_BIAS.md)
+
+    - [TMATMUL_ACC](isa/TMATMUL_ACC.md)
+
+    - [TMATMUL_MX](isa/TMATMUL_MX.md)
+
+  - [Matrix-Vector Multiplication](menu/matmul_vec.md)
+
+    - [TGEMV](isa/TGEMV.md)
+
+    - [TGEMV_BIAS](isa/TGEMV_BIAS.md)
+
+    - [TGEMV_ACC](isa/TGEMV_ACC.md)
+
+    - [TGEMV_MX](isa/TGEMV_MX.md)
+
+- [Data Movement and Memory Access](menu/regular_access.md)
+
+  - [Regular Memory Access](menu/regular_access.md)
+
+    - [TLOAD](isa/TLOAD.md)
+
+    - [TSTORE](isa/TSTORE.md)
+
+    - [TPREFETCH](isa/TPREFETCH.md)
+
+  - [Irregular Memory Access](menu/irregular_access.md)
+
+    - [MGATHER](isa/MGATHER.md)
+
+    - [MSCATTER](isa/MSCATTER.md)
+
+- [Complex Transformation Computation](menu/init.md)
+
+  - [Initialization](menu/init.md)
+
+    - [TEXPANDS](isa/TEXPANDS.md)
+
+    - [TCI](isa/TCI.md)
+
+    - [TTRI](isa/TTRI.md)
+
+    - [TRANDOM](isa/TRANDOM.md)
+
+    - [TFILLPAD](isa/TFILLPAD.md)
+
+  - [Data Type Conversion](menu/cast.md)
+
+    - [TCVT](isa/TCVT.md)
+
+    - [TQUANT](isa/TQUANT.md)
+
+    - [TDEQUANT](isa/TDEQUANT.md)
+
+  - [Layout Transformation](menu/layout.md)
+
+    - [TEXTRACT](isa/TEXTRACT.md)
+
+    - [TINSERT](isa/TINSERT.md)
+
+    - [TGATHER](isa/TGATHER.md)
+
+    - [TSCATTER](isa/TSCATTER.md)
+
+    - [TCONCAT](isa/TCONCAT.md)
+
+    - [TTRANS](isa/TTRANS.md)
+
+    - [TIMG2COL](isa/TIMG2COL.md)
+
+    - [TMOV](isa/TMOV.md)
+
+    - [TGATHERB](isa/TGATHERB.md)
+
+    - [TDEINTERLEAVE](isa/TDEINTERLEAVE.md)
+
+    - [TINTERLEAVE](isa/TINTERLEAVE.md)
+
+    - [TRESHAPE](isa/TRESHAPE.md)
+
+  - [Sorting](menu/sort.md)
+
+    - [TSORT32](isa/TSORT32.md)
+
+    - [TMRGSORT](isa/TMRGSORT.md)
+
+    - [THISTOGRAM](isa/THISTOGRAM.md)
+
+  - [Union Computation](menu/union.md)
+
+    - [TPARTADD](isa/TPARTADD.md)
+
+    - [TPARTMUL](isa/TPARTMUL.md)
+
+    - [TPARTMAX](isa/TPARTMAX.md)
+
+    - [TPARTMIN](isa/TPARTMIN.md)
+
+    - [TPARTARGMAX](isa/TPARTARGMAX.md)
+
+    - [TPARTARGMIN](isa/TPARTARGMIN.md)
+
+- [System and Control](menu/debug.md)
+
+  - [Debugging](menu/debug.md)
+
+    - [TASSIGN](isa/TASSIGN.md)
+
+    - [TPRINT](isa/TPRINT.md)
+
+  - [CV Communication](menu/cv_comm.md)
+
+    - [TPUSH](isa/TPUSH.md)
+
+    - [TPOP](isa/TPOP.md)
+
+    - [TALLOC](isa/TALLOC.md)
+
+    - [TFREE](isa/TFREE.md)
+
+  - [Synchronization](menu/sync.md)
+
+    - [SYNCALL](isa/SYNCALL.md)
+
+- [Communication](menu/sync_comm.md)
+
+  - [Synchronous Communication](menu/sync_comm.md)
+
+    - [TPUT](isa/comm/TPUT.md)
+
+    - [TGET](isa/comm/TGET.md)
+
+    - [TBROADCAST](isa/comm/TBROADCAST.md)
+
+    - [TREDUCE](isa/comm/TREDUCE.md)
+
+    - [TNOTIFY](isa/comm/TNOTIFY.md)
+
+    - [TWAIT](isa/comm/TWAIT.md)
+
+    - [TTEST](isa/comm/TTEST.md)
+
+  - [Asynchronous Communication](menu/async_comm.md)
+
+    - [TPUT_ASYNC](isa/comm/TPUT_ASYNC.md)
+
+    - [TPUT_ASYNC_NOTIFY](isa/comm/TPUT_ASYNC_NOTIFY.md)
+
+    - [TGET_ASYNC](isa/comm/TGET_ASYNC.md)
