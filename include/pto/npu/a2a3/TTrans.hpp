@@ -957,6 +957,12 @@ PTO_INTERNAL void Stage1_NCHW_Pad(
         uint16_t lenBurst = hwBytes / BLOCK_BYTE_SIZE;
         uint16_t srcGap = 0;
         uint16_t dstGap = static_cast<uint16_t>(HW_padded * sizeof(T) / BLOCK_BYTE_SIZE - lenBurst);
+#ifndef __PTO_AUTO__
+        PtoSetWaitFlag<PIPE_V, PIPE_S>();
+#else
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+#endif
         for (unsigned n = 0; n < srcN; n++) {
             for (unsigned c1 = 0; c1 < C1; c1++) {
                 unsigned validC0 = srcC - c1 * C0;
@@ -968,6 +974,12 @@ PTO_INTERNAL void Stage1_NCHW_Pad(
                 pto_copy_ubuf_to_ubuf(dst, src, static_cast<uint16_t>(validC0), lenBurst, srcGap, dstGap);
             }
         }
+#ifndef __PTO_AUTO__
+        PtoSetWaitFlag<PIPE_S, PIPE_V>();
+#else
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+#endif
     } else {
 #ifndef __PTO_AUTO__
         PtoSetWaitFlag<PIPE_V, PIPE_S>();
