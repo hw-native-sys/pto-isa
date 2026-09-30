@@ -74,6 +74,8 @@ struct TPipe;
 - **CPU_SIM FIFO model**:
     - `TPOP` waits for a committed producer slot using the host FIFO's mutex and condition variable.
     - TileData payloads are loaded from storage owned by the host FIFO state, even when `TPipe` carries a non-null NPU GM workspace. The workspace is not accessed by the CPU_SIM TileData flow.
+    - If the destination's `data()` returns null, CPU_SIM allocates separate thread-local backing storage; an already bound destination keeps its storage. This applies to both split and no-split TileData flows.
+    - The separately allocated storage is registered with the calling thread's memory model. `TASSIGN` accepts its base and interior pointers, checks the complete view extent, and creates a shared-data alias. The alias does not own the allocation. See [TPOP-backed tile views](../coding/cpu_sim.md#tpop-backed-tile-views).
     - Split modes select the lane from the current subblock context. For a C2V pipe configured with `IsNoSplit`, `TILE_NO_SPLIT` coordinates one or two vector consumer subblocks according to the runtime subblock count. In other no-split vector cases, a nonzero inactive lane is zero-filled where required.
     - The overload with an explicit `int32_t subBlockId` is not currently implemented by CPU_SIM; use the simulated subblock execution context to select a split lane.
     - For `DIR_BOTH`, the consumer waits in its direction's independent ring. No-split and V2C consumers take the oldest committed slot by producer commit order, preserving FIFO order when delayed frees leave gaps in the ring. Overlapping pops reserve distinct slots; `TFREE` releases the calling consumer's oldest outstanding pop in the corresponding direction.

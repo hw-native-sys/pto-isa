@@ -34,6 +34,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <map>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -215,9 +217,22 @@ public:
         }
     }
 
+    // Track separately allocated tile storage without extending its owner's lifetime.
+    // The backing vector must not be resized while registered.
+    template <typename T>
+    void RegisterHostStorage(const std::shared_ptr<std::vector<T>>& storage)
+    {
+        if (storage && !storage->empty()) {
+            // Expired ranges can overlap later allocations at reused heap addresses.
+            std::erase_if(hostStorageRanges_, [](const auto& entry) { return entry.second.owner.expired(); });
+            const auto baseAddress = reinterpret_cast<std::uintptr_t>(storage->data());
+            hostStorageRanges_[baseAddress] = {baseAddress, storage->size() * sizeof(T), storage};
+        }
+    }
+
     // PTOAS-generated CPU-sim kernels may TASSIGN either:
     // - a byte offset within the simulated NPU region, or
-    // - an already-materialized host pointer to a tile in that region
+    // - an already-materialized host pointer into a region or registered host storage
     //   (used when creating another tile view over the same backing storage).
     template <typename TileDef>
     typename TileDef::DType* ResolveAssignedAddress(std::uintptr_t addr)
@@ -267,12 +282,13 @@ public:
     NPUArch GetArch() const { return initialized_ ? arch_ : GetDefaultArch(); }
     bool IsInitialized() const { return initialized_; }
 
-    // Returns true when rawAddr already points into one of this thread's
-    // simulated on-chip memory buffers. This is needed for patterns like:
-    //   TASSIGN(alias_tile, reinterpret_cast<uintptr_t>(base_tile.data()));
-    // where the "address" is not an offset but an actual host pointer into UB/L1/L0.
+    // Returns true when rawAddr points into this thread's simulated on-chip
+    // memory or live registered host storage, including interior pointers for tile views.
     bool ContainsAddress(std::uintptr_t rawAddr) const
     {
+        if (FindHostStorageRange(rawAddr) != nullptr) {
+            return true;
+        }
         if (!initialized_) {
             return false;
         }
@@ -309,6 +325,35 @@ public:
     }
 
 private:
+    struct HostStorageRange {
+        std::uintptr_t baseAddress;
+        std::size_t sizeBytes;
+        std::weak_ptr<void> owner;
+    };
+
+    const HostStorageRange* FindHostStorageRange(std::uintptr_t addr) const
+    {
+        auto rangeIt = hostStorageRanges_.upper_bound(addr);
+        if (rangeIt == hostStorageRanges_.begin()) {
+            return nullptr;
+        }
+        --rangeIt;
+        if (addr - rangeIt->first < rangeIt->second.sizeBytes && !rangeIt->second.owner.expired()) {
+            return &rangeIt->second;
+        }
+        return nullptr;
+    }
+
+    template <typename TileDef>
+    static constexpr std::size_t GetTileSizeInBytes()
+    {
+        if constexpr (is_tile_data_v<TileDef>) {
+            return TileDef::GetSizeInBytes();
+        } else {
+            return static_cast<std::size_t>(TileDef::bufferSize);
+        }
+    }
+
     template <typename TileDef>
     typename TileDef::DType* TryResolveExistingPointer(std::uintptr_t addr)
     {
@@ -320,6 +365,13 @@ private:
                 return GetPointer<TileDef>(addr - start, static_cast<MemoryRegion>(region));
             }
         }
+        if (const auto* hostRange = FindHostStorageRange(addr)) {
+            const auto byteOffset = addr - hostRange->baseAddress;
+            PTO_CPU_ASSERT(
+                GetTileSizeInBytes<TileDef>() <= hostRange->sizeBytes - byteOffset,
+                "Tile assignment exceeds host storage capacity.");
+            return reinterpret_cast<typename TileDef::DType*>(addr);
+        }
         return nullptr;
     }
 
@@ -328,13 +380,7 @@ private:
     {
         EnsureInitialized();
 
-        constexpr std::size_t tileBytes = [] {
-            if constexpr (is_tile_data_v<TileDef>) {
-                return TileDef::GetSizeInBytes();
-            } else {
-                return static_cast<std::size_t>(TileDef::bufferSize);
-            }
-        }();
+        constexpr std::size_t tileBytes = GetTileSizeInBytes<TileDef>();
         PTO_CPU_ASSERT(
             byteOffset <= sizes_[region] && tileBytes <= sizes_[region] - byteOffset,
             "Tile assignment exceeds memory region capacity.");
@@ -350,6 +396,10 @@ private:
 
     // Per-thread memory buffers (thread_local instance owns these)
     std::vector<char> buffers_[MemoryRegion::_MAX_REGIONS];
+
+    // Host storage is independent of the simulated regions and survives Reset/Initialize.
+    // Weak owners avoid stale addresses and thread-local destruction-order dependencies.
+    std::map<std::uintptr_t, HostStorageRange> hostStorageRanges_;
 
     ArchMemorySizes sizes_ = {};
     NPUArch arch_ = NPUArch::A2A3;

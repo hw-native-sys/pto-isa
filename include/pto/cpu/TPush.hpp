@@ -17,6 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <mutex>
 #include <new>
 #include <sstream>
@@ -484,13 +485,15 @@ PTO_INTERNAL void EnsureTileStorage(TileData& tile)
         return;
     }
 
-    static thread_local std::unordered_map<const void*, std::vector<typename TileData::DType>> buffers;
+    using TileStorage = std::vector<typename TileData::DType>;
+    static thread_local std::unordered_map<const void*, std::shared_ptr<TileStorage>> buffers;
     auto& buffer = buffers[static_cast<const void*>(&tile)];
-    const auto numel = static_cast<std::size_t>(TileData::Rows * TileData::Cols);
-    if (buffer.size() != numel) {
-        buffer.resize(numel);
+    if (!buffer) {
+        const auto numel = static_cast<std::size_t>(TileData::Rows) * TileData::Cols;
+        buffer = std::make_shared<TileStorage>(numel);
     }
-    tile.data() = buffer.data();
+    NPUMemoryModel::Instance().RegisterHostStorage(buffer);
+    tile.data() = buffer->data();
 }
 #else
 template <typename TileData>

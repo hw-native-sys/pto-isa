@@ -26,9 +26,11 @@ PTO_INST void TASSIGN(T& obj, AddrType addr);
 
 将 `obj` 绑定到片上地址 `addr`。不执行编译时边界检查（地址值在编译时不可知）。
 
-在 CPU_SIM 中，`addr` 可以是模拟内存区域中的字节偏移，也可以是指向已有模拟缓冲区的指针所转换的整数地址。
-指针形式会在同一存储上创建别名。两种形式均在运行时检查整个 Tile 或 ConvTile 是否完全位于所选缓冲区内。
-越界分配在 Debug 和 Release 构建中都会终止进程。容量配置见 [CPU_SIM 内存容量覆盖](../coding/cpu_sim_zh.md#内存容量覆盖)。
+在 CPU_SIM 中，`addr` 可以是模拟内存区域中的字节偏移，也可以是指向当前线程模拟缓冲区或仍有效的已登记主机存储的指针所转换的整数地址。
+这包括 CPU_SIM `TPOP` 为 `data()` 返回空指针的目标 Tile 分配的独立后备存储。基址和内部指针均可创建别名，
+不复制数据，也不延长后备存储的寿命；不支持任意未登记的主机指针。两种地址形式均在运行时检查整个 Tile 或 ConvTile 是否完全位于所选缓冲区内。
+越界分配在 Debug 和 Release 构建中都会终止进程。详见 [CPU_SIM 内存容量覆盖](../coding/cpu_sim_zh.md#memory-capacity-overrides)
+和 [TPOP 后备存储与 Tile 视图](../coding/cpu_sim_zh.md#tpop-backed-tile-views)。
 
 ### 形式2：编译时地址（含静态边界检查）
 

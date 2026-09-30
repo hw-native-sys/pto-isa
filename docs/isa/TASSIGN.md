@@ -28,9 +28,13 @@ Binds `obj` to the on-chip address `addr`. No compile-time bounds checking is
 performed (the address value is not available at compile time).
 
 In CPU_SIM, `addr` can be a byte offset into a simulated memory region or the integer representation of a pointer
-into an existing simulated buffer. The pointer form creates an alias over the same storage. Both forms check at
-runtime that the entire Tile or ConvTile fits within the selected buffer; out-of-bounds assignments abort in both
-Debug and Release builds. See [CPU_SIM memory capacity overrides](../coding/cpu_sim.md#memory-capacity-overrides).
+into that thread's simulated buffers or live registered host storage. This includes the separate backing storage
+allocated by CPU_SIM `TPOP` for a destination whose `data()` returns null. Base and interior pointers create aliases
+without copying data or extending the backing storage's lifetime; arbitrary unregistered host pointers are not
+supported. Both address forms check at runtime that the entire Tile or ConvTile fits within the selected buffer;
+out-of-bounds assignments abort in both Debug and Release builds. See
+[CPU_SIM memory capacity overrides](../coding/cpu_sim.md#memory-capacity-overrides) and
+[TPOP-backed tile views](../coding/cpu_sim.md#tpop-backed-tile-views).
 
 ### Form 2: Compile-time address (with static bounds check)
 
