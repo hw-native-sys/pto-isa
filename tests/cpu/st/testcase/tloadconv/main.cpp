@@ -15,8 +15,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <int32_t testKey>
-void launchTLOAD(uint8_t* out, uint8_t* src, uint64_t* gLog, void* stream);
+enum class TLoadConvCase {
+    NC1HWC0Static,
+    NC1HWC0DynN,
+    NC1HWC0DynNGlobal,
+    NDC1HWC0Static,
+    FRACTAL_Z4DStatic,
+    FRACTAL_Z5DStatic,
+};
+
+template <typename T, TLoadConvCase caseKey, int s0, int s1, int s2, int s3, int s4>
+void LaunchTLoadConv(uint8_t* out, uint8_t* src, int64_t n, uint64_t* gLog, void* stream);
 
 class TLoadConvTest : public testing::Test {
 protected:
@@ -44,8 +53,8 @@ std::string GetGoldenDir()
 #define PRINTLOG 4
 #define MAXBLOCK 64
 
-template <int32_t testKey, typename T>
-void tload_test()
+template <typename T, TLoadConvCase caseKey, int s0, int s1, int s2, int s3, int s4>
+void tload_test(int64_t n = 0)
 {
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -76,7 +85,8 @@ void tload_test()
     aclrtMalloc((void**)&logDevice, MAXBLOCK * LOGSIZE * 8, ACL_MEM_MALLOC_HUGE_FIRST);
 #endif
 
-    launchTLOAD<testKey>((uint8_t*)dstDevice, (uint8_t*)srcDevice, (uint64_t*)logDevice, stream);
+    LaunchTLoadConv<T, caseKey, s0, s1, s2, s3, s4>(
+        (uint8_t*)dstDevice, (uint8_t*)srcDevice, n, (uint64_t*)logDevice, stream);
     aclrtSynchronizeStream(stream);
 
     aclrtMemcpy(dstHost, gold_byteSize, dstDevice, gold_byteSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -98,14 +108,30 @@ void tload_test()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TLoadConvTest, case_5HD_fused_fp16) { tload_test<1, half>(); }
+TEST_F(TLoadConvTest, case_5HD_fused_fp16) { tload_test<half, TLoadConvCase::NC1HWC0Static, 1, 2, 4, 4, 1>(); }
 
-TEST_F(TLoadConvTest, case_5HD_cropped_fp32) { tload_test<2, float>(); }
+TEST_F(TLoadConvTest, case_5HD_cropped_fp32) { tload_test<float, TLoadConvCase::NC1HWC0Static, 1, 4, 10, 10, 1>(); }
 
-TEST_F(TLoadConvTest, case_FracZ_4D_fp16) { tload_test<3, half>(); }
+TEST_F(TLoadConvTest, case_FracZ_4D_fp16) { tload_test<half, TLoadConvCase::FRACTAL_Z4DStatic, 16, 2, 1, 18, 1>(); }
 
-TEST_F(TLoadConvTest, case_FracZ_5D_small_int8) { tload_test<4, int8_t>(); }
+TEST_F(TLoadConvTest, case_FracZ_5D_small_int8)
+{
+    tload_test<int8_t, TLoadConvCase::FRACTAL_Z5DStatic, 4, 2, 6, 16, 1>();
+}
 
 #ifdef CPU_SIM_BFLOAT_ENABLED
-TEST_F(TLoadConvTest, case_5HD_fused_bf16) { tload_test<5, bfloat16_t>(); }
+TEST_F(TLoadConvTest, case_5HD_fused_bf16) { tload_test<bfloat16_t, TLoadConvCase::NC1HWC0Static, 1, 2, 4, 4, 1>(); }
 #endif
+
+TEST_F(TLoadConvTest, case_5HD_unaligned_fp16) { tload_test<half, TLoadConvCase::NC1HWC0Static, 3, 3, 5, 3, 1>(); }
+
+TEST_F(TLoadConvTest, case_5HD_unaligned_int8) { tload_test<int8_t, TLoadConvCase::NC1HWC0Static, 3, 5, 3, 3, 1>(); }
+
+TEST_F(TLoadConvTest, case_ND_5HD_fp16) { tload_test<half, TLoadConvCase::NDC1HWC0Static, 2, 3, 2, 4, 5>(); }
+
+TEST_F(TLoadConvTest, case_5HD_dynN_fp16) { tload_test<half, TLoadConvCase::NC1HWC0DynN, 4, 2, 4, 4, 1>(2); }
+
+TEST_F(TLoadConvTest, case_5HD_dynNGlobal_fp32)
+{
+    tload_test<float, TLoadConvCase::NC1HWC0DynNGlobal, 4, 2, 3, 5, 1>(3);
+}
