@@ -81,15 +81,17 @@ By default, CPU_SIM uses the architecture UB capacity: 192 KiB for A2A3 and 256 
 Unset, empty, zero, malformed, or out-of-range values use the selected architecture's default capacity for that
 region. Leading zeros are accepted for positive values (for example, `00032768` means 32768 bytes).
 
-`TASSIGN` accepts a byte offset into a simulated memory region or the integer representation of an existing
-pointer into a simulated buffer. The pointer form creates an alias over the same storage. Both forms check that
+`TASSIGN` accepts a byte offset into a simulated memory region or the integer representation of a base or interior
+pointer into the calling thread's simulated buffers or live registered host storage. The pointer form creates an
+alias over the same storage; arbitrary unregistered host pointers are not supported. Both forms check that
 the entire Tile or ConvTile fits within the selected buffer, using the Tile's physical storage size or
 `ConvTile::bufferSize`. An out-of-bounds assignment aborts with a `PTO_CPU_ASSERT` diagnostic in both Debug and
 Release builds, including when `NDEBUG` is defined.
 
 When `__PTO_AUTO__` is defined, regular `Tile` objects support lazy fallback storage in CPU_SIM. If a tile has not
 been bound by `TASSIGN`, its first `data()` access allocates private host storage. Without `__PTO_AUTO__`, regular
-tiles must be bound explicitly before access.
+tiles must be bound explicitly before instructions access their data, except for destinations whose backing storage
+is supplied by `TPOP` as described below.
 
 Fallback storage is allocated from host memory regardless of the tile location and does not overlap the simulated UB,
 L1, L0A, L0B, or L0C buffers. Use `TASSIGN` when the simulated memory location, offset, aliasing, or communication
@@ -99,8 +101,27 @@ To avoid concurrent first access in `__PTO_AUTO__` mode, the CPU_SIM implementat
 backing storage for the destination, optional accumulator, and both matrix input Tiles on the caller thread before
 launching parallel workers. The `TMATMUL_MX` path also materializes both scale Tiles.
 
+### TPOP-backed tile views
+
+When a TileData destination's `data()` returns null, `TPOP` allocates independent thread-local host storage and
+registers its range with `NPUMemoryModel`. This applies to split and no-split flows. A destination with existing
+storage keeps that binding. The separately allocated storage is not part of UB, L1, or L0 and does not consume
+their configured capacities.
+
+Use `TASSIGN(view, reinterpret_cast<std::uintptr_t>(tile.data() + offsetElements))` to create a view into this
+registered storage on the same thread. The offset is in elements of the source pointer type. The view shares
+reads and writes with the destination, and its complete physical storage extent must fit in the allocation.
+Aliases neither copy data nor extend the allocation's lifetime. The host allocation cache outlives the Tile object
+and is released when its thread exits; subsequent pops can reuse and overwrite cached storage. `TFREE` releases
+the FIFO slot, not the destination's backing allocation. Resetting or reinitializing the simulated memory regions
+does not release this independent storage.
+
+The private lazy storage allocated by regular `Tile::data()` under `__PTO_AUTO__` is separate from the TPOP
+allocation cache and is not automatically registered for integer-pointer `TASSIGN` aliases. For such aliases,
+bind the source to a simulated memory region explicitly before use.
+
 ### To summarize:
-For regular `Tile` objects, use one of these strategies:
+For regular `Tile` objects outside the TPOP-managed destination flow, use one of these strategies:
 
 - **Direct memory assignment:** Every tile should have corresponding TASSIGN operation call to assign memory directly. Proper offset should be calculated manually and provided to TASSIGN operation.
 - **Lazy fallback storage:** Define `__PTO_AUTO__`, then leave the tile unbound and let its first `data()` access

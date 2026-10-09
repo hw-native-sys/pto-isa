@@ -34,7 +34,7 @@ def generate_cpu_test_suite(prefix, cases):
         'int32': (np.int32, 4)
     }
 
-    for suffix, gm_shape, dtype_str in cases:
+    for suffix, gm_shape, dtype_str, *dyn in cases:
         # Create Folder Name: TLoadConvTest.suffix
         folder_name = f"{prefix}.{suffix}"
         if not os.path.exists(folder_name):
@@ -52,8 +52,14 @@ def generate_cpu_test_suite(prefix, cases):
         input_path = os.path.join(folder_name, "input.bin")
         golden_path = os.path.join(folder_name, "golden.bin")
         
+        # Dynamic cases load only the leading [0:n] sub-block, the tile tail stays zero
+        golden = data
+        if dyn:
+            golden = NumExt.astype(np.zeros(total_elements).reshape(gm_shape), np_type)
+            golden[:dyn[0]] = data[:dyn[0]]
+
         NumExt.write_array(input_path, data, np_type)
-        NumExt.write_array(golden_path, data, np_type)
+        NumExt.write_array(golden_path, golden, np_type)
         
         print(f"Generated: {folder_name}")
         print(f"  -> Shape: {gm_shape} | DType: {dtype_str} | File Size: {os.path.getsize(input_path)}B")
@@ -63,7 +69,12 @@ test_cases = [
     ("case_5HD_fused_fp16", (1, 2, 4, 4, 16), "float16"),
     ("case_5HD_cropped_fp32", (1, 4, 10, 10, 8), "float32"),
     ("case_FracZ_4D_fp16", (16, 2, 1, 18, 16), "float16"),
-    ("case_FracZ_5D_small_int8", (4, 2, 6, 16, 32), "int8")
+    ("case_FracZ_5D_small_int8", (4, 2, 6, 16, 32), "int8"),
+    ("case_5HD_unaligned_fp16", (3, 3, 5, 3, 16), "float16"),
+    ("case_5HD_unaligned_int8", (3, 5, 3, 3, 32), "int8"),
+    ("case_ND_5HD_fp16", (2, 3, 2, 4, 5, 16), "float16"),
+    ("case_5HD_dynN_fp16", (4, 2, 4, 4, 16), "float16", 2),
+    ("case_5HD_dynNGlobal_fp32", (4, 2, 3, 5, 8), "float32", 3)
 ]
 
 if ENABLE_BF16:

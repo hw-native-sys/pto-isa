@@ -75,6 +75,8 @@ struct TPipe;
 - **CPU_SIM FIFO模型**：
     - `TPOP` 使用主机FIFO的互斥锁和条件变量等待生产者提交槽位。
     - TileData 数据从主机 FIFO 状态拥有的存储加载；即使 `TPipe` 带有非空 NPU GM workspace，CPU_SIM TileData 流程也不会访问该 workspace。
+    - 若目标 Tile 的 `data()` 返回空指针，CPU_SIM 会分配独立的线程局部后备存储；已绑定的目标继续使用其现有存储。该行为适用于切分和不切分的 TileData 流程。
+    - 独立分配的存储会登记到调用线程的内存模型中。`TASSIGN` 接受其基址和内部指针，检查完整视图范围，并创建共享数据的别名。别名不拥有该分配。详见 [TPOP 后备存储与 Tile 视图](../coding/cpu_sim_zh.md#tpop-backed-tile-views)。
     - 切分模式根据当前subblock上下文选择lane。对于启用 `IsNoSplit` 的C2V管道，`TILE_NO_SPLIT` 会根据运行时subblock数量协调一个或两个vector消费者subblock；在其他no-split vector场景中，非零的未参与lane会按需填零。
     - CPU_SIM 当前未实现显式传入 `int32_t subBlockId` 的重载；应通过模拟subblock执行上下文选择split lane。
     - 对于 `DIR_BOTH`，消费者在自身方向的独立环形队列中等待。no-split 和 V2C 消费者按提交序号取出最早的已提交槽位，在延迟释放导致队列出现空隙时仍保持 FIFO 顺序。重叠的 pop 会预留不同槽位；`TFREE` 在相应方向释放调用方消费者最早尚未释放的 pop。

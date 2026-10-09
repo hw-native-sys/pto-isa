@@ -15,10 +15,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace std;
 using namespace PtoTestCommon;
 
-template <
-    typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4, int dstShape0,
-    int dstShape1, int dstShape2, int dstShape3, int dstShape4, int groupN>
-void LaunchTStoreConv(T* out, T* src, void* stream);
+enum class TStoreConvCase {
+    NDC1HWC0Static,
+    NC1HWC0Static,
+    NDC1HWC0DynN,
+    NDC1HWC0DynND,
+    NDC1HWC0DynNDGlobal,
+};
+
+template <typename T, TStoreConvCase caseKey, int s0, int s1, int s2, int s3, int s4>
+void LaunchTStoreConv(T* out, T* src, int64_t n, int64_t d, void* stream);
 
 class TStoreConvTest : public testing::Test {
 protected:
@@ -35,14 +41,9 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <
-    typename T, int format, int srcShape0, int srcShape1, int srcShape2, int srcShape3, int srcShape4, int dstShape0,
-    int dstShape1, int dstShape2, int dstShape3, int dstShape4, int groupN = 1>
-void test_tstore()
+template <typename T, typename LaunchFn>
+void RunTStoreConvCase(size_t srcFileSize, size_t dstFileSize, LaunchFn launch)
 {
-    size_t srcFileSize = srcShape0 * srcShape1 * srcShape2 * srcShape3 * srcShape4 * groupN * sizeof(T);
-    size_t dstFileSize = dstShape0 * dstShape1 * dstShape2 * dstShape3 * dstShape4 * groupN * sizeof(T);
-
     aclInit(nullptr);
     aclrtSetDevice(0);
     aclrtStream stream;
@@ -62,9 +63,7 @@ void test_tstore()
 
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
-    LaunchTStoreConv<
-        T, format, srcShape0, srcShape1, srcShape2, srcShape3, srcShape4, dstShape0, dstShape1, dstShape2, dstShape3,
-        dstShape4, groupN>(dstDevice, srcDevice, stream);
+    launch(dstDevice, srcDevice, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -90,8 +89,42 @@ void test_tstore()
     EXPECT_TRUE(ret);
 }
 
-TEST_F(TStoreConvTest, NDC1HWC0_1) { test_tstore<float, 2, 1, 1, 1, 2, 8, 1, 1, 1, 2, 8, 1>(); }
+template <typename T, TStoreConvCase caseKey, int s0, int s1, int s2, int s3, int s4>
+void test_tstore_conv(int64_t n = 0, int64_t d = 0)
+{
+    constexpr size_t kC0 = 32 / sizeof(T);
+    size_t fileSize = s0 * s1 * s2 * s3 * s4 * kC0 * sizeof(T);
 
-TEST_F(TStoreConvTest, NDC1HWC0_2) { test_tstore<float, 2, 3, 4, 1, 7, 8, 3, 4, 1, 7, 8, 2>(); }
+    RunTStoreConvCase<T>(fileSize, fileSize, [&](T* dst, T* src, void* stream) {
+        LaunchTStoreConv<T, caseKey, s0, s1, s2, s3, s4>(dst, src, n, d, stream);
+    });
+}
 
-TEST_F(TStoreConvTest, NDC1HWC0_3) { test_tstore<int32_t, 2, 2, 4, 16, 8, 8, 2, 4, 16, 8, 8, 1>(); }
+/*-----------------Static shapes------------------*/
+TEST_F(TStoreConvTest, NDC1HWC0_1) { test_tstore_conv<float, TStoreConvCase::NDC1HWC0Static, 1, 1, 1, 2, 8>(); }
+
+TEST_F(TStoreConvTest, NDC1HWC0_2) { test_tstore_conv<float, TStoreConvCase::NDC1HWC0Static, 2, 3, 4, 1, 7>(); }
+
+TEST_F(TStoreConvTest, NDC1HWC0_3) { test_tstore_conv<int32_t, TStoreConvCase::NDC1HWC0Static, 1, 2, 4, 16, 8>(); }
+
+/*---------Static shapes, unaligned sizes---------*/
+TEST_F(TStoreConvTest, NDC1HWC0_4) { test_tstore_conv<float, TStoreConvCase::NDC1HWC0Static, 3, 2, 3, 3, 5>(); }
+
+TEST_F(TStoreConvTest, NDC1HWC0_5) { test_tstore_conv<int32_t, TStoreConvCase::NDC1HWC0Static, 3, 3, 5, 3, 3>(); }
+
+TEST_F(TStoreConvTest, NC1HWC0_1) { test_tstore_conv<float, TStoreConvCase::NC1HWC0Static, 3, 3, 5, 3, 1>(); }
+
+/*------------------Dynamic tile dims------------------*/
+TEST_F(TStoreConvTest, NDC1HWC0_Dyn1) { test_tstore_conv<float, TStoreConvCase::NDC1HWC0DynN, 4, 1, 1, 2, 8>(2); }
+
+TEST_F(TStoreConvTest, NDC1HWC0_Dyn2) { test_tstore_conv<float, TStoreConvCase::NDC1HWC0DynND, 4, 3, 1, 7, 8>(2, 1); }
+
+TEST_F(TStoreConvTest, NDC1HWC0_Dyn3) { test_tstore_conv<int32_t, TStoreConvCase::NDC1HWC0DynN, 3, 2, 4, 8, 8>(2); }
+
+TEST_F(TStoreConvTest, NDC1HWC0_Dyn4)
+{
+    test_tstore_conv<float, TStoreConvCase::NDC1HWC0DynNDGlobal, 4, 3, 2, 4, 8>(3, 2);
+}
+
+/*-------Dynamic tile dims, unaligned sizes-------*/
+TEST_F(TStoreConvTest, NDC1HWC0_Dyn5) { test_tstore_conv<float, TStoreConvCase::NDC1HWC0DynN, 4, 3, 3, 3, 5>(3); }
