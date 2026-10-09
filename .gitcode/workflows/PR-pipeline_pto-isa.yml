@@ -185,8 +185,6 @@ stages:
                 set -e
                 # set env
                 export WORKSPACE=${{ steps.process_checkout.outputs.path }}
-                export download_path=${{ steps.process_download.outputs.download-path }}
-                export package_name=${{jobs.Compile_Ascend_ARM_ubuntu24.outputs.package_name}}
                 export obs_path=${{env.obs_path}}
                 export repo_name=${{env.repo_name}}
                 export obs_smoke_path=${{ env.obs_smoke_path }}
@@ -240,8 +238,6 @@ stages:
                 set -e
                 # set env
                 export WORKSPACE=${{ steps.process_checkout.outputs.path }}
-                export download_path=${{ steps.process_download.outputs.download-path }}
-                export package_name=${{jobs.Compile_Ascend_ARM_ubuntu24.outputs.package_name}}
                 export obs_path=${{env.obs_path}}
                 export repo_name=${{env.repo_name}}
                 export obs_smoke_path=${{ env.obs_smoke_path }}
@@ -295,8 +291,6 @@ stages:
                 set -e
                 # set env
                 export WORKSPACE=${{ steps.process_checkout.outputs.path }}
-                export download_path=${{ steps.process_download.outputs.download-path }}
-                export package_name=${{jobs.Compile_Ascend_ARM_ubuntu24.outputs.package_name}}
                 export obs_path=${{env.obs_path}}
                 export repo_name=${{env.repo_name}}
                 export obs_smoke_path=${{ env.obs_smoke_path }}
