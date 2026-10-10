@@ -35,7 +35,7 @@ PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - Static valid bounds: `TileDataSrc::ValidRow <= TileDataSrc::Rows` and `TileDataSrc::ValidCol <= TileDataSrc::Cols`.
     - Runtime: `src0` and `src1` must have equal valid row and column counts, and `src0.GetValidRow() == dst.GetValidRow()`.
     - Destination valid columns describe packed capacity and need not equal source valid columns.
-    - For `int32_t` input, `EQ` and `NE` are supported. `NE` inverts the equality result; other modes use the `EQ` path.
+    - For `int32_t` input, `EQ` and `NE` are supported. `NE` inverts the equality result; other modes are not supported on A2A3.
 - **Implementation checks (A5)**:
     - Input type must be one of: `uint32_t`, `int32_t`, `int64_t`, `uint64_t`, `uint16_t`, `int16_t`, `uint8_t`, `int8_t`, `float`, `half`, `bfloat16_t`.
     - Output is packed predicate bytes; a RowMajor `uint8_t` mask tile may be used.

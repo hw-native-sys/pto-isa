@@ -133,6 +133,9 @@ PTO_INTERNAL void TCMP_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& 
     PTO_ASSERT(src0.GetValidCol() == src1.GetValidCol(), "Number of columns of src0 and src1 must be the same.");
     PTO_ASSERT(src0.GetValidRow() == src1.GetValidRow(), "Number of rows of src0 and src1 must be the same.");
     PTO_ASSERT(src0.GetValidRow() == dst.GetValidRow(), "Number of rows of src0 and dst must be the same.");
+    if constexpr (std::is_same_v<T, int32_t>) {
+        PTO_ASSERT(cmpMode == CmpMode::EQ, "TCMP: Only support EQ mode for int32_t data type.");
+    }
 
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
     unsigned numRepeatPerLine = CeilDivision(src0.GetValidCol(), elementsPerRepeat);

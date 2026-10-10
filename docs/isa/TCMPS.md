@@ -62,7 +62,7 @@ PTO_INST RecordEvent TCMPS(TileDataDst& dst, TileDataSrc0& src0,
 - **Implementation checks (A2A3)**:
     - `TileData::DType` must be one of: `int32_t`, `float`, `half`, `uint16_t`, `int16_t`.
     - Tile layout must be row-major (`TileData::isRowMajor`).
-    - For `int32_t` input, only `CmpMode::EQ` is supported; other comparison modes fall back to `EQ`.
+    - For `int32_t` input, only `CmpMode::EQ` is supported; other comparison modes are not supported.
 - **Implementation checks (A5)**:
     - `TileData::DType` must be one of: `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `float`, `int16_t`, `uint16_t`, `half`, `uint8_t`, `int8_t`, `bfloat16_t`.
     - Tile layout must be row-major (`TileData::isRowMajor`).

@@ -8,7 +8,7 @@
 
 将两个源Tile（`src0` 和 `src1`）交织到两个目标Tile（`dst0` 和 `dst1`）中。该操作以交替模式组合 `src0` 和 `src1` 的元素生成交织流，随后将交织流在中点处拆分为两半，前半部分放入 `dst0`，后半部分放入 `dst1`。每个目标Tile各持有交织流的一半。
 
-`TInterleave` 是 `TDeInterleave` 的逆操作。
+`TINTERLEAVE` 是 `TDEINTERLEAVE` 的逆操作。
 
 ## 数学语义
 

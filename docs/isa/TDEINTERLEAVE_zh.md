@@ -8,12 +8,12 @@
 
 将源Tile反交织到两个目标Tile（`dst0` 和 `dst1`）中。该操作逆转交织过程：`dst0` 接收交织流的偶数位置元素，`dst1` 接收奇数位置元素。
 
-`TDeInterleave` 有两种重载形式：
+`TDEINTERLEAVE` 有两种重载形式：
 
 - **双源形式**（`dst1, dst0, src1, src0`）：给定两个持有交织流前半部分和后半部分的源Tile，反交织为原始的偶元素流和奇元素流。
 - **单源形式**（`dst1, dst0, src`）：给定一个包含完整交织数据的源Tile，反交织为偶数位置和奇数位置的元素流。每个目标行持有 `src.GetValidCol() / 2` 个有效元素。
 
-`TDeInterleave` 是 `TInterleave` 的逆操作。
+`TDEINTERLEAVE` 是 `TINTERLEAVE` 的逆操作。
 
 ## 数学语义
 
@@ -47,12 +47,12 @@ $$ \mathrm{dst1}_{i, k} = \mathrm{src}_{i, 2k+1}, \quad 0 \le k < \mathrm{halfVa
 ```cpp
 // 双源形式
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TDeInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src1, TileDataSrc &src0,
+PTO_INST RecordEvent TDEINTERLEAVE(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src1, TileDataSrc &src0,
                                    WaitEvents &...events);
 
 // 单源形式
 template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TDeInterleave(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src,
+PTO_INST RecordEvent TDEINTERLEAVE(TileDataDst &dst1, TileDataDst &dst0, TileDataSrc &src,
                                    WaitEvents &...events);
 ```
 
@@ -84,7 +84,7 @@ void example_auto_two_src() {
     TileT src0(16, 128), src1(16, 128);
     TileT dst0(16, 128), dst1(16, 128);
 
-    TDeInterleave(dst1, dst0, src1, src0);
+    TDEINTERLEAVE(dst1, dst0, src1, src0);
 }
 ```
 
@@ -100,7 +100,7 @@ void example_auto_single_src() {
     TileT src(16, 128);
     TileT dst0(16, 128), dst1(16, 128);
 
-    TDeInterleave(dst1, dst0, src);
+    TDEINTERLEAVE(dst1, dst0, src);
 }
 ```
 
@@ -120,7 +120,7 @@ void example_manual_two_src() {
     TASSIGN(dst0, 0x3000);
     TASSIGN(dst1, 0x4000);
 
-    TDeInterleave(dst1, dst0, src1, src0);
+    TDEINTERLEAVE(dst1, dst0, src1, src0);
 }
 ```
 
@@ -139,10 +139,10 @@ void example_manual_single_src() {
     TASSIGN(dst0, 0x2000);
     TASSIGN(dst1, 0x3000);
 
-    TDeInterleave(dst1, dst0, src);
+    TDEINTERLEAVE(dst1, dst0, src);
 }
 ```
 
 ## 相关指令
 
-- [TInterleave](TINTERLEAVE_zh.md) - 将两个Tile交织为交替的偶/奇流（TDeInterleave的逆操作）。
+- [TINTERLEAVE](TINTERLEAVE_zh.md) - 将两个Tile交织为交替的偶/奇流（TDEINTERLEAVE的逆操作）。
