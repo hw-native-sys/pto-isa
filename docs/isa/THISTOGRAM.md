@@ -123,4 +123,4 @@ using TileDataDst = Tile<TileType::Vec, uint32_t, R, 256,             BLayout::R
 using TileDataIdx = Tile<TileType::Vec, uint8_t,  alignedIdxBytes, 1, BLayout::ColMajor>;
 ```
 
-See `tests/npu/a5/src/st/testcase/thistogram/` (A5), `tests/npu/kirin9030/src/st/testcase/thistogram/` (Kirin9030), `tests/npu/kirinX90/src/st/testcase/thistogram/` (KirinX90), and `tests/cpu/st/testcase/thistogram/` (CPU reference) for complete ST examples.
+See `tests/npu/a5/src/st/testcase/thistogram/` (A5), and `tests/cpu/st/testcase/thistogram/` (CPU reference) for complete ST examples.

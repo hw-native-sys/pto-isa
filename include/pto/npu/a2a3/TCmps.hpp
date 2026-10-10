@@ -186,6 +186,10 @@ PTO_INTERNAL void TCMPS_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1&
         std::is_same_v<typename TileDataSrc0::DType, typename TileDataSrc1::DType>,
         "TCMPS: The input data type must be consistent with the scalar data type.");
     PTO_ASSERT(src0.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
+    using T = typename TileDataSrc0::DType;
+    if constexpr (std::is_same_v<T, int32_t>) {
+        PTO_ASSERT(mode == CmpMode::EQ, "TCMPS: Only support EQ mode for int32_t data type.");
+    }
     unsigned validRow = src0.GetValidRow();
     unsigned validCol = src0.GetValidCol();
     TCmps_Tile<TileDataDst, TileDataSrc0, TileDataSrc1>(dst.data(), src0.data(), src1.data(), mode, validRow, validCol);
@@ -196,8 +200,11 @@ PTO_INTERNAL void TCMPS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileD
 {
     TcmpsCheck<TileDataDst, TileDataSrc>();
     PTO_ASSERT(src0.GetValidRow() == dst.GetValidRow(), "Number of rows of src and dst must be the same.");
-
     using T = typename TileDataSrc::DType;
+    if constexpr (std::is_same_v<T, int32_t>) {
+        PTO_ASSERT(mode == CmpMode::EQ, "TCMPS: Only support EQ mode for int32_t data type.");
+    }
+
     unsigned validRow = src0.GetValidRow();
     unsigned numRepeatPerLine = CeilDivision(src0.GetValidCol(), (REPEAT_BYTE / sizeof(T)));
 

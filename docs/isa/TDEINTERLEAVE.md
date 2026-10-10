@@ -10,12 +10,12 @@
 
 De-interleave source tiles into two destination tiles (`dst0` and `dst1`). The operation reverses interleaving: `dst0` receives elements at even positions of the combined interleaved stream, and `dst1` receives elements at odd positions.
 
-`TDeInterleave` has two overload forms:
+`TDEINTERLEAVE` has two overload forms:
 
 - **Two-source form** (`dst1, dst0, src1, src0`): Given two source tiles that hold the first and second halves of an interleaved stream, de-interleave into the original even and odd element streams.
 - **Single-source form** (`dst1, dst0, src`): Given one source tile containing the full interleaved data, de-interleave into even-position and odd-position element streams. Each destination row holds `src.GetValidCol() / 2` valid elements.
 
-`TDeInterleave` is the inverse of `TInterleave`.
+`TDEINTERLEAVE` is the inverse of `TINTERLEAVE`.
 
 ## Math Interpretation
 
@@ -147,4 +147,4 @@ void example_manual_single_src() {
 
 ## Related Instructions
 
-- [TInterleave](TINTERLEAVE.md) - Interleave two tiles into an alternating even/odd stream (inverse of TDeInterleave).
+- [TINTERLEAVE](TINTERLEAVE.md) - Interleave two tiles into an alternating even/odd stream (inverse of TDEINTERLEAVE).

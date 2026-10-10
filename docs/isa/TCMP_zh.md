@@ -35,7 +35,7 @@ PTO_INST RecordEvent TCMP(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - 静态有效边界：`TileDataSrc::ValidRow <= TileDataSrc::Rows` 且 `TileDataSrc::ValidCol <= TileDataSrc::Cols`。
     - 运行时：`src0` 与 `src1` 的有效行列数分别相等，且 `src0.GetValidRow() == dst.GetValidRow()`。
     - 目标有效列数表示打包容量，不要求等于源有效列数。
-    - 对于 `int32_t` 输入，支持 `EQ` 和 `NE`；`NE` 对相等比较结果取反，其他模式使用 `EQ` 路径。
+    - 对于 `int32_t` 输入，支持 `EQ` 和 `NE`；`NE` 对相等比较结果取反，其他模式不支持。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
     - 输入类型必须是以下之一：`uint32_t`、`int32_t`、`int64_t`、`uint64_t`、`uint16_t`、`int16_t`、`uint8_t`、`int8_t`、`float`、`half`、`bfloat16_t`。
     - 输出为打包谓词字节，可使用 RowMajor `uint8_t` 掩码 Tile。
