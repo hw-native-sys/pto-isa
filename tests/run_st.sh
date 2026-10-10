@@ -10,6 +10,24 @@
 # --------------------------------------------------------------------------------
 
 set -e
+TOTAL_CASES=0
+FAILED_CASES=0
+# Run ST cases with failure-tolerant counting: a single failing case must not
+# abort the whole batch (set -e would do that); a summary is printed at the end.
+python3() {
+  case "$1" in
+    *build_st.py*)
+      command python3 "$@"
+      ;;
+    *)
+      TOTAL_CASES=$((TOTAL_CASES + 1))
+      if ! command python3 "$@"; then
+        FAILED_CASES=$((FAILED_CASES + 1))
+        echo ">>> [FAIL] $*" >&2
+      fi
+      ;;
+  esac
+}
 
 ENABLE_A3=false
 ENABLE_A5=false
@@ -1605,4 +1623,15 @@ if [ "$ENABLE_COMM" = "true" ]; then
       python3 tests/script/run_st.py $ARGS -v a3 -t comm/tget_async
     fi
   fi
+fi
+
+
+if [ "$TOTAL_CASES" -gt 0 ]; then
+  echo "============================================================"
+  echo "[SUMMARY] total=${TOTAL_CASES} passed=$((TOTAL_CASES - FAILED_CASES)) failed=${FAILED_CASES}"
+  if [ "$FAILED_CASES" -gt 0 ]; then
+    echo "[SUMMARY] ${FAILED_CASES} case(s) failed" >&2
+    exit 1
+  fi
+  echo "[SUMMARY] all cases passed"
 fi
