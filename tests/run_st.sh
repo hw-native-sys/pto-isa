@@ -123,6 +123,11 @@ checkopts() {
 
 checkopts "$@"
 
+# Run mode defaults to on-board NPU when omitted (see usage above).
+if [[ "$ARGS" != *" -r "* ]]; then
+  ARGS+=" -r npu "
+fi
+
 # Validate the parsed options so that a mis-typed invocation fails loudly
 # instead of silently exiting 0 without running any test.
 if [ "$ENABLE_A3" = "false" ] && [ "$ENABLE_A5" = "false" ] && \
