@@ -21,7 +21,12 @@ namespace pto {
 template <typename Pipe, TileSplitAxis Split>
 PTO_INTERNAL void TFREE_IMPL(Pipe& pipe)
 {
-    bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(static_cast<uint32_t>(pipe.cons.tileIndex - 1));
+    // Auto-free pops and repeated frees must not return a credit twice.
+    if (pipe.cons.freeIndex == pipe.cons.tileIndex) {
+        return;
+    }
+    bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(pipe.cons.freeIndex);
+    pipe.cons.freeIndex++;
     if (isFree) {
         pipe.cons.template free<Split>();
     }
@@ -37,10 +42,7 @@ PTO_INTERNAL void TFREE_IMPL(Pipe& pipe, GlobalData& gmTensor)
     static_assert(
         Pipe::is_c2v_gm || Pipe::is_v2c_gm || Pipe::is_both_gm,
         "Fix: TFREE with GlobalTensor is only supported by GM FIFO directions on A5.");
-    bool isFree = pipe.cons.getFreeStatus() && Pipe::shouldNotifyFree(static_cast<uint32_t>(pipe.cons.tileIndex - 1));
-    if (isFree) {
-        pipe.cons.template free<Split>();
-    }
+    TFREE_IMPL<Pipe, Split>(pipe);
 }
 
 //------------------------------------------------

@@ -441,6 +441,8 @@ struct TPipe {
     // -------------------------------------------------------------------------
     struct Consumer {
         uint32_t tileIndex = 0;
+        // Deferred frees advance independently of the FIFO addressing cursor.
+        uint32_t freeIndex = 0;
         uint32_t subTileIndex = 0;
         bool isWait = true;
         bool isFree = true;
@@ -451,6 +453,7 @@ struct TPipe {
         PTO_INTERNAL void setTileId(int tid, int sub_tid)
         {
             tileIndex = tid;
+            freeIndex = tid;
             subTileIndex = sub_tid;
         }
 

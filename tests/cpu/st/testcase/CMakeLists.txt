@@ -78,6 +78,7 @@ tfillpad
 tflashattn
 tfmod
 tfmods
+tfree_a5
 tgather
 tgatherb
 tget
