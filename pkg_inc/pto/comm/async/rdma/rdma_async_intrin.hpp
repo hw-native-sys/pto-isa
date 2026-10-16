@@ -253,6 +253,24 @@ AICORE inline bool TestEvent(uint64_t handle, const AsyncSession& session)
     return TestEvent(handle, MakeEventContext(session));
 }
 
+// Forward to the active backend. Each NIC owns its CQE layout and ready predicate, so this stays a
+// per-backend switch rather than one shared implementation.
+AICORE inline bool GetRdmaCompletionRecord(uint64_t handle, const AsyncSession& session, AsyncCompletionRecord& record)
+{
+    if (handle == 0 || IsErrorHandle(handle)) {
+        return false;
+    }
+    const RdmaEventContext ctx = MakeEventContext(session);
+    switch (ctx.backend) {
+#ifdef PTO_RDMA_BACKEND_HNS_1825_SUPPORTED
+        case RdmaBackend::HNS_1825:
+            return hns_1825::GetRdmaCompletionRecord(handle, ctx, record);
+#endif
+        default:
+            return false;
+    }
+}
+
 } // namespace rdma
 } // namespace comm
 } // namespace pto

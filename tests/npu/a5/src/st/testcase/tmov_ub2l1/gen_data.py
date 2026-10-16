@@ -19,24 +19,30 @@ def gen_golden_data(param):
     index_rows = param.index_rows
     index_cols = param.index_cols
 
-    input_arr = np.random.uniform(low=-10, high=10, size=(param.rows, param.cols)).astype(test_type)
+    if param.is_fp4:
+        input_arr = np.random.randint(0, 256, size=(param.rows, param.cols)).astype(np.uint8)
+    else:
+        input_arr = np.random.uniform(low=-10, high=10, size=(param.rows, param.cols)).astype(test_type)
     input_arr.tofile("input_arr.bin")
     if index_rows != 0 or index_cols != 0:
         input_arr = input_arr[index_rows:, index_cols:]
 
     nz_block_row = 16
     c0_size = 16
-    if test_type == np.int8:
+    if param.is_fp4:
+        c0_size = 32
+    elif test_type == np.int8:
         c0_size = 32
     elif test_type == np.float32:
         c0_size = 8
-    output_arr = input_arr.reshape(int(param.valid_rows / nz_block_row), nz_block_row,
-        int(param.valid_cols / c0_size), c0_size).transpose(2, 0, 1, 3).astype(test_type)
+    output_arr = input_arr.reshape(
+        int(param.valid_rows / nz_block_row), nz_block_row, int(param.valid_cols / c0_size), c0_size
+    ).transpose(2, 0, 1, 3)
     output_arr.tofile("golden_output.bin")
 
 
 class TmovUb2L1Params:
-    def __init__(self, test_type, rows, cols, valid_rows, valid_cols, index_rows=0, index_cols=0):
+    def __init__(self, test_type, rows, cols, valid_rows, valid_cols, index_rows=0, index_cols=0, is_fp4=False):
         self.test_type = test_type
         self.rows = rows
         self.cols = cols
@@ -44,6 +50,8 @@ class TmovUb2L1Params:
         self.valid_cols = valid_cols
         self.index_rows = index_rows
         self.index_cols = index_cols
+        self.is_fp4 = is_fp4
+
 
 if __name__ == "__main__":
     case_name_list = [
@@ -56,6 +64,8 @@ if __name__ == "__main__":
         "TMovUb2l1Test.case7",
         "TMovUb2l1Test.case8",
         "TMovUb2l1Test.case9",
+        "TMovUb2l1Test.case10",
+        "TMovUb2l1Test.case11",
     ]
 
     case_params_list = [
@@ -68,6 +78,8 @@ if __name__ == "__main__":
         TmovUb2L1Params(np.float16, 64, 64, 48, 48, 16, 16),
         TmovUb2L1Params(np.float32, 128, 128, 64, 64, 64, 64),
         TmovUb2L1Params(np.int8, 256, 256, 32, 32, 224, 224),
+        TmovUb2L1Params(np.uint8, 16, 64, 16, 64, is_fp4=True),
+        TmovUb2L1Params(np.uint8, 64, 96, 32, 64, 32, 32, is_fp4=True),
     ]
 
     for i, case_name in enumerate(case_name_list):

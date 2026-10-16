@@ -438,6 +438,48 @@ void checkNzWindowInsert()
     }
 }
 
+// TInsert_Impl's boundary assert uses the target's physical Rows/Cols (as the
+// documentation and A5 do), not the logical valid window. A 2x4 source inserted
+// at (2,4) into a 4x8 destination whose valid window is 2x4 lies inside the
+// physical bound but outside the valid window; the CPU-SIM assert must accept it.
+template <typename T>
+void checkInsertBeyondValidWithinPhysical()
+{
+    NPU_MEMORY_INIT(NPUArch::A5);
+    constexpr int DST_ROWS = 4;
+    constexpr int DST_COLS = 8;
+    constexpr int VALID_ROWS = 2;
+    constexpr int VALID_COLS = 4;
+    constexpr int IDX_ROW = 2;
+    constexpr int IDX_COL = 4;
+
+    using SrcTile =
+        Tile<TileType::Vec, T, DST_ROWS, DST_COLS, BLayout::RowMajor, VALID_ROWS, VALID_COLS, SLayout::NoneBox>;
+    using DstTile =
+        Tile<TileType::Mat, T, DST_ROWS, DST_COLS, BLayout::RowMajor, VALID_ROWS, VALID_COLS, SLayout::NoneBox>;
+
+    SrcTile src;
+    DstTile dst;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 0);
+    std::fill_n(src.data(), DST_ROWS * DST_COLS, T(-1));
+    std::fill_n(dst.data(), DST_ROWS * DST_COLS, T(-1));
+    for (int row = 0; row < VALID_ROWS; ++row) {
+        for (int col = 0; col < VALID_COLS; ++col) {
+            src.SetElement(row, col, T(row * VALID_COLS + col));
+        }
+    }
+    TINSERT(dst, src, IDX_ROW, IDX_COL);
+    for (int row = 0; row < DST_ROWS; ++row) {
+        for (int col = 0; col < DST_COLS; ++col) {
+            const bool inWindow =
+                row >= IDX_ROW && row < IDX_ROW + VALID_ROWS && col >= IDX_COL && col < IDX_COL + VALID_COLS;
+            const float expected = inWindow ? (row - IDX_ROW) * VALID_COLS + (col - IDX_COL) : -1;
+            ASSERT_EQ(expected, static_cast<float>(dst.GetElement(row, col))) << "row=" << row << " col=" << col;
+        }
+    }
+}
+
 template <TInsertMode Mode>
 void checkSplitInsert()
 {
@@ -477,6 +519,8 @@ TEST_F(TINSERTTest, NzBfloat16FullLoadControl) { checkNzWindowInsert<bfloat16_t,
 TEST_F(TINSERTTest, Split2PublicApi) { checkSplitInsert<TInsertMode::SPLIT2>(); }
 
 TEST_F(TINSERTTest, Split4PublicApi) { checkSplitInsert<TInsertMode::SPLIT4>(); }
+
+TEST_F(TINSERTTest, CpuSimInsertBeyondValidWithinPhysical) { checkInsertBeyondValidWithinPhysical<float>(); }
 
 namespace {
 template <TInsertMode Mode, CompactMode Compact>
@@ -658,6 +702,67 @@ void checkScalarPreQuantColMajor()
         }
     }
 }
+
+// The scalar pre-quant path shares TInsert_Impl with the plain path, so the
+// physical-boundary assert fix applies here too. The destination's valid window
+// (2x16) is smaller than its physical size (8x32); the insert position (6,16)
+// lies inside the physical bound but outside the valid window.
+template <typename SrcT, typename DstT>
+void checkScalarPreQuantBeyondValidWithinPhysical()
+{
+    NPU_MEMORY_INIT(NPUArch::A5);
+    constexpr int DST_ROWS = 8;
+    constexpr int DST_COLS = 32;
+    constexpr int VALID_ROWS = 2;
+    constexpr int VALID_COLS = 16;
+    constexpr int IDX_ROW = 6;
+    constexpr int IDX_COL = 16;
+    using SrcTile = Tile<
+        TileType::Vec, SrcT, DST_ROWS, DST_COLS, BLayout::ColMajor, VALID_ROWS, VALID_COLS, SLayout::RowMajor, 512>;
+    using DstTile =
+        Tile<TileType::Mat, DstT, DST_ROWS, DST_COLS, BLayout::RowMajor, VALID_ROWS, VALID_COLS, SLayout::NoneBox, 512>;
+
+    auto srcValue = [](int row, int col) { return static_cast<SrcT>(row * VALID_COLS + col); };
+
+    SrcTile src;
+    DstTile dst;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 0);
+    std::fill_n(src.data(), DST_ROWS * DST_COLS, 0);
+    std::fill_n(dst.data(), DST_ROWS * DST_COLS, static_cast<DstT>(-1));
+    for (int row = 0; row < VALID_ROWS; ++row) {
+        for (int col = 0; col < VALID_COLS; ++col) {
+            src.SetElement(row, col, srcValue(row, col));
+        }
+    }
+
+    float scale = 0.5f;
+    uint64_t scalar = 0;
+    std::memcpy(&scalar, &scale, sizeof(float));
+    scalar |= static_cast<uint64_t>(1) << 46; // signed output range for integer destinations
+
+    TINSERT<DstTile, SrcTile, ReluPreMode::NoRelu>(
+        dst, src, scalar, static_cast<uint16_t>(IDX_ROW), static_cast<uint16_t>(IDX_COL));
+
+    for (int row = 0; row < DST_ROWS; ++row) {
+        for (int col = 0; col < DST_COLS; ++col) {
+            const bool inWindow =
+                row >= IDX_ROW && row < IDX_ROW + VALID_ROWS && col >= IDX_COL && col < IDX_COL + VALID_COLS;
+            if (inWindow) {
+                const float scaled = static_cast<float>(srcValue(row - IDX_ROW, col - IDX_COL)) * scale;
+                float expected = 0.0f;
+                if constexpr (std::is_same_v<DstT, int8_t>) {
+                    expected = std::clamp(std::rint(scaled), -128.0f, 127.0f);
+                } else {
+                    expected = std::clamp(scaled, -65504.0f, 65504.0f);
+                }
+                ASSERT_EQ(expected, static_cast<float>(dst.GetElement(row, col))) << "row=" << row << " col=" << col;
+            } else {
+                ASSERT_EQ(-1.0f, static_cast<float>(dst.GetElement(row, col))) << "row=" << row << " col=" << col;
+            }
+        }
+    }
+}
 } // namespace
 
 TEST_F(TINSERTTest, ScalarPreQuantColMajorFloatToInt8) { checkScalarPreQuantColMajor<float, int8_t>(); }
@@ -666,6 +771,10 @@ TEST_F(TINSERTTest, ScalarPreQuantColMajorInt32ToInt8) { checkScalarPreQuantColM
 TEST_F(TINSERTTest, ScalarPreQuantColMajorInt32ToHalf) { checkScalarPreQuantColMajor<int32_t, half>(); }
 TEST_F(TINSERTTest, ScalarPreQuantColMajorOffsetInsert) { checkScalarPreQuantColMajor<float, int8_t, 8, 16>(); }
 TEST_F(TINSERTTest, ScalarPreQuantColMajorRelu) { checkScalarPreQuantColMajor<int32_t, half, 0, 0, true>(); }
+TEST_F(TINSERTTest, ScalarPreQuantBeyondValidWithinPhysical)
+{
+    checkScalarPreQuantBeyondValidWithinPhysical<float, int8_t>();
+}
 
 TEST_F(TINSERTTest, Split2NullAlignedTail) { checkSplitAlignedTail<TInsertMode::SPLIT2, CompactMode::Null>(); }
 TEST_F(TINSERTTest, Split4NullAlignedTail) { checkSplitAlignedTail<TInsertMode::SPLIT4, CompactMode::Null>(); }

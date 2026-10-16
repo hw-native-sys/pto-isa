@@ -47,7 +47,7 @@ __attribute__((visibility("default"))) int pipeline(int* data, int* results, int
     const auto lane = get_subblockid();
     for (int i = 0; i < rounds; ++i) {
         const int slot = i % SLOTS;
-        wait_flag_dev(slot);
+        wait_flag_dev(PIPE_MTE2, slot);
         errors += data[slot] != i + 1;
         results[lane * SLOTS + slot] = data[slot] * (lane + 2);
         ffts_cross_core_sync(PIPE_MTE3, getFFTSMsg(FFTS_MODE_VAL, slot + SLOTS));

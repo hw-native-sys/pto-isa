@@ -192,4 +192,6 @@ static inline void wait_flag_dev(int eventId)
 #endif
 }
 
+static inline void wait_flag_dev(pipe_t, int eventId) { wait_flag_dev(eventId); }
+
 #endif // PTO_CPU_FFTS_HPP

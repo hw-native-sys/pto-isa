@@ -17,6 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/cpu/tile_offsets.hpp"
 #include "pto/cpu/MXTypes.hpp"
 #include "pto/common/debug.h"
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <type_traits>
@@ -29,6 +30,12 @@ constexpr double FP4_E2M1_LOWEST = -6.0;
 constexpr double FP4_E2M1_MAX = 6.0;
 constexpr double FP4_E1M2_LOWEST = -4.0;
 constexpr double FP4_E1M2_MAX = 3.5;
+constexpr int F16_MANTISSA_BITS = 10;
+constexpr int F16_BIAS = 15;
+constexpr uint16_t F16_MAX_CODE = 0x7BFF;
+constexpr uint16_t F16_OVERFLOW_CODE = 0x7C00;
+constexpr int F16_MAX_EXPONENT = 15;
+constexpr double F16_ROUNDING_THRESHOLD = 0.5;
 
 inline void PrintFloatBits(double val, const char* name)
 {
@@ -65,6 +72,9 @@ constexpr bool is_fp8_v = std::is_same_v<T, float8_e4m3_t> || std::is_same_v<T, 
 template <typename T>
 constexpr bool is_float_like_v = std::is_floating_point_v<T> || std::is_same_v<T, half> ||
                                  std::is_same_v<T, aclFloat16> || std::is_same_v<T, bfloat16_t>;
+
+template <typename T>
+constexpr bool is_half_like_v = std::is_same_v<T, _Float16> || std::is_same_v<T, half> || std::is_same_v<T, aclFloat16>;
 
 template <typename T>
 inline T clamp_value(T val, T min_val, T max_val)
@@ -107,6 +117,68 @@ inline double applyRoundingToIntegral(double v, RoundMode mode)
         default:
             return v;
     }
+}
+
+inline half F16FromBits(uint16_t bits) { return std::bit_cast<half>(bits); }
+
+inline half convertFloatToHalf(double value, RoundMode mode)
+{
+    const uint16_t sign = std::signbit(value) ? 0x8000 : 0;
+    const double magnitude = std::abs(value);
+    if (std::isnan(value)) {
+        return F16FromBits(static_cast<uint16_t>(sign | 0x7E00));
+    }
+    if (std::isinf(value)) {
+        return F16FromBits(static_cast<uint16_t>(sign | F16_OVERFLOW_CODE));
+    }
+    if (magnitude == 0) {
+        return F16FromBits(static_cast<uint16_t>(sign));
+    }
+    const bool towardZero = mode == RoundMode::CAST_TRUNC || (mode == RoundMode::CAST_FLOOR && !sign) ||
+                            (mode == RoundMode::CAST_CEIL && sign);
+    if (magnitude >= std::ldexp(1.0, F16_MAX_EXPONENT + 1)) {
+        return F16FromBits(static_cast<uint16_t>(sign | (towardZero ? F16_MAX_CODE : F16_OVERFLOW_CODE)));
+    }
+    int exponent = 0;
+    std::frexp(magnitude, &exponent);
+    exponent = std::max(exponent - 1, 1 - F16_BIAS);
+    const double scaled = std::ldexp(magnitude, F16_MANTISSA_BITS - exponent);
+    unsigned significand = static_cast<unsigned>(scaled);
+    const double remainder = scaled - significand;
+    switch (mode) {
+        case RoundMode::CAST_NONE:
+        case RoundMode::CAST_RINT:
+        default:
+            significand +=
+                remainder > F16_ROUNDING_THRESHOLD || (remainder == F16_ROUNDING_THRESHOLD && (significand & 1));
+            break;
+        case RoundMode::CAST_ROUND:
+            significand += remainder >= F16_ROUNDING_THRESHOLD;
+            break;
+        case RoundMode::CAST_FLOOR:
+            significand += sign && remainder != 0;
+            break;
+        case RoundMode::CAST_CEIL:
+            significand += !sign && remainder != 0;
+            break;
+        case RoundMode::CAST_TRUNC:
+            break;
+        case RoundMode::CAST_ODD:
+            significand +=
+                remainder > F16_ROUNDING_THRESHOLD || (remainder == F16_ROUNDING_THRESHOLD && !(significand & 1));
+            break;
+    }
+    if (significand == (2u << F16_MANTISSA_BITS)) {
+        significand >>= 1;
+        ++exponent;
+    }
+    unsigned code = significand < (1u << F16_MANTISSA_BITS) ?
+                        significand :
+                        ((exponent + F16_BIAS) << F16_MANTISSA_BITS) + significand - (1u << F16_MANTISSA_BITS);
+    if (code > F16_MAX_CODE) {
+        code = F16_OVERFLOW_CODE;
+    }
+    return F16FromBits(static_cast<uint16_t>(sign | code));
 }
 
 template <typename T>
@@ -198,6 +270,8 @@ inline D convert_value(S val, RoundMode mode, SaturationMode satMode = Saturatio
         }
     } else if constexpr (std::is_integral_v<S> && is_float_like_v<D>) {
         return static_cast<D>(static_cast<double>(val));
+    } else if constexpr (is_float_like_v<S> && is_half_like_v<D>) {
+        return convertFloatToHalf(static_cast<double>(val), mode);
     } else {
         return static_cast<D>(val);
     }

@@ -224,6 +224,12 @@ PTO_INTERNAL uint32_t AsyncEvent::CompletionRecordCount(const AsyncSession& sess
                        kCompletionRecordCountError;
         }
 #endif
+#ifdef PTO_RDMA_SUPPORTED
+        case DmaEngine::RDMA: {
+            AsyncCompletionRecord record{};
+            return rdma::GetRdmaCompletionRecord(handle, session, record) ? 1U : 0U;
+        }
+#endif
         default:
             return kCompletionRecordCountError;
     }
@@ -269,6 +275,13 @@ PTO_INTERNAL AsyncCompletionRecord AsyncEvent::CompletionRecordAt(const AsyncSes
             }
             return record;
         }
+#endif
+#ifdef PTO_RDMA_SUPPORTED
+        case DmaEngine::RDMA:
+            if (idx == 0U) {
+                (void)rdma::GetRdmaCompletionRecord(handle, session, record);
+            }
+            return record;
 #endif
         default:
             return record;

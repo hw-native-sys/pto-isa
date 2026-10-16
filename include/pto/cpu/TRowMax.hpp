@@ -53,6 +53,8 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 PTO_INTERNAL void TROWMAX_IMPL(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp)
 {
     (void)tmp;
+    PTO_CPU_ASSERT(src.GetValidRow() != 0 && src.GetValidCol() != 0, "TROWMAX input must be non-empty.");
+    PTO_CPU_ASSERT(src.GetValidRow() == dst.GetValidRow(), "TROWMAX preserves row count.");
     unsigned row = src.GetValidRow();
     unsigned col = src.GetValidCol();
     TRowmax_Impl<TileDataOut, TileDataIn>(dst.data(), src.data(), row, col);

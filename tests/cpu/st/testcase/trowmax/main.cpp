@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
 #include <gtest/gtest.h>
+#include <algorithm>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -95,3 +96,50 @@ TEST_F(TROWMAXTest, case_int8_64x64_64x64_64x64) { test_trowmax<int8_t, 64, 64, 
 TEST_F(TROWMAXTest, case_uint8_64x64_64x64_64x64) { test_trowmax<uint8_t, 64, 64, 64, 64>(); }
 TEST_F(TROWMAXTest, case_int64_64x64_64x64_64x64) { test_trowmax<int64_t, 64, 64, 64, 64>(); }
 TEST_F(TROWMAXTest, case_uint64_64x64_64x64_64x64) { test_trowmax<uint64_t, 64, 64, 64, 64>(); }
+
+using RowMaxValidSrc = pto::Tile<pto::TileType::Vec, float, 16, 16, pto::BLayout::RowMajor, -1, -1>;
+using RowMaxValidDst = pto::Tile<pto::TileType::Vec, float, 8, 8, pto::BLayout::RowMajor, -1, 1>;
+
+template <typename Src, typename Dst>
+void InvokeTROWMAXForValidation(Src& src, Dst& dst)
+{
+    Src tmp;
+    pto::TASSIGN(src, 0);
+    pto::TASSIGN(tmp, Src::GetSizeInBytes());
+    pto::TASSIGN(dst, Src::GetSizeInBytes() * 2);
+    std::fill_n(src.data(), Src::Numel, static_cast<typename Src::DType>(1));
+    std::fill_n(dst.data(), Dst::Numel, static_cast<typename Dst::DType>(123));
+    pto::TROWMAX(dst, src, tmp);
+}
+
+TEST_F(TROWMAXTest, case_rejects_zero_valid_rows)
+{
+    RowMaxValidSrc emptyRows(0, 16);
+    RowMaxValidDst dst(2);
+    EXPECT_DEATH(InvokeTROWMAXForValidation(emptyRows, dst), "must be non-empty");
+}
+
+TEST_F(TROWMAXTest, case_rejects_zero_valid_cols)
+{
+    RowMaxValidSrc emptyCols(4, 0);
+    RowMaxValidDst dst(4);
+    EXPECT_DEATH(InvokeTROWMAXForValidation(emptyCols, dst), "must be non-empty");
+}
+
+TEST_F(TROWMAXTest, case_rejects_mismatched_valid_rows)
+{
+    RowMaxValidSrc src(4, 16);
+    RowMaxValidDst dst(3);
+    EXPECT_DEATH(InvokeTROWMAXForValidation(src, dst), "preserves row count");
+}
+
+TEST_F(TROWMAXTest, case_accepts_non_empty_input)
+{
+    RowMaxValidSrc src(2, 16);
+    RowMaxValidDst dst(2);
+    src.data()[0] = 5.0f;
+    src.data()[1] = 9.0f;
+    src.data()[2] = 3.0f;
+    InvokeTROWMAXForValidation(src, dst);
+    EXPECT_EQ(dst.data()[0], 9.0f);
+}

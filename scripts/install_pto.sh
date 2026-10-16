@@ -28,6 +28,9 @@ CURRENT_DAY=$(date + '%d')
 
 MAX_BACKTRACK_DAYS=3
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REPO_ROOT=$(dirname "$SCRIPT_DIR")
+
 log() {
   local level="$1"
   local message="$2"
@@ -95,7 +98,19 @@ install_toolkit() {
 
 download_pto_isa_run() {
   local arch="$1"
-  local base_url="http://container-obsfs-filesystem.obs.cn-north-4.myhuaweicloud.com/package/cann/pto-isa/version_compile/master/${CURRENT_YEAR}${CURRENT_MONTH}"
+  local base_url="https://container-obsfs-filesystem.obs.cn-north-4.myhuaweicloud.com/package/cann/pto-isa/version_compile/master/${CURRENT_YEAR}${CURRENT_MONTH}"
+
+  local version_cmake="${REPO_ROOT}/version.cmake"
+  if [[ ! -f "$version_cmake" ]]; then
+    error "version.cmake not found (expected: ${version_cmake}); package version cannot be determined. Please run this script from the pto-isa repository."
+    exit 1
+  fi
+  local pto_isa_version
+  pto_isa_version=$(sed -n 's/.*set_cann_package(pto-isa VERSION "\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' "$version_cmake" | head -n 1)
+  if [[ -z "$pto_isa_version" ]]; then
+    error "cannot parse package version from ${version_cmake}: set_cann_package(pto-isa VERSION \"x.y.z\") not found."
+    exit 1
+  fi
 
   local try_dates=()
   local current=$(date -d "$CURRENT_DATE" +%s)
@@ -105,28 +120,41 @@ download_pto_isa_run() {
     try_dates+=("$target_date")
   done
 
-  local filename="cann-pto-isa_8.5.0_linux-${arch}.run"
+  local filename="cann-pto-isa_${pto_isa_version}_linux-${arch}.run"
   PTO_ISA_PKG="${DOWNLOAD_DIR}/${filename}"
 
   mkdir -p  "$DOWNLOAD_DIR"
 
+  local forbidden=0
   for date in "${try_dates[@]}"; do
     local url="${base_url}/${date}/ubuntu_${arch}/${filename}"
 
-    if [[ -f "PTO_ISA_PKG" ]]; then
+    if [[ -f "$PTO_ISA_PKG" ]]; then
       info "pto isa package exist: $PTO_ISA_PKG"
       return 0
     fi
 
     info "downloading $url"
 
-    if wget -O "$PTO_ISA_PKG" "$url" --no-check-certificate -q; then
+    local http_code
+    http_code=$(curl -sS -o "$PTO_ISA_PKG" -w '%{http_code}' --connect-timeout 15 "${url}" 2>/dev/null)
+    if [[ "$http_code" == "200" ]]; then
       info "download successful!"
       return 0
+    elif [[ "$http_code" == "403" ]]; then
+      rm -f "$PTO_ISA_PKG"
+      warn "download forbidden (403): $url"
+      forbidden=1
     else
-      warn "download failed!: $url"
+      rm -f "$PTO_ISA_PKG"
+      warn "download failed (http $http_code): $url"
     fi
   done
+
+  if [[ "$forbidden" == "1" ]]; then
+    error "PTO ISA package download was denied (HTTP 403): the OBS bucket rejects anonymous public access or the package is not published yet. Please build the package locally with './build.sh --pkg' (output in build_out/) or contact the release owner."
+    exit 1
+  fi
 
   error "please check network!"
   exit 1

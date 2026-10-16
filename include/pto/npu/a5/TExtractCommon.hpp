@@ -404,23 +404,52 @@ __tf__ PTO_INTERNAL void TExtractVecToMat(
     uint16_t indexCol, uint32_t srcValidRow, uint32_t srcValidCol, uint32_t dstValidRow, uint32_t dstValidCol)
 {
     using T = typename SrcTileData::DType;
-    constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(T);
+    constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
+    // Shape and valid columns are in logical elements. FP4 packs two elements
+    // per T, so pointer/DMA calculations convert to packed T units separately.
+    constexpr int32_t c0Size = isFp4Type ? B4_C0_SIZE : BLOCK_BYTE_SIZE / sizeof(T);
+    constexpr uint32_t logicalColsPerT = isFp4Type ? 2 : 1;
     uint32_t offset = SrcTileData::Rows * c0Size * (indexCol / c0Size) + (indexRow * c0Size + (indexCol % c0Size));
+    offset /= logicalColsPerT;
     if constexpr (SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) {
-        offset = indexRow * srcValidCol + indexCol;
+        offset = indexRow * (srcValidCol / logicalColsPerT) + indexCol / logicalColsPerT;
     }
 
     __ubuf__ T* srcPtr = (__ubuf__ T*)__cce_get_tile_ptr(src) + offset;
     __cbuf__ T* dstPtr = (__cbuf__ T*)__cce_get_tile_ptr(dst);
-    if constexpr (SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) {
-        uint16_t blockLen = dstValidRow * dstValidCol * sizeof(T) / BLOCK_BYTE_SIZE;
-        // dst, src, sid, nBurst, lenBurst, srcStride, dstStride
-        copy_ubuf_to_cbuf(dstPtr, srcPtr, 0, 1, blockLen, 0, 0);
-    } else if constexpr (!SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::RowMajor)) {
-        uint16_t blockCout = CeilDivision(dstValidCol, c0Size);
-        uint32_t alignRow = (dstValidRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
-        uint16_t blockLen = alignRow * c0Size * sizeof(T) / BLOCK_BYTE_SIZE;
-        constexpr uint16_t srcStride = SrcTileData::Rows - DstTileData::Rows;
+    if constexpr (SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox)) { // support nd
+        constexpr uint32_t srcRowStrideT = SrcTileData::RowStride / logicalColsPerT;
+        const uint32_t dstValidColT = dstValidCol / logicalColsPerT;
+        const uint32_t rowBytes = isFp4Type ? dstValidColT * sizeof(T) : dstValidCol * sizeof(T);
+        const uint32_t totalBytes = dstValidRow * rowBytes;
+        PTO_ASSERT(
+            indexRow + dstValidRow <= srcValidRow, "TEXTRACT ND Vec->Mat: indexRow + dstValidRow exceeds srcValidRow!");
+        PTO_ASSERT(
+            indexCol + dstValidCol <= srcValidCol, "TEXTRACT ND Vec->Mat: indexCol + dstValidCol exceeds srcValidCol!");
+        PTO_ASSERT(
+            indexCol * sizeof(T) % (logicalColsPerT * BLOCK_BYTE_SIZE) == 0,
+            "TEXTRACT ND Vec->Mat: indexCol must be 32-byte aligned!");
+        PTO_ASSERT(
+            rowBytes % BLOCK_BYTE_SIZE == 0 && (srcRowStrideT - dstValidColT) * sizeof(T) % BLOCK_BYTE_SIZE == 0,
+            "TEXTRACT ND Vec->Mat: validCol and source row gap must be 32-byte aligned!");
+        if (dstValidColT == srcRowStrideT && totalBytes >= BLOCK_BYTE_SIZE) {
+            uint16_t blockLen = static_cast<uint16_t>(
+                isFp4Type ? dstValidRow * dstValidCol / B4_C0_SIZE :
+                            dstValidRow * dstValidCol * sizeof(T) / BLOCK_BYTE_SIZE);
+            // dst, src, sid, nBurst, lenBurst, srcStride, dstStride
+            copy_ubuf_to_cbuf(dstPtr, srcPtr, 0, 1, blockLen, 0, 0);
+        } else {
+            uint16_t rowBurstLen = static_cast<uint16_t>(rowBytes / BLOCK_BYTE_SIZE);
+            uint16_t srcGap = static_cast<uint16_t>((srcRowStrideT - dstValidColT) * sizeof(T) / BLOCK_BYTE_SIZE);
+            copy_ubuf_to_cbuf(dstPtr, srcPtr, 0, static_cast<uint16_t>(dstValidRow), rowBurstLen, srcGap, 0);
+        }
+    } else if constexpr (!SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::RowMajor)) { // nz
+        uint16_t blockCout = static_cast<uint16_t>(CeilDivision(dstValidCol, c0Size));
+        const uint32_t alignRow = (dstValidRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
+        uint16_t blockLen = static_cast<uint16_t>(
+            isFp4Type ? alignRow * c0Size / (logicalColsPerT * BLOCK_BYTE_SIZE) :
+                        alignRow * c0Size * sizeof(T) / BLOCK_BYTE_SIZE);
+        constexpr uint16_t srcStride = static_cast<uint16_t>(SrcTileData::Rows - DstTileData::Rows);
         copy_ubuf_to_cbuf(dstPtr, srcPtr, 0, blockCout, blockLen, srcStride, 0);
     }
 }

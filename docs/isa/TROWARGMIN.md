@@ -55,7 +55,8 @@ PTO_INST RecordEvent TROWARGMIN(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, 
         - ND layout whose valid column count is 1.
 - When output both value and index:
     - `dstVal`, `dstIdx`, `src` must be `TileType::Vec`.
-    - Supported destination element types: `uint32_t`, `int32_t`.
+    - `dstVal` element type must match `src`.
+    - `dstIdx` element type: `int32_t` or `uint32_t` for 4-byte sources; 2-byte sources may also use `int16_t` or `uint16_t` on NPU. CPU-SIM accepts only `int32_t` or `uint32_t` indices.
     - Runtime checks follow the shared row-reduce check path:
         - `src.GetValidRow() != 0`
         - `src.GetValidCol() != 0`

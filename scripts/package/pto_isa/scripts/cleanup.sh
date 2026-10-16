@@ -11,4 +11,15 @@
 
 set -e
 
-rm -rf $(pwd)
+# cleanup.sh is expected to run with CWD set to the install directory (package
+# manager <cleanup> hook). Resolve the physical path first and refuse to remove
+# anything when it is empty, "/" or the user's home, so an accidental run from
+# an arbitrary directory cannot recursively wipe user data.
+target_dir="$(pwd -P)"
+if [ -z "${target_dir}" ] || [ "${target_dir}" = "/" ] || [ "${target_dir}" = "${HOME}" ]; then
+    echo "[ERROR] Refuse to clean unsafe directory: ${target_dir}" >&2
+    exit 1
+fi
+
+echo "[INFO] Cleaning up install directory: ${target_dir}"
+rm -rf -- "${target_dir}"

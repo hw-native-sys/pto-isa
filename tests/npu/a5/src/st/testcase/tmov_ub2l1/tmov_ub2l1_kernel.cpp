@@ -37,10 +37,10 @@ AICORE void runTmovUb2l1(__gm__ T* out, __gm__ T* src)
     using SrcStridDim5 = pto::Stride<1, 1, 1, Cols, 1>;
     using SrcGlobalData = GlobalTensor<T, SrcShapeDim5, SrcStridDim5>;
 
-    constexpr uint32_t c0Size = CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T));
+    constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
+    constexpr uint32_t c0Size = isFp4Type ? B4_C0_SIZE : CUBE_BLOCK_SIZE / (FRACTAL_NZ_ROW * sizeof(T));
     using OutShapeDim5 = pto::Shape<1, ValidCols / c0Size, ValidRows / FRACTAL_NZ_ROW, FRACTAL_NZ_ROW, c0Size>;
-    using OutStridDim5 =
-        pto::Stride<Cols / c0Size * c0Size * ValidRows, ValidRows * c0Size, FRACTAL_NZ_ROW * c0Size, c0Size, 1>;
+    using OutStridDim5 = pto::Stride<Cols * ValidRows, ValidRows * c0Size, FRACTAL_NZ_ROW * c0Size, c0Size, 1>;
     using OutGlobalData = GlobalTensor<T, OutShapeDim5, OutStridDim5, Layout::NZ>;
 
     using SrcTileData = Tile<TileType::Vec, T, Rows, Cols, BLayout::RowMajor, -1, -1>;
@@ -67,7 +67,8 @@ AICORE void runTmovUb2l1(__gm__ T* out, __gm__ T* src)
     OutGlobalData dstGlobal(out);
     uint8_t syncId = 0;
     uint8_t eventIdNum = 16;
-    uint16_t blockLen = ValidRows * ValidCols * sizeof(T) / BLOCK_BYTE_SIZE;
+    uint16_t blockLen =
+        isFp4Type ? ValidRows * ValidCols / B4_C0_SIZE : ValidRows * ValidCols * sizeof(T) / BLOCK_BYTE_SIZE;
 
 #if defined(__DAV_VEC__)
     TLOAD(srcTile, srcGlobal); // gm->ub
@@ -145,6 +146,10 @@ void launchTmovUb2l1(uint64_t* out, uint64_t* src, void* stream)
         launchTmovUb2l1<float, 128, 128, 128, 64, 64, 64, 64><<<1, nullptr, stream>>>(out, src);
     } else if constexpr (testKey == 9) {
         launchTmovUb2l1<int8_t, 256, 256, 256, 32, 32, 224, 224><<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 10) {
+        launchTmovUb2l1<float4_e2m1x2_t, 16, 128, 17><<<1, nullptr, stream>>>(out, src);
+    } else if constexpr (testKey == 11) {
+        launchTmovUb2l1<float4_e1m2x2_t, 64, 192, 64, 32, 128, 32, 64><<<1, nullptr, stream>>>(out, src);
     }
     cout << "launchTmovUb2l1 end!" << endl;
 }
@@ -158,3 +163,5 @@ template void launchTmovUb2l1<6>(uint64_t* out, uint64_t* src, void* stream);
 template void launchTmovUb2l1<7>(uint64_t* out, uint64_t* src, void* stream);
 template void launchTmovUb2l1<8>(uint64_t* out, uint64_t* src, void* stream);
 template void launchTmovUb2l1<9>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<10>(uint64_t* out, uint64_t* src, void* stream);
+template void launchTmovUb2l1<11>(uint64_t* out, uint64_t* src, void* stream);

@@ -24,7 +24,7 @@ template <typename DstTileData, typename SrcTileData, QuantMode_t quantMode, boo
 PTO_INTERNAL void TInsert_Impl(
     DstTileData& dst, SrcTileData& src, uint32_t idxRow, uint32_t idxCol, const std::vector<uint64_t>& scalars = {})
 {
-    assert(src.GetValidRow() + idxRow <= dst.GetValidRow() && src.GetValidCol() + idxCol <= dst.GetValidCol());
+    assert(src.GetValidRow() + idxRow <= DstTileData::Rows && src.GetValidCol() + idxCol <= DstTileData::Cols);
 
     using D = typename DstTileData::DType;
     using S = typename SrcTileData::DType;

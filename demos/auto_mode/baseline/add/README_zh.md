@@ -103,6 +103,8 @@ https://gitcode.com/ascend/pytorch#%E5%AE%89%E8%A3%85
 python3 -m pip install -r requirements.txt
 ```
 
+> **版本配套说明：** 本目录 `requirements.txt` 锁定的 `torch==2.8.0` / `torch-npu==2.8.0.post2` 对应 CANN 8.x 的配套版本；仓库 master 开发线配套的是 CANN 9.x。若你的环境使用 CANN 9.x，请按上述 `torch_npu` 官方安装指南选择与 CANN 版本配套的 torch/torch-npu 组合后再执行安装，否则在 kernel 执行阶段可能出现崩溃（如 `Trace/breakpoint trap (core dumped)`）且无有效报错信息。
+
 ### 3.1 设置目标 SoC
 
 编辑 `auto_mode/demos/baseline/add/CMakeLists.txt`，把 `SOC_VERSION` 设置为目标芯片（例如 A2/A3 使用 `Ascend910B1`）：

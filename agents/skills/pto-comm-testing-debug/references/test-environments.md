@@ -42,8 +42,9 @@ python3 tests/run_cpu.py --testcase tgather --gtest_filter 'TGatherTest.*'
 ```bash
 python3 tests/script/run_st.py -r npu -v a3 -t tput -g TPutTest.*
 
-# 运行所有通信 ST
-python3 tests/script/run_st.py -r npu -v a3 --comm
+# 运行通信 ST：comm 模式由 `-t comm/<用例名>` 选择，用例名必填（留空会报 `comm/ 后必须指定用例名`）；
+# 脚本会自动按 2/4/8 rank 分轮执行，`-n` 可限制最大 rank 数
+python3 tests/script/run_st.py -r npu -v a3 -t comm/tbroadcast
 ```
 
 ### 算子级测试

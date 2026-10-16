@@ -160,7 +160,6 @@ __global__ AICORE void runTMOV_nz2nz(__gm__ outType* out, __gm__ aType* src0, __
 {
     constexpr uint16_t sGRows_ = 16;
     constexpr uint16_t sGCols_ = CeilDiv<uint16_t>(512, sGRows_ * sizeof(outType));
-
     constexpr int copyOutM = isInsert ? dstRow : (validM - indexRow);
     constexpr int copyOutN = isInsert ? dstCol : (validN - indexCol);
     constexpr uint16_t kGRows_ = CeilDiv<uint16_t>(copyOutM, sGRows_);
@@ -171,6 +170,12 @@ __global__ AICORE void runTMOV_nz2nz(__gm__ outType* out, __gm__ aType* src0, __
     using DynStridDim5 = pto::Stride<gStride0, gStride1, sGCols_ * sGRows_, sGCols_, 1>;
     using GlobalDataOut = GlobalTensor<outType, DynShapeDim5, DynStridDim5, Layout::NZ>;
     GlobalDataOut dstGlobal(out);
+
+    // When the unit flag is enabled, if the computation block size of TMATMUL
+    // differs from the move-out block size of FIXPIPE, the unit flag must be reset
+    uint64_t config = 0;
+    config = config | (static_cast<uint64_t>(1) << 63); // FPC[63], clear UnitFlag.
+    set_fpc(config);
 
     using AccTile = TileAcc<CType<aType>, M, N, -1, -1>;
     AccTile cTile(validM, validN);
@@ -238,6 +243,8 @@ __global__ AICORE void runTMOV_nz2nz(__gm__ outType* out, __gm__ aType* src0, __
             }
         }
     }
+
+    set_fpc(config); // clear UnitFlag.
 #ifndef __PTO_AUTO__
     set_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
@@ -273,6 +280,12 @@ __global__ AICORE void runVectorQuantTMOV_nz2nz(
     using AccTile = TileAcc<CType<aType>, M, N, -1, -1>;
     AccTile cTile(validM, validN);
     TASSIGN(cTile, 0x0);
+
+    // When the unit flag is enabled, if the computation block size of TMATMUL
+    // differs from the move-out block size of FIXPIPE, the unit flag must be reset
+    uint64_t config = 0;
+    config = config | (static_cast<uint64_t>(1) << 63); // FPC[63], clear UnitFlag.
+    set_fpc(config);
 
     runMATMULFB<aType, bType, fbType, M, K, N, validM, validK, validN, accPhase>(src0, src1, src2, cTile, fbMatTile);
 
@@ -324,6 +337,9 @@ __global__ AICORE void runVectorQuantTMOV_nz2nz(
             }
         }
     }
+
+    set_fpc(config); // clear UnitFlag.
+
 #ifndef __PTO_AUTO_
     set_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
@@ -400,7 +416,6 @@ __global__ AICORE void runScalarQuantTMOV_nz2nz(
             TINSERT<DstTileData, AccTile>(dstTileData, cTile, preQuantScalar, indexRow, indexCol);
         }
     }
-
 #ifndef __PTO_AUTO__
     set_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_FIX, PIPE_MTE3, EVENT_ID0);

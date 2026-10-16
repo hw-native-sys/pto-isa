@@ -852,6 +852,44 @@ AICORE inline bool TestEvent(uint64_t handle, const RdmaEventContext& ctx)
     return terminal;
 }
 
+// Publish the last expected completion's CQE as a record a non-AICore consumer can poll with one
+// read: the address it must watch and the owner value that marks the slot done. `expected` is the
+// value a finished slot carries, which is the lap parity inverted -- CheckCqeOwner reports ready
+// when the slot owner DIFFERS from that parity. Publishing the parity itself would invert the
+// predicate for every consumer.
+AICORE inline bool GetRdmaCompletionRecord(uint64_t handle, const RdmaEventContext& ctx, AsyncCompletionRecord& record)
+{
+    if (handle == 0 || IsErrorHandle(handle)) {
+        return false;
+    }
+    uint32_t destRankId = 0;
+    uint32_t curHead = 0;
+    DecodeHandle(handle, destRankId, curHead);
+    if (curHead == 0U) {
+        return false;
+    }
+
+    __gm__ RdmaInfo* info = (__gm__ RdmaInfo*)ctx.contextGm;
+    if (!IsWorkspaceHeaderValid(info)) {
+        return false;
+    }
+    uint32_t qpNum = info->qpNum;
+    __gm__ RoceCqCtx* cqCtx =
+        (__gm__ RoceCqCtx*)(info->scqPtr + ((uint64_t)destRankId * qpNum + 0) * sizeof(RoceCqCtx));
+
+    uint32_t cqeSize = cqCtx->cqeSize == 0 ? kHns1825DefaultCqeSize : cqCtx->cqeSize;
+    uint32_t cqRing = cqCtx->depth;
+    if (cqCtx->bufAddr == 0U || cqRing == 0U) {
+        return false;
+    }
+
+    const uint32_t lastIdx = curHead - 1U;
+    record.addr = reinterpret_cast<__gm__ uint8_t*>(cqCtx->bufAddr + (uint64_t)(lastIdx & (cqRing - 1U)) * cqeSize);
+    record.expected = static_cast<uint64_t>(((lastIdx & cqRing) == 0U) ? 0U : 1U);
+    record.kind = CompletionKind::RDMA_HNS1825_CQE;
+    return true;
+}
+
 } // namespace hns_1825
 } // namespace rdma
 } // namespace comm
