@@ -112,6 +112,37 @@ __global__ AICORE void runRegression(__gm__ uint8_t* dst, __gm__ uint8_t* src)
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     TSTORE(output, rawOutput);
 }
+
+__global__ AICORE void runBulkPrimitive(__gm__ uint8_t* dst, __gm__ uint8_t* src, unsigned sourceOffset, bool rotation)
+{
+    constexpr int srcBytes = 768;
+    constexpr int registerBytes = 256;
+    constexpr int dstBytes = registerBytes + 2 * kGuardBytes;
+    Tile<TileType::Vec, uint8_t, 1, srcBytes> rawInput;
+    Tile<TileType::Vec, uint8_t, 1, dstBytes> rawOutput;
+    TASSIGN(rawInput, 0);
+    TASSIGN(rawOutput, srcBytes);
+    GlobalTensor<uint8_t, Shape<1, 1, 1, 1, srcBytes>, pto::Stride<1, 1, 1, srcBytes, 1>> input(src);
+    GlobalTensor<uint8_t, Shape<1, 1, 1, 1, dstBytes>, pto::Stride<1, 1, 1, dstBytes, 1>> output(dst);
+    TLOAD(rawInput, input);
+    TLOAD(rawOutput, output);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    __ubuf__ uint8_t* srcPtr = rawInput.data();
+    __ubuf__ uint8_t* dstPtr = rawOutput.data();
+    __VEC_SCOPE__
+    {
+        MaskReg fullMask = pset_b8(PAT_ALL);
+        RegTensor<uint8_t> sourceRegister, index, result;
+        vlds(sourceRegister, srcPtr, sourceOffset, NORM);
+        vci((RegTensor<int8_t>&)index, static_cast<int8_t>(rotation ? -128 : 0), INC_ORDER);
+        vselr(result, sourceRegister, index);
+        vsts(result, dstPtr, kGuardBytes, NORM_B8, fullMask);
+    }
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    TSTORE(output, rawOutput);
+}
 } // namespace
 
 void launchFp4Lut(
@@ -135,4 +166,9 @@ void launchFp4LutRegression(int pair, unsigned char* dst, unsigned char* src, vo
     } else {
         runRegression<false><<<1, nullptr, stream>>>(dst, src);
     }
+}
+
+void launchFp4LutBulkPrimitive(unsigned char* dst, unsigned char* src, int sourceOffset, bool rotation, void* stream)
+{
+    runBulkPrimitive<<<1, nullptr, stream>>>(dst, src, sourceOffset, rotation);
 }

@@ -2864,6 +2864,15 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVTFp4E2M1ToE4
     uint16_t rowCount = static_cast<uint16_t>(validRows);
     uint16_t registerCount = static_cast<uint16_t>(registerChunks);
     uint16_t residualCount = static_cast<uint16_t>(residualChunks);
+    uint16_t bulkGroupCount = 0;
+    uint16_t processedRows = 0;
+    if constexpr (sourceRowBytes == 128 || sourceRowBytes == 64) {
+        constexpr uint32_t rowsPerGroup = registerBytes / sourceRowBytes;
+        if (validCols == TileDataS::Cols) {
+            bulkGroupCount = static_cast<uint16_t>(validRows / rowsPerGroup);
+            processedRows = static_cast<uint16_t>(static_cast<uint32_t>(bulkGroupCount) * rowsPerGroup);
+        }
+    }
     uint32_t panelRows = TileDataD::Rows;
     if constexpr (TileDataD::SFractal != SLayout::NoneBox && TileDataD::Compact == CompactMode::Normal) {
         panelRows = CeilDivision(validRows, static_cast<uint32_t>(FRACTAL_NZ_ROW)) * FRACTAL_NZ_ROW;
@@ -2875,7 +2884,41 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVTFp4E2M1ToE4
         MaskReg fullMask = pset_b8(PAT_ALL);
         RegTensor<uint8_t> table;
         buildFp4E2M1ToE4M3Lut(table, fullMask);
-        for (uint16_t row = 0; row < rowCount; ++row) {
+        if constexpr (sourceRowBytes == 128 || sourceRowBytes == 64) {
+            constexpr uint32_t rowsPerGroup = registerBytes / sourceRowBytes;
+            RegTensor<uint8_t> rotate128Index;
+            if constexpr (sourceRowBytes == 64) {
+                vci((RegTensor<int8_t>&)rotate128Index, static_cast<int8_t>(-128), INC_ORDER);
+            }
+            for (uint16_t group = 0; group < bulkGroupCount; ++group) {
+                RegTensor<uint8_t> packed, highIndex, low, high, out0, out1;
+                uint32_t row = static_cast<uint32_t>(group) * rowsPerGroup;
+                // Source byte = row * sourceRowBytes. A group contains exactly
+                // 256 bytes within complete valid rows; no load beyond the group.
+                uint32_t sourceOffset = row * sourceRowBytes;
+                vlds(packed, srcPtr, sourceOffset, NORM);
+                vshrs(highIndex, packed, 4, fullMask, MODE_ZEROING);
+                vselr(low, table, packed);
+                vselr(high, table, highIndex);
+                vintlv(out0, out1, low, high);
+                // The helper retains ND byte = row * destination physical Cols + column;
+                // NZ byte = (column/32) * panelRows * 32 + row * 32 + column%32.
+                if constexpr (sourceRowBytes == 128) {
+                    storeFp4E4M3Register<TileDataD>(out0, dstPtr, row, 0, panelRows, registerBytes);
+                    storeFp4E4M3Register<TileDataD>(out1, dstPtr, row + 1, 0, panelRows, registerBytes);
+                } else {
+                    RegTensor<uint8_t> upper0, upper1;
+                    vselr(upper0, out0, rotate128Index);
+                    vselr(upper1, out1, rotate128Index);
+                    constexpr uint32_t rowOutputBytes = sourceRowBytes * 2;
+                    storeFp4E4M3Register<TileDataD>(out0, dstPtr, row, 0, panelRows, rowOutputBytes);
+                    storeFp4E4M3Register<TileDataD>(upper0, dstPtr, row + 1, 0, panelRows, rowOutputBytes);
+                    storeFp4E4M3Register<TileDataD>(out1, dstPtr, row + 2, 0, panelRows, rowOutputBytes);
+                    storeFp4E4M3Register<TileDataD>(upper1, dstPtr, row + 3, 0, panelRows, rowOutputBytes);
+                }
+            }
+        }
+        for (uint16_t row = processedRows; row < rowCount; ++row) {
             for (uint16_t chunk = 0; chunk < registerCount; ++chunk) {
                 RegTensor<uint8_t> packed, highIndex, low, high, out0, out1;
                 uint32_t packedColumn = static_cast<uint32_t>(chunk) * registerBytes;

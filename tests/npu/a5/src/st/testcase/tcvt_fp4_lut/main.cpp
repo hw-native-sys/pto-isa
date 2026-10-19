@@ -22,6 +22,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace {
 constexpr size_t kGuardBytes = 32;
 constexpr uint8_t kCanary = 0xA5;
+constexpr std::array<Fp4LutCaseId, 6> kBulkRowCases = {Fp4LutCaseId::Bulk64ND,        Fp4LutCaseId::Bulk64NZ,
+                                                       Fp4LutCaseId::Bulk64CompactNZ, Fp4LutCaseId::Bulk128ND,
+                                                       Fp4LutCaseId::Bulk128NZ,       Fp4LutCaseId::Bulk128CompactNZ};
 
 float decodeFp4(uint8_t code)
 {
@@ -105,7 +108,7 @@ protected:
     }
     void runBytes(
         int caseId, std::vector<uint8_t>& source, const std::vector<uint8_t>& expected, int rows, int cols, int round,
-        int api, int regressionPair = -1)
+        int api, int regressionPair = -1, int primitiveSourceOffset = 0, bool primitiveRotation = false)
     {
         DeviceBuffer input, output;
         ASSERT_EQ(input.allocate(source.size()), ACL_SUCCESS) << "aclrtMalloc input";
@@ -120,6 +123,8 @@ protected:
         ASSERT_EQ(status, ACL_SUCCESS) << "aclrtMemcpy output H2D";
         if (regressionPair < 0) {
             launchFp4Lut(caseId, output.data, input.data, rows, cols, round, api, stream);
+        } else if (regressionPair == 2) {
+            launchFp4LutBulkPrimitive(output.data, input.data, primitiveSourceOffset, primitiveRotation, stream);
         } else {
             launchFp4LutRegression(regressionPair, output.data, input.data, stream);
         }
@@ -156,6 +161,11 @@ protected:
                 source[row * sourcePitch + col] = static_cast<uint8_t>(row * 73 + col * 37 + (col / 256) * 11);
             }
         }
+        if (id >= static_cast<int>(Fp4LutCaseId::Bulk64ND)) {
+            for (size_t byte = 0; byte < source.size(); ++byte) {
+                source[byte] = static_cast<uint8_t>(byte * 37 + (byte / 256) * 11);
+            }
+        }
         std::vector<uint8_t> expected(test.destinationRows * test.destinationCols + 2 * kGuardBytes, kCanary);
         size_t panelRows = test.compact ? ((rows + 15) / 16) * 16 : test.destinationRows;
         std::array<bool, 256> seen{};
@@ -170,7 +180,10 @@ protected:
                 expected[kGuardBytes + physical] = encodeE4M3(decodeFp4(nibble));
             }
         }
-        if (id == static_cast<int>(Fp4LutCaseId::MainND) || id == static_cast<int>(Fp4LutCaseId::MainNZ)) {
+        bool fullBulkFixture =
+            id >= static_cast<int>(Fp4LutCaseId::Bulk64ND) && rows == test.validRows && cols == test.validCols;
+        if (id == static_cast<int>(Fp4LutCaseId::MainND) || id == static_cast<int>(Fp4LutCaseId::MainNZ) ||
+            fullBulkFixture) {
             for (int packed = 0; packed < 256; ++packed) {
                 ASSERT_TRUE(seen[packed]) << "Missing packed FP4 byte " << packed;
             }
@@ -196,6 +209,41 @@ TEST_F(Fp4LutTest, PublicOverloadsRoundSaturation)
         for (int round = 0; round <= 6; ++round) {
             for (int api = 0; api < 6; ++api) {
                 ASSERT_NO_FATAL_FAILURE(runCase(layout, round, api));
+            }
+        }
+    }
+}
+
+TEST_F(Fp4LutTest, BulkRowsEveryValidRowCount)
+{
+    for (auto id : kBulkRowCases) {
+        const auto& test = kFp4LutCases[static_cast<int>(id)];
+        for (int rows = 0; rows <= test.sourceRows; ++rows) {
+            SCOPED_TRACE(testing::Message() << "valid rows " << rows);
+            ASSERT_NO_FATAL_FAILURE(runCase(static_cast<int>(id), 1, 0, rows, test.sourceCols));
+        }
+    }
+}
+
+TEST_F(Fp4LutTest, BulkRowsPartialColumns)
+{
+    for (auto id : kBulkRowCases) {
+        const auto& test = kFp4LutCases[static_cast<int>(id)];
+        for (int rows : {1, 3, 4, 17, 20}) {
+            for (int cols : {0, 1, 63, test.sourceCols - 1}) {
+                SCOPED_TRACE(testing::Message() << "valid rows " << rows << ", valid columns " << cols);
+                ASSERT_NO_FATAL_FAILURE(runCase(static_cast<int>(id), 1, 0, rows, cols));
+            }
+        }
+    }
+}
+
+TEST_F(Fp4LutTest, BulkRowsPublicOverloadsRoundSaturation)
+{
+    for (auto id : {Fp4LutCaseId::Bulk64CompactNZ, Fp4LutCaseId::Bulk128ND}) {
+        for (int round = 0; round <= 6; ++round) {
+            for (int api = 0; api < 6; ++api) {
+                ASSERT_NO_FATAL_FAILURE(runCase(static_cast<int>(id), round, api));
             }
         }
     }
@@ -247,5 +295,28 @@ TEST_F(Fp4LutTest, ExistingFp32ToFp8)
         expected[kGuardBytes + col] = encodeE4M3(value);
     }
     runBytes(-1, source, expected, 1, columns, 1, 0, 1);
+}
+
+TEST_F(Fp4LutTest, BulkPrimitiveQualification)
+{
+    constexpr size_t sourceBytes = 768;
+    constexpr size_t registerBytes = 256;
+    for (int sourceOffset : {0, 32, 64, 128}) {
+        for (bool rotation : {false, true}) {
+            SCOPED_TRACE(
+                testing::Message() << "source offset " << sourceOffset << ", mode "
+                                   << (rotation ? "rotate128" : "identity"));
+            std::vector<uint8_t> source(sourceBytes);
+            for (size_t byte = 0; byte < source.size(); ++byte) {
+                source[byte] = static_cast<uint8_t>(byte);
+            }
+            std::vector<uint8_t> expected(registerBytes + 2 * kGuardBytes, kCanary);
+            for (size_t byte = 0; byte < registerBytes; ++byte) {
+                size_t index = (byte + (rotation ? 128 : 0)) % registerBytes;
+                expected[kGuardBytes + byte] = source[sourceOffset + index];
+            }
+            ASSERT_NO_FATAL_FAILURE(runBytes(-1, source, expected, 1, registerBytes, 1, 0, 2, sourceOffset, rotation));
+        }
+    }
 }
 } // namespace

@@ -31,7 +31,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
     M(WideND, 3, 1088, 5, 1152, 2, 1025, false, false, false)           \
     M(WideNZ, 3, 1088, 32, 1152, 2, 1025, true, false, false)           \
     M(SecondRegisterTailND, 2, 512, 4, 544, 1, 257, false, false, true) \
-    M(SecondRegisterTailNZ, 2, 512, 32, 544, 1, 257, true, false, true)
+    M(SecondRegisterTailNZ, 2, 512, 32, 544, 1, 257, true, false, true) \
+    M(Bulk64ND, 20, 128, 32, 192, 20, 128, false, false, true)          \
+    M(Bulk64NZ, 20, 128, 32, 192, 20, 128, true, false, true)           \
+    M(Bulk64CompactNZ, 20, 128, 32, 192, 20, 128, true, true, true)     \
+    M(Bulk128ND, 20, 256, 32, 320, 20, 256, false, false, true)         \
+    M(Bulk128NZ, 20, 256, 32, 320, 20, 256, true, false, true)          \
+    M(Bulk128CompactNZ, 20, 256, 32, 320, 20, 256, true, true, true)
 
 struct Fp4LutCase {
     const char* name;
@@ -60,5 +66,6 @@ enum class Fp4LutCaseId {
 void launchFp4Lut(
     int caseId, unsigned char* dst, unsigned char* src, int rows, int cols, int round, int api, void* stream);
 void launchFp4LutRegression(int pair, unsigned char* dst, unsigned char* src, void* stream);
+void launchFp4LutBulkPrimitive(unsigned char* dst, unsigned char* src, int sourceOffset, bool rotation, void* stream);
 
 #endif
