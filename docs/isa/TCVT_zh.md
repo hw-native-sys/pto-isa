@@ -58,6 +58,18 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
       向零方向指 `CAST_TRUNC`、正数 `CAST_FLOOR` 或负数 `CAST_CEIL`。
       E4M3 的 `0x7f`/`0xff` 解码为 NaN，E5M2 区分无穷大与 NaN。
       E8M0 转换及单参数 MXType 编码构造函数保持不变。
+- **A5 FP4 E2M1 到 FP8 E4M3**:
+  - 直接转换 `float4_e2m1x2_t -> float8_e4m3_t` 仅在 A5 支持。所有 `RoundMode` 及两种饱和模式均精确
+    保留数值（包括负零）；带临时 Tile 的重载行为相同，且不使用临时存储。
+  - 源为 `Vec`、RowMajor/NoneBox、`CompactMode::Null`；物理逻辑列数至少为 64，且为 64 的倍数。
+    FP4 的列数及有效列数按 nibble 计数，每个物理行占 `Cols / 2` 字节。
+  - 目标为 `Vec` ND（RowMajor/NoneBox、Null）或标准 512 字节 NZ（ColMajor/RowMajor 分形、Null 或 Normal）。
+    源和目标的有效行数及逻辑有效列数必须相同，支持部分及动态有效区；两者物理尺寸可不同。无效输出字节保持原值。
+  - NZ 物理行数须为 16 的倍数。逻辑坐标 `(r,c)` 的字节偏移为
+    `(c / 32) * panelRows * 32 + r * 32 + c % 32`；Null 使用物理 `Rows`，Normal 使用
+    `ceil(validRows / 16) * 16`，与 Vec 到 Mat 的 NZ 传输一致。`RowPlusOne` 会得到不支持的编译诊断。
+  - 此类型对通过寄存器字节 LUT 直接写入 ND/NZ，不分配显式 UB 表、索引 Tile 或 ND 中间 Tile。
+    本扩展不为 A2/A3 或 CPU_SIM 增加 FP4 到 FP8 的实现。
 - **临时Tile**:
   - **CPU_SIM**：两个带 `tmp` 的重载与各自对应的不带 `tmp` 重载结果一致。CPU_SIM 为保持源码兼容而接受
     `tmp`，但不会调用 `tmp.data()` 或访问其存储。跨后端 kernel 仍须按照目标 NPU 后端的要求声明并分配
@@ -128,7 +140,7 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
 | FP8_E5M2 | N/A | FP32 | Ascend 950PR/Ascend 950DT独有源类型 |
 | H8 | N/A | FP32 | Ascend 950PR/Ascend 950DT独有源类型 |
 | FP4_E1M2X2 | N/A | BF16 | Ascend 950PR/Ascend 950DT独有源类型 |
-| FP4_E2M1X2 | N/A | BF16 | Ascend 950PR/Ascend 950DT独有源类型 |
+| FP4_E2M1X2 | N/A | BF16, FP8_E4M3 | Ascend 950PR/Ascend 950DT独有源类型 |
 
 说明：
 

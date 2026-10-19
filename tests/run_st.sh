@@ -934,6 +934,8 @@ if [ "$ENABLE_A5" = "true" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolsum -g TCOLSUMTest.case01
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolprod -g TCOLPRODTest.case01
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt -g TCVTTest.case_fp16_fp32_2x64
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt_fp4_lut
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt_fp4_lut_v2c
       python3 tests/script/run_st.py $ARGS -w -v a5 -t textract -g TEXTRACTTest.case1
       python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec -g TMOVTest.case_nz2nd_sc_quant_1
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad -g TFILLPADTest.case_float_GT_128_127_VT_128_128_BLK1_PADMAX_PADMAX
@@ -1148,6 +1150,8 @@ if [ "$ENABLE_A5" = "true" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolsum
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tcolprod
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt_fp4_lut
+      python3 tests/script/run_st.py $ARGS -w -v a5 -t tcvt_fp4_lut_v2c
       python3 tests/script/run_st.py $ARGS -w -v a5 -t textract
       python3 tests/script/run_st.py $ARGS -w -v a5 -t textract_acc2vec
       python3 tests/script/run_st.py $ARGS -w -v a5 -t tfillpad

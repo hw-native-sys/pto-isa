@@ -8,6 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
+#include <fstream>
+
 #include "test_common.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
@@ -52,10 +54,152 @@ void launchTCVT(D* dst, S* src, void* stream);
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 void launchTCVTSaturationTest(D* dstSaturated, D* dstTruncated, D* dstDefault, S* src, void* stream);
 
+namespace {
+bool checkAcl(aclError status, const char* operation, bool& healthy)
+{
+    if (status != ACL_SUCCESS) {
+        healthy = false;
+        ADD_FAILURE() << operation << ": ACL error " << status << "; stopping device work";
+        return false;
+    }
+    return true;
+}
+
+bool checkFile(bool success, const char* operation, const std::string& path, bool& healthy)
+{
+    if (!success) {
+        healthy = false;
+        ADD_FAILURE() << operation << ": " << path << "; stopping device work";
+    }
+    return success;
+}
+
+bool readFileExact(const std::string& path, size_t bytes, void* buffer, bool& healthy)
+{
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!checkFile(file.is_open(), "open for reading", path, healthy)) {
+        return false;
+    }
+    bool success = checkFile(file.tellg() == static_cast<std::streamoff>(bytes), "read size", path, healthy);
+    if (success) {
+        file.seekg(0, std::ios::beg);
+        file.read(static_cast<char*>(buffer), static_cast<std::streamsize>(bytes));
+        success = checkFile(file.good() && file.gcount() == static_cast<std::streamsize>(bytes), "read", path, healthy);
+    }
+    file.clear();
+    file.close();
+    bool closed = checkFile(!file.fail(), "close after reading", path, healthy);
+    return success && closed;
+}
+
+bool writeFileExact(const std::string& path, const void* buffer, size_t bytes, bool& healthy)
+{
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if (!checkFile(file.is_open(), "open for writing", path, healthy)) {
+        return false;
+    }
+    file.write(static_cast<const char*>(buffer), static_cast<std::streamsize>(bytes));
+    bool success = checkFile(file.good(), "write", path, healthy);
+    file.clear();
+    file.close();
+    bool closed = checkFile(!file.fail(), "close after writing", path, healthy);
+    return success && closed;
+}
+
+template <typename T, bool Device>
+class AclBuffer {
+public:
+    explicit AclBuffer(bool& healthy) : healthy_(healthy) {}
+    AclBuffer(const AclBuffer&) = delete;
+    AclBuffer& operator=(const AclBuffer&) = delete;
+    ~AclBuffer()
+    {
+        if (data != nullptr) {
+            if constexpr (Device) {
+                checkAcl(aclrtFree(data), "aclrtFree", healthy_);
+            } else {
+                checkAcl(aclrtFreeHost(data), "aclrtFreeHost", healthy_);
+            }
+        }
+    }
+    bool allocate(size_t bytes)
+    {
+        void* acquired = nullptr;
+        aclError status;
+        if constexpr (Device) {
+            status = aclrtMalloc(&acquired, bytes, ACL_MEM_MALLOC_HUGE_FIRST);
+        } else {
+            status = aclrtMallocHost(&acquired, bytes);
+        }
+        if (!checkAcl(status, Device ? "aclrtMalloc" : "aclrtMallocHost", healthy_)) {
+            return false;
+        }
+        data = static_cast<T*>(acquired);
+        return true;
+    }
+    T* data = nullptr;
+
+private:
+    bool& healthy_;
+};
+} // namespace
+
 class TCVTTest : public testing::Test {
 protected:
-    void SetUp() override {}
-    void TearDown() override {}
+    static void SetUpTestSuite()
+    {
+        ASSERT_TRUE(checkAcl(aclInit(nullptr), "aclInit", healthy));
+        initialized = true;
+        ASSERT_TRUE(checkAcl(aclrtSetDevice(0), "aclrtSetDevice", healthy));
+        deviceOpened = true;
+        aclrtContext acquired = nullptr;
+        ASSERT_TRUE(checkAcl(aclrtCreateContext(&acquired, 0), "aclrtCreateContext", healthy));
+        context = acquired;
+        healthy = true;
+    }
+    static void TearDownTestSuite()
+    {
+        if (context != nullptr) {
+            checkAcl(aclrtDestroyContext(context), "aclrtDestroyContext", healthy);
+            context = nullptr;
+        }
+        if (deviceOpened) {
+            checkAcl(aclrtResetDevice(0), "aclrtResetDevice", healthy);
+            deviceOpened = false;
+        }
+        if (initialized) {
+            checkAcl(aclFinalize(), "aclFinalize", healthy);
+            initialized = false;
+        }
+        healthy = false;
+    }
+    void SetUp() override
+    {
+        ASSERT_TRUE(healthy) << "Device work stopped after an infrastructure error";
+        ASSERT_TRUE(checkAcl(aclrtSetCurrentContext(context), "aclrtSetCurrentContext", healthy));
+        aclrtStream acquired = nullptr;
+        ASSERT_TRUE(checkAcl(aclrtCreateStream(&acquired), "aclrtCreateStream", healthy));
+        stream = acquired;
+    }
+    void TearDown() override
+    {
+        if (stream != nullptr) {
+            checkAcl(aclrtDestroyStream(stream), "aclrtDestroyStream", healthy);
+            stream = nullptr;
+        }
+    }
+    template <
+        typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
+        int kValidCols_ = kTCols_>
+    void test_tcvt();
+    template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
+    void test_tcvt_saturation();
+
+    aclrtStream stream = nullptr;
+    inline static aclrtContext context = nullptr;
+    inline static bool initialized = false;
+    inline static bool deviceOpened = false;
+    inline static bool healthy = false;
 };
 
 std::string GetGoldenDir()
@@ -67,10 +211,8 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-template <
-    typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_ = kTRows_,
-    int kValidCols_ = kTCols_>
-void test_tcvt()
+template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_, int kValidRows_, int kValidCols_>
+void TCVTTest::test_tcvt()
 {
     uint32_t M = kGRows_;
     uint32_t N = kGCols_;
@@ -83,46 +225,36 @@ void test_tcvt()
     size_t srcFileSize = M * srcCols * sizeof(S);
     size_t dstFileSize = M * dstCols * sizeof(D);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-    aclrtStream stream;
-    aclrtCreateStream(&stream);
+    AclBuffer<D, false> dstHost(healthy);
+    AclBuffer<S, false> srcHost(healthy);
+    AclBuffer<D, true> dstDevice(healthy);
+    AclBuffer<S, true> srcDevice(healthy);
+    ASSERT_TRUE(dstHost.allocate(dstFileSize));
+    ASSERT_TRUE(srcHost.allocate(srcFileSize));
+    ASSERT_TRUE(readFileExact(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost.data, healthy));
+    ASSERT_TRUE(dstDevice.allocate(dstFileSize));
+    // TSTORE writes only the valid region; the existing golden expects zeros elsewhere.
+    ASSERT_TRUE(checkAcl(aclrtMemset(dstDevice.data, dstFileSize, 0, dstFileSize), "aclrtMemset dst", healthy));
+    ASSERT_TRUE(srcDevice.allocate(srcFileSize));
 
-    D *dstHost, *dstDevice;
-    S *srcHost, *srcDevice;
-
-    aclrtMallocHost((void**)(&dstHost), dstFileSize);
-    aclrtMallocHost((void**)(&srcHost), srcFileSize);
-
-    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
-
-    aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    launchTCVT<D, S, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>(dstDevice, srcDevice, stream);
-
-    aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
-    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstFileSize);
-
-    aclrtFree(dstDevice);
-    aclrtFree(srcDevice);
-
-    aclrtFreeHost(dstHost);
-    aclrtFreeHost(srcHost);
-
-    aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
+    ASSERT_TRUE(checkAcl(
+        aclrtMemcpy(srcDevice.data, srcFileSize, srcHost.data, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE), "src H2D",
+        healthy));
+    launchTCVT<D, S, kGRows_, kGCols_, kTRows_, kTCols_, kValidRows_, kValidCols_>(
+        dstDevice.data, srcDevice.data, stream);
+    ASSERT_TRUE(checkAcl(aclrtGetLastError(ACL_RT_THREAD_LEVEL), "kernel launch", healthy));
+    ASSERT_TRUE(checkAcl(aclrtSynchronizeStream(stream), "aclrtSynchronizeStream", healthy));
+    ASSERT_TRUE(checkAcl(
+        aclrtMemcpy(dstHost.data, dstFileSize, dstDevice.data, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST), "dst D2H",
+        healthy));
+    ASSERT_TRUE(writeFileExact(GetGoldenDir() + "/output_z.bin", dstHost.data, dstFileSize, healthy));
 
     std::vector<D> golden(dstFileSize / sizeof(D));
     std::vector<D> devFinal(dstFileSize / sizeof(D));
     size_t goldenFileSize = dstFileSize;
     size_t outputFileSize = dstFileSize;
-    ReadFile(GetGoldenDir() + "/golden.bin", goldenFileSize, golden.data(), dstFileSize);
-    ReadFile(GetGoldenDir() + "/output_z.bin", outputFileSize, devFinal.data(), dstFileSize);
+    ASSERT_TRUE(readFileExact(GetGoldenDir() + "/golden.bin", goldenFileSize, golden.data(), healthy));
+    ASSERT_TRUE(readFileExact(GetGoldenDir() + "/output_z.bin", outputFileSize, devFinal.data(), healthy));
 
     bool ret = ResultCmp<D>(golden, devFinal, 0.001f);
 
@@ -222,7 +354,7 @@ GENERATE_TCVT_TESTS(float, hifloat8_wrapper, h8_fp32)
 // ============================================================================
 
 template <typename D, typename S, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
-void test_tcvt_saturation()
+void TCVTTest::test_tcvt_saturation()
 {
     uint32_t M = kGRows_;
     uint32_t N = kGCols_;
@@ -230,68 +362,61 @@ void test_tcvt_saturation()
     size_t srcFileSize = M * N * sizeof(S);
     size_t dstFileSize = M * N * sizeof(D);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-    aclrtStream stream;
-    aclrtCreateStream(&stream);
+    AclBuffer<D, false> dstSatHost(healthy), dstTruncHost(healthy), dstDefaultHost(healthy);
+    AclBuffer<S, false> srcHost(healthy);
+    AclBuffer<D, true> dstSatDevice(healthy), dstTruncDevice(healthy), dstDefaultDevice(healthy);
+    AclBuffer<S, true> srcDevice(healthy);
+    ASSERT_TRUE(dstSatHost.allocate(dstFileSize));
+    ASSERT_TRUE(dstTruncHost.allocate(dstFileSize));
+    ASSERT_TRUE(dstDefaultHost.allocate(dstFileSize));
+    ASSERT_TRUE(srcHost.allocate(srcFileSize));
+    ASSERT_TRUE(readFileExact(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost.data, healthy));
+    ASSERT_TRUE(dstSatDevice.allocate(dstFileSize));
+    ASSERT_TRUE(checkAcl(aclrtMemset(dstSatDevice.data, dstFileSize, 0, dstFileSize), "aclrtMemset dstSat", healthy));
+    ASSERT_TRUE(dstTruncDevice.allocate(dstFileSize));
+    ASSERT_TRUE(
+        checkAcl(aclrtMemset(dstTruncDevice.data, dstFileSize, 0, dstFileSize), "aclrtMemset dstTrunc", healthy));
+    ASSERT_TRUE(dstDefaultDevice.allocate(dstFileSize));
+    ASSERT_TRUE(
+        checkAcl(aclrtMemset(dstDefaultDevice.data, dstFileSize, 0, dstFileSize), "aclrtMemset dstDefault", healthy));
+    ASSERT_TRUE(srcDevice.allocate(srcFileSize));
 
-    D *dstSatHost, *dstTruncHost, *dstDefaultHost, *dstSatDevice, *dstTruncDevice, *dstDefaultDevice;
-    S *srcHost, *srcDevice;
-
-    aclrtMallocHost((void**)(&dstSatHost), dstFileSize);
-    aclrtMallocHost((void**)(&dstTruncHost), dstFileSize);
-    aclrtMallocHost((void**)(&dstDefaultHost), dstFileSize);
-    aclrtMallocHost((void**)(&srcHost), srcFileSize);
-
-    aclrtMalloc((void**)&dstSatDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&dstTruncDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&dstDefaultDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-
-    ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize);
-
-    aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    ASSERT_TRUE(checkAcl(
+        aclrtMemcpy(srcDevice.data, srcFileSize, srcHost.data, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE), "src H2D",
+        healthy));
 
     // Run saturation test - produces saturated, truncated, and default outputs
     launchTCVTSaturationTest<D, S, kGRows_, kGCols_, kTRows_, kTCols_>(
-        dstSatDevice, dstTruncDevice, dstDefaultDevice, srcDevice, stream);
+        dstSatDevice.data, dstTruncDevice.data, dstDefaultDevice.data, srcDevice.data, stream);
+    ASSERT_TRUE(checkAcl(aclrtGetLastError(ACL_RT_THREAD_LEVEL), "kernel launch", healthy));
+    ASSERT_TRUE(checkAcl(aclrtSynchronizeStream(stream), "aclrtSynchronizeStream", healthy));
+    ASSERT_TRUE(checkAcl(
+        aclrtMemcpy(dstSatHost.data, dstFileSize, dstSatDevice.data, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST),
+        "saturated D2H", healthy));
+    ASSERT_TRUE(checkAcl(
+        aclrtMemcpy(dstTruncHost.data, dstFileSize, dstTruncDevice.data, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST),
+        "truncated D2H", healthy));
+    ASSERT_TRUE(checkAcl(
+        aclrtMemcpy(dstDefaultHost.data, dstFileSize, dstDefaultDevice.data, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST),
+        "default D2H", healthy));
 
-    aclrtSynchronizeStream(stream);
-    aclrtMemcpy(dstSatHost, dstFileSize, dstSatDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    aclrtMemcpy(dstTruncHost, dstFileSize, dstTruncDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    aclrtMemcpy(dstDefaultHost, dstFileSize, dstDefaultDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
-
-    WriteFile(GetGoldenDir() + "/output_saturated.bin", dstSatHost, dstFileSize);
-    WriteFile(GetGoldenDir() + "/output_truncated.bin", dstTruncHost, dstFileSize);
-    WriteFile(GetGoldenDir() + "/output_default.bin", dstDefaultHost, dstFileSize);
+    ASSERT_TRUE(writeFileExact(GetGoldenDir() + "/output_saturated.bin", dstSatHost.data, dstFileSize, healthy));
+    ASSERT_TRUE(writeFileExact(GetGoldenDir() + "/output_truncated.bin", dstTruncHost.data, dstFileSize, healthy));
+    ASSERT_TRUE(writeFileExact(GetGoldenDir() + "/output_default.bin", dstDefaultHost.data, dstFileSize, healthy));
 
     std::vector<D> goldenTrunc(dstFileSize / sizeof(D));
     std::vector<D> devTrunc(dstFileSize / sizeof(D));
-    ReadFile(GetGoldenDir() + "/golden_truncated.bin", dstFileSize, goldenTrunc.data(), dstFileSize);
-    ReadFile(GetGoldenDir() + "/output_truncated.bin", dstFileSize, devTrunc.data(), dstFileSize);
+    ASSERT_TRUE(readFileExact(GetGoldenDir() + "/golden_truncated.bin", dstFileSize, goldenTrunc.data(), healthy));
+    ASSERT_TRUE(readFileExact(GetGoldenDir() + "/output_truncated.bin", dstFileSize, devTrunc.data(), healthy));
     bool truncOk = ResultCmp<D>(goldenTrunc, devTrunc, 0.001f);
 
     std::string goldenDefaultFile = GetGoldenDir() + "/golden_truncated.bin";
 
     std::vector<D> goldenDefault(dstFileSize / sizeof(D));
     std::vector<D> devDefault(dstFileSize / sizeof(D));
-    ReadFile(goldenDefaultFile, dstFileSize, goldenDefault.data(), dstFileSize);
-    ReadFile(GetGoldenDir() + "/output_default.bin", dstFileSize, devDefault.data(), dstFileSize);
+    ASSERT_TRUE(readFileExact(goldenDefaultFile, dstFileSize, goldenDefault.data(), healthy));
+    ASSERT_TRUE(readFileExact(GetGoldenDir() + "/output_default.bin", dstFileSize, devDefault.data(), healthy));
     bool defaultOk = ResultCmp<D>(goldenDefault, devDefault, 0.001f);
-
-    aclrtFree(dstSatDevice);
-    aclrtFree(dstTruncDevice);
-    aclrtFree(dstDefaultDevice);
-    aclrtFree(srcDevice);
-
-    aclrtFreeHost(dstSatHost);
-    aclrtFreeHost(dstTruncHost);
-    aclrtFreeHost(dstDefaultHost);
-    aclrtFreeHost(srcHost);
-
-    aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     EXPECT_TRUE(truncOk) << "Saturation mode OFF (TRUNC) output mismatch";
     EXPECT_TRUE(defaultOk) << "Default mode output mismatch (compared against PyTorch TRUNC golden)";

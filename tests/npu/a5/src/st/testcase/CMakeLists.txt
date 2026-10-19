@@ -147,6 +147,8 @@ set(ALL_TESTCASES
     tint64_memory
     tgather
     tcvt
+    tcvt_fp4_lut
+    tcvt_fp4_lut_v2c
     tsub
     trem
     tfmod
@@ -285,6 +287,7 @@ if (AUTO_MODE)
     tpushpop_fixpipe
     tpushpop_vc
     tpushpop_vc_nosplit
+    tcvt_fp4_lut_v2c
     tpushpop_dir_both
     tfree
     tpushpop_subtile

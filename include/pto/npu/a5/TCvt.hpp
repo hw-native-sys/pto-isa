@@ -2798,6 +2798,168 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVT(
 }
 
 // ============================================================================
+// Exact E2M1 widening uses byte registers throughout. The table repeats every 16
+// lanes, allowing the packed byte itself to index the low-nibble conversion.
+// ============================================================================
+PTO_INTERNAL void buildFp4E2M1ToE4M3Lut(RegTensor<uint8_t>& table, MaskReg fullMask)
+{
+    RegTensor<uint8_t> lane, magnitude, sign, bitMask, zero, half;
+    vci((RegTensor<int8_t>&)lane, static_cast<int8_t>(0), INC_ORDER);
+    vdup(bitMask, static_cast<uint8_t>(0x07), fullMask, MODE_ZEROING);
+    vand(magnitude, lane, bitMask, fullMask, MODE_ZEROING);
+    vshls(table, magnitude, 2, fullMask, MODE_ZEROING);
+    vadds(table, table, static_cast<uint8_t>(0x30), fullMask, MODE_ZEROING);
+    vdup(zero, static_cast<uint8_t>(0), fullMask, MODE_ZEROING);
+    vdup(half, static_cast<uint8_t>(0x30), fullMask, MODE_ZEROING);
+    MaskReg isZero, isOne;
+    vcmps_eq(isZero, magnitude, static_cast<uint8_t>(0), fullMask);
+    vcmps_eq(isOne, magnitude, static_cast<uint8_t>(1), fullMask);
+    vsel(table, zero, table, isZero);
+    vsel(table, half, table, isOne);
+    vdup(bitMask, static_cast<uint8_t>(0x08), fullMask, MODE_ZEROING);
+    vand(sign, lane, bitMask, fullMask, MODE_ZEROING);
+    vshls(sign, sign, 4, fullMask, MODE_ZEROING);
+    vor(table, table, sign, fullMask, MODE_ZEROING);
+}
+
+template <typename TileDataD>
+PTO_INTERNAL void storeFp4E4M3Register(
+    RegTensor<uint8_t>& value, __ubuf__ uint8_t* dst, uint32_t row, uint32_t column, uint32_t panelRows, uint32_t count)
+{
+    MaskReg mask = CreatePredicate<uint8_t>(count);
+    if constexpr (TileDataD::SFractal == SLayout::NoneBox) {
+        // ND byte offset = row * destination physical columns + logical column.
+        vsts(value, dst, row * TileDataD::Cols + column, NORM_B8, mask);
+    } else {
+        // NZ byte offset = panel * panelRows * 32 + row * 32 + column-in-panel.
+        constexpr uint32_t panelBytes = BLOCK_BYTE_SIZE;
+        uint32_t offset = (column / panelBytes) * panelRows * panelBytes + row * panelBytes;
+        __ubuf__ uint8_t* panelDst = dst + offset;
+        uint32_t config = (panelRows << 16u) | 1u;
+        vsstb(value, panelDst, config, mask, POST_UPDATE);
+    }
+}
+
+template <typename TileDataD, typename TileDataS>
+__tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVTFp4E2M1ToE4M3(
+    typename TileDataD::TileDType __out__ dst, typename TileDataS::TileDType __in__ src, uint32_t validRows,
+    uint32_t validCols)
+{
+    constexpr uint32_t sourceRowBytes = TileDataS::Cols / 2;
+    constexpr uint32_t registerBytes = CCE_VL;
+    constexpr uint32_t blockBytes = BLOCK_BYTE_SIZE;
+    constexpr uint32_t maxValidRows = TileDataS::Rows < TileDataD::Rows ? TileDataS::Rows : TileDataD::Rows;
+    static_assert(maxValidRows <= 0xFFFF, "TCVT FP4/FP8 valid rows must fit the VF loop counter.");
+    static_assert(
+        sourceRowBytes / registerBytes <= 0xFFFF, "TCVT FP4 row register count must fit the VF loop counter.");
+    uint32_t packedValidBytes = CeilDivision(validCols, 2u);
+    uint32_t registerChunks = CeilDivision(packedValidBytes, registerBytes);
+    registerChunks = registerChunks < sourceRowBytes / registerBytes ? registerChunks : sourceRowBytes / registerBytes;
+    uint32_t fullBytes = registerChunks * registerBytes;
+    uint32_t residualBytes = packedValidBytes > fullBytes ? packedValidBytes - fullBytes : 0;
+    uint32_t residualChunks = CeilDivision(residualBytes, blockBytes);
+    PTO_ASSERT(
+        validRows <= maxValidRows && registerChunks <= 0xFFFF && residualChunks < registerBytes / blockBytes,
+        "TCVT FP4/FP8 VF loop bounds exceed their scalar counter range.");
+    uint16_t rowCount = static_cast<uint16_t>(validRows);
+    uint16_t registerCount = static_cast<uint16_t>(registerChunks);
+    uint16_t residualCount = static_cast<uint16_t>(residualChunks);
+    uint32_t panelRows = TileDataD::Rows;
+    if constexpr (TileDataD::SFractal != SLayout::NoneBox && TileDataD::Compact == CompactMode::Normal) {
+        panelRows = CeilDivision(validRows, static_cast<uint32_t>(FRACTAL_NZ_ROW)) * FRACTAL_NZ_ROW;
+    }
+    __ubuf__ uint8_t* dstPtr = (__ubuf__ uint8_t*)__cce_get_tile_ptr(dst);
+    __ubuf__ uint8_t* srcPtr = (__ubuf__ uint8_t*)__cce_get_tile_ptr(src);
+    __VEC_SCOPE__
+    {
+        MaskReg fullMask = pset_b8(PAT_ALL);
+        RegTensor<uint8_t> table;
+        buildFp4E2M1ToE4M3Lut(table, fullMask);
+        for (uint16_t row = 0; row < rowCount; ++row) {
+            for (uint16_t chunk = 0; chunk < registerCount; ++chunk) {
+                RegTensor<uint8_t> packed, highIndex, low, high, out0, out1;
+                uint32_t packedColumn = static_cast<uint32_t>(chunk) * registerBytes;
+                uint32_t sourceOffset = static_cast<uint32_t>(row) * sourceRowBytes + packedColumn;
+                vlds(packed, srcPtr, sourceOffset, NORM);
+                vshrs(highIndex, packed, 4, fullMask, MODE_ZEROING);
+                vselr(low, table, packed);
+                vselr(high, table, highIndex);
+                vintlv(out0, out1, low, high);
+                uint32_t column = packedColumn * 2;
+                uint32_t count = validCols - column;
+                count = count < registerBytes * 2 ? count : registerBytes * 2;
+                uint32_t firstCount = count < registerBytes ? count : registerBytes;
+                storeFp4E4M3Register<TileDataD>(out0, dstPtr, row, column, panelRows, firstCount);
+                if (count > registerBytes) {
+                    storeFp4E4M3Register<TileDataD>(
+                        out1, dstPtr, row, column + registerBytes, panelRows, count - registerBytes);
+                }
+            }
+            for (uint16_t chunk = 0; chunk < residualCount; ++chunk) {
+                RegTensor<uint8_t> packed, highIndex, low, high, out0, out1;
+                uint32_t packedColumn = fullBytes + static_cast<uint32_t>(chunk) * blockBytes;
+                uint32_t sourceOffset = static_cast<uint32_t>(row) * sourceRowBytes + packedColumn;
+                // BLK reads one aligned 32-byte block. Only its first 64
+                // expanded bytes are stored, so even 1x64 FP4 tiles are safe.
+                vlds(packed, srcPtr, sourceOffset, BLK);
+                vshrs(highIndex, packed, 4, fullMask, MODE_ZEROING);
+                vselr(low, table, packed);
+                vselr(high, table, highIndex);
+                vintlv(out0, out1, low, high);
+                uint32_t column = packedColumn * 2;
+                uint32_t count = validCols - column;
+                count = count < blockBytes * 2 ? count : blockBytes * 2;
+                storeFp4E4M3Register<TileDataD>(out0, dstPtr, row, column, panelRows, count);
+            }
+        }
+    }
+}
+
+template <typename TileDataD, typename TileDataS>
+PTO_INTERNAL void tcvtFp4E2M1ToE4M3(TileDataD& dst, TileDataS& src)
+{
+    static_assert(
+        TileDataS::Loc == TileType::Vec && TileDataD::Loc == TileType::Vec,
+        "TCVT FP4 E2M1 -> FP8 E4M3 requires Vec source and destination.");
+    static_assert(
+        TileDataS::isRowMajor && TileDataS::SFractal == SLayout::NoneBox && TileDataS::Compact == CompactMode::Null,
+        "TCVT FP4 E2M1 -> FP8 E4M3 source must be ND with CompactMode::Null.");
+    static_assert(
+        TileDataS::Cols >= 64 && TileDataS::Cols % 64 == 0,
+        "TCVT FP4 E2M1 -> FP8 E4M3 source rows require a multiple of 64 logical columns.");
+    constexpr bool dstND = TileDataD::isRowMajor && TileDataD::SFractal == SLayout::NoneBox;
+    constexpr bool dstNZ = !TileDataD::isRowMajor && TileDataD::SFractal == SLayout::RowMajor &&
+                           TileDataD::SFractalSize == TileConfig::fractalABSize;
+    static_assert(dstND || dstNZ, "TCVT FP4 E2M1 -> FP8 E4M3 destination must be ND or standard 512-byte NZ.");
+    static_assert(
+        TileDataD::Compact != CompactMode::RowPlusOne,
+        "TCVT FP4 E2M1 -> FP8 E4M3 does not support RowPlusOne extra-row storage.");
+    static_assert(
+        TileDataD::Compact == CompactMode::Null || (dstNZ && TileDataD::Compact == CompactMode::Normal),
+        "TCVT FP4 E2M1 -> FP8 E4M3 supports Null, or Normal for NZ.");
+    static_assert(
+        !dstNZ || TileDataD::Rows % FRACTAL_NZ_ROW == 0, "TCVT FP8 NZ physical rows must be a multiple of 16.");
+    static_assert(!dstNZ || TileDataD::Rows <= 0xFFFF, "TCVT FP8 NZ row pitch must fit the 16-bit block stride.");
+    static_assert(
+        static_cast<uint64_t>(TileDataS::Rows) * (TileDataS::Cols / 2) <= 0x7FFFFFFF &&
+            static_cast<uint64_t>(TileDataD::Rows) * TileDataD::Cols <= 0x7FFFFFFF,
+        "TCVT FP4 E2M1 -> FP8 E4M3 byte offsets must fit signed 32 bits.");
+    static_assert(
+        TileDataD::ValidRow == DYNAMIC || TileDataS::ValidRow == DYNAMIC || TileDataD::ValidRow == TileDataS::ValidRow,
+        "TCVT FP4 E2M1 -> FP8 E4M3 valid rows must agree.");
+    static_assert(
+        TileDataD::ValidCol == DYNAMIC || TileDataS::ValidCol == DYNAMIC || TileDataD::ValidCol == TileDataS::ValidCol,
+        "TCVT FP4 E2M1 -> FP8 E4M3 logical valid columns must agree.");
+    uint32_t rows = dst.GetValidRow();
+    uint32_t cols = dst.GetValidCol();
+    PTO_ASSERT(rows == src.GetValidRow() && cols == src.GetValidCol(), "TCVT FP4/FP8 valid regions must agree.");
+    PTO_ASSERT(
+        rows <= TileDataS::Rows && rows <= TileDataD::Rows && cols <= TileDataS::Cols && cols <= TileDataD::Cols,
+        "TCVT FP4/FP8 valid region exceeds physical tile bounds.");
+    implTCVTFp4E2M1ToE4M3<TileDataD, TileDataS>(dst.data(), src.data(), rows, cols);
+}
+
+// ============================================================================
 // Saturation Control Helper
 // ============================================================================
 // NOTE: bit selection for a given (Src, Dst) pair is fully compile-time via
@@ -2930,7 +3092,14 @@ public:
 template <typename RoundT, typename TileDataD, typename TileDataS>
 PTO_INTERNAL void tcvtDispatch(TileDataD& dst, TileDataS& src, SaturationMode satMode)
 {
-    implTCVT<TileDataD, TileDataS, RoundT>(dst.data(), src.data(), satMode, dst.GetValidRow(), dst.GetValidCol());
+    if constexpr (
+        std::is_same_v<typename TileDataS::DType, float4_e2m1x2_t> &&
+        std::is_same_v<typename TileDataD::DType, float8_e4m3_t>) {
+        // Every E2M1 value widens exactly, independently of rounding/saturation.
+        tcvtFp4E2M1ToE4M3(dst, src);
+    } else {
+        implTCVT<TileDataD, TileDataS, RoundT>(dst.data(), src.data(), satMode, dst.GetValidRow(), dst.GetValidCol());
+    }
 }
 
 // Dispatch on RoundMode -> concrete RoundType. Kept as a separate helper to
