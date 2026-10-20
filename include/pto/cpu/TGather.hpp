@@ -81,7 +81,12 @@ PTO_INLINE bool IndexInBounds(IndexT raw, std::size_t n)
 template <typename DstTileData, typename Src0TileData, typename Src1TileData>
 PTO_INTERNAL void CheckValid()
 {
-    static_assert((sizeof(typename Src1TileData::DType) == 4), "expect b32");
+    static_assert(
+        sizeof(typename Src1TileData::DType) == 2 || sizeof(typename Src1TileData::DType) == 4,
+        "expect b16/b32 indices");
+    static_assert(
+        sizeof(typename DstTileData::DType) != 8 || sizeof(typename Src1TileData::DType) == 4,
+        "expect b32 indices for b64 data");
     static_assert(
         (std::is_same<typename DstTileData::DType, typename Src0TileData::DType>::value),
         "expect same size for indice and dst");

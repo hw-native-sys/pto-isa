@@ -177,3 +177,70 @@ TEST_F(TCVTTest, case9_with_tmp_default_saturation)
 {
     test_tcvt<uint8_t, aclFloat16, 64, 64, 64, 64, pto::SaturationMode::OFF, true, false>("../TCVTTest.case9");
 }
+
+template <typename D, typename S>
+void testFp4Expansion()
+{
+    constexpr unsigned rows = 2;
+    constexpr unsigned cols = 512;
+    constexpr double e2m1[] = {0, 0.5, 1, 1.5, 2, 3, 4, 6};
+    constexpr double e1m2[] = {0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75};
+    Tile<TileType::Vec, S, rows, cols> src;
+    Tile<TileType::Vec, D, rows, cols> dst;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 8192);
+    auto* packed = reinterpret_cast<uint8_t*>(src.data());
+    for (unsigned r = 0; r < rows; ++r) {
+        for (unsigned b = 0; b < cols / 2; ++b) {
+            packed[r * cols / 2 + b] = static_cast<uint8_t>(b + r);
+        }
+    }
+    for (RoundMode mode :
+         {RoundMode::CAST_NONE, RoundMode::CAST_RINT, RoundMode::CAST_ROUND, RoundMode::CAST_FLOOR,
+          RoundMode::CAST_CEIL, RoundMode::CAST_TRUNC, RoundMode::CAST_ODD}) {
+        for (SaturationMode saturation : {SaturationMode::OFF, SaturationMode::ON}) {
+            TCVT(dst, src, mode, saturation);
+            for (unsigned r = 0; r < rows; ++r) {
+                for (unsigned c = 0; c < cols; ++c) {
+                    const unsigned code = (packed[r * cols / 2 + c / 2] >> (4 * (c % 2))) & 15;
+                    const double magnitude = std::is_same_v<S, float4_e2m1x2_t> ? e2m1[code & 7] : e1m2[code & 7];
+                    const double expected = code & 8 ? -magnitude : magnitude;
+                    EXPECT_EQ(static_cast<double>(dst.GetElement(r, c)), expected)
+                        << "row=" << r << " col=" << c << " code=" << code;
+                }
+            }
+        }
+    }
+}
+
+TEST_F(TCVTTest, fp4_to_floating_preserves_fractional_values)
+{
+    testFp4Expansion<bfloat16_t, float4_e2m1x2_t>();
+    testFp4Expansion<half, float4_e2m1x2_t>();
+    testFp4Expansion<float, float4_e2m1x2_t>();
+    testFp4Expansion<double, float4_e2m1x2_t>();
+    testFp4Expansion<bfloat16_t, float4_e1m2x2_t>();
+    testFp4Expansion<half, float4_e1m2x2_t>();
+    testFp4Expansion<float, float4_e1m2x2_t>();
+    testFp4Expansion<double, float4_e1m2x2_t>();
+}
+
+TEST_F(TCVTTest, float_to_integer_retains_rounding)
+{
+    Tile<TileType::Vec, float, 1, 8> src;
+    Tile<TileType::Vec, int32_t, 1, 8> dst;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 8192);
+    const float values[] = {-2.5f, -1.5f, -0.5f, 0.5f, 1.5f, 2.5f, 1.25f, -1.25f};
+    const int32_t rint[] = {-2, -2, 0, 0, 2, 2, 1, -1};
+    const int32_t round[] = {-3, -2, -1, 1, 2, 3, 1, -1};
+    for (unsigned c = 0; c < 8; ++c) {
+        src.SetElement(0, c, values[c]);
+    }
+    for (RoundMode mode : {RoundMode::CAST_RINT, RoundMode::CAST_ROUND}) {
+        TCVT(dst, src, mode);
+        for (unsigned c = 0; c < 8; ++c) {
+            EXPECT_EQ(dst.GetElement(0, c), mode == RoundMode::CAST_RINT ? rint[c] : round[c]);
+        }
+    }
+}

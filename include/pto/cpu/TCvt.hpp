@@ -244,6 +244,9 @@ inline D convert_value(S val, RoundMode mode, SaturationMode satMode = Saturatio
         return D(static_cast<double>(val), mode, satMode);
     } else if constexpr (is_fp4_v<S> && is_fp4_v<D>) {
         return D::FromRaw(val.RawData());
+    } else if constexpr (is_fp4_v<S> && is_float_like_v<D>) {
+        // FP4 values are exactly representable in the floating destination.
+        return static_cast<D>(static_cast<double>(val));
     } else if constexpr (std::is_same_v<S, int4b_t>) {
         int8_t ival = static_cast<int8_t>(val);
         if constexpr (std::is_integral_v<D> && !std::is_same_v<D, int4b_t>)
@@ -256,9 +259,7 @@ inline D convert_value(S val, RoundMode mode, SaturationMode satMode = Saturatio
             dval = applyRoundingToIntegral(dval, mode);
         dval = clamp_value(dval, SafeLimits<int4b_t>::lowest(), SafeLimits<int4b_t>::max());
         return int4b_t(static_cast<int8_t>(dval));
-    } else if constexpr (
-        (is_fp4_v<S> && is_float_like_v<D>) || (is_float_like_v<S> && is_fp4_v<D>) ||
-        (is_float_like_v<S> && std::is_integral_v<D>)) {
+    } else if constexpr ((is_float_like_v<S> && is_fp4_v<D>) || (is_float_like_v<S> && std::is_integral_v<D>)) {
         if constexpr (IsTwinType<D>()) {
             return D{val, mode};
         } else {

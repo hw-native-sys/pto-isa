@@ -447,3 +447,51 @@ TEST_F(TGATHERTest, case_1D_uint64_32x256_32x64)
 {
     runTGATHERTest<uint64_t, int32_t>(32, 256, 32, 64, launchTGATHER1D_demo_uint64);
 }
+
+// A5 supports b16 indices for b8/b16/b32 data. Keep b32 coverage for b64 data.
+template <typename T, typename Index>
+void testGatherIndexWidth(unsigned validRows, unsigned validCols)
+{
+    using Src = pto::Tile<pto::TileType::Vec, T, 4, 32>;
+    using Dst = pto::Tile<pto::TileType::Vec, T, 2, 32, pto::BLayout::RowMajor, -1, -1>;
+    using Indices = pto::Tile<pto::TileType::Vec, Index, 2, 32>;
+    Src src;
+    Dst dst(validRows, validCols);
+    Indices indices, tmp;
+    pto::TASSIGN(src, 0);
+    pto::TASSIGN(dst, 16384);
+    pto::TASSIGN(indices, 32768);
+    pto::TASSIGN(tmp, 49152);
+    for (unsigned i = 0; i < 128; ++i) {
+        src.data()[i] = static_cast<T>(i * 3 + 7);
+    }
+    std::fill(dst.data(), dst.data() + 64, static_cast<T>(99));
+    for (unsigned i = 0; i < 64; ++i) {
+        indices.data()[i] = static_cast<Index>((i * 17) % 128);
+    }
+    indices.data()[0] = static_cast<Index>(-1);
+    indices.data()[1] = static_cast<Index>(128);
+    pto::TGATHER(dst, src, indices, tmp);
+    for (unsigned r = 0; r < 2; ++r) {
+        for (unsigned c = 0; c < 32; ++c) {
+            const unsigned i = r * 32 + c;
+            const T expected = r >= validRows || c >= validCols ? static_cast<T>(99) :
+                               i < 2                            ? static_cast<T>(0) :
+                                                                  src.data()[(i * 17) % 128];
+            EXPECT_EQ(dst.data()[i], expected) << "row=" << r << " col=" << c;
+        }
+    }
+}
+
+TEST_F(TGATHERTest, a5_index_width_full_and_partial)
+{
+    for (unsigned rows : {1U, 2U}) {
+        for (unsigned cols : {29U, 32U}) {
+            testGatherIndexWidth<int16_t, int16_t>(rows, cols);
+            testGatherIndexWidth<uint8_t, uint16_t>(rows, cols);
+            testGatherIndexWidth<float, int16_t>(rows, cols);
+            testGatherIndexWidth<float, int32_t>(rows, cols);
+            testGatherIndexWidth<int64_t, int32_t>(rows, cols);
+        }
+    }
+}

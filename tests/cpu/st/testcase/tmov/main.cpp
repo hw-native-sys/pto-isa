@@ -207,3 +207,101 @@ TMOV_ND_TO_ZN_TEST(float, 32, 32)
 TMOV_ND_TO_ZN_TEST(float, 32, 64)
 TMOV_ND_TO_ZN_TEST(float, 64, 64)
 TMOV_ND_TO_ZN_TEST(float, 128, 128)
+
+// Compare encoded bytes: E8M0 has no numerical zero, but native X->ZZ pads with byte zero.
+template <typename T, bool dn = false, bool tagged = false, bool shaped = false, bool wideDst = false>
+void testMovMxScale(unsigned validRows)
+{
+    constexpr unsigned rows = 32;
+    constexpr unsigned cols = shaped ? 32 : 8;
+    constexpr unsigned dstCols = wideDst ? cols * 2 : cols;
+    constexpr unsigned srcRows = dn ? cols : (shaped ? rows : 1);
+    constexpr unsigned srcCols = dn ? rows : (shaped ? cols : rows * cols);
+    using Src = Tile<TileType::Vec, T, srcRows, srcCols, BLayout::RowMajor, -1, -1>;
+    using Dst = Tile<TileType::Vec, T, rows, dstCols, BLayout::RowMajor, -1, -1, SLayout::RowMajor, 32>;
+    using Tmp = Tile<TileType::Vec, T, 1, 128>;
+    Src src(dn ? cols : (shaped ? validRows : 1), dn ? validRows : (shaped ? cols : validRows * cols));
+    Dst dst(validRows, cols);
+    Tmp tmp;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 16384);
+    TASSIGN(tmp, 32768);
+    auto* input = reinterpret_cast<uint8_t*>(src.data());
+    auto* output = reinterpret_cast<uint8_t*>(dst.data());
+    std::fill(input, input + rows * cols, uint8_t{239});
+    std::fill(output, output + rows * dstCols, uint8_t{167});
+    for (unsigned r = 0; r < validRows; ++r) {
+        for (unsigned c = 0; c < cols; ++c) {
+            input[dn ? c * validRows + r : r * cols + c] = static_cast<uint8_t>((r * cols + c) * 17 + 11);
+        }
+    }
+    if constexpr (dn) {
+        TMOV<0>(dst, src, tmp);
+    } else if constexpr (tagged) {
+        TMOV<1>(dst, src, tmp);
+    } else {
+        TMOV(dst, src, tmp);
+    }
+    const unsigned paddedRows = (validRows + 15) / 16 * 16;
+    for (unsigned r = 0; r < rows; ++r) {
+        for (unsigned c = 0; c < cols; ++c) {
+            const unsigned offset = (r / 16) * cols * 16 + (c / 2) * 32 + (r % 16) * 2 + c % 2;
+            const uint8_t expected = r < validRows  ? static_cast<uint8_t>((r * cols + c) * 17 + 11) :
+                                     r < paddedRows ? uint8_t{0} :
+                                                      uint8_t{167};
+            EXPECT_EQ(output[offset], expected) << "row=" << r << " col=" << c;
+        }
+    }
+    for (unsigned i = rows * cols; i < rows * dstCols; ++i) {
+        EXPECT_EQ(output[i], uint8_t{167});
+    }
+    if constexpr (!dn) {
+        for (unsigned i = validRows * cols; i < paddedRows * cols; ++i) {
+            EXPECT_EQ(input[i], uint8_t{0});
+        }
+    }
+}
+
+TEST_F(TMOVTest, mx_scale_flat_nd_to_zz)
+{
+    for (unsigned rows : {1U, 12U, 15U, 16U, 17U, 32U}) {
+        testMovMxScale<uint8_t>(rows);
+        testMovMxScale<hifloat8_t>(rows);
+        testMovMxScale<float8_e8m0_t>(rows);
+    }
+}
+
+TEST_F(TMOVTest, mx_scale_tagged_and_dense_nd_to_zz)
+{
+    testMovMxScale<uint8_t, false, true>(17);
+    testMovMxScale<uint8_t, false, false, false, true>(17);
+    testMovMxScale<float8_e8m0_t, false, true, true>(32);
+    testMovMxScale<float8_e8m0_t, false, true, true>(17);
+}
+
+TEST_F(TMOVTest, mx_scale_dn_to_zz)
+{
+    testMovMxScale<uint8_t, true>(32);
+    testMovMxScale<uint8_t, true>(16);
+    testMovMxScale<hifloat8_t, true>(32);
+    testMovMxScale<float8_e8m0_t, true>(32);
+}
+
+TEST_F(TMOVTest, non_mx_three_argument_fallback)
+{
+    using Data = Tile<TileType::Vec, float, 2, 8>;
+    using Fp = Tile<TileType::Vec, uint64_t, 1, 8>;
+    Data src, dst;
+    Fp fp;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 16384);
+    TASSIGN(fp, 32768);
+    std::fill(fp.data(), fp.data() + 8, uint64_t{0});
+    for (unsigned i = 0; i < 16; ++i) {
+        src.data()[i] = (static_cast<float>(i) - 7) / 4;
+    }
+    TMOV(dst, src, fp);
+    for (unsigned i = 0; i < 16; ++i) {
+        EXPECT_EQ(dst.data()[i], src.data()[i]);
+    }
+}

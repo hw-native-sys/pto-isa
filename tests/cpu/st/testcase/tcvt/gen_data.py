@@ -259,7 +259,10 @@ def gen_golden(param):
         else:
             data_to_cast = input_values
 
-        rounded_data = apply_rounding(data_to_cast, param.mode)
+        if param.srctype in (Float4E2M1, Float4E1M2) and np.issubdtype(param.dsttype, np.floating):
+            rounded_data = data_to_cast
+        else:
+            rounded_data = apply_rounding(data_to_cast, param.mode)
         golden = convert_to_dsttype(rounded_data, param.dsttype)
     write_output_data(x1_gm, param.srctype, "./x1_gm.bin")
     write_output_data(golden, param.dsttype, "./golden.bin")
