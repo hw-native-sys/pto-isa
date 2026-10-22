@@ -1591,3 +1591,167 @@ TEST_F(TPushPopTest, v2c_leftright_odd_split_layout)
         }
     }
 }
+
+class TPushPopPackedMxTest : public testing::Test {
+protected:
+    NPUArch previousArch;
+
+    void SetUp() override
+    {
+        previousArch = NPUMemoryModel::Instance().GetArch();
+        NPU_MEMORY_INIT(NPUArch::A5);
+        NPU_MEMORY_CLEAR();
+    }
+
+    void TearDown() override
+    {
+        cpu_sim::reset_execution_context();
+        NPU_MEMORY_CLEAR();
+        NPU_MEMORY_INIT(previousArch);
+    }
+};
+
+namespace {
+template <int Rows, int Cols, bool Transpose, uint8_t DirectionType>
+void checkPackedMxTransfer()
+{
+    using Vec = Tile<TileType::Vec, float8_e8m0_t, Rows, Cols, BLayout::RowMajor, Rows, Cols, SLayout::RowMajor, 32>;
+    using Mat = Tile<
+        TileType::Mat, float8_e8m0_t, Transpose ? Cols : Rows, Transpose ? Rows : Cols,
+        Transpose ? BLayout::ColMajor : BLayout::RowMajor, Transpose ? Cols : Rows, Transpose ? Rows : Cols,
+        Transpose ? SLayout::ColMajor : SLayout::RowMajor, 32>;
+    using Pipe = TPipe<14, DirectionType, 4096, 2, 2, true>;
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe(nullptr, 0, 0);
+    Vec source;
+    Mat result;
+    TASSIGN(source, 0);
+    TASSIGN(result, 0);
+    cpu_sim::ScopedExecutionContext ctx(0, 0, 1);
+    for (int iter = 0; iter < 5; ++iter) {
+        for (int r = 0; r < Rows; ++r) {
+            for (int c = 0; c < Cols; ++c) {
+                source.SetElement(r, c, float8_e8m0_t::FromRaw(static_cast<uint8_t>(r * Cols + c + iter)));
+            }
+        }
+        TPUSH<Pipe, Vec, TileSplitAxis::TILE_NO_SPLIT>(pipe, source);
+        TPOP<Pipe, Mat, TileSplitAxis::TILE_NO_SPLIT>(pipe, result);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+        for (int r = 0; r < Rows; ++r) {
+            for (int c = 0; c < Cols; ++c) {
+                EXPECT_EQ(
+                    result.GetElement(Transpose ? c : r, Transpose ? r : c).RawData(),
+                    source.GetElement(r, c).RawData());
+            }
+        }
+        for (int i = 0; i < Rows * Cols; ++i) {
+            EXPECT_EQ(result.data()[i].RawData(), source.data()[i].RawData());
+        }
+    }
+}
+} // namespace
+
+TEST_F(TPushPopPackedMxTest, packed_mx_same_layout_and_transposed_layout_wraparound)
+{
+    checkPackedMxTransfer<16, 4, false, Direction::DIR_V2C>();
+    checkPackedMxTransfer<128, 4, true, Direction::DIR_V2C>();
+    checkPackedMxTransfer<256, 4, true, Direction::DIR_BOTH>();
+    checkPackedMxTransfer<64, 8, false, Direction::DIR_BOTH>();
+}
+
+TEST_F(TPushPopPackedMxTest, packed_mx_entry_metadata_does_not_leak_to_reused_slot)
+{
+    using Packed = Tile<TileType::Vec, float8_e8m0_t, 16, 4, BLayout::RowMajor, 16, 4, SLayout::RowMajor, 32>;
+    using Plain = Tile<TileType::Vec, float8_e8m0_t, 4, 32, BLayout::RowMajor, 4, 16>;
+    using Mat = Tile<TileType::Mat, float8_e8m0_t, 4, 16, BLayout::ColMajor, 4, 16, SLayout::ColMajor, 32>;
+    using Pipe = TPipe<15, Direction::DIR_V2C, 256, 1, 2, true>;
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe(nullptr, 0, 0);
+    Packed packed;
+    Plain plain;
+    Mat result;
+    TASSIGN(packed, 0);
+    TASSIGN(plain, 256);
+    TASSIGN(result, 0);
+    cpu_sim::ScopedExecutionContext ctx(0, 0, 1);
+    for (int iter = 0; iter < 3; ++iter) {
+        for (int r = 0; r < 16; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                packed.SetElement(r, c, float8_e8m0_t(1 << ((r + c + iter) % 6)));
+                plain.SetElement(c, r, float8_e8m0_t(1 << ((2 * r + c + iter) % 6)));
+            }
+        }
+        // Two independently typed entries share a slot and use nonzero offsets.
+        pipe.prod.setRecordStatus(false);
+        pipe.prod.setEntryOffset(32);
+        TPUSH<Pipe, Packed, TileSplitAxis::TILE_NO_SPLIT>(pipe, packed);
+        pipe.prod.setAllocateStatus(false);
+        pipe.prod.setRecordStatus(true);
+        pipe.prod.setEntryOffset(128);
+        TPUSH<Pipe, Plain, TileSplitAxis::TILE_NO_SPLIT>(pipe, plain);
+        pipe.prod.setAllocateStatus(true);
+        pipe.cons.setentryOffset(32);
+        TPOP<Pipe, Mat, TileSplitAxis::TILE_NO_SPLIT>(pipe, result);
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 16; ++c) {
+                EXPECT_EQ(result.GetElement(r, c).RawData(), packed.GetElement(c, r).RawData());
+            }
+        }
+        pipe.cons.setWaitStatus(false);
+        pipe.cons.setentryOffset(128);
+        TPOP<Pipe, Mat, TileSplitAxis::TILE_NO_SPLIT>(pipe, result);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+        pipe.cons.setWaitStatus(true);
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 16; ++c) {
+                EXPECT_EQ(result.GetElement(r, c).RawData(), plain.GetElement(r, c).RawData());
+            }
+        }
+        // Reuse the formerly packed entry with an ordinary logical transfer.
+        pipe.prod.setEntryOffset(32);
+        TPUSH<Pipe, Plain, TileSplitAxis::TILE_NO_SPLIT>(pipe, plain);
+        pipe.cons.setentryOffset(32);
+        TPOP<Pipe, Mat, TileSplitAxis::TILE_NO_SPLIT>(pipe, result);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 16; ++c) {
+                EXPECT_EQ(result.GetElement(r, c).RawData(), plain.GetElement(r, c).RawData());
+            }
+        }
+    }
+}
+
+TEST_F(TPushPopPackedMxTest, packed_mx_gm_transport_keeps_logical_row_major_payload)
+{
+    using Vec = Tile<TileType::Vec, float8_e8m0_t, 16, 4, BLayout::RowMajor, 16, 4, SLayout::RowMajor, 32>;
+    using Mat = Tile<TileType::Mat, float8_e8m0_t, 4, 16, BLayout::ColMajor, 4, 16, SLayout::ColMajor, 32>;
+    auto check = []<uint8_t DirType>(NPUArch arch) {
+        NPU_MEMORY_INIT(arch);
+        using Pipe = TPipe<16, DirType, 256, 2, 2, true>;
+        Pipe::reset_for_cpu_sim();
+        Pipe pipe(nullptr, 0, 0);
+        Vec source;
+        Mat result;
+        TASSIGN(source, 0);
+        TASSIGN(result, 0);
+        cpu_sim::ScopedExecutionContext ctx(0, 0, 1);
+        for (int r = 0; r < 16; ++r) {
+            for (int c = 0; c < 4; ++c) {
+                source.SetElement(r, c, float8_e8m0_t(1 << ((r + c) % 6)));
+            }
+        }
+        TPUSH<Pipe, Vec, TileSplitAxis::TILE_NO_SPLIT>(pipe, source);
+        TPOP<Pipe, Mat, TileSplitAxis::TILE_NO_SPLIT>(pipe, result);
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+        for (int r = 0; r < 4; ++r) {
+            for (int c = 0; c < 16; ++c) {
+                const int index = r * 16 + c;
+                EXPECT_EQ(result.GetElement(r, c).RawData(), source.GetElement(index / 4, index % 4).RawData());
+            }
+        }
+    };
+    // The A5-only enum name is hidden in a target-neutral CPU build.
+    constexpr uint8_t A5_DIR_V2C_GM = 6;
+    check.template operator()<A5_DIR_V2C_GM>(NPUArch::A5);
+    check.template operator()<Direction::DIR_V2C>(NPUArch::A2A3);
+}

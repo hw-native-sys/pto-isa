@@ -48,6 +48,11 @@ enum class TransferDir : uint8_t {
     V2C = 2,
 };
 
+struct PackedMxShape {
+    uint32_t rows;
+    uint32_t cols;
+};
+
 template <typename TileProd>
 PTO_INTERNAL constexpr bool IsC2VProducerTile()
 {
@@ -575,6 +580,9 @@ struct TPipe {
         std::array<std::array<int, SlotNum>, LANE_NUM> popped_slots_by_lane{};
         std::array<int, SlotNum> popped_slots{};
         std::array<std::array<uint8_t, LOCAL_SLOT_STORAGE_SIZE>, SlotNum> local_slot_storage{};
+        // Keep the source layout for native A5 packed MX V2C transfers. Other
+        // traffic continues to use the logical row-major slot representation.
+        std::array<std::unordered_map<std::size_t, cpu_pipe::PackedMxShape>, SlotNum> packed_mx_entries{};
         std::array<cpu_pipe::TransferDir, SlotNum> transfer_dirs{};
         // Producer commit order per slot, 0 when the slot holds nothing.
         std::array<uint64_t, SlotNum> commit_seq{};
@@ -669,6 +677,9 @@ struct TPipe {
             for (auto& slot : shared_state.local_slot_storage) {
                 slot.fill(0);
             }
+            for (auto& entries : shared_state.packed_mx_entries) {
+                entries.clear();
+            }
             shared_state.remaining_consumers.fill(0);
             shared_state.consumers_claimed.fill(0);
             shared_state.producers_allocated.fill(0);
@@ -727,6 +738,9 @@ struct TPipe {
                             laneMask) == 0;
                 });
                 tileIndex = shared_state.next_producer_slot;
+                if (shared_state.producers_allocated[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)] == 0) {
+                    shared_state.packed_mx_entries[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)].clear();
+                }
                 shared_state.producers_allocated[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)] |= laneMask;
                 shared_state.slot_busy[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)] = 1;
                 subTileIndex = static_cast<int>(laneId);
@@ -744,6 +758,7 @@ struct TPipe {
                 });
             }
             tileIndex = shared_state.next_producer_slot;
+            shared_state.packed_mx_entries[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)].clear();
             shared_state.slot_busy[static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM)] = 1;
             subTileIndex = static_cast<int>(get_subblockid());
         }
@@ -1019,9 +1034,37 @@ struct TPipe {
         {
             using T = typename TileCons::DType;
             const std::size_t slotIndex = static_cast<std::size_t>(tileIndex % RingFiFo::SLOT_NUM);
-            const auto& slotStorage = TPipe::GetSharedState(cpu_pipe::GetConsumerTransferDir<TPipe, TileCons>())
-                                          .local_slot_storage[slotIndex];
+            const auto& sharedState = TPipe::GetSharedState(cpu_pipe::GetConsumerTransferDir<TPipe, TileCons>());
+            const auto& slotStorage = sharedState.local_slot_storage[slotIndex];
             cpu_pipe::EnsureTileStorage(tile);
+            if constexpr (
+                TileCons::Loc == TileType::Mat && std::is_same_v<T, float8_e8m0_t> && TileCons::SFractalSize == 32 &&
+                ((TileCons::isRowMajor && TileCons::SFractal == SLayout::RowMajor) ||
+                 (!TileCons::isRowMajor && TileCons::SFractal == SLayout::ColMajor))) {
+                const auto& entries = sharedState.packed_mx_entries[slotIndex];
+                const auto entry = entries.find(static_cast<std::size_t>(entryOffset));
+                if (entry != entries.end() && tile.GetValidRow() == TileCons::Rows &&
+                    tile.GetValidCol() == TileCons::Cols) {
+                    const auto shape = entry->second;
+                    const bool matchingShape = TileCons::isRowMajor ?
+                                                   shape.rows == TileCons::Rows && shape.cols == TileCons::Cols :
+                                                   shape.rows == TileCons::Cols && shape.cols == TileCons::Rows;
+                    if (matchingShape) {
+                        // Native TINSERT copies packed ZZ bytes to L1, and TPOP
+                        // aliases them as ZZ or its NN transpose without a conversion.
+                        for (uint32_t r = 0; r < shape.rows; ++r) {
+                            for (uint32_t c = 0; c < shape.cols; ++c) {
+                                const std::size_t packedOffset =
+                                    (r / 16) * shape.cols * 16 + (c / 2) * 32 + (r % 16) * 2 + c % 2;
+                                tile.data()[packedOffset] = cpu_pipe::LoadByteStorageElement<T>(
+                                    slotStorage, slotIndex, static_cast<std::size_t>(entryOffset), RingFiFo::SLOT_SIZE,
+                                    static_cast<std::size_t>(r) * shape.cols + c, "PackedMxV2C");
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
             cpu_pipe::CopyLinearToTile<TileCons, T>(
                 tile, slotStorage, slotIndex, static_cast<std::size_t>(entryOffset), RingFiFo::SLOT_SIZE,
                 static_cast<uint32_t>(TileCons::Cols));
@@ -1164,10 +1207,22 @@ PTO_INTERNAL void TPush_v2c(Pipe& pipe, TileProd& tile, size_t slotIndex)
     const uint32_t consCols = (Split == TileSplitAxis::TILE_NO_SPLIT) ? static_cast<uint32_t>(tile.GetValidCol()) :
                                                                         static_cast<uint32_t>(slotCols);
 
-    auto& slotStorage =
-        Pipe::GetSharedState(cpu_pipe::GetProducerTransferDir<Pipe, TileProd>()).local_slot_storage[slotIndex];
+    auto& sharedState = Pipe::GetSharedState(cpu_pipe::GetProducerTransferDir<Pipe, TileProd>());
+    auto& slotStorage = sharedState.local_slot_storage[slotIndex];
     const std::size_t baseByteOffset = static_cast<std::size_t>(pipe.prod.entryOffset);
     if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
+        auto& entries = sharedState.packed_mx_entries[slotIndex];
+        entries.erase(baseByteOffset);
+        if constexpr (
+            (Pipe::DIR_TYPE == Direction::DIR_V2C || Pipe::DIR_TYPE == Direction::DIR_BOTH) &&
+            std::is_same_v<typename TileProd::DType, float8_e8m0_t> && std::is_same_v<DstT, float8_e8m0_t> &&
+            TileProd::isRowMajor && TileProd::SFractal == SLayout::RowMajor && TileProd::SFractalSize == 32 &&
+            TileProd::Rows % 16 == 0 && TileProd::Cols % 2 == 0) {
+            if (NPUMemoryModel::Instance().GetArch() == NPUArch::A5 && tile.GetValidRow() == TileProd::Rows &&
+                tile.GetValidCol() == TileProd::Cols) {
+                entries.emplace(baseByteOffset, cpu_pipe::PackedMxShape{consRows, consCols});
+            }
+        }
         cpu_pipe::FillLinearRegion(
             slotStorage, slotIndex, baseByteOffset, Pipe::RingFiFo::SLOT_SIZE, consCols, static_cast<DstT>(0), 0,
             consRows, 0, consCols);
