@@ -18,7 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
-template <typename DstTileData, typename SrcTileData, QuantMode_t quantMode, bool applyRelu>
+template <typename DstTileData, typename SrcTileData, QuantMode_t quantMode, bool applyRelu, bool scalarQuant = false>
 PTO_INTERNAL void TExtract_Impl(
     DstTileData& dst, SrcTileData& src, uint32_t idxRow, uint32_t idxCol, const std::vector<uint64_t>& scalars = {})
 {
@@ -28,12 +28,17 @@ PTO_INTERNAL void TExtract_Impl(
     using S = typename SrcTileData::DType;
 
     for (size_t c = 0; c < dst.GetValidCol(); c++) {
+        // Scalar scales are broadcast over destination columns; vector scales follow source columns.
+        const size_t scaleCol = scalarQuant ? c : c + idxCol;
+        if constexpr (quantMode != QuantMode_t::NoQuant) {
+            assert(scaleCol < scalars.size());
+        }
         for (size_t r = 0; r < dst.GetValidRow(); r++) {
             if constexpr (quantMode != QuantMode_t::NoQuant) {
                 dst.SetElement(
                     r, c,
                     quantize_element<D, S, quantMode, applyRelu>(
-                        src.GetElement(r + idxRow, c + idxCol), scalars[c + idxCol]));
+                        src.GetElement(r + idxRow, c + idxCol), scalars[scaleCol]));
             } else {
                 S val = src.GetElement(r + idxRow, c + idxCol);
                 if constexpr (applyRelu) {
@@ -159,7 +164,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
     std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
 
-    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu, true>(dst, src, idxRow, idxCol, scalars);
 }
 
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode>
@@ -170,7 +175,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
     std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
 
-    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu, true>(dst, src, idxRow, idxCol, scalars);
 }
 
 template <

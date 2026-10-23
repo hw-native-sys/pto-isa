@@ -96,7 +96,7 @@ __global__ AICORE void TStoreAcc2gmNz2nd(__gm__ dstDataType* out, __gm__ srcData
 #endif
     constexpr AtomicType atomicTypeEnum = atomicType == 1 ? AtomicType::AtomicAdd : AtomicType::AtomicNone;
     if constexpr (reluMode == 0) {
-        TSTORE<AccTile, GlobalDataOut, atomicTypeEnum>(dstGlobal, cTile);
+        TSTORE<TStoreL2Hint::NotAllocClean, AccTile, GlobalDataOut, atomicTypeEnum>(dstGlobal, cTile);
     } else if constexpr (reluMode == 1) {
         constexpr ReluPreMode reluPreMode = ReluPreMode::NormalRelu;
         TSTORE<AccTile, GlobalDataOut, atomicTypeEnum, reluPreMode>(dstGlobal, cTile);

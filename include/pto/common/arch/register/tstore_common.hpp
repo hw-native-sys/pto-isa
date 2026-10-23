@@ -54,7 +54,8 @@ PTO_INTERNAL void CheckStaticVecCommon()
 
 template <
     typename GlobalData, typename TileData, QuantMode_t quantPre = QuantMode_t::NoQuant,
-    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified,
+    TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 PTO_INTERNAL void TStoreAccND(
     typename GlobalData::DType* dstGlobalAddr, __cc__ typename TileData::DType* srcTileAddr, int gShape3, int gShape4,
     int gStride2, int gStride3, int validRow, int validCol)
@@ -81,6 +82,7 @@ PTO_INTERNAL void TStoreAccND(
         (static_cast<uint64_t>(mSize & 0xffff) << 16) |   // Xm[31:16] the m-direction size of the matrix
         (static_cast<uint64_t>(dstD & 0xffffffff) << 32); // Xm[63:32] destination stride between the start addr
     uint64_t xtReg = srcStride |                          // Xt[15:0] the source stride between the start addr
+                     (static_cast<uint64_t>(static_cast<uint8_t>(l2Control) & 0xF) << 16) | // Xt[19:16] L2 control
                      (static_cast<uint64_t>(unitFlagCtrl & 0x3) << 32) | // Xt[33:32] unit flag control bit
                      (((quantPre >> SHIFT_BLOCK_BYTE) & 0x1) << 29) |
                      (static_cast<uint64_t>(quantPre & 0x1f) << 34) | // Xt[29], Xt[38:34] pre-stage quantization mode
@@ -96,7 +98,8 @@ PTO_INTERNAL void TStoreAccND(
 
 template <
     typename GlobalData, typename TileData, QuantMode_t quantPre = QuantMode_t::NoQuant,
-    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified,
+    TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 PTO_INTERNAL void TStoreAccNZ(
     typename GlobalData::DType* dstAddr, __cc__ typename TileData::DType* srcAddr,
     typename GlobalData::DType* dstGlobalAddr, __cc__ typename TileData::DType* srcTileAddr, int gShape0, int gShape1,
@@ -142,6 +145,7 @@ PTO_INTERNAL void TStoreAccNZ(
         dstStride <<= 1;
     }
     uint64_t xtReg = srcStride | // Xt[15:0] the source stride between the start addr
+                     (static_cast<uint64_t>(static_cast<uint8_t>(l2Control) & 0xF) << 16) | // Xt[19:16] L2 control
                      (static_cast<uint64_t>(unitFlagCtrl & 0x3) << 32) | // Xt[33:32] unit flag control bit
                      (((quantPre >> SHIFT_BLOCK_BYTE) & 0x1) << 29) |
                      (static_cast<uint64_t>(quantPre & 0x1f) << 34) | // Xt[29], Xt[38:34] pre-stage quantization mode
@@ -157,7 +161,8 @@ PTO_INTERNAL void TStoreAccNZ(
 
 template <
     typename GlobalData, typename TileData, QuantMode_t quantPre = QuantMode_t::NoQuant,
-    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified,
+    TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 PTO_INTERNAL void TStoreAccNHWC(
     typename GlobalData::DType* dstAddr, __cc__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride3, int validRow, int validCol)
@@ -187,6 +192,7 @@ PTO_INTERNAL void TStoreAccNHWC(
         (static_cast<uint64_t>(mSize & 0xffff) << 16) |        // Xm[31:16] the m-direction size of the matrix
         (static_cast<uint64_t>(dstStride & 0xffffffff) << 32); // Xm[63:32] destination stride between the start addr
     uint64_t xtReg = srcStride |                               // Xt[15:0] the source stride between the start addr
+                     (static_cast<uint64_t>(static_cast<uint8_t>(l2Control) & 0xF) << 16) | // Xt[19:16] L2 control
                      (static_cast<uint64_t>(unitFlagCtrl & 0x3) << 32) | // Xt[33:32] unit flag control bit
                      (((quantPre >> SHIFT_BLOCK_BYTE) & 0x1) << 29) |
                      (static_cast<uint64_t>(quantPre & 0x1f) << 34) | // Xt[29], Xt[38:34] pre-stage quantization mode
@@ -204,7 +210,8 @@ PTO_INTERNAL void TStoreAccNHWC(
 
 template <
     typename GlobalData, typename TileData, QuantMode_t quantPre = QuantMode_t::NoQuant,
-    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified,
+    TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 PTO_INTERNAL void TStoreAccNCHW(
     typename GlobalData::DType* dstAddr, __cc__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
     int gShape2, int gShape3, int gShape4, int gStride1, int gStride2, int validRow, int validCol)
@@ -240,6 +247,7 @@ PTO_INTERNAL void TStoreAccNCHW(
         (static_cast<uint64_t>(mSize & 0xffff) << 16) |        // Xm[31:16] the m-direction size of the matrix
         (static_cast<uint64_t>(dstStride & 0xffffffff) << 32); // Xm[63:32] destination stride between the start addr
     uint64_t xtReg = srcStride |                               // Xt[15:0] the source stride between the start addr
+                     (static_cast<uint64_t>(static_cast<uint8_t>(l2Control) & 0xF) << 16) | // Xt[19:16] L2 control
                      (static_cast<uint64_t>(unitFlagCtrl & 0x3) << 32) | // Xt[33:32] unit flag control bit
                      (((quantPre >> SHIFT_BLOCK_BYTE) & 0x1) << 29) |
                      (static_cast<uint64_t>(quantPre & 0x1f) << 34) | // Xt[29], Xt[38:34] pre-stage quantization mode
@@ -260,7 +268,8 @@ PTO_INTERNAL void TStoreAccNCHW(
 
 template <
     typename GlobalData, typename TileData, typename FpTileData, QuantMode_t quantPre = QuantMode_t::NoQuant,
-    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified,
+    TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 __tf__ AICORE void TStoreAccFp(
     typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src,
     typename FpTileData::TileDType __in__ fp, int gShape0, int gShape1, int gShape2, int gShape3, int gShape4,
@@ -274,24 +283,25 @@ __tf__ AICORE void TStoreAccFp(
     if constexpr (GlobalData::layout == pto::Layout::NZ) {
         __cc__ typename TileData::DType* srcTileAddr = srcAddr;
         typename GlobalData::DType* dstGlobalAddr = dstAddr;
-        TStoreAccNZ<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccNZ<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, dstGlobalAddr, srcTileAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0,
             validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::ND) {
-        TStoreAccND<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccND<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, gShape3, gShape4, gStride2, gStride3, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NHWC) {
-        TStoreAccNHWC<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccNHWC<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride3, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NCHW || GlobalData::layout == pto::Layout::NCDHW) {
-        TStoreAccNCHW<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccNCHW<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride2, validRow, validCol);
     }
 }
 
 template <
     typename GlobalData, typename TileData, QuantMode_t quantPre = QuantMode_t::NoQuant,
-    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified>
+    ReluPreMode reluPreMode = ReluPreMode::NoRelu, STPhase Phase = STPhase::Unspecified,
+    TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 __tf__ AICORE void TStoreAcc(
     typename GlobalData::DType __out__* dst, typename TileData::TileDType __in__ src, int gShape0, int gShape1,
     int gShape2, int gShape3, int gShape4, int gStride0, int gStride1, int gStride2, int gStride3, int gStride4,
@@ -300,19 +310,19 @@ __tf__ AICORE void TStoreAcc(
     __cc__ typename TileData::DType* srcAddr = (__cc__ typename TileData::DType*)__cce_get_tile_ptr(src);
     typename GlobalData::DType* dstAddr = dst;
     if constexpr (GlobalData::layout == pto::Layout::ND) {
-        TStoreAccND<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccND<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, gShape3, gShape4, gStride2, gStride3, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NZ) {
         __cc__ typename TileData::DType* srcTileAddr = srcAddr;
         typename GlobalData::DType* dstGlobalAddr = dstAddr;
-        TStoreAccNZ<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccNZ<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, dstGlobalAddr, srcTileAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0,
             validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NHWC) {
-        TStoreAccNHWC<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccNHWC<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride3, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NCHW || GlobalData::layout == pto::Layout::NCDHW) {
-        TStoreAccNCHW<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+        TStoreAccNCHW<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
             dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride2, validRow, validCol);
     }
 }

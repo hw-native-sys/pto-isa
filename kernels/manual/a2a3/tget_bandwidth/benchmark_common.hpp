@@ -26,7 +26,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace benchmark {
 
 constexpr size_t kBytesPerKiB = 1024;
-constexpr uint32_t kMaxDeviceBaselinePosts = 512;
+constexpr uint32_t kMaxDeviceBaselinePosts = 256;
 constexpr double kDeviceCycleSeconds = 20.0e-9;
 
 inline uint64_t ReadEnvUint64(const char* name, uint64_t defaultValue)

@@ -305,7 +305,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
         CheckStaticAcc<TileData, GlobalData, false>();
 
         constexpr QuantMode_t quantPre = GetCastPreQuantModeGm<L0cT, DstT>();
-        TStoreAcc<GlobalData, TileData, quantPre, ReluPreMode::NoRelu, Phase>(
+        TStoreAcc<GlobalData, TileData, quantPre, ReluPreMode::NoRelu, Phase, l2Control>(
             dst.data(), src.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0),
             dst.GetShape(pto::GlobalTensorDim::DIM_1), dst.GetShape(pto::GlobalTensorDim::DIM_2),
             dst.GetShape(pto::GlobalTensorDim::DIM_3), dst.GetShape(pto::GlobalTensorDim::DIM_4),
@@ -341,7 +341,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src)
         SetAtomicAdd<DstT>();
     }
     constexpr QuantMode_t quantPre = GetCastPreQuantModeGm<L0cT, DstT>();
-    TStoreAcc<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+    TStoreAcc<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
         dst.data(), src.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0), dst.GetShape(pto::GlobalTensorDim::DIM_1),
         dst.GetShape(pto::GlobalTensorDim::DIM_2), dst.GetShape(pto::GlobalTensorDim::DIM_3),
         dst.GetShape(pto::GlobalTensorDim::DIM_4), dst.GetStride(pto::GlobalTensorDim::DIM_0),
@@ -369,7 +369,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, uint64_t preQuantS
     }
     constexpr QuantMode_t quantPre = GetScalarPreQuantModeGm<L0cT, DstT>();
     set_quant_pre(preQuantScalar);
-    TStoreAcc<GlobalData, TileData, quantPre, reluPreMode, Phase>(
+    TStoreAcc<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
         dst.data(), src.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0), dst.GetShape(pto::GlobalTensorDim::DIM_1),
         dst.GetShape(pto::GlobalTensorDim::DIM_2), dst.GetShape(pto::GlobalTensorDim::DIM_3),
         dst.GetShape(pto::GlobalTensorDim::DIM_4), dst.GetStride(pto::GlobalTensorDim::DIM_0),
@@ -396,7 +396,7 @@ PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, FpTileData& fp)
         SetAtomicAdd<DstT>();
     }
     constexpr QuantMode_t quantPre = GetVectorPreQuantModeGm<L0cT, DstT>();
-    TStoreAccFp<GlobalData, TileData, FpTileData, quantPre, reluPreMode, Phase>(
+    TStoreAccFp<GlobalData, TileData, FpTileData, quantPre, reluPreMode, Phase, l2Control>(
         dst.data(), src.data(), fp.data(), dst.GetShape(pto::GlobalTensorDim::DIM_0),
         dst.GetShape(pto::GlobalTensorDim::DIM_1), dst.GetShape(pto::GlobalTensorDim::DIM_2),
         dst.GetShape(pto::GlobalTensorDim::DIM_3), dst.GetShape(pto::GlobalTensorDim::DIM_4),

@@ -61,6 +61,20 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
       `CAST_TRUNC`, positive `CAST_FLOOR`, or negative `CAST_CEIL`.
       E4M3 encodings `0x7f`/`0xff` decode as NaN; E5M2 decodes infinity and NaN separately.
       E8M0 conversions and the single-argument MXType encoding constructors are unchanged.
+- **A5 FP4 E2M1 to FP8 E4M3**:
+  - The direct `float4_e2m1x2_t -> float8_e4m3_t` pair is A5-only. It preserves every value exactly,
+    including negative zero, for every `RoundMode` and both saturation modes; temporary-tile overloads
+    keep the same behavior and do not use temporary storage.
+  - Source: `Vec`, RowMajor/NoneBox, `CompactMode::Null`, at least 64 physical logical columns and
+    a multiple of 64. Logical FP4 columns/valid columns count nibbles; a physical row occupies `Cols / 2` bytes.
+  - Destination: `Vec` ND (RowMajor/NoneBox, Null), or standard 512-byte NZ (ColMajor/RowMajor fractal,
+    Null or Normal). Valid rows and logical columns must agree, including dynamic or partial regions;
+    physical source/destination dimensions may differ. Invalid output bytes are preserved.
+  - NZ physical rows must be a multiple of 16. For logical `(r,c)`, byte offset is
+    `(c / 32) * panelRows * 32 + r * 32 + c % 32`, where Null uses physical `Rows`, and Normal uses
+    `ceil(validRows / 16) * 16`, matching Vec-to-Mat NZ transport. `RowPlusOne` is diagnosed as unsupported.
+  - This pair uses a register byte LUT and writes ND/NZ directly, without an explicit UB table, index tile,
+    or ND intermediate. It does not add an FP4-to-FP8 implementation to A2/A3 or CPU_SIM.
 - **Temporary tile**:
   - **CPU_SIM**: The two overloads with `tmp` produce the same result as their corresponding no-`tmp` overloads.
     CPU_SIM accepts `tmp` for source compatibility but neither calls `tmp.data()` nor accesses its storage. Portable
@@ -132,7 +146,7 @@ PTO_INST RecordEvent TCVT(TileDataD &dst, TileDataS &src, TmpTileData &tmp, Roun
 | FP8_E5M2 | N/A | FP32 | A5-only source type |
 | H8 | N/A | FP32 | A5-only source type |
 | FP4_E1M2X2 | N/A | BF16 | A5-only source type |
-| FP4_E2M1X2 | N/A | BF16 | A5-only source type |
+| FP4_E2M1X2 | N/A | BF16, FP8_E4M3 | A5-only source type |
 
 Notes:
 - Key gap: A2A3 supports I32 -> FP16 (half) via deq path, while A5 has no I32 -> FP16 conversion.
