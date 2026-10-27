@@ -479,7 +479,11 @@ inline void QuantizeMxTile(
             const float groupScaling = ComputeMxGroupScaling<quant_type, scale_alg>(maxAbsValue, e8m0);
 
             flatMax.data()[flatGroupIdx] = static_cast<typename FlatMaxTile::DType>(maxAbsValue);
-            exp.data()[GetTileElementOffset<TileDataExp>(row, col)] = e8m0;
+            if constexpr (grp_axis == 1 && TileDataExp::Rows == 1) {
+                exp.data()[GetTileElementOffset<TileDataExp>(0, flatGroupIdx)] = e8m0;
+            } else {
+                exp.data()[GetTileElementOffset<TileDataExp>(row, col)] = e8m0;
+            }
 
             QuantizeMxGroup<grp_axis, quant_type, scale_alg>(
                 dst, src, flatScaling, i, group, flatGroupIdx, groupScaling);

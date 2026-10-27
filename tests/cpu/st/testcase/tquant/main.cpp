@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <type_traits>
 #include <vector>
 #include <gtest/gtest.h>
 #include <pto/pto-inst.hpp>
@@ -20,6 +21,55 @@ See LICENSE in the root of the software repository for the full text of the Lice
 using namespace pto;
 
 namespace {
+template <typename SrcT, MxQuantAlg algorithm, int validRows = 16>
+void RunMxFlatExponentCase()
+{
+    constexpr bool isFp8 = algorithm == MxQuantAlg::OcpMxFp8E4M3 || algorithm == MxQuantAlg::NvMxFp8E4M3;
+    constexpr int groups = validRows * 2;
+    constexpr uint8_t expectedExponent = isFp8 ? 119 : 125;
+    using SrcTile = Tile<TileType::Vec, SrcT, 16, 64, BLayout::RowMajor, validRows, 64>;
+    using DstT = std::conditional_t<isFp8, int8_t, float4_e2m1x2_t>;
+    using DstTile = Tile<TileType::Vec, DstT, 16, 64, BLayout::RowMajor, validRows, 64>;
+    using ExpTile = Tile<TileType::Vec, uint8_t, 1, 32, BLayout::RowMajor, 1, groups>;
+    using MaxTile = Tile<TileType::Vec, float, 1, 32>;
+    using ScalingTile = Tile<TileType::Vec, float, 1, 64>;
+    using GuardTile = Tile<TileType::Vec, uint8_t, 1, 512>;
+    SrcTile src;
+    DstTile dst;
+    ExpTile exp;
+    MaxTile max;
+    ScalingTile scaling;
+    GuardTile guard;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 8192);
+    TASSIGN(guard, 16384);
+    TASSIGN(exp, 16384);
+    TASSIGN(max, 20480);
+    TASSIGN(scaling, 24576);
+    std::fill(src.data(), src.data() + SrcTile::Numel, static_cast<SrcT>(1.0f));
+    std::fill(guard.data(), guard.data() + GuardTile::Numel, uint8_t{0xa5});
+
+    TQUANT<1, algorithm>(dst, src, &exp, &max, &scaling);
+
+    for (int index = 0; index < groups; ++index) {
+        EXPECT_EQ(exp.data()[index], expectedExponent) << "group=" << index;
+        EXPECT_FLOAT_EQ(max.data()[index], 1.0f);
+        EXPECT_FLOAT_EQ(scaling.data()[index], isFp8 ? 256.0f : 4.0f);
+    }
+    for (int index = groups; index < GuardTile::Numel; ++index) {
+        EXPECT_EQ(guard.data()[index], 0xa5) << "guard byte=" << index;
+    }
+    for (int row = 0; row < validRows; ++row) {
+        for (int col = 0; col < 64; ++col) {
+            if constexpr (isFp8) {
+                EXPECT_EQ(static_cast<uint8_t>(dst.GetElement(row, col)), 0x78);
+            } else {
+                EXPECT_DOUBLE_EQ(static_cast<double>(dst.GetElement(row, col)), 4.0);
+            }
+        }
+    }
+}
+
 float BitsToFloat(uint32_t bits) { return std::bit_cast<float>(bits); }
 
 uint8_t DecodeCandidateCode(uint8_t code, float& value)
@@ -774,4 +824,30 @@ TEST(TQuantCpuSimTest, MxFp4E2M1NVBf16NdMixed) { RunMxFp4E2M1NvBf16NdCase(MxFp4C
 TEST(TQuantCpuSimTest, MxFp8BF16NdMatchesExactBytes) { TestFP8ExactMatch<bfloat16_t>(); }
 
 TEST(TQuantCpuSimTest, MxFp8BF16NzReordersExponentsExactly) { TestFp8NzReordersExponentsExactly<bfloat16_t>(); }
+#endif
+
+TEST(TQuantCpuSimTest, MxFp8FlatExponentFloatOcp) { RunMxFlatExponentCase<float, MxQuantAlg::OcpMxFp8E4M3>(); }
+TEST(TQuantCpuSimTest, MxFp8FlatExponentFloatNv) { RunMxFlatExponentCase<float, MxQuantAlg::NvMxFp8E4M3>(); }
+TEST(TQuantCpuSimTest, MxFp8FlatExponentHalfOcp) { RunMxFlatExponentCase<half, MxQuantAlg::OcpMxFp8E4M3>(); }
+TEST(TQuantCpuSimTest, MxFp8FlatExponentHalfNv) { RunMxFlatExponentCase<half, MxQuantAlg::NvMxFp8E4M3>(); }
+TEST(TQuantCpuSimTest, MxFp4FlatExponentHalfOcp) { RunMxFlatExponentCase<half, MxQuantAlg::OcpMxFp4E2M1>(); }
+TEST(TQuantCpuSimTest, MxFp4FlatExponentHalfNv) { RunMxFlatExponentCase<half, MxQuantAlg::NvMxFp4E2M1>(); }
+TEST(TQuantCpuSimTest, MxFp8FlatExponentPartialRowsOcp)
+{
+    RunMxFlatExponentCase<float, MxQuantAlg::OcpMxFp8E4M3, 15>();
+}
+TEST(TQuantCpuSimTest, MxFp8FlatExponentPartialRowsNv) { RunMxFlatExponentCase<float, MxQuantAlg::NvMxFp8E4M3, 15>(); }
+#if defined(PTO_CPU_SIM_ENABLE_BF16)
+TEST(TQuantCpuSimTest, MxFp8FlatExponentBfloatOcp) { RunMxFlatExponentCase<bfloat16_t, MxQuantAlg::OcpMxFp8E4M3>(); }
+TEST(TQuantCpuSimTest, MxFp8FlatExponentBfloatNv) { RunMxFlatExponentCase<bfloat16_t, MxQuantAlg::NvMxFp8E4M3>(); }
+TEST(TQuantCpuSimTest, MxFp4FlatExponentBfloatOcp) { RunMxFlatExponentCase<bfloat16_t, MxQuantAlg::OcpMxFp4E2M1>(); }
+TEST(TQuantCpuSimTest, MxFp4FlatExponentBfloatNv) { RunMxFlatExponentCase<bfloat16_t, MxQuantAlg::NvMxFp4E2M1>(); }
+TEST(TQuantCpuSimTest, MxFp4FlatExponentPartialRowsOcp)
+{
+    RunMxFlatExponentCase<bfloat16_t, MxQuantAlg::OcpMxFp4E2M1, 15>();
+}
+TEST(TQuantCpuSimTest, MxFp4FlatExponentPartialRowsNv)
+{
+    RunMxFlatExponentCase<bfloat16_t, MxQuantAlg::NvMxFp4E2M1, 15>();
+}
 #endif
