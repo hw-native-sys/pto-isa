@@ -11,17 +11,23 @@
 # --------------------------------------------------------------------------------
 
 import argparse
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 import site
+import tempfile
 import time
 import logging
 import platform
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+STANDALONE_TESTS = {
+    "tile_compact_storage": "test_tile_compact_storage.py",
+}
 
 def _format_cmd(command: List[str]) -> str:
     return " ".join(map(str, command))
@@ -451,7 +457,11 @@ def parse_arguments():
     )
     parser.add_argument("--verbose", action="store_true", help="Show full output from cmake/msbuild/gtest (default: \
                         quiet, only structured logs).",)
-    parser.add_argument("-t", "--testcase", help="Run a single testcase (e.g. tadd). Default: run all built bin.",)
+    parser.add_argument(
+        "-t", "--testcase",
+        help="Run one testcase (e.g. tadd) or standalone suite: " + ", ".join(STANDALONE_TESTS)
+        + ". Default: run all built binaries and standalone suites.",
+    )
     parser.add_argument("-g", "--gtest_filter", help="Optional gtest filter (e.g. 'TADDTest.case1').",)
     parser.add_argument("--cxx", help="C++ compiler (e.g. clang++). Default: $CXX or auto-detect.")
     parser.add_argument("--cc", help="C compiler (e.g. clang). Default: $CC or auto-detect.")
@@ -465,6 +475,7 @@ def parse_arguments():
     parser.add_argument("--no-gen", action="store_true", help="Skip running testcase gen_data.py.")
     parser.add_argument("--xml-dir", default=None, help="If set, write gtest xml reports under this directory")
     parser.add_argument("--no-install", action="store_true", help="Do not auto-install missing tools/deps (numpy).")
+    parser.add_argument("--standalone-aggregate-context", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--demo", choices=["gemm", "flash_attn", "mla", "all"], default=None, help="Build & run demo program \
                         (e.g. 'gemm', 'flash_attn'). \
                         Note: demo runs alone (does not run CPU ST).")
@@ -533,7 +544,45 @@ def run_demo_mode(args, repo_root, cxx, cc) -> int:
     return 0
 
 
+def run_standalone_test(name, args, repo_root, build_dir, cxx, aggregate_context=False) -> None:
+    if not cxx:
+        raise RuntimeError("standalone suites require a resolved C++ compiler")
+    output_parent = (build_dir / "standalone").resolve()
+    output_parent.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(tempfile.mkdtemp(prefix=name + "-", dir=output_parent))
+    logging.info(f"[INFO] standalone output: {output_dir}")
+    elapsed = run_command(
+        [
+            sys.executable,
+            str((repo_root / "cpu" / STANDALONE_TESTS[name]).resolve()),
+            "--compiler", cxx,
+            "--output-dir", str(output_dir),
+            *(["--aggregate-context"] if aggregate_context else []),
+        ],
+        cwd=repo_root.parent,
+        title=f"[STEP] standalone: {name}",
+        verbose=args.verbose,
+    )
+    result = json.loads((output_dir / "result.json").read_text(encoding="utf-8"))
+    if (
+        result.get("status") == "skipped"
+        and aggregate_context
+        and result.get("passed") is False
+        and result.get("compiler", {}).get("status") == "unsupported"
+        and result.get("reason")
+    ):
+        logging.info(f"[SKIP] {name}: {result['reason']} (result: {output_dir / 'result.json'})")
+    elif result.get("status") == "passed" and result.get("passed") is True:
+        logging.info(f"[PASS] {name} ({_format_seconds(elapsed)})")
+    else:
+        raise RuntimeError(f"standalone suite did not report a valid result: {output_dir / 'result.json'}")
+
+
 def run_test_mode(args, repo_root, cxx, cc) -> int:
+    aggregate_context = getattr(args, "standalone_aggregate_context", False)
+    if aggregate_context and args.testcase not in STANDALONE_TESTS:
+        logging.error("error: --standalone-aggregate-context requires a standalone --testcase")
+        return 2
     source_dir = repo_root / "cpu" / "st"
     if not source_dir.exists():
         logging.error(f"error: not found CPU ST dir: {source_dir}")
@@ -547,6 +596,16 @@ def run_test_mode(args, repo_root, cxx, cc) -> int:
         if build_dir.exists():
             shutil.rmtree(build_dir)
 
+    if args.testcase in STANDALONE_TESTS:
+        if args.no_build:
+            logging.error("error: standalone suites compile regression cases and cannot use --no-build")
+            return 2
+        if args.gtest_filter is not None or args.xml_dir is not None:
+            logging.error("error: standalone suites do not support --gtest_filter or --xml-dir")
+            return 2
+        run_standalone_test(args.testcase, args, repo_root, build_dir, cxx, aggregate_context)
+        return 0
+
     need_build = determine_need_build(args, source_dir, build_dir)
     if need_build:
         if not perform_build(args, source_dir, build_dir, cxx, cc):
@@ -554,7 +613,15 @@ def run_test_mode(args, repo_root, cxx, cc) -> int:
     else:
         logging.info("\n== BUILD ==")
         logging.info("[SKIP] build (already built)")
-    return execute_tests(args, source_dir, build_dir)
+    result = execute_tests(args, source_dir, build_dir)
+    if result != 0 or args.testcase:
+        return result
+    if args.no_build:
+        logging.info("[SKIP] standalone compile regressions (--no-build runs existing binaries only)")
+    else:
+        for name in STANDALONE_TESTS:
+            run_standalone_test(name, args, repo_root, build_dir, cxx, True)
+    return 0
 
 
 def parse_expected_testcases(source_dir: Path) -> Optional[set[str]]:

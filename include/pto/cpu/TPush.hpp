@@ -547,7 +547,12 @@ PTO_INTERNAL void EnsureTileStorage(TileData& tile)
     static thread_local std::unordered_map<const void*, std::shared_ptr<TileStorage>> buffers;
     auto& buffer = buffers[static_cast<const void*>(&tile)];
     if (!buffer) {
-        const auto numel = static_cast<std::size_t>(TileData::Rows) * TileData::Cols;
+        // Keep the legacy raw-element backing, including its packed-type size.
+        // RowPlusOne may need more storage for its physical panel envelope.
+        constexpr auto legacyNumel = static_cast<std::size_t>(TileData::Rows) * TileData::Cols;
+        const auto numel = TileData::kRowPlusOneNZ && TileData::GetSizeInUnits() > legacyNumel ?
+                               TileData::GetSizeInUnits() :
+                               legacyNumel;
         buffer = std::make_shared<TileStorage>(numel);
     }
     NPUMemoryModel::Instance().RegisterHostStorage(buffer);

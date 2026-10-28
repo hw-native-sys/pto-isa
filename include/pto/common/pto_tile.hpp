@@ -1606,6 +1606,23 @@ public:
     static constexpr auto PadVal = PadVal_;
     static constexpr CompactMode Compact = Compact_;
 
+    // RowPlusOne keeps the logical shape and adds one 32-byte row per NZ panel.
+    // A static valid extent can prove that a legacy Rows declaration already
+    // includes the extra row. Dynamic valid extents still need the maximum pitch.
+    static constexpr bool kRowPlusOneNZ = Loc == TileType::Vec && BFractal == BLayout::ColMajor &&
+                                          SFractal == SLayout::RowMajor && SFractalSize == TileConfig::fractalABSize &&
+                                          Compact == CompactMode::RowPlusOne;
+    static constexpr bool kRowPlusOneRowsPadded = kRowPlusOneNZ && ValidRow > 0 &&
+                                                  Rows == ((ValidRow + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW *
+                                                               FRACTAL_NZ_ROW +
+                                                           1);
+    static constexpr size_t StorageNumel =
+        (kRowPlusOneNZ && !kRowPlusOneRowsPadded ?
+             ((static_cast<size_t>(Rows) + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW + 1) :
+             static_cast<size_t>(Rows)) *
+        Cols;
+    static constexpr size_t StorageBytes = StorageNumel / kPackedElementsPerByte * sizeof(DType);
+
     __tf__ AICORE void SetValue(const uint32_t offset, const DType val)
     {
         static_assert(Loc == TileType::Vec, "Location of tile must be Location::Vec.");
@@ -1708,11 +1725,11 @@ public:
 #else
 #ifdef __PTO_AUTO__
 #if defined(PTO_NPU_ARCH_A2A3)
-    using TileDType = typename MemoryQualifier<Loc, DType>::type tile_size(Rows* Cols);
+    using TileDType = typename MemoryQualifier<Loc, DType>::type tile_size(StorageNumel);
 #else
     using TileDType = std::conditional_t<
         Loc == TileType::Bias, typename MemoryQualifier<Loc, DType>::type, // special handling for Bias Tile
-        typename MemoryQualifier<Loc, DType>::type tile_size(Rows* Cols)>;
+        typename MemoryQualifier<Loc, DType>::type tile_size(StorageNumel)>;
 #endif
 #else
     using TileDType = typename MemoryQualifier<Loc, DType>::type;
@@ -1723,7 +1740,7 @@ public:
     TileDType& data()
     {
         if (!data_) {
-            internalBuffer.resize(Rows * Cols / kPackedElementsPerByte);
+            internalBuffer.resize(StorageNumel / kPackedElementsPerByte);
             data_ = internalBuffer.data();
         }
         return data_;
@@ -1731,7 +1748,7 @@ public:
     const TileDType& data() const
     {
         if (!data_) {
-            internalBuffer.resize(Rows * Cols);
+            internalBuffer.resize(kRowPlusOneNZ ? StorageNumel / kPackedElementsPerByte : Rows * Cols);
             data_ = internalBuffer.data();
         }
         return data_;
@@ -1832,7 +1849,7 @@ public:
     static constexpr size_t GetSizeInUnits()
     {
         // One unit is sizeof(DType)
-        return Numel / kPackedElementsPerByte;
+        return StorageNumel / kPackedElementsPerByte;
     }
 
     static constexpr size_t GetSizeInBytes() { return GetSizeInUnits() * sizeof(DType); }

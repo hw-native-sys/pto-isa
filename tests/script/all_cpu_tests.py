@@ -13,6 +13,7 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import multiprocessing
 from pathlib import Path
@@ -144,6 +145,10 @@ TEST_SOURCES = [
     ("tests/cpu/comm/st", "build/cpu_st_comm"),
 ]
 
+STANDALONE_TESTCASES = (
+    "tile_compact_storage",
+)
+
 
 def resolve_build_dir(repo_root: Path, build_rel: str, args: argparse.Namespace) -> Path:
     if not args.build_folder:
@@ -243,6 +248,37 @@ def run_binaries(repo_root: Path, args: argparse.Namespace) -> int:
     return 0 if failed == 0 else 1
 
 
+def run_standalone_tests(repo_root: Path, args: argparse.Namespace) -> None:
+    st_build_dir = resolve_build_dir(repo_root, "build/cpu_st", args).resolve()
+    cache = st_build_dir / "CMakeCache.txt"
+    if not cache.is_file():
+        raise RuntimeError(f"Standalone CPU regressions require the configured ST compiler cache: {cache}")
+    cxx = None
+    for line in cache.read_text(encoding="utf-8").splitlines():
+        if line.startswith("CMAKE_CXX_COMPILER:") and "=" in line:
+            cxx = line.split("=", 1)[1].strip()
+            break
+    if not cxx:
+        raise RuntimeError(f"CMAKE_CXX_COMPILER is missing from {cache}")
+
+    output_parent = st_build_dir / "standalone-runner"
+    output_parent.mkdir(parents=True, exist_ok=True)
+    build_dir = Path(tempfile.mkdtemp(prefix="run-", dir=output_parent))
+    print(f"Standalone runner build directory: {build_dir}")
+    env = os.environ.copy()
+    for name in STANDALONE_TESTCASES:
+        run_command(
+            [
+                sys.executable, str(repo_root / "tests" / "run_cpu.py"),
+                "--no-install", "--cxx", cxx,
+                "--build-dir", str(build_dir), "--testcase", name,
+                "--standalone-aggregate-context",
+                *(["--verbose"] if args.verbose else []),
+            ],
+            cwd=repo_root, env=env, verbose=args.verbose,
+        )
+
+
 def main() -> int:
     args = parse_arguments()
     repo_root = Path(__file__).resolve().parents[2]
@@ -253,7 +289,11 @@ def main() -> int:
 
     build_all_cpu_tests(repo_root, args)
     generate_test_data(repo_root, args)
-    return run_binaries(repo_root, args)
+    result = run_binaries(repo_root, args)
+    if result != 0:
+        return result
+    run_standalone_tests(repo_root, args)
+    return 0
 
 
 if __name__ == "__main__":

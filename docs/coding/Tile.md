@@ -31,7 +31,8 @@ pto::Tile<
   ColValid_                  = Cols_,
   pto::SLayout SLayout_      = pto::SLayout::NoneBox,
   SFractalSize_              = pto::TileConfig::fractalABSize,
-  pto::PadValue PadValue_    = pto::PadValue::Null
+  pto::PadValue PadValue_    = pto::PadValue::Null,
+  pto::CompactMode Compact_ = pto::CompactMode::Null
 >;
 ```
 
@@ -94,6 +95,50 @@ When `SFractalSize == 512` and the inner boxed layout is row-major, a common set
 For an inner col-major boxed layout, the same base tile can be viewed as the transpose (e.g., `8 × 16`, `16 × 16`, `32 × 16`).
 
 Exact details are backend-dependent; the instruction constraints and compile-time checks in `pto::Tile` are the source of truth for what is legal for a given build target.
+
+### Compact storage (`CompactMode`)
+
+`CompactMode` is an existing layout option, independent of `PadValue` and the
+conversion instruction. `CompactMode::Null` remains the default. For standard
+Vec NZ (`BLayout::ColMajor`, `SLayout::RowMajor`, 512-byte fractals),
+`RowPlusOne` uses a panel pitch of `ceil(validRows / 16) * 16 + 1` rows. The
+extra 32-byte row separates panels to avoid UB bank conflicts. The number of
+elements per panel row depends on the element size.
+
+`Rows`, `Cols` and `Numel` keep their declared values. Normally,
+`StorageNumel = (ceil(Rows / 16) * 16 + 1) * Cols`. A legacy declaration with
+static `ValidRow > 0` and `Rows == ceil(ValidRow / 16) * 16 + 1` already includes
+the extra row, so its `StorageNumel` is `Rows * Cols`. `StorageBytes` includes
+the element size and packed-elements factor. Native automatic allocation,
+CPU buffers and static `TASSIGN<addr>` use this physical capacity.
+
+For example, `Rows=33, ValidRow=32` reserves 33 rows per panel, preserving the
+old exact-size backing. With dynamic valid rows, `Rows=33` must still reserve
+49 rows: a later `validRows=33` needs that pitch. The static exception is based
+on the declared valid extent, not an inference from `Rows % 16`. Other capacity
+rules are unchanged. Legacy raw NZ `TLOAD`/`TSTORE` can use `Rows` as their
+physical stride, so do not change these declarations by subtracting one.
+
+For native compact producers, set the valid shape before producing data:
+crossing a 16-row alignment boundary changes their panel pitch. `SetValidShape` updates metadata and does not rearrange
+existing bytes; produce or repack the data after such a change. CPU
+`GetSizeInUnits()` and `GetSizeInBytes()` report physical capacity. Explicit
+placement must reserve `StorageBytes`.
+
+This storage change preserves the existing CPU addressing rules. CPU Tile
+accessors and descriptor-based operators continue to use the declared physical
+`Rows` stride, including dynamic valid shapes. Native compact producers use
+their instruction-specific valid-row pitch. Increasing the allocation does not
+change either representation or migrate CPU operators to native compact layout.
+
+The CPU regression covers physical capacity, old static and dynamic descriptor
+calls, arithmetic/scalar helper calls, full-`Rows` `TFILLPAD`, and nonshrinking
+FIFO backing. In manual mode the FIFO allocation helper preserves at least its
+old `Rows * Cols` raw-element backing; AUTO mode uses the Tile allocation.
+This does not establish packed FIFO correctness or full CPU/native compact-layout
+parity. Compact CPU producer/consumer support requires separate validation.
+
+Other modes retain their existing allocation and addressing behavior.
 
 ### Padding (`PadValue`)
 

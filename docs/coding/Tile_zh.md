@@ -31,7 +31,8 @@ pto::Tile<
   ColValid_                  = Cols_,
   pto::SLayout SLayout_      = pto::SLayout::NoneBox,
   SFractalSize_              = pto::TileConfig::fractalABSize,
-  pto::PadValue PadValue_    = pto::PadValue::Null
+  pto::PadValue PadValue_    = pto::PadValue::Null,
+  pto::CompactMode Compact_ = pto::CompactMode::Null
 >;
 ```
 
@@ -94,6 +95,43 @@ PTO 用两层布局描述 Tile：
 若内层盒化布局为 col-major，同一基块可视为转置（例如 `8 × 16`、`16 × 16`、`32 × 16`）。
 
 精确细节依赖后端；以 `pto::Tile` 的编译期检查与各指令页面的约束为准。
+
+### 紧凑存储（`CompactMode`）
+
+`CompactMode` 是已有的布局选项，与 `PadValue` 和转换指令独立。
+`CompactMode::Null` 仍是默认模式。对于标准 Vec NZ（`BLayout::ColMajor`、
+`SLayout::RowMajor`、512 字节分形），`RowPlusOne` 的 panel 行步长为
+`ceil(validRows / 16) * 16 + 1`。额外的 32 字节行隔开相邻 panel，以避免 UB bank
+冲突；每个 panel 行内的元素数由元素大小决定。
+
+`Rows`、`Cols`、`Numel` 保持声明值。通常
+`StorageNumel = (ceil(Rows / 16) * 16 + 1) * Cols`。若旧声明的静态
+`ValidRow > 0` 且 `Rows == ceil(ValidRow / 16) * 16 + 1`，即可证明 `Rows`
+已含额外行，此时 `StorageNumel = Rows * Cols`。`StorageBytes` 还计入元素大小和
+打包元素因子。原生自动分配、CPU 缓冲区及静态 `TASSIGN<addr>` 均使用这一物理容量。
+
+例如 `Rows=33, ValidRow=32` 每个 panel 预留 33 行，保留旧的恰好容量。
+若有效行数是动态的，`Rows=33` 仍须预留 49 行，因为后续 `validRows=33` 需要这一
+步长。静态例外依赖声明的有效行数，不按 `Rows % 16` 猜测 padding，其他容量规则
+保持不变。旧原始 NZ `TLOAD`/`TSTORE` 可使用 `Rows` 作为物理步长，不能将这些
+声明直接减一。
+
+原生紧凑布局生产指令在生产数据前须设置有效形状：跨越 16 行对齐边界会改变其 panel 步长。
+`SetValidShape` 只更新元数据，不重排已有字节；这种变更后须重新生产或重排数据。
+CPU 的 `GetSizeInUnits()`、`GetSizeInBytes()` 返回物理容量，显式地址分配须预留
+`StorageBytes`。
+
+本次存储修复保留既有 CPU 寻址规则。CPU Tile 元素访问与描述符算子继续使用声明的
+物理 `Rows` 步长，动态有效形状也保持原行为。原生紧凑布局生产指令使用各自的有效行
+步长；增加分配容量不会改变这两种表示，也不把 CPU 算子迁移为原生紧凑布局。
+
+CPU 回归覆盖物理容量、旧静态/动态描述符调用、算术及标量辅助路径、完整 `Rows`
+范围的 `TFILLPAD` 和不会缩小的 FIFO backing。手动模式下，FIFO 分配辅助函数至少
+保留原来的 `Rows * Cols` 原始元素容量；AUTO 模式使用 Tile 自身分配。本次不宣称
+打包 FIFO 正确性或完整 CPU/原生紧凑布局一致性；紧凑布局的 CPU 生产者/消费者支持
+需要单独验证。
+
+其他模式保留既有分配和寻址行为。
 
 ### Padding（`PadValue`）
 

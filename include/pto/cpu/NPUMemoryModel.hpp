@@ -403,7 +403,11 @@ private:
             // validRows * validCols is not the backing-storage span.
             // Instructions that also write padding or whole source blocks must
             // check their actual access with CheckAccess before those writes.
-            if constexpr (TileDef::ValidRow > 0 && TileDef::ValidCol > 0 && TileDef::PadVal == PadValue::Null) {
+            // RowPlusOne allocation includes its physical panel envelope; a
+            // valid-only view span does not account for the reserved padding.
+            if constexpr (
+                !TileDef::kRowPlusOneNZ && TileDef::ValidRow > 0 && TileDef::ValidCol > 0 &&
+                TileDef::PadVal == PadValue::Null) {
                 const std::size_t lastElement =
                     GetTileElementOffset<TileDef>(TileDef::ValidRow - 1, TileDef::ValidCol - 1);
                 return (lastElement / TileDef::kPackedElementsPerByte + 1) * sizeof(typename TileDef::DType);

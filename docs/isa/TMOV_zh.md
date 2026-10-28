@@ -44,7 +44,10 @@ Cube Unit以 **NZ**（Normal-ZigZag）fractal格式消费操作数：Tile被划�
 | Left（A，NT）      | `ColMajor` | `RowMajor` | 标准NZ |
 | Right（B，NT）     | `RowMajor` | `ColMajor` | 转置NZ |
 
-`CompactMode::RowPlusOne` 目标（`Rows = Vec_S0 + 1`）是避免 `vsstb` scatter上UB bank冲突的标准用法。
+`CompactMode::RowPlusOne` 目标在 NZ panel 之间插入一个 32 字节行，以避免 `vsstb`
+scatter 的 UB bank 冲突。标准 Vec NZ Tile 通过 `StorageBytes` 预留物理容量；
+已含额外行的旧静态声明仍然有效。不要将依赖原始步长的调用方的 `Rows` 直接减一
+（参见 [Tile 紧凑存储](../coding/Tile_zh.md)）。
 
 ### X → ZZ（microscaling指数重新打包）
 

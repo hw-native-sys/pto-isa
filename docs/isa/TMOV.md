@@ -49,8 +49,11 @@ NZ layout. No `tmp` is required.
 | Left (A, NT)         | `ColMajor` | `RowMajor` | normal NZ |
 | Right (B, NT)        | `RowMajor` | `ColMajor` | transposed NZ |
 
-A `CompactMode::RowPlusOne` destination (`Rows = Vec_S0 + 1`) is the canonical idiom to
-avoid UB bank conflicts on the `vsstb` scatter.
+A `CompactMode::RowPlusOne` destination avoids UB bank conflicts on the `vsstb`
+scatter by inserting one 32-byte row between NZ panels. Standard Vec NZ tiles
+reserve the physical envelope through `StorageBytes`; legacy static declarations
+that already include the extra row remain valid. Do not rewrite raw-stride callers
+by subtracting one from `Rows` (see [Tile storage](../coding/Tile.md#compact-storage-compactmode)).
 
 ### ND → ZN (within-fractal transpose for the transposed Cube operand)
 

@@ -42,11 +42,13 @@ namespace detail {
 template <typename T, typename = void>
 struct TileStorageBytes;
 
-// Regular Tile — Rows * Cols * sizeof(DType)
+// Regular Tile — include the physical panel padding for RowPlusOne Vec NZ.
 template <typename T>
 struct TileStorageBytes<T, std::enable_if_t<is_tile_data_v<T> && !is_conv_tile_v<T> > > {
     static constexpr std::size_t value =
-        static_cast<std::size_t>(T::Rows) * static_cast<std::size_t>(T::Cols) * sizeof(typename T::DType);
+        T::kRowPlusOneNZ ?
+            T::StorageBytes :
+            static_cast<std::size_t>(T::Rows) * static_cast<std::size_t>(T::Cols) * sizeof(typename T::DType);
 };
 
 // ConvTile — uses bufferSize member
