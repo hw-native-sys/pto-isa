@@ -240,6 +240,59 @@ __global__ AICORE void runTTRANSConv_GNCHW2NC1HWC0(__gm__ T __out__* out, __gm__
     TSTORE(dstGlobal, dst0Tile);
 }
 
+// GNC1HWC0 (G, N, C1, H, W, C0) -> GNCHW (G, N, C1 * C0, H, W)
+template <typename T, int G, int srcN, int srcC1, int srcH, int srcW, int srcC0, int dstN, int dstC, int dstH, int dstW>
+__global__ AICORE void runTTRANSConv_GNC1HWC02GNCHW(__gm__ T __out__* out, __gm__ T __in__* src)
+{
+    constexpr size_t DTypeSize = GetTypeSize<T>();
+    static_assert(srcC0 == 32 / DTypeSize);
+    static_assert(dstC == srcC1 * srcC0);
+
+    constexpr size_t srcElemNum = G * srcN * srcC1 * srcH * srcW * srcC0;
+    constexpr size_t srcBufferSize = srcElemNum * DTypeSize;
+    constexpr size_t dstElemNum = G * dstN * dstC * dstH * dstW;
+    constexpr size_t dstBufferSize = dstElemNum * DTypeSize;
+
+    using SrcShapeDim5 = Shape<1, 1, 1, 1, srcElemNum>;
+    using SrcStrideDim5 = pto::Stride<srcElemNum, srcElemNum, srcElemNum, srcElemNum, 1>;
+    using SrcGlobalData = GlobalTensor<T, SrcShapeDim5, SrcStrideDim5>;
+    using DstShapeDim5 = Shape<1, 1, 1, 1, dstElemNum>;
+    using DstStrideDim5 = pto::Stride<dstElemNum, dstElemNum, dstElemNum, dstElemNum, 1>;
+    using DstGlobalData = GlobalTensor<T, DstShapeDim5, DstStrideDim5>;
+
+    using SrcTileData = Tile<TileType::Vec, T, 1, srcElemNum, BLayout::RowMajor, 1, srcElemNum>;
+    using DstTileData = Tile<TileType::Vec, T, 1, dstElemNum, BLayout::RowMajor, 1, dstElemNum>;
+    SrcTileData src0Tile;
+    DstTileData dst0Tile;
+    TASSIGN(src0Tile, 0x0);
+    TASSIGN(dst0Tile, 0x0 + srcBufferSize);
+
+    using SrcConvTile =
+        ConvTile<TileType::Vec, T, srcBufferSize, Layout::GNC1HWC0, ConvTileShape<G, srcN, srcC1, srcH, srcW, srcC0>>;
+    using DstConvTile =
+        ConvTile<TileType::Vec, T, dstBufferSize, Layout::GNCHW, ConvTileShape<G, dstN, dstC, dstH, dstW>>;
+    SrcConvTile srcTile;
+    DstConvTile dstTile;
+    static_assert(SrcConvTile::totalDimCount == 6);
+    static_assert(DstConvTile::totalDimCount == 5);
+
+    srcTile.data() = src0Tile.data();
+    dstTile.data() = dst0Tile.data();
+    std::fill((uint8_t*)dstTile.data(), (uint8_t*)dstTile.data() + dstBufferSize, 0);
+
+    // Not used internally, just for placeholder
+    using TmpTileData = Tile<TileType::Vec, T, 1, 64, BLayout::RowMajor, 1, 64>;
+    TmpTileData tmpTile;
+    TASSIGN(tmpTile, 0x0 + srcBufferSize + dstBufferSize);
+
+    SrcGlobalData srcGlobal(src);
+    DstGlobalData dstGlobal(out);
+
+    TLOAD(src0Tile, srcGlobal);
+    TTRANS(dstTile, srcTile, tmpTile);
+    TSTORE(dstGlobal, dst0Tile);
+}
+
 template <
     typename T, int G, int srcN, int srcC1, int srcH, int srcW, int srcC0, int dstC1, int dstH, int dstW, int dstN1,
     int dstN0, int dstC0>
@@ -452,6 +505,10 @@ void LaunchTTRANSConv(T* out, T* src, void* stream)
         runTTRANSConv_NCHW2FractalZ<
             T, Layout::FRACTAL_Z_3D, srcShape0, srcShape1, srcShape2, srcShape3, dstShape0, dstShape1, dstShape2,
             dstShape3>(out, src);
+    } else if constexpr (format == 8) {
+        runTTRANSConv_GNC1HWC02GNCHW<
+            T, groupN, srcShape0, srcShape1, srcShape2, srcShape3, srcShape4, dstShape0, dstShape1, dstShape2,
+            dstShape3>(out, src);
     }
 }
 
@@ -560,6 +617,9 @@ template void LaunchTTRANSConv<int8_t, 6, 4, 8, 3, 8, 1, 24, 1, 32, 32, 1, 1, 1>
 template void LaunchTTRANSConv<float, 7, 15, 4, 3, 8, 1, 24, 1, 16, 8, 1, 1, 1>(float* out, float* src, void* stream);
 template void LaunchTTRANSConv<int32_t, 7, 11, 14, 3, 16, 1, 96, 2, 8, 8, 1, 1, 1>(
     int32_t* out, int32_t* src, void* stream);
+
+/*----------------GNC1HWC0 -> GNCHW----------------*/
+template void LaunchTTRANSConv<float, 8, 1, 1, 2, 4, 8, 1, 8, 2, 4, 1, 1, 1>(float* out, float* src, void* stream);
 
 /*=========================================================================================*/
 /* Valid shape 用例                                                                          */

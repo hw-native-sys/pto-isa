@@ -64,3 +64,14 @@ if __name__ == "__main__":
         gen_golden(case_name, case_params_list[i])
 
         os.chdir(original_dir)
+
+    # ConvTile case: GNC1HWC0 [G, N, C1, H, W, C0] = [1, 1, 1, 2, 4, 8] -> GNCHW [1, 1, 8, 2, 4]
+    conv_case = "TTRANSTest.case_GNC1HWC02GNCHW"
+    if not os.path.exists(conv_case):
+        os.makedirs(conv_case)
+    original_dir = os.getcwd()
+    os.chdir(conv_case)
+    conv_src = np.random.randint(1, 5, size=(1, 1, 1, 2, 4, 8)).astype(np.float32)
+    conv_src.tofile("./x1_gm.bin")
+    conv_src.transpose(0, 1, 2, 5, 3, 4).reshape(1, 1, 8, 2, 4).tofile("./golden.bin")
+    os.chdir(original_dir)

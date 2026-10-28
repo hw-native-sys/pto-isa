@@ -18,6 +18,9 @@ using namespace PtoTestCommon;
 template <typename T, int kGRows_, int kGCols_, int kTRows_, int kTCols_>
 AICORE void runTTRANS(__gm__ T __out__* out, __gm__ T __in__* src);
 
+template <typename T>
+AICORE void runTTRANSConv_GNC1HWC02GNCHW(__gm__ T __out__* out, __gm__ T __in__* src);
+
 class TTRANSTest : public testing::Test {
 protected:
     void SetUp() override {}
@@ -98,3 +101,53 @@ void LaunchTest()
 TEST_F(TTRANSTest, case_float32) { LaunchTest<float>(); }
 
 TEST_F(TTRANSTest, case_hifloat8) { LaunchTest<hifloat8_t>(); }
+
+// GNC1HWC0 [1,1,1,2,4,8] -> GNCHW [1,1,8,2,4], float.
+void LaunchTTRANSConvG2G()
+{
+    constexpr size_t srcElems = 1 * 1 * 1 * 2 * 4 * 8;
+    constexpr size_t dstElems = 1 * 1 * 8 * 2 * 4;
+    size_t srcFileSize = srcElems * sizeof(float);
+    size_t dstFileSize = dstElems * sizeof(float);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    float *dstHost, *srcHost;
+    float *dstDevice, *srcDevice;
+
+    aclrtMallocHost((void**)(&dstHost), dstFileSize);
+    aclrtMallocHost((void**)(&srcHost), srcFileSize);
+    aclrtMalloc((void**)&dstDevice, dstFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/x1_gm.bin", srcFileSize, srcHost, srcFileSize));
+    aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+
+    runTTRANSConv_GNC1HWC02GNCHW<float>(
+        reinterpret_cast<__gm__ float*>(dstDevice), reinterpret_cast<__gm__ float*>(srcDevice));
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    WriteFile(GetGoldenDir() + "/output_z.bin", dstHost, dstFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(srcDevice);
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(srcHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<float> golden(dstElems);
+    std::vector<float> devFinal(dstElems);
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", dstFileSize, golden.data(), dstFileSize));
+    CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output_z.bin", dstFileSize, devFinal.data(), dstFileSize));
+
+    bool ret = ResultCmp(golden, devFinal, 0.001f);
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TTRANSTest, case_GNC1HWC02GNCHW) { LaunchTTRANSConvG2G(); }

@@ -223,6 +223,10 @@ TEST_F(TTRANSConvTest, GNC1HWC02C1HWN1N0C0_5) { test_ttrans<int8_t, 4, 4, 2, 3, 
 
 /*---------------------------------------------------------------*/
 
+TEST_F(TTRANSConvTest, GNC1HWC02GNCHW_1) { test_ttrans<float, 8, 1, 1, 2, 4, 8, 1, 8, 2, 4, 1, 1, 1>(); }
+
+/*---------------------------------------------------------------*/
+
 TEST_F(TTRANSConvTest, NCDHW2C1DHWN1N0C0_1) { test_ttrans<float, 5, 5, 3, 3, 4, 8, 96, 1, 16, 8, 1>(); }
 
 TEST_F(TTRANSConvTest, NCDHW2C1DHWN1N0C0_2) { test_ttrans<int32_t, 5, 18, 2, 4, 5, 3, 60, 2, 16, 8, 1>(); }

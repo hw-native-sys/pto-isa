@@ -21,6 +21,7 @@ class DataFormat(Enum):
     NCDHW2C1DHWN1N0C0 = 6
     NCHW2C1HWN1N0C0 = 7
     NCHW2C1DHWN1N0C0 = 8
+    GNC1HWC02GNCHW = 9
 
 
 def pack_matrix_to_fp4(matrix):
@@ -549,6 +550,23 @@ def golden_NCHW2C1HWN1N0C0_Valid(g_info):
     print(f"Golden - {output_arr.shape} (src valid = {g_info.src_valid_shape}, dst valid = {g_info.dst_valid_shape})")
 
 
+def golden_GNC1HWC02GNCHW(g_info):
+    # GNC1HWC0 [G, N, C1, H, W, C0] -> GNCHW [G, N, C1 * C0, H, W]
+    g = g_info.group_n
+    sn, sc1, sh, sw, sc0 = (
+        g_info.src_shape_0, g_info.src_shape_1, g_info.src_shape_2, g_info.src_shape_3, g_info.src_shape_4,
+    )
+    dn, dc, dh, dw = g_info.dst_shape_0, g_info.dst_shape_1, g_info.dst_shape_2, g_info.dst_shape_3
+    assert sc0 == 32 // np.dtype(g_info.data_type).itemsize, "C0 是格式常量"
+    assert (g, sn, sc1 * sc0, sh, sw) == (g, dn, dc, dh, dw)
+
+    input_arr = np.random.randint(1, 5, size=(g, sn, sc1, sh, sw, sc0)).astype(g_info.data_type)
+    input_arr.tofile("./input.bin")
+
+    output_arr = input_arr.transpose(0, 1, 2, 5, 3, 4).reshape(g, dn, dc, dh, dw)
+    output_arr.tofile("./golden.bin")
+
+
 def gen_golden_data(g_info):
     """
     Generates aligned runtime raw binaries for C++ unit test validation suites.
@@ -625,6 +643,12 @@ def gen_golden_data(g_info):
             golden_NCHW2C1HWN1N0C0_Valid(g_info)
         else:
             golden_NCHW2C1HWN1N0C0(g_info)
+
+    # -------------------------------------------------------------
+    # MODE 9: GNC1HWC0 -> GNCHW
+    # -------------------------------------------------------------
+    elif mode == DataFormat.GNC1HWC02GNCHW.value:
+        golden_GNC1HWC02GNCHW(g_info)
 
     else:
         pass
@@ -763,6 +787,10 @@ test_cases_registry = [
         "valid_NCHW2C1DHWN1N0C0_all_dims_differ", np.float32, DataFormat.NCHW2C1DHWN1N0C0.value,
         6, 18, 6, 5, 1, 32, 2, 24, 16, 1, 1, 1,
         src_valid_shape=(5, 16, 4, 3), dst_valid_shape=(24, 1, 16, 8)
+    ),
+    TTRANSParams(
+        "GNC1HWC02GNCHW_1", np.float32, DataFormat.GNC1HWC02GNCHW.value,
+        1, 1, 2, 4, 8, 1, 8, 2, 4, 1, 1
     )
 ]
 

@@ -95,6 +95,15 @@ inline void CheckValidConvShape(DstTileData& dst, SrcTileData& src)
             dst.GetValidShape(DIM_3) == src.GetValidShape(DIM_3) &&                 // H
             dst.GetValidShape(DIM_4) == src.GetValidShape(DIM_4) &&                 // W
             "Valid shape mismatch: GNCHW to GNC1HWC0");
+    } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::GNCHW) {
+        assert(
+            src.GetValidShape(DIM_5) == C0 &&                            // C0 is a format constant
+            dst.GetValidShape(DIM_0) == src.GetValidShape(DIM_0) &&      // G
+            dst.GetValidShape(DIM_1) == src.GetValidShape(DIM_1) &&      // N
+            dst.GetValidShape(DIM_2) == src.GetValidShape(DIM_2) * C0 && // C = C1 * C0
+            dst.GetValidShape(DIM_3) == src.GetValidShape(DIM_3) &&      // H
+            dst.GetValidShape(DIM_4) == src.GetValidShape(DIM_4) &&      // W
+            "Valid shape mismatch: GNC1HWC0 to GNCHW");
     } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
         assert(
             src.GetValidShape(DIM_5) == C0 && dst.GetValidShape(DIM_3) == C0 && // C0 is a format constant
@@ -216,6 +225,65 @@ inline void TTRANS_GNCHW2NC1HWC0(DstTileData& dst, SrcTileData& src)
                             }
                             SetProperDataPart(dstPtr, baseDst + c0, value);
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// GNC1HWC0 (G, N, C1, H, W, C0) -> GNCHW (G, N, C1*C0, H, W)
+// raw 管地址（每维 stride），valid 管处理域：只读 src valid 盒、只写 dst valid 盒。
+template <typename DstTileData, typename SrcTileData>
+inline void TTRANS_GNC1HWC02GNCHW(DstTileData& dst, SrcTileData& src)
+{
+    using SrcDType = typename SrcTileData::DType;
+    using DstDType = typename DstTileData::DType;
+    auto* srcPtr = reinterpret_cast<SrcDType*>(src.data());
+    auto* dstPtr = reinterpret_cast<DstDType*>(dst.data());
+    constexpr int64_t C0 = 32 / GetTypeSize<DstDType>();
+
+    // raw -> strides（src 最内层是 C0，dst 最内层是 W）
+    const int64_t srcWStride = src.GetShape(5);
+    const int64_t srcHStride = src.GetShape(4) * srcWStride;
+    const int64_t srcC1Stride = src.GetShape(3) * srcHStride;
+    const int64_t srcNStride = src.GetShape(2) * srcC1Stride;
+    const int64_t srcGStride = src.GetShape(1) * srcNStride;
+    const int64_t dstWStride = 1;
+    const int64_t dstHStride = dst.GetShape(4) * dstWStride;
+    const int64_t dstCStride = dst.GetShape(3) * dstHStride;
+    const int64_t dstNStride = dst.GetShape(2) * dstCStride;
+    const int64_t dstGStride = dst.GetShape(1) * dstNStride;
+
+    // valid -> 处理域
+    const int64_t vG = src.GetValidShape(0);
+    const int64_t vN = src.GetValidShape(1);
+    const int64_t vC1 = src.GetValidShape(2);
+    const int64_t vH = src.GetValidShape(3);
+    const int64_t vW = src.GetValidShape(4);
+    const int64_t vC0 = src.GetValidShape(5);
+    const int64_t dG = dst.GetValidShape(0);
+    const int64_t dN = dst.GetValidShape(1);
+    const int64_t dC = dst.GetValidShape(2);
+    const int64_t dH = dst.GetValidShape(3);
+    const int64_t dW = dst.GetValidShape(4);
+
+    for (int64_t g = 0; g < dG; ++g) {
+        for (int64_t n = 0; n < dN; ++n) {
+            for (int64_t c = 0; c < dC; ++c) {
+                const int64_t c1 = c / C0;
+                const int64_t c0 = c % C0;
+                for (int64_t h = 0; h < dH; ++h) {
+                    for (int64_t w = 0; w < dW; ++w) {
+                        DstDType value = static_cast<DstDType>(0);
+                        if (g < vG && n < vN && c1 < vC1 && h < vH && w < vW && c0 < vC0) {
+                            const int64_t srcOffset = g * srcGStride + n * srcNStride + c1 * srcC1Stride +
+                                                      h * srcHStride + w * srcWStride + c0;
+                            value = GetProperDataPart(srcPtr, srcOffset);
+                        }
+                        const int64_t dstOffset =
+                            g * dstGStride + n * dstNStride + c * dstCStride + h * dstHStride + w * dstWStride;
+                        SetProperDataPart(dstPtr, dstOffset, value);
                     }
                 }
             }
@@ -502,6 +570,8 @@ PTO_INTERNAL void TTRANS_CONV_IMPL(DstTileData& dst, SrcTileData& src)
         TTRANS_NC1HWC02C1HWN1N0C0(dst, src);
     } else if constexpr (src_layout == Layout::GNCHW && dst_layout == Layout::GNC1HWC0) {
         TTRANS_GNCHW2NC1HWC0(dst, src);
+    } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::GNCHW) {
+        TTRANS_GNC1HWC02GNCHW(dst, src);
     } else if constexpr (src_layout == Layout::GNC1HWC0 && dst_layout == Layout::FRACTAL_Z) {
         TTRANS_GNC1HWC02C1HWN1N0C0(dst, src);
     } else if constexpr (src_layout == Layout::NCDHW && dst_layout == Layout::FRACTAL_Z_3D) {
