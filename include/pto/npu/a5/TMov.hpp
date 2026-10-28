@@ -16,6 +16,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "TPartAdd.hpp"
 
 namespace pto {
+template <typename T>
+PTO_INTERNAL constexpr bool IsTmovSupportedType()
+{
+    return std::disjunction_v<
+        std::is_same<T, int8_t>, std::is_same<T, float8_e4m3_t>, std::is_same<T, float8_e5m2_t>,
+        std::is_same<T, hifloat8_t>, std::is_same<T, half>, std::is_same<T, bfloat16_t>, std::is_same<T, float>,
+        std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>>;
+}
+
 template <typename DstTileData, typename SrcTileData>
 __tf__ AICORE void TMovToBt(typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src)
 {
@@ -317,7 +326,7 @@ template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL constexpr void CommonCheck()
 {
     static_assert(
-        is_textract_supported_type<typename DstTileData::DType>,
+        IsTmovSupportedType<typename DstTileData::DType>(),
         "TMov: Unsupported data type! Supported types: int8_t, hifloat8_t, float8_e5m2_t, float8_e4m3_t, \
             half, bfloat16_t, float, float4_e2m1x2_t, float4_e1m2x2_t");
     static_assert(
@@ -334,8 +343,8 @@ template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL constexpr void CommonCheckMX()
 {
     static_assert(
-        is_textract_supported_type<typename DstTileData::DType>,
-        "TMov: Unsupported data type! Supported types: float8_e8m0_t");
+        std::is_same_v<typename DstTileData::DType, float8_e8m0_t>,
+        "TMov MX: Unsupported data type! Only float8_e8m0_t is supported.");
     static_assert(
         std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value,
         "TMov: Destination and Source tile data types must be the same.");

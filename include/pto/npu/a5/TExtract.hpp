@@ -19,7 +19,10 @@ template <typename T>
 constexpr bool is_textract_supported_type = std::disjunction_v<
     std::is_same<T, int8_t>, std::is_same<T, float8_e4m3_t>, std::is_same<T, float8_e5m2_t>,
     std::is_same<T, hifloat8_t>, std::is_same<T, half>, std::is_same<T, bfloat16_t>, std::is_same<T, float>,
-    std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>, std::is_same<T, float8_e8m0_t>>;
+    std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>>;
+
+template <typename T>
+constexpr bool is_textract_mx_scale_supported_type = std::disjunction_v<std::is_same<T, float8_e8m0_t>>;
 
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL constexpr bool IsTExtractMatToLeftSmallM()
@@ -156,13 +159,19 @@ PTO_INTERNAL void TExtractToRight(DstTileData& dst, SrcTileData& src, uint16_t i
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TEXTRACT_TILE_IMPL(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol)
 {
-    static_assert(
-        is_textract_supported_type<typename DstTileData::DType> ||
-            (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat &&
-             std::is_same_v<typename SrcTileData::DType, int32_t> &&
-             std::is_same_v<typename DstTileData::DType, int32_t>),
-        "TExtract: Unsupported data type! Supported types: int8_t, hifloat8_t, fp8_e5m2_t, fp8_e4m3fn_t, \
-        half, bfloat16_t, float, float4_e2m1x2_t, float4_e1m2x2_t, float8_e8m0_t; int32_t for Acc-to-Mat.");
+    if constexpr (DstTileData::Loc == TileType::ScaleLeft || DstTileData::Loc == TileType::ScaleRight) {
+        static_assert(
+            is_textract_mx_scale_supported_type<typename DstTileData::DType>,
+            "TExtract MX scale: Unsupported data type! Only float8_e8m0_t is supported.");
+    } else {
+        static_assert(
+            is_textract_supported_type<typename DstTileData::DType> ||
+                (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat &&
+                 std::is_same_v<typename SrcTileData::DType, int32_t> &&
+                 std::is_same_v<typename DstTileData::DType, int32_t>),
+            "TExtract: Unsupported data type! Supported types: int8_t, hifloat8_t, fp8_e5m2_t, fp8_e4m3fn_t, \
+            half, bfloat16_t, float, float4_e2m1x2_t, float4_e1m2x2_t; int32_t for Acc-to-Mat.");
+    }
     static_assert(
         (SrcTileData::Loc == TileType::Acc) ||
             std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value,
