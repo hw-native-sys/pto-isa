@@ -88,15 +88,15 @@ def golden_NC1HWC02NCHW(g_info):
 
     c = g_info.dst_shape_1
     assert c == c1 * c0
-
+    
     input_arr = np.random.randint(1, 5, size=(n, c1, h, w, c0)).astype(g_info.data_type)
     input_arr.tofile("./input.bin")
-
+     
     output_arr = input_arr.transpose(0, 1, 4, 2, 3).reshape(n, c, h, w)
-
+    
     output_arr.tofile("./golden.bin")
     print(f"Golden - {output_arr.shape}")
-
+    
     return input_arr, output_arr
 
 
@@ -219,73 +219,28 @@ def golden_NCDHW2C1DHWN1N0C0(g_info):
     n0 = g_info.dst_shape_2
     c0 = g_info.dst_shape_3
 
-    c1 = c1dhw // (d * w * h)
+    c1 = c1dhw // (d*w*h)
     dtype_size = np.dtype(g_info.data_type).itemsize
 
     assert c0 == 32 // dtype_size
     assert n1 == (n + n0 - 1) // n0
     assert c1 == (c + c0 - 1) // c0
-
+        
     input_arr = np.random.randint(1, 5, size=(n, c, d, h, w)).astype(g_info.data_type)
     input_arr.tofile("./input.bin")
-
+    
     padded_n = n1 * n0
     padding_n = padded_n - n
     padded_c = c1 * c0
     padding_c = padded_c - c
     if padding_n > 0 or padding_c > 0:
         input_arr = np.pad(input_arr, ((0, padding_n), (0, padding_c), (0, 0), (0, 0), (0, 0)), mode='constant')
-
+        
     output_arr = input_arr.reshape(n1, n0, c1, c0, d, h, w).transpose(4, 2, 5, 6, 0, 1, 3)
-
+    
     output_arr.tofile("./golden.bin")
     print(f"Golden - {output_arr.shape}")
-
-    return input_arr, output_arr
-
-
-def golden_NCHW2C1HWN1N0C0(g_info):
-    # NCHW (N, C, H, W) -> FRACTAL_Z / FRACTAL_Z_3D (C1HW, N1, N0, C0)
-    # For a 4D source, FRACTAL_Z_3D uses an implicit D = 1, so both share this layout.
-    n = g_info.src_shape_0
-    c = g_info.src_shape_1
-    h = g_info.src_shape_2
-    w = g_info.src_shape_3
-
-    c1hw = g_info.dst_shape_0
-    n1 = g_info.dst_shape_1
-    n0 = g_info.dst_shape_2
-    c0 = g_info.dst_shape_3
-
-    c1 = c1hw // (h * w)
-    dtype_size = np.dtype(g_info.data_type).itemsize
-
-    assert c0 == 32 // dtype_size
-    assert n1 == (n + n0 - 1) // n0
-    assert c1 == (c + c0 - 1) // c0
-
-    input_arr = np.random.randint(1, 5, size=(n, c, h, w)).astype(g_info.data_type)
-    input_arr.tofile("./input.bin")
-
-    padded_c = c1 * c0
-    padding_c = padded_c - c
-    if padding_c > 0:
-        input_arr = np.pad(input_arr, ((0, 0), (0, padding_c), (0, 0), (0, 0)), mode='constant')
-
-    # NCHW -> NC1HWC0: (n, c, h, w) -> (n, c1, h, w, c0)
-    nc1hwc0 = input_arr.reshape(n, c1, c0, h, w).transpose(0, 1, 3, 4, 2)
-
-    # NC1HWC0 -> FRACTAL_Z: pad N, then (n, c1, h, w, c0) -> (c1, h, w, n1, n0, c0)
-    padded_n = n1 * n0
-    padding_n = padded_n - n
-    if padding_n > 0:
-        nc1hwc0 = np.pad(nc1hwc0, ((0, padding_n), (0, 0), (0, 0), (0, 0), (0, 0)), mode='constant')
-
-    output_arr = nc1hwc0.reshape(n1, n0, c1, h, w, c0).transpose(2, 3, 4, 0, 1, 5)
-
-    output_arr.tofile("./golden.bin")
-    print(f"Golden - {output_arr.shape}")
-
+    
     return input_arr, output_arr
 
 

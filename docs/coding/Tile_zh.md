@@ -136,7 +136,7 @@ PTO 用两层布局描述 Tile：
 
 在手动放置（manual placement）流程中，`TASSIGN(tile, addr)` 会将 Tile 对象绑定到实现定义的地址。在 Auto 流程中，`TASSIGN(tile, addr)` 可能因构建配置而成为 no-op。
 
-详情参见：[TASSIGN](../isa/tile/ops/sync-and-config/tassign_zh.md)。
+详情参见：`docs/isa/TASSIGN_zh.md`。
 
 ## 示例
 

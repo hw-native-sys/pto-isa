@@ -136,7 +136,7 @@ These aliases select target-appropriate boxed layouts and fractal sizes. For exa
 
 In manual placement flows, `TASSIGN(tile, addr)` binds a tile object to an implementation-defined address. In auto flows, `TASSIGN(tile, addr)` may be a no-op depending on build configuration.
 
-See [TASSIGN](../isa/tile/ops/sync-and-config/tassign.md) for details.
+See `docs/isa/TASSIGN.md` for details.
 
 ## Examples
 
