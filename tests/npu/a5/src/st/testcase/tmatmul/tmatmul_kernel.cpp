@@ -118,6 +118,90 @@ __global__ AICORE void RunTMATMUL(__gm__ OutType* out, __gm__ AType* src0, __gm_
     out = dstGlobal.data();
 }
 
+template <
+    typename OutType, typename AType, typename BType, int validM, int validK, int validN, int singleCoreK, int blockDim>
+__global__ AICORE void RunTMATMUL_MULTI_CORE_SPLIT_K(__gm__ OutType* out, __gm__ AType* src0, __gm__ BType* src1)
+{
+    static_assert(validK % singleCoreK == 0, "validK must be equally split by singleCoreK");
+    static_assert(blockDim == validK / singleCoreK, "blockDim must match the split-K core count");
+
+    constexpr int blockAlign = (sizeof(AType) == 1) ? 32 : 16;
+    constexpr int M = CeilAlign<int>(validM, 16);
+    constexpr int N = CeilAlign<int>(validN, blockAlign);
+    constexpr int kIter = validK / singleCoreK;
+
+    // Each block computes one contiguous K slice. Keep the whole-matrix strides so a sliced
+    // GlobalTensor can address the corresponding A/B panels correctly.
+    const uint32_t kIterIdx = get_block_idx() % kIter;
+    const uint64_t gmOffsetA = static_cast<uint64_t>(kIterIdx) * singleCoreK;
+    const uint64_t gmOffsetB = static_cast<uint64_t>(kIterIdx) * singleCoreK * validN;
+
+    using GlobalDataSrc0 = GlobalTensor<
+        AType, pto::Shape<1, 1, 1, validM, singleCoreK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+    using GlobalDataSrc1 = GlobalTensor<
+        BType, pto::Shape<1, 1, 1, singleCoreK, validN>,
+        pto::Stride<1 * validK * validN, 1 * validK * validN, validK * validN, validN, 1>>;
+    using GlobalDataOut = GlobalTensor<
+        OutType, pto::Shape<1, 1, 1, validM, validN>,
+        pto::Stride<1 * validM * validN, 1 * validM * validN, validM * validN, validN, 1>>;
+    GlobalDataSrc0 src0Global(src0 + gmOffsetA);
+    GlobalDataSrc1 src1Global(src1 + gmOffsetB);
+    GlobalDataOut dstGlobal(out);
+
+    using TileMatAData =
+        Tile<TileType::Mat, AType, M, singleCoreK, BLayout::ColMajor, validM, singleCoreK, SLayout::RowMajor>;
+    using TileMatBData =
+        Tile<TileType::Mat, BType, singleCoreK, N, BLayout::ColMajor, singleCoreK, validN, SLayout::RowMajor>;
+
+    using LeftTile = TileLeft<AType, M, singleCoreK, validM, singleCoreK>;
+    using RightTile = TileRight<BType, singleCoreK, N, singleCoreK, validN>;
+    using AccTile = TileAcc<OutType, M, N, validM, validN>;
+
+    TileMatAData aMatTile;
+    TileMatBData bMatTile;
+    TASSIGN(aMatTile, 0x0);
+    TASSIGN(bMatTile, 0x10000);
+
+    LeftTile aTile;
+    RightTile bTile;
+    AccTile cTile;
+    TASSIGN(aTile, 0x0);
+    TASSIGN(bTile, 0x0);
+    TASSIGN(cTile, 0x0);
+
+    /*************************************TLOAD****************************************/
+    TLOAD(aMatTile, src0Global);
+    TLOAD(bMatTile, src1Global);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
+
+    /**********************************TMOV && TEXTRACT**********************************/
+    TMOV(aTile, aMatTile);
+    TMOV(bTile, bMatTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+    wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
+
+    /**********************************TMATMUL**********************************/
+    TMATMUL(cTile, aTile, bTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
+
+    /**********************************TSTORE**********************************/
+    TSTORE<AccTile, GlobalDataOut, AtomicType::AtomicAdd>(dstGlobal, cTile);
+
+    out = dstGlobal.data();
+}
+
 template <typename OutType, typename AType, typename BType, typename BiasType, int M, int K, int N, bool isBias>
 __global__ AICORE void RunTMATMUL_SPLIT_K(
     __gm__ OutType* out, __gm__ AType* src0, __gm__ BType* src1, __gm__ BiasType* src2)
@@ -553,6 +637,9 @@ void LaunchTMATMUL(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
     } else if constexpr (tilingKey == 13) {
         RunTMATMUL_TF32<float, float, float, float, 128, 96, 64, false, RoundMode::CAST_ROUND><<<1, nullptr, stream>>>(
             reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1), nullptr);
+    } else if constexpr (tilingKey == 14) { // multi core splitK, enable TSTORE atomic add
+        RunTMATMUL_MULTI_CORE_SPLIT_K<float, half, half, 50, 2048, 64, 128, 16><<<16, nullptr, stream>>>(
+            reinterpret_cast<float*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1));
     }
 }
 
@@ -569,6 +656,7 @@ template void LaunchTMATMUL<10>(uint8_t* out, uint8_t* src0, uint8_t* src1, void
 template void LaunchTMATMUL<11>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTMATMUL<12>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTMATMUL<13>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void LaunchTMATMUL<14>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 
 template <int32_t tilingKey>
 void LaunchTMATMULBIAS(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, void* stream)

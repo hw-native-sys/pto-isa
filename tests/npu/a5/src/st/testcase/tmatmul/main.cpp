@@ -126,6 +126,8 @@ TEST_F(TMATMULTest, case12) { tmatmul_test<float, float, float, 12>(16, 32, 64);
 
 TEST_F(TMATMULTest, case13) { tmatmul_test<float, float, float, 13>(128, 96, 64); }
 
+TEST_F(TMATMULTest, case14) { tmatmul_test<float, uint16_t, uint16_t, 14>(50, 2048, 64); }
+
 template <typename T, typename U, typename S, typename B, int32_t key>
 void tmatmul_bias_test(uint32_t M, uint32_t K, uint32_t N)
 {
