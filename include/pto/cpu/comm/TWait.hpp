@@ -19,6 +19,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <stdexcept>
 #include <type_traits>
 #if defined(__linux__)
 #include <dlfcn.h>
@@ -53,7 +54,7 @@ inline bool CompareSignalRuntime(int32_t sigVal, int32_t cmpVal, comm::WaitCmp c
 inline uint32_t ReadTwaitMaxSpin()
 {
     // A zero value disables the CPU-SIM wait timeout.
-    constexpr uint32_t kDefaultMaxSpinCount = 100000;
+    constexpr uint32_t kDefaultMaxSpinCount = 0;
     const char* value = std::getenv("PTO_CPU_SIM_TWAIT_MAX_SPINS");
     if (value == nullptr || *value == '\0') {
         return kDefaultMaxSpinCount;
@@ -96,6 +97,12 @@ inline bool UseProgressAwareTwait()
 #endif
     return false;
 }
+
+[[noreturn]] inline void ThrowTwaitTimeout(uint32_t maxSpinCount)
+{
+    throw std::runtime_error(
+        "PTO_CPU_SIM_TWAIT_TIMEOUT: signal predicate is unsatisfied after max_spins=" + std::to_string(maxSpinCount));
+}
 } // namespace detail
 
 template <typename GlobalSignalData>
@@ -125,7 +132,7 @@ inline void TWAIT_IMPL(GlobalSignalData& signalData, int32_t cmpValue, comm::Wai
     int64_t lastObservedSignal = 0;
     constexpr uint32_t kSleepMicroseconds = 10;
     const uint32_t maxSpinCount = detail::ReadTwaitMaxSpin();
-    const bool progressAware = detail::UseProgressAwareTwait();
+    const bool progressAware = maxSpinCount > 0 && detail::UseProgressAwareTwait();
     while (!allSatisfied) {
         allSatisfied = true;
         int64_t observedSignal = 0;
@@ -157,11 +164,11 @@ inline void TWAIT_IMPL(GlobalSignalData& signalData, int32_t cmpValue, comm::Wai
                     ++stagnantSpin;
                 }
                 if (maxSpinCount > 0 && stagnantSpin >= maxSpinCount) {
-                    return;
+                    detail::ThrowTwaitTimeout(maxSpinCount);
                 }
             } else {
                 if (maxSpinCount > 0 && spin >= maxSpinCount) {
-                    return;
+                    detail::ThrowTwaitTimeout(maxSpinCount);
                 }
                 ++spin;
             }

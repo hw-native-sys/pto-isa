@@ -13,6 +13,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Uses std::thread for multi-threaded synchronization (unlike NPU which uses multi-process)
 
 #include <gtest/gtest.h>
+#include <pto/pto-inst.hpp>
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <thread>
 #include "twait_kernel.h"
 
 // ============================================================================
@@ -42,3 +50,85 @@ TEST(TWait, MultiPhase) { ASSERT_TRUE(RunTWaitMultiPhase()); }
 
 // TWAIT sub-region of signal matrix
 TEST(TWait, SubRegion_4x8_of_16cols) { ASSERT_TRUE((RunTWaitSubRegion<16, 4, 8>())); }
+
+namespace {
+class ScopedSpinBudget {
+public:
+    explicit ScopedSpinBudget(const char* value)
+    {
+        const char* previous = std::getenv("PTO_CPU_SIM_TWAIT_MAX_SPINS");
+        if (previous != nullptr) {
+            previous_ = previous;
+        }
+        if (value == nullptr) {
+            unsetenv("PTO_CPU_SIM_TWAIT_MAX_SPINS");
+        } else {
+            setenv("PTO_CPU_SIM_TWAIT_MAX_SPINS", value, 1);
+        }
+    }
+
+    ~ScopedSpinBudget()
+    {
+        if (previous_) {
+            setenv("PTO_CPU_SIM_TWAIT_MAX_SPINS", previous_->c_str(), 1);
+        } else {
+            unsetenv("PTO_CPU_SIM_TWAIT_MAX_SPINS");
+        }
+    }
+
+private:
+    std::optional<std::string> previous_;
+};
+} // namespace
+
+TEST(TWait, ExpiredBudgetCannotReportSuccessfulWait)
+{
+    ScopedSpinBudget budget("1");
+    alignas(64) std::atomic<int32_t> value{0};
+    pto::comm::Signal signal(reinterpret_cast<int32_t*>(&value));
+    try {
+        pto::comm::TWAIT(signal, 1, pto::comm::WaitCmp::EQ);
+        FAIL() << "TWAIT returned while the signal predicate was false";
+    } catch (const std::runtime_error& error) {
+        EXPECT_NE(std::string(error.what()).find("PTO_CPU_SIM_TWAIT_TIMEOUT"), std::string::npos);
+    }
+    EXPECT_EQ(value.load(), 0);
+}
+
+TEST(TWait, SatisfiedPredicateSucceedsWithFiniteBudget)
+{
+    ScopedSpinBudget budget("1");
+    alignas(64) std::atomic<int32_t> value{1};
+    pto::comm::Signal signal(reinterpret_cast<int32_t*>(&value));
+    EXPECT_NO_THROW(pto::comm::TWAIT(signal, 1, pto::comm::WaitCmp::EQ));
+}
+
+TEST(TWait, EveryStridedSignalMustSatisfyPredicate)
+{
+    ScopedSpinBudget budget("1");
+    alignas(64) std::atomic<int32_t> values[8];
+    for (auto& value : values) {
+        value.store(1);
+    }
+    values[5].store(0);
+    pto::comm::Signal2D<2, 2> signals(reinterpret_cast<int32_t*>(values), 4);
+    EXPECT_THROW(pto::comm::TWAIT(signals, 1, pto::comm::WaitCmp::EQ), std::runtime_error);
+    values[5].store(1);
+    EXPECT_NO_THROW(pto::comm::TWAIT(signals, 1, pto::comm::WaitCmp::EQ));
+}
+
+TEST(TWait, DefaultWaitAcquiresPublishedPayload)
+{
+    ScopedSpinBudget budget(nullptr);
+    alignas(64) std::atomic<int32_t> value{0};
+    int payload = 0;
+    pto::comm::Signal signal(reinterpret_cast<int32_t*>(&value));
+    std::thread producer([&]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        payload = 42;
+        value.store(1, std::memory_order_release);
+    });
+    pto::comm::TWAIT(signal, 1, pto::comm::WaitCmp::EQ);
+    EXPECT_EQ(payload, 42);
+    producer.join();
+}

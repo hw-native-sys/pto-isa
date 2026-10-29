@@ -8,8 +8,8 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-#include "twait_kernel.h"
 #include <pto/pto-inst.hpp>
+#include "twait_kernel.h"
 #include <thread>
 #include <atomic>
 #include <vector>

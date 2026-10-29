@@ -1,5 +1,13 @@
 # TWAIT
 
+On CPU-SIM, the default wait blocks until every signal satisfies the requested
+predicate, matching the instruction's blocking contract. A test supervisor
+should bound the complete process when detecting deadlocks.
+`PTO_CPU_SIM_TWAIT_MAX_SPINS=0` also selects this behavior. A positive value
+opts into a finite polling budget; exhaustion throws `std::runtime_error`
+with the marker `PTO_CPU_SIM_TWAIT_TIMEOUT`, even in release builds. It never
+returns success with an unsatisfied predicate.
+
 ## Product Support<a name="section73648168211"></a>
 
 <!-- npu="950" id1 -->
