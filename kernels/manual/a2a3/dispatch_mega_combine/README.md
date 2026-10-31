@@ -363,9 +363,8 @@ bash run.sh --world-size 8 --m 512 --k 7168 --n 4096 --topk 8 --experts 16 --max
 | Environment Variable | Purpose | Default Behavior |
 | --- | --- | --- |
 | `ASCEND_HOME_PATH` | Active CANN installation path | Set by the CANN `set_env.sh` |
-| `MPI_ENV_BIN` | MPI/conda `bin` path | `/home/ntlab/miniconda3/envs/ltr_pto/bin` |
-| `MPI_ENV_LIB` | MPI/conda `lib` path | `/home/ntlab/miniconda3/envs/ltr_pto/lib` |
-| `MPI_LIB_PATH` | Absolute path to `libmpi.so` | `${MPI_ENV_LIB}/libmpi.so` |
+| `MPI_SEARCH_DIRS` | Space-separated MPICH `bin` directories to search in order | Searches common MPICH installation directories and supports a launcher already on `PATH` |
+| `MPI_LIB_PATH` | Absolute path to `libmpi.so` | Derived from a detected directory or the launcher prefix on `PATH` when unset |
 | `MPI_RUNNER` | MPI launch command | `mpirun` |
 | `HCCL_BUFFSIZE` | HCCL RDMA window size | Raised automatically by `run.sh` when needed |
 | `DISPATCH_MEGA_COMBINE_START_SYNC_DEBUG` | Synchronize kernel entry for cross-core timing comparison | Disabled |
@@ -391,7 +390,7 @@ Common constraints:
 | --- | --- |
 | `ASCEND_HOME_PATH must be set` | Source the CANN environment and export `ASCEND_HOME_PATH` before running `run.sh` |
 | HCCL window too small | The manually set `HCCL_BUFFSIZE` is below the case requirement; unset it or increase it |
-| MPI launch fails | Check that `MPI_ENV_BIN`, `MPI_ENV_LIB`, and `MPI_LIB_PATH` point to the same conda/MPI environment |
+| MPI launch fails | Source the MPI environment or set `MPI_SEARCH_DIRS` to MPICH `bin` directories; set `MPI_LIB_PATH` when the library needs an explicit path |
 | Golden generation is slow | Use the default `python-batch` backend; use `python-naive` only for debug comparison |
 | Small-M performance is unstable | Check whether FullLoad is selected and whether the configured SwiGLU workers, GMM2 join point, and Combine start point increase HBM contention |
 | Result diff is abnormal | Check whether old generated data was reused; do not reuse stale `out/` after changing expert distribution or key case parameters |
