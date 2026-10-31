@@ -49,7 +49,7 @@ namespace sdma {
 //
 // Mirrors the shmem SdmaTransportManager::OpenDevice() flow:
 //   1. Creates MC2 STARS streams via the runtime API
-//   2. Allocates device workspace memory
+//   2. Binds caller-provided device workspace memory
 //   3. Launches an AICPU STARS-query kernel to populate the workspace
 //      with hardware SQ addresses, register bases, and queue depths
 //
@@ -89,6 +89,24 @@ using RtGetDeviceInfoFn = int32_t (*)(uint32_t, int32_t, int32_t, int64_t*);
 using AclnnStatus = int32_t;
 using AclnnGetWsSizeFn = AclnnStatus (*)(const ::aclTensor*, ::aclTensor*, uint64_t*, ::aclOpExecutor**);
 using AclnnExecFn = AclnnStatus (*)(void*, uint64_t, ::aclOpExecutor*, aclrtStream);
+using AclExecutorFn = AclnnStatus (*)(::aclOpExecutor*);
+
+// Fixed workspace region; reserved fields preserve the tensor offsets and ACLNN scratch boundary.
+struct SdmaWorkspaceLayout {
+    uint8_t workspace[kSdmaWorkspaceBytes];
+    HostStreamInfo streams[kSdmaMaxChan];
+    SdmaOpResInfo opRes;
+    uint64_t input[2];
+    uint64_t reserved0[6];
+    uint64_t output;
+    uint64_t reserved1[47];
+};
+
+constexpr uint64_t kSdmaStreamsOffset = offsetof(SdmaWorkspaceLayout, streams);
+constexpr uint64_t kSdmaOpResOffset = offsetof(SdmaWorkspaceLayout, opRes);
+constexpr uint64_t kSdmaInputOffset = offsetof(SdmaWorkspaceLayout, input);
+constexpr uint64_t kSdmaOutputOffset = offsetof(SdmaWorkspaceLayout, output);
+constexpr uint64_t kSdmaScratchOffset = sizeof(SdmaWorkspaceLayout);
 
 } // namespace detail
 
@@ -100,16 +118,39 @@ public:
     SdmaWorkspaceManager(const SdmaWorkspaceManager&) = delete;
     SdmaWorkspaceManager& operator=(const SdmaWorkspaceManager&) = delete;
 
-    bool Init()
+    static aclError GetWorkspaceSize(uint64_t* bytes)
     {
-        if (inited_)
-            return true;
+        if (bytes == nullptr) {
+            return ACL_ERROR_INVALID_PARAM;
+        }
+        *bytes = 0;
+        SdmaWorkspaceManager query;
+        if (!query.LoadDynamicSymbols()) {
+            return ACL_ERROR_FEATURE_UNSUPPORTED;
+        }
+        uint64_t scratchBytes = 0;
+        if (!query.QueryScratchSize(scratchBytes)) {
+            return ACL_ERROR_FAILURE;
+        }
+        *bytes = detail::kSdmaScratchOffset + scratchBytes;
+        return ACL_SUCCESS;
+    }
 
+    bool Init(void* workspaceAddr, uint64_t workspaceSize)
+    {
+        if (inited_) {
+            return workspaceAddr == GetWorkspaceAddr() && workspaceSize >= workspaceBytes_;
+        }
+
+        if (workspaceAddr == nullptr || workspaceSize < detail::kSdmaScratchOffset) {
+            return false;
+        }
         if (!LoadDynamicSymbols())
             return false;
+        workspaceBytes_ = workspaceSize;
         if (!CreateStarsStreams(detail::kSdmaMaxChan))
             return false;
-        if (!MallocWorkspace(kSdmaWorkspaceBytes))
+        if (!BindWorkspace(workspaceAddr))
             return false;
         if (!CopyOpResToDevice())
             return false;
@@ -122,18 +163,8 @@ public:
 
     void Finalize()
     {
-        if (streamsDevicePtr_) {
-            aclrtFree(streamsDevicePtr_);
-            streamsDevicePtr_ = nullptr;
-        }
-        if (opResDevicePtr_) {
-            aclrtFree(opResDevicePtr_);
-            opResDevicePtr_ = nullptr;
-        }
-        if (opResInfo_.workspace_addr) {
-            aclrtFree(reinterpret_cast<void*>(opResInfo_.workspace_addr));
-            opResInfo_.workspace_addr = 0;
-        }
+        streamsDevicePtr_ = nullptr;
+        opResDevicePtr_ = nullptr;
         for (auto& s : streams_) {
             if (s.stream_) {
                 aclrtDestroyStream(reinterpret_cast<aclrtStream>(s.stream_));
@@ -142,14 +173,17 @@ public:
         }
         streams_.clear();
         opResInfo_ = {};
+        workspaceBytes_ = 0;
         CloseDynamicLibs();
         inited_ = false;
     }
 
     void* GetWorkspaceAddr() const { return reinterpret_cast<void*>(opResInfo_.workspace_addr); }
+    uint64_t GetWorkspaceSize() const { return inited_ ? workspaceBytes_ : 0; }
 
 private:
-    bool inited_{false};
+    uint8_t inited_{0};
+    uint64_t workspaceBytes_{0}; // Available capacity during Init; required bytes after the execution query.
     detail::SdmaOpResInfo opResInfo_{};
     void* opResDevicePtr_{nullptr};
     std::vector<detail::HostStreamInfo> streams_;
@@ -163,6 +197,8 @@ private:
     detail::RtGetDeviceInfoFn pRtGetDeviceInfo_{nullptr};
     detail::AclnnGetWsSizeFn pAclnnGetWsSize_{nullptr};
     detail::AclnnExecFn pAclnnExec_{nullptr};
+    detail::AclExecutorFn pAclSetExecutorRepeatable_{nullptr};
+    detail::AclExecutorFn pAclDestroyExecutor_{nullptr};
 
     bool LoadDynamicSymbols()
     {
@@ -196,6 +232,18 @@ private:
             return false;
         }
 
+        pAclSetExecutorRepeatable_ =
+            reinterpret_cast<detail::AclExecutorFn>(dlsym(opapiHandle_, "aclSetAclOpExecutorRepeatable"));
+        if (!pAclSetExecutorRepeatable_) {
+            PTO_HOST_LOG_ERROR("SDMA", "Failed to resolve aclSetAclOpExecutorRepeatable: " << dlerror());
+            return false;
+        }
+        pAclDestroyExecutor_ = reinterpret_cast<detail::AclExecutorFn>(dlsym(opapiHandle_, "aclDestroyAclOpExecutor"));
+        if (!pAclDestroyExecutor_) {
+            PTO_HOST_LOG_ERROR("SDMA", "Failed to resolve aclDestroyAclOpExecutor: " << dlerror());
+            return false;
+        }
+
         return true;
     }
 
@@ -206,6 +254,8 @@ private:
         pRtGetDeviceInfo_ = nullptr;
         pAclnnGetWsSize_ = nullptr;
         pAclnnExec_ = nullptr;
+        pAclSetExecutorRepeatable_ = nullptr;
+        pAclDestroyExecutor_ = nullptr;
 
         if (opapiHandle_) {
             dlclose(opapiHandle_);
@@ -290,29 +340,21 @@ private:
         return true;
     }
 
-    bool MallocWorkspace(size_t workspaceSize)
+    bool BindWorkspace(void* workspaceAddr)
     {
-        void* workspace = nullptr;
-        if (const auto ret = aclrtMalloc(&workspace, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST); ret != 0) {
-            PTO_HOST_LOG_ERROR("SDMA", "aclrtMalloc workspace failed, ret=" << ret);
-            return false;
-        }
-        if (const auto ret = aclrtMemset(workspace, workspaceSize, 0, workspaceSize); ret != 0) {
+        opResInfo_.workspace_addr = reinterpret_cast<uint64_t>(workspaceAddr);
+        streamsDevicePtr_ = static_cast<uint8_t*>(workspaceAddr) + detail::kSdmaStreamsOffset;
+        opResDevicePtr_ = static_cast<uint8_t*>(workspaceAddr) + detail::kSdmaOpResOffset;
+        if (const auto ret = aclrtMemset(workspaceAddr, kSdmaWorkspaceBytes, 0, kSdmaWorkspaceBytes); ret != 0) {
             PTO_HOST_LOG_ERROR("SDMA", "aclrtMemset workspace failed, ret=" << ret);
-            aclrtFree(workspace);
             return false;
         }
-        opResInfo_.workspace_addr = reinterpret_cast<uint64_t>(workspace);
         return true;
     }
 
     bool CopyOpResToDevice()
     {
         size_t streamsBytes = streams_.size() * sizeof(detail::HostStreamInfo);
-        if (const auto ret = aclrtMalloc(&streamsDevicePtr_, streamsBytes, ACL_MEM_MALLOC_HUGE_FIRST); ret != 0) {
-            PTO_HOST_LOG_ERROR("SDMA", "aclrtMalloc streams device failed, ret=" << ret);
-            return false;
-        }
         if (const auto ret =
                 aclrtMemcpy(streamsDevicePtr_, streamsBytes, streams_.data(), streamsBytes, ACL_MEMCPY_HOST_TO_DEVICE);
             ret != 0) {
@@ -324,10 +366,6 @@ private:
         opResInfo_.streams_addr = reinterpret_cast<uint64_t>(streamsDevicePtr_);
 
         size_t opResSize = sizeof(opResInfo_);
-        if (const auto ret = aclrtMalloc(&opResDevicePtr_, opResSize, ACL_MEM_MALLOC_HUGE_FIRST); ret != 0) {
-            PTO_HOST_LOG_ERROR("SDMA", "aclrtMalloc opResDevice failed, ret=" << ret);
-            return false;
-        }
         if (const auto ret = aclrtMemset(opResDevicePtr_, opResSize, 0, opResSize); ret != 0) {
             PTO_HOST_LOG_ERROR("SDMA", "aclrtMemset(opRes) failed, ret=" << ret);
             return false;
@@ -341,17 +379,12 @@ private:
     }
 
     struct TensorGuard {
-        void* deviceAddr{nullptr};
         ::aclTensor* tensor{nullptr};
         void Release()
         {
             if (tensor) {
                 ::aclDestroyTensor(tensor);
                 tensor = nullptr;
-            }
-            if (deviceAddr) {
-                aclrtFree(deviceAddr);
-                deviceAddr = nullptr;
             }
         }
     };
@@ -378,7 +411,8 @@ private:
         return true;
     }
 
-    bool CreateAclTensor(const std::vector<uint64_t>& hostData, const std::vector<int64_t>& shape, TensorGuard& guard)
+    bool CreateAclTensor(
+        const std::vector<uint64_t>& hostData, const std::vector<int64_t>& shape, void* deviceAddr, TensorGuard& guard)
     {
         uint64_t elemCount = 0;
         if (!CalculateElementCount(shape, elemCount)) {
@@ -396,12 +430,8 @@ private:
         }
         size_t totalBytes = static_cast<size_t>(elemCount * sizeof(uint64_t));
 
-        if (const auto ret = aclrtMalloc(&guard.deviceAddr, totalBytes, ACL_MEM_MALLOC_HUGE_FIRST); ret != 0) {
-            PTO_HOST_LOG_ERROR("SDMA", "CreateAclTensor aclrtMalloc failed, ret=" << ret);
-            return false;
-        }
         if (const auto ret =
-                aclrtMemcpy(guard.deviceAddr, totalBytes, hostData.data(), totalBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+                aclrtMemcpy(deviceAddr, totalBytes, hostData.data(), totalBytes, ACL_MEMCPY_HOST_TO_DEVICE);
             ret != 0) {
             PTO_HOST_LOG_ERROR("SDMA", "CreateAclTensor aclrtMemcpy failed, ret=" << ret);
             guard.Release();
@@ -415,13 +445,57 @@ private:
 
         guard.tensor = ::aclCreateTensor(
             shape.data(), shape.size(), aclDataType::ACL_UINT64, strides.data(), 0, aclFormat::ACL_FORMAT_ND,
-            shape.data(), shape.size(), guard.deviceAddr);
+            shape.data(), shape.size(), deviceAddr);
         if (!guard.tensor) {
             PTO_HOST_LOG_ERROR("SDMA", "aclCreateTensor failed");
             guard.Release();
             return false;
         }
         return true;
+    }
+
+    bool DestroyQueryExecutor(aclOpExecutor* executor)
+    {
+        if (executor == nullptr) {
+            return true;
+        }
+        const auto repeatable = pAclSetExecutorRepeatable_(executor);
+        const auto destroyed = pAclDestroyExecutor_(executor);
+        if (repeatable != 0 || destroyed != 0) {
+            PTO_HOST_LOG_ERROR(
+                "SDMA", "query executor cleanup failed, repeatable=" << repeatable << ", destroy=" << destroyed);
+            return false;
+        }
+        return true;
+    }
+
+    bool QueryScratchSize(uint64_t& bytes)
+    {
+        const int64_t inputShape[] = {2};
+        const int64_t outputShape[] = {1};
+        const int64_t stride[] = {1};
+        TensorGuard inputGuard, outputGuard;
+        inputGuard.tensor =
+            ::aclCreateTensor(inputShape, 1, ACL_UINT64, stride, 0, ACL_FORMAT_ND, inputShape, 1, nullptr);
+        outputGuard.tensor =
+            ::aclCreateTensor(outputShape, 1, ACL_UINT64, stride, 0, ACL_FORMAT_ND, outputShape, 1, nullptr);
+        if (inputGuard.tensor == nullptr || outputGuard.tensor == nullptr) {
+            PTO_HOST_LOG_ERROR("SDMA", "aclCreateTensor for workspace size query failed");
+            inputGuard.Release();
+            outputGuard.Release();
+            return false;
+        }
+        bytes = 0;
+        aclOpExecutor* executor = nullptr;
+        const auto ret = pAclnnGetWsSize_(inputGuard.tensor, outputGuard.tensor, &bytes, &executor);
+        const bool queried = ret == 0 && executor != nullptr;
+        const bool released = DestroyQueryExecutor(executor);
+        inputGuard.Release();
+        outputGuard.Release();
+        if (!queried) {
+            PTO_HOST_LOG_ERROR("SDMA", "workspace size query failed, ret=" << ret);
+        }
+        return queried && released;
     }
 
     bool ExecuteAicpuQuery(aclrtStream aicpuStream, uint64_t streamsAddr, uint64_t workspaceAddr)
@@ -432,9 +506,10 @@ private:
         std::vector<uint64_t> inData = {streamsAddr, workspaceAddr};
         std::vector<uint64_t> outData = {0};
 
-        if (!CreateAclTensor(inData, inShape, inputGuard))
+        auto* workspaceBase = reinterpret_cast<uint8_t*>(workspaceAddr);
+        if (!CreateAclTensor(inData, inShape, workspaceBase + detail::kSdmaInputOffset, inputGuard))
             return false;
-        if (!CreateAclTensor(outData, outShape, outputGuard))
+        if (!CreateAclTensor(outData, outShape, workspaceBase + detail::kSdmaOutputOffset, outputGuard))
             return false;
 
         uint64_t aclnnWsSize = 0;
@@ -445,13 +520,15 @@ private:
             return false;
         }
 
-        void* aclnnWs = nullptr;
-        if (aclnnWsSize > 0) {
-            if (const auto ret = aclrtMalloc(&aclnnWs, aclnnWsSize, ACL_MEM_MALLOC_HUGE_FIRST); ret != 0) {
-                PTO_HOST_LOG_ERROR("SDMA", "aclrtMalloc aclnn workspace failed, ret=" << ret);
-                return false;
-            }
+        if (aclnnWsSize > workspaceBytes_ - detail::kSdmaScratchOffset) {
+            PTO_HOST_LOG_ERROR("SDMA", "aclnn scratch size exceeds the available workspace capacity");
+            (void)DestroyQueryExecutor(executor);
+            inputGuard.Release();
+            outputGuard.Release();
+            return false;
         }
+        workspaceBytes_ = detail::kSdmaScratchOffset + aclnnWsSize;
+        void* aclnnWs = aclnnWsSize == 0 ? nullptr : workspaceBase + detail::kSdmaScratchOffset;
 
         bool ok = false;
         if (const auto ret = pAclnnExec_(aclnnWs, aclnnWsSize, executor, aicpuStream); ret != 0) {
@@ -462,8 +539,6 @@ private:
             ok = true;
         }
 
-        if (aclnnWs)
-            aclrtFree(aclnnWs);
         inputGuard.Release();
         outputGuard.Release();
         return ok;

@@ -70,5 +70,8 @@ struct StandaloneRankRuntime {
 
 bool InitStandaloneRankRuntime(
     StandaloneRankRuntime& runtime, int rank_id, int world_size, int device_id, const HcclRootInfo& root_info);
-bool InitStandaloneUrmaRuntime(StandaloneRankRuntime& runtime, uint32_t ranksPerServer, uint32_t submittingAivs);
+aclError GetStandaloneUrmaWorkspaceSize(uint32_t ranks, uint32_t submittingAivs, uint64_t* bytes);
+bool InitStandaloneUrmaRuntime(
+    StandaloneRankRuntime& runtime, uint32_t ranksPerServer, uint32_t submittingAivs, void* workspaceAddr,
+    uint64_t workspaceSize);
 void DestroyStandaloneRankRuntime(StandaloneRankRuntime& runtime);

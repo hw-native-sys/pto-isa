@@ -20,6 +20,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <string>
 #include <vector>
 
+#include "acl/acl_base.h"
 #include "pto/common/arch_macro.hpp"
 #include "pto/comm/dma_engine.hpp"
 
@@ -58,13 +59,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
-enum class WorkspaceStatus : int32_t {
-    Ok = 0,
-    InvalidArgument,
-    Unsupported,
-    EngineFailure,
-};
-
 struct RdmaTransportConfig {
     uint32_t phyId{0};
     std::string localIp;
@@ -93,6 +87,32 @@ struct Workspace {
     void* impl{nullptr};
 };
 
+inline aclError PtoCommGetWorkspaceSize(DmaEngine engine, const WorkspaceRequest& req, uint64_t* requiredBytes)
+{
+    if (requiredBytes == nullptr) {
+        return ACL_ERROR_INVALID_PARAM;
+    }
+    *requiredBytes = 0;
+    (void)req;
+    switch (engine) {
+#if PTO_COMM_WORKSPACE_SDMA_SUPPORTED
+        case DmaEngine::SDMA:
+            return sdma::SdmaWorkspaceManager::GetWorkspaceSize(requiredBytes);
+#endif
+#if PTO_COMM_WORKSPACE_URMA_SUPPORTED
+        case DmaEngine::URMA:
+            return urma::UrmaWorkspaceManager::GetWorkspaceSize(req.rankNum, requiredBytes);
+#endif
+#if PTO_COMM_WORKSPACE_RDMA_SUPPORTED
+        case DmaEngine::RDMA:
+            return rdma::RdmaWorkspaceManager::GetWorkspaceSize(
+                req.rankNum, requiredBytes, req.rdma != nullptr ? req.rdma->qpNum : 1);
+#endif
+        default:
+            return ACL_ERROR_FEATURE_UNSUPPORTED;
+    }
+}
+
 namespace detail {
 
 inline bool HasWorkspaceResource(const Workspace& ws) { return ws.addr != nullptr || ws.impl != nullptr; }
@@ -104,12 +124,12 @@ inline void ClearWorkspace(Workspace* ws)
     }
 }
 
-inline WorkspaceStatus ValidateOutputWorkspace(Workspace* out)
+inline aclError ValidateOutputWorkspace(Workspace* out)
 {
     if (out == nullptr || HasWorkspaceResource(*out)) {
-        return WorkspaceStatus::InvalidArgument;
+        return ACL_ERROR_INVALID_PARAM;
     }
-    return WorkspaceStatus::Ok;
+    return ACL_SUCCESS;
 }
 
 inline void FillWorkspace(Workspace* out, DmaEngine engine, void* addr, uint64_t bytes, void* impl)
@@ -121,18 +141,18 @@ inline void FillWorkspace(Workspace* out, DmaEngine engine, void* addr, uint64_t
 }
 
 #if PTO_COMM_WORKSPACE_SDMA_SUPPORTED
-inline WorkspaceStatus CreateSdmaWorkspace(Workspace* out)
+inline aclError CreateSdmaWorkspace(void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
 {
     auto* manager = new (std::nothrow) sdma::SdmaWorkspaceManager();
     if (manager == nullptr) {
-        return WorkspaceStatus::EngineFailure;
+        return ACL_ERROR_FAILURE;
     }
-    if (!manager->Init() || manager->GetWorkspaceAddr() == nullptr) {
+    if (!manager->Init(workspaceAddr, workspaceSize) || manager->GetWorkspaceAddr() == nullptr) {
         delete manager;
-        return WorkspaceStatus::EngineFailure;
+        return ACL_ERROR_FAILURE;
     }
-    FillWorkspace(out, DmaEngine::SDMA, manager->GetWorkspaceAddr(), sdma::kSdmaWorkspaceBytes, manager);
-    return WorkspaceStatus::Ok;
+    FillWorkspace(out, DmaEngine::SDMA, manager->GetWorkspaceAddr(), manager->GetWorkspaceSize(), manager);
+    return ACL_SUCCESS;
 }
 #endif
 
@@ -143,30 +163,32 @@ inline bool IsValidUrmaRequest(const WorkspaceRequest& req)
            req.symmetricBytes != 0;
 }
 
-inline WorkspaceStatus CreateUrmaWorkspace(const WorkspaceRequest& req, Workspace* out)
+inline aclError CreateUrmaWorkspace(
+    const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
 {
     if (!IsValidUrmaRequest(req)) {
-        return WorkspaceStatus::InvalidArgument;
+        return ACL_ERROR_INVALID_PARAM;
     }
     auto* manager = new (std::nothrow) urma::UrmaWorkspaceManager();
     if (manager == nullptr) {
-        return WorkspaceStatus::EngineFailure;
+        return ACL_ERROR_FAILURE;
     }
     auto comm = reinterpret_cast<HcclComm>(req.hcclComm);
-    if (!manager->Init(comm, req.rankId, req.rankNum, req.symmetricAddr, req.symmetricBytes) ||
+    if (!manager->Init(
+            comm, req.rankId, req.rankNum, req.symmetricAddr, req.symmetricBytes, workspaceAddr, workspaceSize) ||
         manager->GetWorkspaceAddr() == nullptr) {
         delete manager;
-        return WorkspaceStatus::EngineFailure;
+        return ACL_ERROR_FAILURE;
     }
     FillWorkspace(out, DmaEngine::URMA, manager->GetWorkspaceAddr(), manager->GetWorkspaceSize(), manager);
-    return WorkspaceStatus::Ok;
+    return ACL_SUCCESS;
 }
 #endif
 
 #if PTO_COMM_WORKSPACE_RDMA_SUPPORTED
-inline WorkspaceStatus MapRdmaPreflight(rdma::WorkspaceInitResult status)
+inline aclError MapRdmaPreflight(rdma::WorkspaceInitResult status)
 {
-    return status == rdma::WorkspaceInitResult::READY ? WorkspaceStatus::Ok : WorkspaceStatus::Unsupported;
+    return status == rdma::WorkspaceInitResult::READY ? ACL_SUCCESS : ACL_ERROR_FEATURE_UNSUPPORTED;
 }
 
 inline bool IsValidRdmaRequest(const WorkspaceRequest& req)
@@ -195,55 +217,58 @@ inline rdma::WorkspaceConfig MakeRdmaWorkspaceConfig(const WorkspaceRequest& req
     return config;
 }
 
-inline WorkspaceStatus CreateRdmaWorkspace(const WorkspaceRequest& req, Workspace* out)
+inline aclError CreateRdmaWorkspace(
+    const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
 {
     if (!IsValidRdmaRequest(req)) {
-        return WorkspaceStatus::InvalidArgument;
+        return ACL_ERROR_INVALID_PARAM;
     }
-    const WorkspaceStatus preflight = MapRdmaPreflight(rdma::RdmaWorkspaceManager::Preflight());
-    if (preflight != WorkspaceStatus::Ok) {
+    const aclError preflight = MapRdmaPreflight(rdma::RdmaWorkspaceManager::Preflight());
+    if (preflight != ACL_SUCCESS) {
         return preflight;
     }
     auto* manager = new (std::nothrow) rdma::RdmaWorkspaceManager();
     if (manager == nullptr) {
-        return WorkspaceStatus::EngineFailure;
+        return ACL_ERROR_FAILURE;
     }
     manager->SetTraceId(req.rdma->traceId);
-    const rdma::WorkspaceInitResult result = manager->Init(MakeRdmaWorkspaceConfig(req));
+    const rdma::WorkspaceInitResult result = manager->Init(MakeRdmaWorkspaceConfig(req), workspaceAddr, workspaceSize);
     if (result != rdma::WorkspaceInitResult::READY || manager->GetWorkspaceAddr() == nullptr) {
         delete manager;
-        return result == rdma::WorkspaceInitResult::DISABLED ? WorkspaceStatus::Unsupported :
-                                                               WorkspaceStatus::EngineFailure;
+        return result == rdma::WorkspaceInitResult::DISABLED ? ACL_ERROR_FEATURE_UNSUPPORTED : ACL_ERROR_FAILURE;
     }
     FillWorkspace(out, DmaEngine::RDMA, manager->GetWorkspaceAddr(), manager->GetWorkspaceSize(), manager);
-    return WorkspaceStatus::Ok;
+    return ACL_SUCCESS;
 }
 #endif
 
 } // namespace detail
 
-inline WorkspaceStatus CreateWorkspace(DmaEngine engine, const WorkspaceRequest& req, Workspace* out)
+inline aclError CreateWorkspace(
+    DmaEngine engine, const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
 {
     (void)req;
-    const WorkspaceStatus outputStatus = detail::ValidateOutputWorkspace(out);
-    if (outputStatus != WorkspaceStatus::Ok) {
+    (void)workspaceAddr;
+    (void)workspaceSize;
+    const aclError outputStatus = detail::ValidateOutputWorkspace(out);
+    if (outputStatus != ACL_SUCCESS) {
         return outputStatus;
     }
     switch (engine) {
 #if PTO_COMM_WORKSPACE_SDMA_SUPPORTED
         case DmaEngine::SDMA:
-            return detail::CreateSdmaWorkspace(out);
+            return detail::CreateSdmaWorkspace(workspaceAddr, workspaceSize, out);
 #endif
 #if PTO_COMM_WORKSPACE_URMA_SUPPORTED
         case DmaEngine::URMA:
-            return detail::CreateUrmaWorkspace(req, out);
+            return detail::CreateUrmaWorkspace(req, workspaceAddr, workspaceSize, out);
 #endif
 #if PTO_COMM_WORKSPACE_RDMA_SUPPORTED
         case DmaEngine::RDMA:
-            return detail::CreateRdmaWorkspace(req, out);
+            return detail::CreateRdmaWorkspace(req, workspaceAddr, workspaceSize, out);
 #endif
         default:
-            return WorkspaceStatus::Unsupported;
+            return ACL_ERROR_FEATURE_UNSUPPORTED;
     }
 }
 

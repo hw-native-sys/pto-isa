@@ -490,7 +490,16 @@ bool InitStandaloneRankRuntime(
     return true;
 }
 
-bool InitStandaloneUrmaRuntime(StandaloneRankRuntime& runtime, uint32_t ranksPerServer, uint32_t submittingAivs)
+aclError GetStandaloneUrmaWorkspaceSize(uint32_t ranks, uint32_t submittingAivs, uint64_t* bytes)
+{
+    return pto::comm::urma::UrmaWorkspaceManager::GetWorkspaceSize(
+        ranks, bytes, pto::comm::urma::UrmaLayout::SHARED_POOL, submittingAivs,
+        pto::comm::urma::kUrmaAutoJettiesPerCore);
+}
+
+bool InitStandaloneUrmaRuntime(
+    StandaloneRankRuntime& runtime, uint32_t ranksPerServer, uint32_t submittingAivs, void* workspaceAddr,
+    uint64_t workspaceSize)
 {
     const uint32_t ranks = static_cast<uint32_t>(runtime.hccl.world_size);
     const uint32_t rank = static_cast<uint32_t>(runtime.hccl.rank_id);
@@ -513,7 +522,8 @@ bool InitStandaloneUrmaRuntime(StandaloneRankRuntime& runtime, uint32_t ranksPer
     runtime.urma_manager = new SharedUrmaWorkspace();
     // Retain ownership on failure: HCCL must be destroyed before registered resources are freed.
     if (!runtime.urma_manager->Init(
-            runtime.hccl.comm, rank, ranks, reinterpret_cast<void*>(windows.windowIn[rank]), bytes, submittingAivs)) {
+            runtime.hccl.comm, rank, ranks, reinterpret_cast<void*>(windows.windowIn[rank]), bytes, submittingAivs,
+            workspaceAddr, workspaceSize)) {
         return ReportRuntimeInitFailure(runtime.hccl.rank_id, "URMA manager Init", -1);
     }
     runtime.urma_workspace = runtime.urma_manager->GetWorkspaceAddr();
@@ -538,7 +548,7 @@ void DestroyStandaloneRankRuntime(StandaloneRankRuntime& runtime)
         runtime.hccl.comm = nullptr;
     }
     if (runtime.urma_manager != nullptr) {
-        // The manager destructor releases its buffers after HCCL has been destroyed.
+        // Destroy the manager before the caller releases its workspace.
         delete runtime.urma_manager;
         runtime.urma_manager = nullptr;
     }

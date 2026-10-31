@@ -26,7 +26,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // bound by BuildAsyncSession to get_block_idx(); no AIV1 is allowed to submit.
 class SharedUrmaWorkspace {
 public:
-    bool Init(HcclComm comm, uint32_t rank, uint32_t ranks, void* window, uint64_t bytes, uint32_t submittingAivs)
+    bool Init(
+        HcclComm comm, uint32_t rank, uint32_t ranks, void* window, uint64_t bytes, uint32_t submittingAivs,
+        void* workspaceAddr, uint64_t workspaceSize)
     {
         if (initialized_ || comm == nullptr || window == nullptr || bytes == 0U || bytes > UINT32_MAX || ranks < 2U ||
             ranks > 64U || rank >= ranks || (submittingAivs != 28U && submittingAivs != 32U && submittingAivs != 36U)) {
@@ -38,8 +40,9 @@ public:
         manager_ = std::make_unique<pto::comm::urma::UrmaWorkspaceManager>();
         // Keep partial resources alive on failure until the runtime destroys HCCL.
         if (!manager_->Init(
-                comm, rank, ranks, window, bytes, pto::comm::urma::UrmaLayout::SHARED_POOL, submittingAivs,
-                pto::comm::urma::kUrmaAutoJettiesPerCore, 0U, "megamoe_aiv0"))
+                comm, rank, ranks, window, bytes, workspaceAddr, workspaceSize,
+                pto::comm::urma::UrmaLayout::SHARED_POOL, submittingAivs, pto::comm::urma::kUrmaAutoJettiesPerCore, 0U,
+                "megamoe_aiv0"))
             return false;
         if (!ValidatePool(manager_->GetWorkspaceAddr(), ranks, submittingAivs, queueCount_))
             return false;

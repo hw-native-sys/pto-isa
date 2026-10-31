@@ -26,10 +26,11 @@ namespace rdma {
 namespace hns_1825 {
 
 struct ArchitectureProbe {
-    uint32_t compiledNpuArch{0};
     std::string runtimeSocName;
-    bool runtimeResolved{false};
-    bool supported{false};
+    uint32_t compiledNpuArch{0};
+    uint8_t runtimeResolved{0};
+    uint8_t supported{0};
+    uint8_t reserved[2]{0};
 };
 
 // Accept HNS1825 only when every available signal agrees with 3510. Host-only
@@ -50,7 +51,7 @@ inline ArchitectureProbe ProbeArchitecture()
         const char* name = getSocName();
         if (name != nullptr && name[0] != '\0') {
             result.runtimeSocName = name;
-            result.runtimeResolved = true;
+            result.runtimeResolved = 1;
             const bool runtimeIs3510 = result.runtimeSocName.find("Ascend950") != std::string::npos ||
                                        result.runtimeSocName.find("dav-3510") != std::string::npos ||
                                        result.runtimeSocName.find("3510") != std::string::npos;

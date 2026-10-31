@@ -373,7 +373,15 @@ bool RunConcurrentNotifyCase(
         return ctx.Finalize() && false;
     }
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    void* workspaceAddr = nullptr;
+    uint64_t workspaceSize = 0;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         return ctx.Finalize() && false;
     }
 
@@ -386,6 +394,9 @@ bool RunConcurrentNotifyCase(
     HcclHostBarrier(ctx.comm, ctx.stream);
     const bool ok = ValidateConcurrentNotifyData(ctx, rankId, notifyOp, data);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     return ctx.Finalize() && ok;
 }
 
@@ -444,7 +455,18 @@ bool RunNotifyCase(
     ctx.aclStatus |= aclrtMemcpy(status, sizeof(uint32_t), &statusHost, sizeof(uint32_t), ACL_MEMCPY_HOST_TO_DEVICE);
 
     SdmaWorkspaceManager sdmaMgr;
-    if (ctx.aclStatus != 0 || !sdmaMgr.Init()) {
+    void* workspaceAddr = nullptr;
+    uint64_t workspaceSize = 0;
+    if (ctx.aclStatus == 0) {
+        SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    }
+    if (ctx.aclStatus != 0 ||
+        (workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         std::cerr << "[ERROR] notify test initialization failed on rank " << rankId << std::endl;
         return false;
     }
@@ -506,6 +528,9 @@ bool RunNotifyCase(
     }
 
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     return ctx.Finalize() && ok;
 }
 

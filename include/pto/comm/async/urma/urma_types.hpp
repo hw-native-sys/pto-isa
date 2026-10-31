@@ -56,7 +56,7 @@ constexpr uint32_t kUrmaSqeRmtAddrHOffset = 44;
 constexpr uint32_t kUrmaNotifySetSlotCount = 8U;
 constexpr uint32_t kUrmaNotifyResourceCachelineBytes = 64U;
 
-struct alignas(kUrmaNotifyResourceCachelineBytes) UrmaNotifyResourceRegion {
+struct UrmaNotifyResourceRegion {
     int32_t setValues[kUrmaNotifySetSlotCount];
     uint32_t nextSetSlot;
     uint32_t setRingStarted;
@@ -69,9 +69,7 @@ struct alignas(kUrmaNotifyResourceCachelineBytes) UrmaNotifyResourceRegion {
 static_assert(
     sizeof(UrmaNotifyResourceRegion) == kUrmaNotifyResourceCachelineBytes,
     "URMA notify resource region layout mismatch");
-static_assert(
-    alignof(UrmaNotifyResourceRegion) == kUrmaNotifyResourceCachelineBytes,
-    "URMA notify resource region must be cache-line aligned");
+static_assert(alignof(UrmaNotifyResourceRegion) == alignof(uint32_t), "URMA notify resource region alignment mismatch");
 
 // ============================================================================
 // UrmaOpcode — URMA operation codes (binary-compatible with hcomm UB ABI)
@@ -137,17 +135,18 @@ struct UrmaInfo {
 // UrmaMemInfo — per-peer memory authentication info
 // ============================================================================
 struct UrmaMemInfo {
-    bool tokenValueValid;
-    uint32_t rmtJettyType : 2;
-    uint8_t targetHint;
+    uint64_t addr;
+    uint64_t eidAddr;
     uint32_t tpn;
     uint32_t tid;
     uint32_t rmtTokenValue;
     uint32_t len;
-    uint64_t addr;
-    uint64_t eidAddr;
     uint32_t localTokenId;
     uint32_t notifyTokenId;
+    uint8_t tokenValueValid;
+    uint8_t rmtJettyType;
+    uint8_t targetHint;
+    uint8_t reserved[5];
 };
 
 // ============================================================================
@@ -159,16 +158,17 @@ enum class UrmaDbMode : int32_t { INVALID_DB = -1, HW_DB = 0, SW_DB };
 // UrmaWQCtx — send/receive work queue context
 // ============================================================================
 struct UrmaWQCtx {
-    uint32_t wqn;
     uint64_t bufAddr;
-    uint32_t wqeShiftSize;
-    uint32_t depth;
     uint64_t headAddr;
     uint64_t tailAddr;
-    UrmaDbMode dbMode;
     uint64_t dbAddr;
+    uint32_t wqn;
+    uint32_t wqeShiftSize;
+    uint32_t depth;
+    UrmaDbMode dbMode;
     uint32_t sl;
-    // Software WQE sequence for CQ accounting; initialized from the CQ tail.
+    uint32_t reserved[2];
+    // Keep the mutable CQ-accounting counter at byte 60 in each 64-byte row.
     uint32_t submittedWqeCount;
 };
 
@@ -178,14 +178,14 @@ static_assert(sizeof(UrmaWQCtx) == 64U, "URMA WQ context layout mismatch");
 // UrmaCqCtx — completion queue context
 // ============================================================================
 struct UrmaCqCtx {
-    uint32_t cqn;
     uint64_t bufAddr;
-    uint32_t cqeShiftSize;
-    uint32_t depth;
     uint64_t headAddr;
     uint64_t tailAddr;
-    UrmaDbMode dbMode;
     uint64_t dbAddr;
+    uint32_t cqn;
+    uint32_t cqeShiftSize;
+    uint32_t depth;
+    UrmaDbMode dbMode;
 };
 
 // ============================================================================

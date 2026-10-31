@@ -22,6 +22,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <string>
 #include <vector>
 
+#include "acl/acl_base.h"
+
 #include "pto/comm/logger/host_log.hpp"
 #include "pto/comm/rdma_backend.hpp"
 #ifdef PTO_RDMA_BACKEND_HNS_1825_SUPPORTED
@@ -40,18 +42,19 @@ enum class WorkspaceInitResult : uint8_t {
 };
 
 struct WorkspaceConfig {
-    uint32_t rankId{0};
-    uint32_t rankCount{0};
-    uint32_t phyId{0};
     std::string localIp;
-    uint16_t basePort{60032};
     std::vector<std::string> peerIps;
     std::vector<uint32_t> peerPhyIds;
     std::vector<uint64_t> peerSymAddrs;
     void* symmetricAddr{nullptr};
     uint64_t symmetricSize{0};
+    uint32_t rankId{0};
+    uint32_t rankCount{0};
+    uint32_t phyId{0};
     // Number of QPs per peer; all ranks must use the same value.
     uint32_t qpNum{1};
+    uint16_t basePort{60032};
+    uint8_t reserved[6]{0};
 };
 
 class RdmaWorkspaceManager {
@@ -106,9 +109,26 @@ public:
         }
     }
 
-    WorkspaceInitResult Init(const WorkspaceConfig& config)
+    static aclError GetWorkspaceSize(uint32_t rankCount, uint64_t* bytes, uint32_t qpNum = 1)
+    {
+        if (bytes == nullptr) {
+            return ACL_ERROR_INVALID_PARAM;
+        }
+        *bytes = 0;
+#ifdef PTO_RDMA_BACKEND_HNS_1825_SUPPORTED
+        return hns_1825::WorkspaceManager::GetWorkspaceSize(rankCount, bytes, qpNum);
+#else
+        (void)rankCount;
+        (void)qpNum;
+        return ACL_ERROR_FEATURE_UNSUPPORTED;
+#endif
+    }
+
+    WorkspaceInitResult Init(const WorkspaceConfig& config, void* workspaceAddr, uint64_t workspaceSize)
     {
         (void)config;
+        (void)workspaceAddr;
+        (void)workspaceSize;
         const WorkspaceInitResult preflight = Preflight();
         if (preflight != WorkspaceInitResult::READY) {
             return preflight;
@@ -120,7 +140,8 @@ public:
                 hns1825Backend_.SetTraceId(traceId_);
                 const bool initialized = hns1825Backend_.Init(
                     config.rankId, config.rankCount, config.phyId, config.localIp, config.basePort, config.peerIps,
-                    config.peerPhyIds, config.peerSymAddrs, config.symmetricAddr, config.symmetricSize, config.qpNum);
+                    config.peerPhyIds, config.peerSymAddrs, config.symmetricAddr, config.symmetricSize, workspaceAddr,
+                    workspaceSize, config.qpNum);
                 activeBackend_ = initialized ? RdmaBackend::HNS_1825 : RdmaBackend::NONE;
                 return initialized ? WorkspaceInitResult::READY : WorkspaceInitResult::ERROR;
             }

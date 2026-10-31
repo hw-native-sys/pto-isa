@@ -101,11 +101,5 @@ struct AsyncEvent {
 
 引擎无关的会话对象，通过 `BuildAsyncSession<engine>()` 构建：
 
-```cpp
-struct AsyncSession {
-    DmaEngine engine;
-    sdma::SdmaSession sdmaSession;
-    urma::UrmaSession urmaSession;
-    bool valid;
-};
-```
+定义见 `include/pto/comm/async_common/async_types.hpp`。`engine` 指定通信后端，
+`uint8_t valid` 表示会话是否有效（0：无效，1：有效）；公共上下文、引擎配置和运行时状态由会话统一保存。

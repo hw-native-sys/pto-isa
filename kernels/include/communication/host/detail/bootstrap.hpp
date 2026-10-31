@@ -15,12 +15,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #error "communication/host/detail/bootstrap.hpp is host-only"
 #endif
 
-#include <iostream>
-
 #include "acl/acl.h"
 #include "hccl/hccl.h"
 #include "hccl/hccl_types.h"
 
+#include "pto/comm/logger/host_log.hpp"
 #include "communication/host/comm_context_data.hpp"
 #include "communication/comm_domain_types.hpp"
 #include "communication/host/detail/mpi_helpers.hpp"
@@ -38,13 +37,13 @@ inline bool ResolveDeviceId(const CommConfig& cfg, int& deviceId)
         return true;
     }
     if (cfg.rankId < 0 || cfg.rankNum <= 0) {
-        std::cerr << "[PTO-DOMAIN] bootstrap: invalid rankId/rankNum\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] bootstrap: invalid rankId/rankNum");
         return false;
     }
     uint32_t devCount = 0;
     aclError aRet = aclrtGetDeviceCount(&devCount);
     if (aRet != ACL_SUCCESS || devCount == 0) {
-        std::cerr << "[PTO-DOMAIN] aclrtGetDeviceCount failed or 0 devices\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] aclrtGetDeviceCount failed or 0 devices");
         return false;
     }
     deviceId = cfg.rankId % static_cast<int>(devCount);
@@ -55,7 +54,7 @@ inline bool CreateStream(CommContext& ctx)
 {
     rtError_t rtRet = rtStreamCreate(&ctx.stream, kRtStreamPriorityDefault);
     if (rtRet != 0 || ctx.stream == nullptr) {
-        std::cerr << "[PTO-DOMAIN] rtStreamCreate failed: " << rtRet << "\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] rtStreamCreate failed: " << rtRet);
         return false;
     }
     return true;
@@ -69,14 +68,14 @@ inline bool BootstrapExternal(const CommConfig& cfg, CommContext& ctx)
         return true;
     }
     if (cfg.rootInfo == nullptr) {
-        std::cerr << "[PTO-DOMAIN] External bootstrap needs existingComm or rootInfo\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] External bootstrap needs existingComm or rootInfo");
         return false;
     }
     auto* root = static_cast<const HcclRootInfo*>(cfg.rootInfo);
     HcclResult hret =
         HcclCommInitRootInfo(static_cast<uint32_t>(cfg.rankNum), root, static_cast<uint32_t>(cfg.rankId), &ctx.comm);
     if (hret != HCCL_SUCCESS || ctx.comm == nullptr) {
-        std::cerr << "[PTO-DOMAIN] HcclCommInitRootInfo failed: " << static_cast<int>(hret) << "\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] HcclCommInitRootInfo failed: " << static_cast<int>(hret));
         return false;
     }
     ctx.ownsComm = true;
@@ -93,7 +92,7 @@ inline bool BootstrapMpi(const CommConfig& cfg, CommContext& ctx)
         if (mpiRank == 0) {
             HcclResult hret = HcclGetRootInfo(&rootInfo);
             if (hret != HCCL_SUCCESS) {
-                std::cerr << "[PTO-DOMAIN] HcclGetRootInfo failed: " << static_cast<int>(hret) << "\n";
+                PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] HcclGetRootInfo failed: " << static_cast<int>(hret));
                 return false;
             }
         }
@@ -103,7 +102,7 @@ inline bool BootstrapMpi(const CommConfig& cfg, CommContext& ctx)
     HcclResult hret = HcclCommInitRootInfo(
         static_cast<uint32_t>(cfg.rankNum), &rootInfo, static_cast<uint32_t>(cfg.rankId), &ctx.comm);
     if (hret != HCCL_SUCCESS || ctx.comm == nullptr) {
-        std::cerr << "[PTO-DOMAIN] HcclCommInitRootInfo(MPI) failed: " << static_cast<int>(hret) << "\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] HcclCommInitRootInfo(MPI) failed: " << static_cast<int>(hret));
         return false;
     }
     ctx.ownsComm = true;
@@ -113,7 +112,7 @@ inline bool BootstrapMpi(const CommConfig& cfg, CommContext& ctx)
 inline bool BootstrapComm(const CommConfig& cfg, CommContext& ctx)
 {
     if (cfg.rankId < 0 || cfg.rankNum <= 0) {
-        std::cerr << "[PTO-DOMAIN] bootstrap: rankId/rankNum required\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] bootstrap: rankId/rankNum required");
         return false;
     }
     if (!ResolveDeviceId(cfg, ctx.deviceId)) {
@@ -121,7 +120,8 @@ inline bool BootstrapComm(const CommConfig& cfg, CommContext& ctx)
     }
     aclError aRet = aclrtSetDevice(ctx.deviceId);
     if (aRet != ACL_SUCCESS) {
-        std::cerr << "[PTO-DOMAIN] aclrtSetDevice(" << ctx.deviceId << ") failed: " << static_cast<int>(aRet) << "\n";
+        PTO_HOST_LOG_ERROR(
+            "DOMAIN", "[PTO-DOMAIN] aclrtSetDevice(" << ctx.deviceId << ") failed: " << static_cast<int>(aRet));
         return false;
     }
     if (!CreateStream(ctx)) {

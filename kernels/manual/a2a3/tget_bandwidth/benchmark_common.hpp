@@ -201,6 +201,8 @@ struct DeviceBaselineResources {
     T* shmem = nullptr;
     T* sendShmem = nullptr;
     T* recvShmem = nullptr;
+    void* workspaceAddr = nullptr;
+    uint64_t workspaceSize = 0;
     SdmaWorkspaceManager sdmaMgr;
 
     bool Allocate(size_t totalBytes)
@@ -248,6 +250,9 @@ struct DeviceBaselineResources {
         }
         if (finalizeSdma) {
             sdmaMgr.Finalize();
+            if (workspaceAddr != nullptr) {
+                (void)aclrtFree(workspaceAddr);
+            }
         }
     }
 };

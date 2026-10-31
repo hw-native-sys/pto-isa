@@ -765,6 +765,8 @@ bool RunOneRank(
         return false;
     }
 
+    void* workspaceAddr = nullptr;
+    uint64_t workspaceSize = 0;
     bool ok = false;
     try {
         CaseConfig cfg = LoadCaseConfig(caseDir + "/case.json");
@@ -777,7 +779,14 @@ bool RunOneRank(
         if (options.transport.urma) {
             if (!ValidateUrmaSymmetricLayout(cfg, runtime))
                 throw std::runtime_error("asymmetric URMA layout");
-            if (!InitStandaloneUrmaRuntime(runtime, runtime.rank_num_per_server, cfg.aic_num))
+            GetStandaloneUrmaWorkspaceSize(cfg.world_size, cfg.aic_num, &workspaceSize);
+            if (workspaceSize > 0) {
+                if (aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+                    throw std::runtime_error("failed to allocate URMA workspace");
+                }
+            }
+            if (!InitStandaloneUrmaRuntime(
+                    runtime, runtime.rank_num_per_server, cfg.aic_num, workspaceAddr, workspaceSize))
                 throw std::runtime_error("failed to initialize URMA on the HCCL window");
         }
 
@@ -816,6 +825,9 @@ bool RunOneRank(
     }
 
     DestroyStandaloneRankRuntime(runtime);
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     return ok;
 }
 

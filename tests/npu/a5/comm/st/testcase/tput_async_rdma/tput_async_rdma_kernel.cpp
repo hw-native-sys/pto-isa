@@ -647,6 +647,8 @@ struct RdmaTestContext {
     rtStream_t stream{nullptr};
     void* devBuf{nullptr};
     size_t allocSize{0};
+    void* workspaceAddr{nullptr};
+    uint64_t workspaceSize{0};
     pto::comm::rdma::RdmaWorkspaceManager rdmaMgr;
     pto::comm::rdma::test::BackendBootstrap boot;
     uint32_t traceId{0};
@@ -722,11 +724,16 @@ struct RdmaTestContext {
         config.peerSymAddrs = boot.peerSymAddrs;
         config.symmetricAddr = devBuf;
         config.symmetricSize = allocSize;
-        const bool localConnected = rdmaMgr.Init(config) == pto::comm::rdma::WorkspaceInitResult::READY;
-        if (!localConnected) {
-            std::cerr << "[ERROR] RDMA workspace initialization failed" << std::endl;
+        pto::comm::rdma::RdmaWorkspaceManager::GetWorkspaceSize(config.rankCount, &workspaceSize, config.qpNum);
+        if (!AllRanksReady(
+                workspaceSize == 0 ||
+                    aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS,
+                nRanks, "RDMA workspace allocation")) {
+            return false;
         }
-        return AllRanksReady(localConnected, nRanks, "RDMA backend channel initialization");
+        return AllRanksReady(
+            rdmaMgr.Init(config, workspaceAddr, workspaceSize) == pto::comm::rdma::WorkspaceInitResult::READY, nRanks,
+            "RDMA backend channel initialization");
     }
 
     SetupResult Setup(
@@ -767,6 +774,15 @@ struct RdmaTestContext {
         RdmaTrace(traceId, rankId, "CLEANUP begin devBuf=", devBuf, " stream=", stream);
         CommMpiBarrier();
         bool localOk = rdmaMgr.Finalize();
+        if (localOk && workspaceAddr != nullptr) {
+            const aclError ret = aclrtFree(workspaceAddr);
+            localOk = ret == ACL_SUCCESS;
+            if (localOk) {
+                workspaceAddr = nullptr;
+            } else {
+                std::cerr << "[ERROR] aclrtFree(workspace) failed: " << static_cast<int>(ret) << std::endl;
+            }
+        }
         if (devBuf != nullptr) {
             aclError ret = aclrtFree(devBuf);
             if (ret != ACL_SUCCESS) {

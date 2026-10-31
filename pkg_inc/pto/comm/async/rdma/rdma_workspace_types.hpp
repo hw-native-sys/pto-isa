@@ -23,7 +23,7 @@ namespace comm {
 namespace rdma {
 
 constexpr uint32_t kRdmaWorkspaceMagic = 0x52444d41U; // "RDMA"
-constexpr uint32_t kRdmaWorkspaceVersion = 2;
+constexpr uint32_t kRdmaWorkspaceVersion = 3;
 
 enum class RdmaDbMode : int32_t {
     INVALID_DB = -1,

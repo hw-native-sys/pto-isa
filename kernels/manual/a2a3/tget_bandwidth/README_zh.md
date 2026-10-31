@@ -43,8 +43,8 @@ Peer NPU GM ──SDMA──▶ Local GM   (直传，无 UB 中转)
 当前SDMA异步完成协议使用kernel-local post ID。Session会累计记录使用过的Queue数，每次Post都在这些
 Queue上追加8B flag SQE，因此等待最后一个Event也会覆盖该Session内此前所有Post。Wait/Test只轮询对应
 post ID，不再在Wait阶段提交SQE。每个channel group拥有独立的64槽Payload arena（每槽8B，共512B），
-Post Done Record按64B间隔复用该group的`recv_workspace`。Host侧
-`SdmaWorkspaceManager`统一管理STARS context和所有group的Payload，kernel调用方不需要额外分配控制区。
+Post Done Record按64B间隔复用该group的`recv_workspace`。
+Host 调用方查询容量并提供 workspace，由 `SdmaWorkspaceManager` 初始化后传给 kernel。
 
 ### 测试流程
 

@@ -348,12 +348,7 @@ static void FillMemInfo(
 bool AllocAndCopyEidTable(UrmaPeerInfoTables& tables)
 {
     const size_t eidDevSize = tables.eidTable.size();
-    aclError err = aclrtMalloc(&eidDevice_, eidDevSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    if (err != ACL_SUCCESS) {
-        PTO_HOST_LOG_ERROR("URMA", "aclrtMalloc(eidTable) failed: " << err);
-        return false;
-    }
-    err = aclrtMemcpy(eidDevice_, eidDevSize, tables.eidTable.data(), eidDevSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclError err = aclrtMemcpy(eidDevice_, eidDevSize, tables.eidTable.data(), eidDevSize, ACL_MEMCPY_HOST_TO_DEVICE);
     if (err != ACL_SUCCESS) {
         PTO_HOST_LOG_ERROR("URMA", "aclrtMemcpy(eidTable) failed: " << err);
         return false;
@@ -368,18 +363,12 @@ bool AllocAndCopyEidTable(UrmaPeerInfoTables& tables)
 bool BuildAndCopyUrmaInfoTable(const UrmaPeerInfoTables& tables)
 {
     // sq + rq share the WQ layout, scq + rcq share the CQ layout.
-    const size_t totalSize = static_cast<size_t>(ComputeWorkspaceBytes());
-
-    aclError err = aclrtMalloc(&urmaInfoDevice_, totalSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    if (err != ACL_SUCCESS) {
-        PTO_HOST_LOG_ERROR("URMA", "aclrtMalloc(urmaInfo) failed: " << err);
-        return false;
-    }
+    const size_t totalSize = static_cast<size_t>(urmaInfoBytes_);
 
     std::vector<uint8_t> hostBuf(totalSize, 0);
     FillUrmaInfoLayout(hostBuf, tables);
 
-    err = aclrtMemcpy(urmaInfoDevice_, totalSize, hostBuf.data(), totalSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclError err = aclrtMemcpy(urmaInfoDevice_, totalSize, hostBuf.data(), totalSize, ACL_MEMCPY_HOST_TO_DEVICE);
     if (err != ACL_SUCCESS) {
         PTO_HOST_LOG_ERROR("URMA", "aclrtMemcpy(urmaInfo) failed: " << err);
         return false;

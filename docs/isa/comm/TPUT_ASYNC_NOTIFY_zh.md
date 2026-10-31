@@ -142,7 +142,7 @@ PTO_INTERNAL bool BuildAsyncSession(
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `scratchTile` | — | 用于SDMA控制元数据的UB scratch tile。 |
-| `workspace` | — | 由Host侧 `SdmaWorkspaceManager` 分配的GM指针。 |
+| `workspace` | — | 由调用方分配并传给Host侧 `SdmaWorkspaceManager` 初始化的GM指针。 |
 | `session` | — | 输出的 `AsyncSession`。 |
 | `syncId` | `0` | MTE3/MTE2流水同步事件ID，取值范围为0-7。 |
 | `baseConfig` | `{kDefaultSdmaBlockBytes, 0, 1}` | SDMA块字节数、通信块偏移和队列数。 |
@@ -165,7 +165,7 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 
 | 参数 | 说明 |
 |---|---|
-| `workspace` | 由Host侧 `UrmaWorkspaceManager` 分配的GM指针。 |
+| `workspace` | 由调用方分配并传给Host侧 `UrmaWorkspaceManager` 初始化的GM指针。 |
 | `session` | 输出的 `AsyncSession`。 |
 
 URMA不需要 `scratchTile`，要求CANN Toolkit >= 9.1.0。Session不绑定目标rank，目标由指令的 `peer` 参数

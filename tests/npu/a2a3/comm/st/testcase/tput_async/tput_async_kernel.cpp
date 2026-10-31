@@ -106,8 +106,16 @@ bool RunPutAsyncRootPutKernel(
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, count * sizeof(T), output_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    uint64_t workspaceSize = 0;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
         return false;
     }
@@ -157,6 +165,9 @@ bool RunPutAsyncRootPutKernel(
     ctx.aclStatus |= aclrtFreeHost(input_host);
     ctx.aclStatus |= aclrtFreeHost(output_host);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
 
     return ctx.Finalize() && is_ok;
 }
@@ -264,8 +275,16 @@ bool RunPutAsyncWithConfigKernel(
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, count * sizeof(T), output_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    uint64_t workspaceSize = 0;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
         return false;
     }
@@ -302,6 +321,9 @@ bool RunPutAsyncWithConfigKernel(
     ctx.aclStatus |= aclrtFreeHost(input_host);
     ctx.aclStatus |= aclrtFreeHost(output_host);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
 
     return ctx.Finalize() && is_ok;
 }
@@ -422,8 +444,16 @@ bool RunPutAsyncMultiCoreKernel(
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, count * sizeof(T), output_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    uint64_t workspaceSize = 0;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
         return false;
     }
@@ -456,6 +486,9 @@ bool RunPutAsyncMultiCoreKernel(
     ctx.aclStatus |= aclrtFreeHost(input_host);
     ctx.aclStatus |= aclrtFreeHost(output_host);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
 
     return ctx.Finalize() && is_ok;
 }
@@ -584,8 +617,16 @@ bool RunPutAsyncConcurrentRankKernel(
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    uint64_t workspaceSize = 0;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
         return false;
     }
@@ -628,6 +669,9 @@ bool RunPutAsyncConcurrentRankKernel(
     ctx.aclStatus |= aclrtFreeHost(input_host);
     ctx.aclStatus |= aclrtFreeHost(output_host);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
 
     return ctx.Finalize() && is_ok;
 }
@@ -984,8 +1028,9 @@ struct TPutPostDevice {
     int32_t* signal{nullptr};
     int32_t* consumed{nullptr};
     uint32_t* status{nullptr};
+    void* workspaceAddr = nullptr;
+    uint64_t workspaceSize = 0;
     SdmaWorkspaceManager sdmaManager;
-    bool sdmaInitialized{false};
 };
 
 using TPutPostLauncher = void (*)(
@@ -1104,18 +1149,23 @@ bool RunTPutPostStabilityRank(
                 ACL_SUCCESS;
     }
     if (setupOk) {
-        device.sdmaInitialized = device.sdmaManager.Init();
-        setupOk = device.sdmaInitialized;
+        SdmaWorkspaceManager::GetWorkspaceSize(&device.workspaceSize);
     }
-    if (!AllTPutRanksReady(setupOk, nRanks)) {
+    if (!AllTPutRanksReady(
+            setupOk &&
+                (device.workspaceSize == 0 ||
+                 aclrtMalloc(&device.workspaceAddr, device.workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS) &&
+                device.sdmaManager.Init(device.workspaceAddr, device.workspaceSize),
+            nRanks)) {
         if (device.consumed != nullptr) {
             (void)aclrtFree(device.consumed);
         }
         if (device.status != nullptr) {
             (void)aclrtFree(device.status);
         }
-        if (device.sdmaInitialized) {
-            device.sdmaManager.Finalize();
+        device.sdmaManager.Finalize();
+        if (device.workspaceAddr != nullptr) {
+            (void)aclrtFree(device.workspaceAddr);
         }
         (void)ctx.Finalize();
         return false;
@@ -1183,6 +1233,9 @@ bool RunTPutPostStabilityRank(
     ctx.aclStatus |= aclrtFree(device.consumed);
     ctx.aclStatus |= aclrtFree(device.status);
     device.sdmaManager.Finalize();
+    if (device.workspaceAddr != nullptr) {
+        (void)aclrtFree(device.workspaceAddr);
+    }
     return ctx.Finalize() && isOk && ctx.aclStatus == ACL_SUCCESS;
 }
 

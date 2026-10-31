@@ -524,6 +524,8 @@ bool RunTGetBandwidthSweepKernel(
     uint64_t* profileBufDev = nullptr;
     uint64_t* profileBufHost = nullptr;
     T* shmem = nullptr;
+    void* workspaceAddr = nullptr;
+    uint64_t workspaceSize = 0;
     SdmaWorkspaceManager sdmaMgr;
     bool ok = false;
 
@@ -579,9 +581,19 @@ bool RunTGetBandwidthSweepKernel(
         }
         HcclHostBarrier(ctx.comm, ctx.stream);
 
-        if (rankId == rootRank && !sdmaMgr.Init()) {
-            std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
-            break;
+        if (rankId == rootRank) {
+            SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+            if (workspaceSize > 0) {
+                if (!CheckAclCall(
+                        aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST),
+                        "aclrtMalloc(workspace)")) {
+                    break;
+                }
+            }
+            if (!sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+                std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
+                break;
+            }
         }
 
         if (rankId == rootRank) {
@@ -632,6 +644,9 @@ bool RunTGetBandwidthSweepKernel(
     }
     if (rankId == rootRank) {
         sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
     }
 
     return ctx.Finalize() && ok;

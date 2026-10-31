@@ -40,7 +40,7 @@ bool BuildAsyncSession(ScratchTile &scratchTile, __gm__ uint8_t *workspace,
 | 参数 | 说明 |
 |------|------|
 | `scratchTile` | 用于 SDMA 控制元数据的 UB scratch tile（非数据负载），推荐 `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>`（256B） |
-| `workspace` | 由 Host 侧 `SdmaWorkspaceManager` 分配的 GM 指针 |
+| `workspace` | 由调用方分配并传给 Host 侧 `SdmaWorkspaceManager` 初始化的 GM 指针 |
 | `syncId` | MTE3/MTE2 管道同步事件 ID（0-7），避免与 kernel 内其他管道屏障冲突 |
 | `baseConfig` | `{block_bytes, comm_block_offset, queue_num}`，默认适用于单队列场景 |
 | `channelGroupIdx` | SDMA 通道组索引，默认使用 `get_block_idx()` 映射 |
@@ -56,8 +56,8 @@ bool BuildAsyncSession(__gm__ uint8_t *workspace, uint32_t destRankId, AsyncSess
 ## 异步约束
 
 - **仅支持扁平连续的逻辑一维 tensor**（非一维返回无效 event）
-- SDMA workspace 必须由 Host 侧 `SdmaWorkspaceManager` 分配
-- URMA workspace 必须由 Host 侧 `UrmaWorkspaceManager` 分配
+- SDMA workspace 必须由调用方分配并传给 Host 侧 `SdmaWorkspaceManager` 初始化
+- URMA workspace 必须由调用方分配并传给 Host 侧 `UrmaWorkspaceManager` 初始化
 - URMA 需要大页内存（`ACL_MEM_MALLOC_HUGE_ONLY`），小页分配导致注册失败
 - `scratchTile` 仅用于控制元数据，不是数据暂存缓冲
 

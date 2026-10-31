@@ -224,9 +224,16 @@ bool RunDeviceBaselineKernel(
     if (ok) {
         resources.MapWindow(ctx, rankId, config.totalBytes, requiredWindowBytes);
     }
-    if (ok && rankId == rootRank && !resources.sdmaMgr.Init()) {
-        std::cerr << "[ERROR] SdmaWorkspaceManager Init failed" << std::endl;
-        ok = false;
+    if (ok && rankId == rootRank) {
+        SdmaWorkspaceManager::GetWorkspaceSize(&resources.workspaceSize);
+        if ((resources.workspaceSize > 0 &&
+             !CheckAclCall(
+                 aclrtMalloc(&resources.workspaceAddr, resources.workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST),
+                 "aclrtMalloc(device baseline workspace)")) ||
+            !resources.sdmaMgr.Init(resources.workspaceAddr, resources.workspaceSize)) {
+            std::cerr << "[ERROR] SdmaWorkspaceManager Init failed" << std::endl;
+            ok = false;
+        }
     }
     if (ok && rankId == rootRank) {
         PrintDeviceBaselineConfig(instr, config);

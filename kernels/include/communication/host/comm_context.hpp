@@ -20,8 +20,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #error "communication/host/comm_context.hpp is host-only"
 #endif
 
-#include <iostream>
-
 #include "acl/acl.h"
 #include "hccl/hccl.h"
 
@@ -42,6 +40,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "pto/comm/async_common/async_types.hpp"
 #include "pto/comm/comm_types.hpp"
+#include "pto/comm/logger/host_log.hpp"
 #include "communication/host/comm_context_data.hpp"
 #include "communication/comm_domain_types.hpp"
 #include "communication/host/detail/addressing.hpp"
@@ -58,6 +57,49 @@ namespace pto {
 namespace comm {
 namespace domain {
 
+// Query after the caller selects its device, before allocating domain memory.
+// This function does not switch device or create a communicator/stream.
+inline aclError GetCommWorkspaceSize(const CommConfig& cfg, CommWorkspaceSizes* sizes)
+{
+    if (sizes == nullptr) {
+        return ACL_ERROR_INVALID_PARAM;
+    }
+    *sizes = {};
+    if (cfg.rankNum <= 0 || static_cast<uint32_t>(cfg.rankNum) > kMaxRankNum) {
+        return ACL_ERROR_INVALID_PARAM;
+    }
+#ifndef PTO_DOMAIN_URMA_HOST
+    if (NeedsUrmaFamily(cfg.backends)) {
+        return ACL_ERROR_FEATURE_UNSUPPORTED;
+    }
+#endif
+    CommWorkspaceSizes required{};
+    if (NeedsWindowFamily(cfg.backends)) {
+        required.windowDeviceContext = sizeof(CommDeviceContext);
+    }
+    if (HasBackend(cfg.backends, CommBackend::SDMA)) {
+        const auto status = sdma::SdmaWorkspaceManager::GetWorkspaceSize(&required.sdma);
+        if (status != ACL_SUCCESS) {
+            return status;
+        }
+    }
+#ifdef PTO_DOMAIN_URMA_HOST
+    if (NeedsUrmaFamily(cfg.backends)) {
+        const auto status = urma::UrmaWorkspaceManager::GetWorkspaceSize(
+            static_cast<uint32_t>(cfg.rankNum), &required.urma, static_cast<urma::UrmaLayout>(cfg.urmaLayout),
+            cfg.urmaAivCount, cfg.urmaJettiesPerCore);
+        if (status != ACL_SUCCESS) {
+            return status;
+        }
+        required.urmaDeviceContext = sizeof(CommDeviceContext);
+        required.urmaSymmetric = cfg.symBytes;
+    }
+#endif
+    *sizes = required;
+    return ACL_SUCCESS;
+}
+
+// Call after outstanding device work and peer accesses have completed.
 inline void CommContext::Reset()
 {
 #ifdef PTO_DOMAIN_URMA_HOST
@@ -66,27 +108,16 @@ inline void CommContext::Reset()
         urmaMgr.reset();
     }
     urmaWs = nullptr;
-    if (ownsUrmaDevCtx && urmaDevCtx != nullptr) {
-        aclrtFree(urmaDevCtx);
-        urmaDevCtx = nullptr;
-        ownsUrmaDevCtx = false;
-    }
-    if (urmaDevBuf != nullptr) {
-        aclrtFree(urmaDevBuf);
-        urmaDevBuf = nullptr;
-    }
+    urmaDevCtx = nullptr;
+    urmaDevBuf = nullptr;
 #endif
     if (sdmaMgr) {
         sdmaMgr->Finalize();
         sdmaMgr.reset();
     }
     sdmaWs = nullptr;
-    if (ownsWinDevCtx && winDevCtx != nullptr) {
-        aclrtFree(winDevCtx);
-    }
     winDevCtx = nullptr;
     winBase = nullptr;
-    ownsWinDevCtx = false;
     if (ownsComm && comm != nullptr) {
         HcclCommDestroy(comm);
     }
@@ -116,33 +147,36 @@ inline void DestroyComm(CommContext& ctx) { ctx.Reset(); }
 // Single host entry for HCCL, Window/URMA addressing, and optional SDMA/URMA
 // workspaces according to cfg.backends. Does not build AsyncSession — call
 // BuildAsyncSession separately after success.
-// On failure, partially allocated resources in out are released; returns false.
+// On failure, control resources in out are released; caller-owned memory is never freed.
 // Precondition: cfg.rankNum in [1, kMaxRankNum]; cfg.backends != 0.
 // ============================================================================
-inline bool BuildComm(const CommConfig& cfg, CommContext& out)
+inline bool BuildComm(
+    const CommConfig& cfg, const CommWorkspaceAddresses& addresses, const CommWorkspaceSizes& capacities,
+    CommContext& out)
 {
     DestroyComm(out);
     if (cfg.backends == 0) {
-        std::cerr << "[PTO-DOMAIN] BuildComm: backends is empty\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildComm: backends is empty");
         return false;
     }
     if (cfg.rankNum <= 0 || static_cast<uint32_t>(cfg.rankNum) > kMaxRankNum) {
-        std::cerr << "[PTO-DOMAIN] BuildComm: rankNum(" << cfg.rankNum << ") out of range [1, " << kMaxRankNum << "]\n";
+        PTO_HOST_LOG_ERROR(
+            "DOMAIN", "[PTO-DOMAIN] BuildComm: rankNum(" << cfg.rankNum << ") out of range [1, " << kMaxRankNum << "]");
         return false;
     }
     out.backends = cfg.backends;
     if (!detail::BootstrapComm(cfg, out)) {
-        std::cerr << "[PTO-DOMAIN] BuildComm: bootstrapComm failed\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildComm: bootstrapComm failed");
         DestroyComm(out);
         return false;
     }
-    if (!detail::SetupAddressing(cfg, out)) {
-        std::cerr << "[PTO-DOMAIN] BuildComm: setupAddressing failed\n";
+    if (!detail::SetupAddressing(cfg, out, addresses, capacities)) {
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildComm: setupAddressing failed");
         DestroyComm(out);
         return false;
     }
-    if (!detail::SetupTransport(cfg, out)) {
-        std::cerr << "[PTO-DOMAIN] BuildComm: setupTransport failed\n";
+    if (!detail::SetupTransport(cfg, out, addresses, capacities)) {
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildComm: setupTransport failed");
         DestroyComm(out);
         return false;
     }
@@ -228,12 +262,12 @@ constexpr uint32_t kDefaultSdmaQueueNum = 1;
 inline bool BuildAsyncSessionSdma(const CommContext& ctx, AsyncSession& out)
 {
     if (ctx.sdmaWs == nullptr) {
-        std::cerr << "[PTO-DOMAIN] BuildAsyncSession(SDMA): workspace missing\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildAsyncSession(SDMA): workspace missing");
         return false;
     }
     out = AsyncSession{};
     ::pto::comm::detail::ActivateEngineState<DmaEngine::SDMA>(out);
-    out.valid = true;
+    out.valid = 1;
     out.contextGm = ctx.sdmaWs;
     // tmpBufAddr/tmpBufSize/syncId stay at the zeros AsyncSession{} gave them: a host-built session
     // has no UB scratch, so the device side fills those in before the first post.
@@ -248,18 +282,19 @@ inline bool BuildAsyncSessionSdma(const CommContext& ctx, AsyncSession& out)
 inline bool BuildAsyncSessionUrma(const CommContext& ctx, AsyncSession& out)
 {
     if (ctx.urmaWs == nullptr) {
-        std::cerr << "[PTO-DOMAIN] BuildAsyncSession(URMA): workspace missing\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildAsyncSession(URMA): workspace missing");
         return false;
     }
     if (ctx.urmaMgr != nullptr && ctx.urmaMgr->Layout() == urma::UrmaLayout::SHARED_POOL) {
-        std::cerr << "[PTO-DOMAIN] BuildAsyncSession(URMA): a shared jetty pool assigns each AIV its own jetties, "
-                     "so the session must be built on device\n";
+        PTO_HOST_LOG_ERROR(
+            "DOMAIN", "[PTO-DOMAIN] BuildAsyncSession(URMA): a shared jetty pool assigns each AIV its own jetties, "
+                      "so the session must be built on device");
         return false;
     }
     out = AsyncSession{};
     // AsyncSession{} leaves cfg/rt on their SDMA alternative; activate URMA's.
     ::pto::comm::detail::ActivateEngineState<DmaEngine::URMA>(out);
-    out.valid = true;
+    out.valid = 1;
     out.contextGm = ctx.urmaWs;
     // destRankId (unused by the new API, kept for compatibility) and qpIdxBase stay at the zeros
     // AsyncSession{} gave them.
@@ -278,7 +313,7 @@ inline bool BuildAsyncSession(const CommContext& ctx, DmaEngine engine, AsyncSes
 {
     if (engine == DmaEngine::SDMA) {
         if (!HasBackend(ctx.backends, CommBackend::SDMA)) {
-            std::cerr << "[PTO-DOMAIN] BuildAsyncSession: SDMA not enabled\n";
+            PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildAsyncSession: SDMA not enabled");
             return false;
         }
         return BuildAsyncSessionSdma(ctx, out);
@@ -286,13 +321,13 @@ inline bool BuildAsyncSession(const CommContext& ctx, DmaEngine engine, AsyncSes
 #ifdef PTO_DOMAIN_URMA_HOST
     if (engine == DmaEngine::URMA) {
         if (!HasBackend(ctx.backends, CommBackend::URMA)) {
-            std::cerr << "[PTO-DOMAIN] BuildAsyncSession: URMA not enabled\n";
+            PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildAsyncSession: URMA not enabled");
             return false;
         }
         return BuildAsyncSessionUrma(ctx, out);
     }
 #endif
-    std::cerr << "[PTO-DOMAIN] BuildAsyncSession: unsupported engine\n";
+    PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] BuildAsyncSession: unsupported engine");
     return false;
 }
 
