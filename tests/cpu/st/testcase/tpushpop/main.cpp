@@ -10,7 +10,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/pto-inst.hpp>
 #include <atomic>
+#include <barrier>
 #include <chrono>
+#include <exception>
 #include <gtest/gtest.h>
 #include <pto/common/fifo.hpp>
 #include <thread>
@@ -1875,6 +1877,132 @@ TEST_F(TPushPopPackedMxTest, packed_mx_split_overwrite_invalidates_old_shape)
     };
     check.template operator()<TileSplitAxis::TILE_UP_DOWN>();
     check.template operator()<TileSplitAxis::TILE_LEFT_RIGHT>();
+}
+
+TEST_F(TPushPopPackedMxTest, fp4_left_right_split_odd_valid_cols_preserves_nibbles)
+{
+    auto check = []<typename T>() {
+        constexpr int rows = 32;
+        constexpr int cols = 128;
+        constexpr int validCols = 65;
+        constexpr auto split = TileSplitAxis::TILE_LEFT_RIGHT;
+        using Vec = Tile<TileType::Vec, T, rows, cols, BLayout::RowMajor, rows, validCols>;
+        using Mat = Tile<TileType::Mat, T, rows, 2 * cols, BLayout::RowMajor, rows, 2 * cols>;
+        using Pipe = TPipe<24, Direction::DIR_V2C, rows * cols + 2, 2>;
+        Pipe::reset_for_cpu_sim();
+        Pipe consumer(nullptr, 0, 0);
+        consumer.cons.setentryOffset(1);
+        const T guard = T::FromRaw(0xA5);
+        std::array<std::vector<T>, 2> sources{
+            std::vector<T>(Vec::GetSizeInUnits() + 2, guard), std::vector<T>(Vec::GetSizeInUnits() + 2, guard)};
+        std::array<Vec, 2> sourceTiles;
+        for (int lane = 0; lane < 2; ++lane) {
+            sourceTiles[lane].data() = sources[lane].data() + 1;
+        }
+        std::vector<T> result(Mat::GetSizeInUnits() + 2, guard);
+        Mat dst;
+        dst.data() = result.data() + 1;
+        auto& state = Pipe::GetSharedState();
+        for (auto& slot : state.local_slot_storage) {
+            slot.fill(0xA5);
+        }
+        for (int iteration = 0; iteration < 32; ++iteration) {
+            auto rawValue = [iteration](int r, int c) { return (iteration * 7 + r * 3 + c) & 0xF; };
+            for (int lane = 0; lane < 2; ++lane) {
+                for (int r = 0; r < rows; ++r) {
+                    for (int c = 0; c < validCols; ++c) {
+                        sourceTiles[lane].SetElement(r, c, T::FromRaw(rawValue(r, lane * cols + c)));
+                    }
+                }
+            }
+            std::barrier ready(2);
+            std::array<std::exception_ptr, 2> errors{};
+            auto push = [&](int lane) {
+                cpu_sim::ScopedExecutionContext ctx(0, lane, 2);
+                Pipe producer(nullptr, 0, 0);
+                producer.prod.setEntryOffset(1);
+                ready.arrive_and_wait();
+                try {
+                    TPUSH<Pipe, Vec, split>(producer, sourceTiles[lane]);
+                } catch (...) {
+                    errors[lane] = std::current_exception();
+                }
+            };
+            std::thread left(push, 0);
+            std::thread right(push, 1);
+            left.join();
+            right.join();
+            for (const auto& error : errors) {
+                ASSERT_NO_THROW(if (error) { std::rethrow_exception(error); });
+            }
+            cpu_sim::ScopedExecutionContext ctx(0, 0, 1);
+            TPOP<Pipe, Mat, split>(consumer, dst);
+            TFREE<Pipe, split>(consumer);
+            for (int r = 0; r < rows; ++r) {
+                for (int c = 0; c < 2 * cols; ++c) {
+                    // The physical width must be aligned. Odd valid columns
+                    // leave the high nibble of each lane's final byte untouched.
+                    const int expected = c % cols < validCols ? rawValue(r, c) : (c % 2 == 0 ? 0x5 : 0xA);
+                    ASSERT_EQ(dst.GetElement(r, c).RawData(), expected)
+                        << "iteration=" << iteration << ", row=" << r << ", col=" << c;
+                }
+            }
+            for (const auto& source : sources) {
+                EXPECT_EQ(source.front().RawData(), guard.RawData());
+                EXPECT_EQ(source.back().RawData(), guard.RawData());
+            }
+            EXPECT_EQ(result.front().RawData(), guard.RawData());
+            EXPECT_EQ(result.back().RawData(), guard.RawData());
+            const auto& slot = state.local_slot_storage[iteration % Pipe::RingFiFo::SLOT_NUM];
+            EXPECT_EQ(slot.front(), 0xA5);
+            EXPECT_EQ(slot.back(), 0xA5);
+        }
+    };
+    check.template operator()<float4_e2m1x2_t>();
+    check.template operator()<float4_e1m2x2_t>();
+}
+
+TEST_F(TPushPopPackedMxTest, fp4_split_overwrite_invalidates_only_overlapping_mx_entries)
+{
+    using Packed = Tile<TileType::Vec, float8_e8m0_t, 16, 2, BLayout::RowMajor, 16, 2, SLayout::RowMajor, 32>;
+    using Vec = Tile<TileType::Vec, float4_e2m1x2_t, 2, 128, BLayout::RowMajor, 2, 65>;
+    using Pipe = TPipe<25, Direction::DIR_V2C, 320, 1>;
+    // With entryOffset=1, lane 0 writes [1,34) and [129,162); lane 1 writes
+    // [65,98) and [193,226). Each MX entry occupies 32 bytes. The last
+    // nibble of each window must invalidate its overlapping entry, while
+    // entries in the other lane, padding, and outside the payload survive.
+    const std::array<int, 9> offsets{1, 33, 65, 97, 129, 161, 193, 225, 257};
+    const std::array<std::array<bool, 9>, 2> preserved{
+        {{false, false, true, true, false, false, true, true, true},
+         {true, true, false, false, true, true, false, false, true}}};
+    for (int lane = 0; lane < 2; ++lane) {
+        Pipe::reset_for_cpu_sim();
+        Pipe pipe(nullptr, 0, 0);
+        Packed packed;
+        Vec source;
+        std::vector<float8_e8m0_t> packedData(Packed::GetSizeInUnits(), float8_e8m0_t::FromRaw(0x7F));
+        std::vector<float4_e2m1x2_t> sourceData(Vec::GetSizeInUnits(), float4_e2m1x2_t::FromRaw(0x87));
+        packed.data() = packedData.data();
+        source.data() = sourceData.data();
+        pipe.prod.setRecordStatus(false);
+        for (std::size_t entry = 0; entry < offsets.size(); ++entry) {
+            pipe.prod.setAllocateStatus(entry == 0);
+            pipe.prod.setEntryOffset(offsets[entry]);
+            TPUSH<Pipe, Packed, TileSplitAxis::TILE_NO_SPLIT>(pipe, packed);
+        }
+        auto& entries = Pipe::GetSharedState().packed_mx_entries[0];
+        ASSERT_EQ(entries.count, offsets.size());
+        pipe.prod.setAllocateStatus(false);
+        pipe.prod.setEntryOffset(1);
+        {
+            cpu_sim::ScopedExecutionContext ctx(0, lane, 2);
+            TPUSH<Pipe, Vec, TileSplitAxis::TILE_LEFT_RIGHT>(pipe, source);
+        }
+        for (std::size_t entry = 0; entry < offsets.size(); ++entry) {
+            EXPECT_EQ(entries.find(offsets[entry]) != nullptr, preserved[lane][entry])
+                << "lane=" << lane << ", offset=" << offsets[entry];
+        }
+    }
 }
 
 TEST_F(TPushPopPackedMxTest, packed_mx_partial_views_keep_logical_payload)

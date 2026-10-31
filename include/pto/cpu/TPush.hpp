@@ -487,9 +487,8 @@ PTO_INTERNAL void CopyTileWindow(DstTileData& dst, SrcTileData& src, uint32_t ro
 {
     for (int r = 0; r < dst.GetValidRow(); ++r) {
         for (int c = 0; c < dst.GetValidCol(); ++c) {
-            SetProperDataPart(
-                dst.data(), GetTileElementOffset<DstTileData>(r, c),
-                GetProperDataPart(src.data(), GetTileElementOffset<SrcTileData>(r + rowOffset, c + colOffset)));
+            dst.data()[GetTileElementOffset<DstTileData>(r, c)] =
+                src.data()[GetTileElementOffset<SrcTileData>(r + rowOffset, c + colOffset)];
         }
     }
 }
@@ -499,9 +498,8 @@ PTO_INTERNAL void InsertTileWindow(DstTileData& dst, SrcTileData& src, uint32_t 
 {
     for (int r = 0; r < src.GetValidRow(); ++r) {
         for (int c = 0; c < src.GetValidCol(); ++c) {
-            SetProperDataPart(
-                dst.data(), GetTileElementOffset<DstTileData>(r + rowOffset, c + colOffset),
-                GetProperDataPart(src.data(), GetTileElementOffset<SrcTileData>(r, c)));
+            dst.data()[GetTileElementOffset<DstTileData>(r + rowOffset, c + colOffset)] =
+                src.data()[GetTileElementOffset<SrcTileData>(r, c)];
         }
     }
 }
