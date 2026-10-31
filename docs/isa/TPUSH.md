@@ -89,6 +89,8 @@ struct TPipe;
     - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied.
     - `TileSplitAxis::TILE_UP_DOWN`: Data is split into row halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validRows` must be even (a multiple of 2). For V2C direction (UB→L1 path), vector subblocks are inserted into the upper and lower row regions.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: Data is split into two column halves. For C2V direction (L0C→UB path), this mode only supports b32 data type, and `validCols` must be a multiple of 32; for V2C direction (UB→L1 path), `validCols` must be a multiple of 32 bytes.
+- **A6 split behavior**:
+    - Only `TileSplitAxis::TILE_NO_SPLIT` is supported, because A6 hardware allows one AIC to communicate with one AIV.
 - **Simplified TileData overload**:
     - `TPUSH(TileData&, Pipe&)` uses `TileSplitAxis::TILE_NO_SPLIT` semantics internally.
     - `TileData::Loc` must be `TileType::Acc` or `TileType::Vec`.

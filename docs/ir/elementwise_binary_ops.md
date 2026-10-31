@@ -46,6 +46,12 @@ pto.tadd ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -95,6 +101,12 @@ pto.tadd ins(%a, %b : !pto.tile_buf<loc=vec, dtype=f16, rows=16, cols=16,
 pto.tand ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -150,6 +162,12 @@ pto.tor ins(<src0>, <src1> : <src0_type>, <src1_type>)
         outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -203,6 +221,12 @@ pto.tor ins(%a, %b : !pto.tile_buf<loc=vec, dtype=i16, rows=16, cols=16,
 pto.tsub ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -258,6 +282,12 @@ pto.tmul ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -311,6 +341,12 @@ pto.tmul ins(%a, %b : !pto.tile_buf<loc=vec, dtype=f16, rows=16, cols=16,
 pto.tmin ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -366,6 +402,12 @@ pto.tmax ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -419,6 +461,12 @@ pto.tmax ins(%a, %b : !pto.tile_buf<loc=vec, dtype=f32, rows=16, cols=16,
 pto.tcmp ins(<src0>, <src1> {cmpMode = <mode>} : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -482,6 +530,12 @@ pto.tshl ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -530,6 +584,12 @@ pto.tshr ins(<src0>, <src1> : <src0_type>, <src1_type>)
          outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -577,6 +637,12 @@ pto.tshr ins(%a, %b : !pto.tile_buf<loc=vec, dtype=i32, rows=16, cols=16,
 pto.txor ins(<src0>, <src1>, <tmp> : <src0_type>, <src1_type>, <tmp_type>)
          outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -653,6 +719,12 @@ pto.txor ins(%src0, %src1, %dst :
 pto.tsel ins(<mask>, <src0>, <src1>, <tmp> : <mask_type>, <src0_type>, <src1_type>, <tmp_type>)
          outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -737,6 +809,12 @@ pto.tprelu ins(<src0>, <src1>, <tmp> : <src0_type>, <src1_type>, <tmp_type>)
            outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -817,6 +895,12 @@ pto.taddc ins(<src0>, <src1>, <src2> : <src0_type>, <src1_type>, <src2_type>)
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -867,6 +951,12 @@ pto.taddc ins(%a, %b, %c :
 pto.tsubc ins(<src0>, <src1>, <src2> : <src0_type>, <src1_type>, <src2_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

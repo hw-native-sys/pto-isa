@@ -28,6 +28,12 @@ pto.tci ins(<S> : <int_type>)
          {descending = <bool>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -90,6 +96,12 @@ pto.trandom ins(<key0>, <key1>, <counter0>, <counter1>, <counter2>, <counter3>
                 : i32, i32, i32, i32, i32, i32)
             outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
 
 **语义：**
 
@@ -156,6 +168,12 @@ pto.ttri ins(<diagonal> : <integer_type>)
          outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -218,6 +236,12 @@ pto.ttri
 ```mlir
 pto.tfillpad ins(<src> : <src_type>) outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：** 将源有效区域复制到目标中的相同坐标，并按目标类型的 pad 策略填充其余物理区域。该接口同时支持等容量填充、VEC 目标容量扩展及同一存储的原地填充。
 

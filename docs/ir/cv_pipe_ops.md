@@ -55,6 +55,12 @@ pto.aic_initialize_pipe {
                       )
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 在 Cube 核中初始化 Pipe 通道，为双向或单向数据交换建立共享的 FIFO 缓冲区。该操作不产生返回值，仅完成初始化配置。对于本地缓冲区条目，Pipe 管理由运行时处理；对于全局内存条目，初始化绑定 GM FIFO 槽位描述符。
@@ -127,6 +133,12 @@ pto.aiv_initialize_pipe {id = <id>, dir_mask = <dir>, slot_size = <size>,
                          c2v_consumer_buf = <c2v>, v2c_consumer_buf = <v2c>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 在 Vector 核中初始化 Pipe 通道，与 `pto.aic_initialize_pipe` 结构完全相同。该操作为 Vector 端配置 FIFO 管道，使其能够作为消费者（C2V 模式）或生产者（V2C 模式）参与数据交换。
@@ -168,6 +180,12 @@ pto.aiv_initialize_pipe {id = 0, dir_mask = 1, slot_size = 1024, nosplit = true}
 pto.tpush_to_aiv(<pipe_entry> : <pipe_entry_type>)
     {id = <id>, split = <split>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -220,6 +238,12 @@ pto.tpush_to_aic(<pipe_entry> : <pipe_entry_type>)
     {id = <id>, split = <split>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 从 Vector 核中推送一个 V2C Pipe 条目到 FIFO。结构与 `pto.tpush_to_aiv` 相同，但方向相反（Vector 生产，Cube 消费）。
@@ -263,6 +287,12 @@ pto.tpush_to_aic(%tile : !pto.tile_buf<loc=vec, dtype=f32, rows=16, cols=16,
     -> <pipe_entry_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 从 FIFO 中弹出一个 C2V Pipe 条目在 Vector 核中消费。该操作为 SSA 返回值操作，返回一个 tile buffer 或张量视图描述符，后续操作可使用该条目进行数据转移。
@@ -304,6 +334,12 @@ pto.tpush_to_aic(%tile : !pto.tile_buf<loc=vec, dtype=f32, rows=16, cols=16,
     -> <pipe_entry_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 从 FIFO 中弹出一个 V2C Pipe 条目在 Cube 核中消费。结构与 `pto.tpop_from_aic` 相同，但方向相反（Cube 消费来自 Vector 的数据）。
@@ -342,6 +378,12 @@ pto.tfree_from_aic {id = <id>, split = <split>}
 pto.tfree_from_aic(<entry> : <pipe_entry_type>)
     {id = <id>, split = <split>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -391,6 +433,12 @@ pto.tfree_from_aiv(<entry> : <pipe_entry_type>)
     {id = <id>, split = <split>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 释放当前 V2C FIFO 消费者槽位在 Cube 核中。结构与 `pto.tfree_from_aic` 相同，但方向相反。
@@ -435,6 +483,12 @@ pto.reserve_buffer {name = <name>, size = <size>,
                     location = <location>, auto = <autoAlloc>} -> i32
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -478,6 +532,12 @@ addr = reserve_local_buffer(name, size, location, autoAlloc)
 ```mlir
 pto.import_reserved_buffer {name = <name>, peer_func = <peer_func>} -> i32
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -738,6 +798,12 @@ pto.section.cube {
 }
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -778,6 +844,12 @@ pto.section.vector {
   <body>
 }
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -820,6 +892,12 @@ pto.initialize_l2g2l_pipe {dir_mask = <N>, slot_size = <S>, slot_num = <M>
                            (, <peer_local_addr> : <p_type>)?)
                           -> !pto.pipe
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -873,6 +951,12 @@ pto.initialize_l2l_pipe {dir_mask = <N>, slot_size = <S>, slot_num = <M>
                         -> !pto.pipe
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -919,6 +1003,12 @@ pipe = init_l2l_pipe(dir_mask, slot_size, slot_num, local_addr, ...)
 pto.talloc_to_aiv {(id = <N>,)? split = <S>} -> <entry_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -955,6 +1045,12 @@ entry = alloc_c2v_producer_slot(id, split)
 ```mlir
 pto.talloc_to_aic {(id = <N>,)? split = <S>} -> <entry_type>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

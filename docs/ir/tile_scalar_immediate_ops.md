@@ -51,6 +51,12 @@ pto.tadds ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -102,6 +108,12 @@ pto.taddsc ins(<src0>, <scalar>, <src1> : <type0>, <scalar_type>, <type1>)
            outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -149,6 +161,12 @@ pto.taddsc ins(%a, %s, %b : !pto.tile_buf<loc=vec, dtype=f32, rows=16, cols=16,
 pto.tands ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -201,6 +219,12 @@ pto.tands ins(%a, %s : !pto.tile_buf<loc=vec, dtype=i16, rows=16, cols=16,
 pto.tcmps ins(<src>, <scalar> {cmpMode = <mode>} : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -268,6 +292,12 @@ pto.tdivs ins(<src>, <scalar> : <src_type>, <scalar_type>)
 pto.tdivs ins(<scalar>, <src> : <scalar_type>, <src_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -339,6 +369,12 @@ pto.texpands ins(<scalar> : <scalar_type>)
               outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -384,6 +420,12 @@ pto.texpands ins(%scalar : f32)
 pto.tlrelu ins(<src>, <slope> : <src_type>, <slope_type>)
            outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -437,6 +479,12 @@ pto.tmaxs ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -487,6 +535,12 @@ pto.tmaxs ins(%a, %s : !pto.tile_buf<loc=vec, dtype=f32, rows=16, cols=16,
 pto.tmins ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -539,6 +593,12 @@ pto.tmuls ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -589,6 +649,12 @@ pto.tmuls ins(%a, %s : !pto.tile_buf<loc=vec, dtype=f16, rows=16, cols=16,
 pto.tors ins(<src>, <scalar> : <src_type>, <scalar_type>)
          outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -650,6 +716,12 @@ pto.tors ins(%a, %s : !pto.tile_buf<loc=vec, dtype=i16, rows=16, cols=16,
 pto.trems ins(<src>, <scalar>, <tmp> : <src_type>, <scalar_type>, <tmp_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -713,6 +785,12 @@ pto.tsels ins(<mask>, <src>, <tmp>, <scalar> : <mask_type>, <src_type>, <tmp_typ
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -772,6 +850,12 @@ pto.tshls ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -819,6 +903,12 @@ pto.tshls ins(%a, %s : !pto.tile_buf<loc=vec, dtype=i32, rows=16, cols=16,
 pto.tshrs ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -873,6 +963,12 @@ pto.tsubs ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -924,6 +1020,12 @@ pto.tsubsc ins(<src0>, <scalar>, <src1> : <type0>, <scalar_type>, <type1>)
            outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -971,6 +1073,12 @@ pto.tsubsc ins(%a, %s, %b : !pto.tile_buf<loc=vec, dtype=f32, rows=16, cols=16,
 pto.txors ins(<src>, <scalar>, <tmp> : <src_type>, <scalar_type>, <tmp_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -1041,6 +1149,12 @@ pto.tfmods ins(<src>, <scalar> : <src_type>, <scalar_type>)
            outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -1089,6 +1203,12 @@ pto.tfmods ins(%a, %s : !pto.tile_buf<loc=vec, dtype=f32, rows=16, cols=16,
 pto.taxpy ins(<src>, <scalar> : <src_type>, <scalar_type>)
           outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

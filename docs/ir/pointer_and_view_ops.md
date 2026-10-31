@@ -29,6 +29,12 @@
 pto.addptr <ptr>, <offset> : !pto.ptr<elementType> -> !pto.ptr<elementType>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -64,6 +70,12 @@ result = ptr + offset  // offset is in elements, not Bytes
 ```mlir
 %result = pto.castptr <input> : <input_type> -> <result_type>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -108,6 +120,12 @@ memref -> 指针：提取 memref 的对齐基地址，不进行分配或复制�
 pto.make_tensor_view <ptr>, shape = [<d0>, <d1>, ...], strides = [<s0>, <s1>, ...]
                      : !pto.tensor_view<...>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -156,6 +174,12 @@ pto.get_tensor_view_dim <tensor_view>, <dim_index>
                         : !pto.tensor_view<...> -> index
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -191,6 +215,12 @@ result = get_dim(tensor_view, dim_index)
 pto.partition_view <source>, offsets = [<o0>, <o1>, ...], sizes = [<s0>, <s1>, ...]
                    : !pto.tensor_view<...> -> !pto.partition_tensor_view<...>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -230,6 +260,12 @@ result = source[offsets : offsets + sizes]
 pto.subview <source>[<i>, <j>] sizes [<rows>, <cols>] (valid [<vr>, <vc>])?
             : <source_type> -> <result_type>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -293,6 +329,12 @@ result.valid = clip(explicit_valid_or_sizes, sizes)
 pto.bitcast <src> : <src_type> -> <result_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -338,6 +380,12 @@ result = reinterpret_dtype(src)
 pto.get_validshape <source> : <source_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -375,6 +423,12 @@ pto.get_validshape <source> : <source_type>
 ```mlir
 pto.set_validshape <source>, <valid_row>, <valid_col> : <source_type>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -420,6 +474,12 @@ pto.set_validshape %tile, %new_vr, %new_vc
 pto.get_buf [<op_type>, <buf_id>]
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
+
 **语义：**
 
 ```text
@@ -460,6 +520,12 @@ pto.get_buf[#pto.pipe_event_type<TVEC>, 1]
 pto.rls_buf [<op_type>, <buf_id>]
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
+
 **语义：**
 
 ```text
@@ -499,6 +565,12 @@ pto.rls_buf[#pto.pipe_event_type<TVEC>, 1]
 pto.tget_scale_addr ins(<src> : <src_type>)
                     outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
 
 **语义：**
 

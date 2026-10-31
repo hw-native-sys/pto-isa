@@ -27,6 +27,12 @@ pto.tcvt ins(<src>[, <tmp>] {rmode = <round_mode>, satmode = <saturation_mode>}
          outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -100,6 +106,12 @@ pto.tquant ins(<src>, <fp> : !pto.tile_buf, !pto.tile_buf)
            outs(<dst> : !pto.tile_buf) {quant_type = <quant_type>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -158,6 +170,12 @@ pto.tquant
 pto.tdequant ins(<src>, <scale>, <offset> : !pto.tile_buf, !pto.tile_buf, !pto.tile_buf)
              outs(<dst> : !pto.tile_buf)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

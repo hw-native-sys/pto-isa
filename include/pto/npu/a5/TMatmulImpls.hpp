@@ -147,7 +147,7 @@ PTO_INTERNAL void TMATMUL_MX_IMPL(
     uint16_t n = bMatrix.GetValidCol();
     CheckDynamicMmad(m, k, n);
 #if defined(PTO_NPU_ARCH_A6)
-    TMatmulMxBias<Phase, TileRes, TileLeft, TileLeftScale, TileRight, TileRightScale, false, true, true>(
+    TMatmulMxBias<Phase, TileRes, TileLeft, TileLeftScale, TileRight, TileRightScale, true, false, true>(
         cMatrix.data(), aMatrix.data(), aScaleMatrix.data(), bMatrix.data(), bScaleMatrix.data(), biasData.data(), m, k,
         n);
 #else

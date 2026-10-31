@@ -41,6 +41,12 @@ pto.tload ins(<src> : <src_type>)
           outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -90,6 +96,12 @@ pto.tprefetch ins(<src> : <src_type>)
               outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -134,6 +146,12 @@ pto.tprefetch ins(%pv : !pto.partition_tensor_view<16x16xf16>)
 %event = pto.tprefetch_async ins(<src>, <ctx> : <src_type>, !pto.prefetch_async_context)
                              -> !pto.async_event
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -182,6 +200,12 @@ pto.tstore ins(<src> : <src_type>, <preQuantScalar> : i64)
            outs(<dst> : <dst_type>)
            {attributes}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -284,6 +308,12 @@ pto.tstore ins(<src> : <src_type> fp <fp> : <fp_type>)
   outs(<dst> : <dst_type>) {attributes}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：** 使用逐列缩放/量化参数 fp 对累加器的有效区域进行转换，并存储到 GM 目标视图。fp 是独立的缩放 Tile，不是新的数据源或标量字节地址。
 
 **参数与约束：** src 位于 `acc`，元素类型为 `f32` 或 32 位整数；fp 位于 `scaling`；dst 为 GM 分区视图。fp 与 preQuantScalar 互斥；源布局使用 `col_major/row_major`，有效列数在 `[1,4095]`；精度转换、ReLU、原子和阶段属性遵循 `tstore` 的相应规则。没有 SSA 返回值。
@@ -313,6 +343,12 @@ pto.mgather ins(<mem>, <idx> : <mem_type>, <idx_type>)
 pto.mgather ins(<mem>, <idx>, <scratch> : <mem_type>, <idx_type>, <scratch_type>)
   outs(<dst> : <dst_type>) {coalesce = #pto<coalesce elem>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：** 从 GM 视图按行索引或逐元素索引读取数据，写入目标 Tile。
 
@@ -385,6 +421,12 @@ pto.mscatter ins(<src>, <idx> : <src_type>, <idx_type>)
   outs(<mem> : <mem_type>) {coalesce = #pto<coalesce row|elem>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：** 从 VEC Tile 读取数据，按行索引或逐元素索引写入 GM 目标表。
 
 ```text
@@ -452,6 +494,12 @@ pto.mscatter ins(%src, %idx :
 %value = pto.load <ptr>[<offset>] : <ptr_type> -> <element_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：** 返回 `ptr[offset]`，不改变存储。
 
 **参数与返回值：** ptr 为 `!pto.ptr<T,space>` 或 `memref`；offset 为 `index`，以指针元素为单位，不能传入字节偏移；结果类型必须等于指针或 memref 的元素类型。访问地址须有效且满足元素对齐与容量要求。
@@ -472,6 +520,12 @@ pto.mscatter ins(%src, %idx :
 ```mlir
 pto.store <value>, <ptr>[<offset>] : <ptr_type>, <element_type>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：** 将 value 写到 `ptr[offset]`；没有 SSA 返回值。
 
@@ -503,6 +557,12 @@ pto.tmov ins(<src> : <src_type>, <preQuantScalar> : i64)
          outs(<dst> : <dst_type>)
          {attributes}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -601,6 +661,12 @@ pto.ttrans ins(<src>, <tmp> : <src_type>, <tmp_type>)
            outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -659,6 +725,12 @@ pto.ttrans ins(%src, %tmp : !pto.tile_buf<loc=vec, dtype=f16, rows=16, cols=16,
 pto.tmov ins(<src> : <src_type>, <fp> : <fp_type>)
   outs(<dst> : <dst_type>) {attributes}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：** 使用缩放 Tile fp 对累加器数据进行支持的精度转换，写入目标本地 Tile；不产生 SSA 返回值。
 

@@ -19,6 +19,12 @@ pto.alloc_tile (valid_row = <vr>)? (valid_col = <vc>)?
                : <result_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text

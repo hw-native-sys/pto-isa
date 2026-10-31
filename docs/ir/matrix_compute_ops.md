@@ -47,6 +47,12 @@ pto.tmatmul ins(<lhs>, <rhs> : <lhs_type>, <rhs_type>)
             {accPhase = <phase>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -108,6 +114,12 @@ pto.tmatmul.acc ins(<acc_in>, <lhs>, <rhs> : <acc_in_type>, <lhs_type>, <rhs_typ
                 {accPhase = <phase>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -167,6 +179,12 @@ pto.tmatmul.bias ins(<lhs>, <rhs>, <bias> : <lhs_type>, <rhs_type>, <bias_type>)
                  outs(<dst> : <dst_type>)
                  {accPhase = <phase>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -235,6 +253,12 @@ pto.tmatmul.mx ins(<lhs>, <lhs_scale>, <rhs>, <rhs_scale> :
                outs(<dst> : <dst_type>)
                {accPhase = <phase>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
 
 **语义：**
 
@@ -313,6 +337,12 @@ pto.tmatmul.mx.acc ins(<acc_in>, <lhs>, <lhs_scale>, <rhs>, <rhs_scale> :
                    {accPhase = <phase>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
+
 **语义：**
 
 ```text
@@ -388,6 +418,12 @@ pto.tmatmul.mx.bias ins(<lhs>, <lhs_scale>, <rhs>, <rhs_scale>, <bias> :
                     outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
+
 **语义：**
 
 ```text
@@ -456,6 +492,12 @@ pto.tgemv ins(<lhs>, <rhs> : <lhs_type>, <rhs_type>)
           {accPhase = <phase>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -518,6 +560,12 @@ pto.tgemv.acc ins(<acc_in>, <lhs>, <rhs> : <acc_in_type>, <lhs_type>, <rhs_type>
               {accPhase = <phase>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -577,6 +625,12 @@ pto.tgemv.bias ins(<lhs>, <rhs>, <bias> : <lhs_type>, <rhs_type>, <bias_type>)
                outs(<dst> : <dst_type>)
                {accPhase = <phase>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -645,6 +699,12 @@ pto.tgemv.mx ins(<lhs>, <lhs_scale>, <rhs>, <rhs_scale> :
              outs(<dst> : <dst_type>)
              {accPhase = <phase>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
 
 **语义：**
 
@@ -722,6 +782,12 @@ pto.tgemv.mx.acc ins(<acc_in>, <lhs>, <lhs_scale>, <rhs>, <rhs_scale> :
                  {accPhase = <phase>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
+
 **语义：**
 
 ```text
@@ -798,6 +864,12 @@ pto.tgemv.mx.bias ins(<lhs>, <lhs_scale>, <rhs>, <rhs_scale>, <bias> :
                       <rhs_scale_type>, <bias_type>)
                   outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
 
 **语义：**
 

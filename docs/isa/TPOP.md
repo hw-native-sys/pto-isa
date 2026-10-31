@@ -78,6 +78,8 @@ struct TPipe;
     - `TileSplitAxis::TILE_NO_SPLIT`: No sub-vector offset is applied. On A2A3, this mode requires AIV0/AIV1 to participate in inter-core synchronization.
     - `TileSplitAxis::TILE_UP_DOWN`: vector subblocks consume row halves.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: vector subblocks consume column halves.
+- **A6 split behavior**:
+    - Only `TileSplitAxis::TILE_NO_SPLIT` is supported, because A6 hardware allows one AIC to communicate with one AIV.
 - **NPU synchronization**:
     - Data-ready wait is performed for each `TPOP`.
     - Free-space notifications are sparse and controlled by `Pipe::SyncPeriod`.

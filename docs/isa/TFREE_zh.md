@@ -66,6 +66,8 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 
 ## 约束
 
+- **A6切分行为**：
+    - 仅支持 `TileSplitAxis::TILE_NO_SPLIT`，因为 A6 硬件只支持一个 AIC 与一个 AIV 通信。
 - **TileData流程**：
     - 当弹出的FIFO槽位中的数据不再需要时，使用 `TFREE(Pipe&)`。
     - 搭配使用TPUSH/TPOP/TFREE实现核间同步和数据传输，数据传输时推入的tileshape和弹出的tileshape的大小比例关系是1:1或者1:2。

@@ -2848,7 +2848,8 @@ PTO_INST RecordEvent TFMOD(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& s
     return {};
 }
 
-#ifndef PTO_COMM_NOT_SUPPORTED
+// A6 sets PTO_COMM_NOT_SUPPORTED for the comm library. TPipe intrinsics stay available there.
+#if !defined(PTO_COMM_NOT_SUPPORTED) || defined(PTO_NPU_ARCH_A6)
 template <
     typename Pipe, typename TileProd, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileProd>, int> = 0,
     typename... WaitEvents>
@@ -2867,14 +2868,6 @@ PTO_INST RecordEvent TPUSH(Pipe& pipe, TileProd& tile, int32_t subBlockId, WaitE
     return {};
 }
 
-template <typename TileData, typename Pipe, typename... WaitEvents>
-PTO_INST RecordEvent TPUSH(TileData& tile, Pipe& pipe, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    TPUSH_IMPL<TileData, Pipe>(tile, pipe);
-    return {};
-}
-
 template <
     typename Pipe, typename TileCons, TileSplitAxis Split, std::enable_if_t<is_tile_data_v<TileCons>, int> = 0,
     typename... WaitEvents>
@@ -2890,14 +2883,6 @@ PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, int32_t subBlockId, WaitEv
 {
     detail::PtoWaitEvents(events...);
     TPOP_IMPL<Pipe, TileCons, Split>(pipe, tile, subBlockId);
-    return {};
-}
-
-template <typename TileData, typename Pipe, typename... WaitEvents>
-PTO_INST RecordEvent TPOP(TileData& tile, Pipe& pipe, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    TPOP_IMPL<TileData, Pipe>(tile, pipe);
     return {};
 }
 
@@ -2954,6 +2939,24 @@ PTO_INST RecordEvent TFREE(Pipe& pipe, GlobalData& gmTensor, WaitEvents&... even
 {
     detail::PtoWaitEvents(events...);
     TFREE_IMPL<Pipe, GlobalData, Split>(pipe, gmTensor);
+    return {};
+}
+#endif
+
+#ifndef PTO_COMM_NOT_SUPPORTED
+template <typename TileData, typename Pipe, typename... WaitEvents>
+PTO_INST RecordEvent TPUSH(TileData& tile, Pipe& pipe, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    TPUSH_IMPL<TileData, Pipe>(tile, pipe);
+    return {};
+}
+
+template <typename TileData, typename Pipe, typename... WaitEvents>
+PTO_INST RecordEvent TPOP(TileData& tile, Pipe& pipe, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    TPOP_IMPL<TileData, Pipe>(tile, pipe);
     return {};
 }
 

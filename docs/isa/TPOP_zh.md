@@ -78,12 +78,14 @@ struct TPipe;
     - `TileSplitAxis::TILE_NO_SPLIT`：不进行切分，Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上需要AIV0/AIV1陪跑核间同步操作。
     - `TileSplitAxis::TILE_UP_DOWN`：消费上下两个行半区。
     - `TileSplitAxis::TILE_LEFT_RIGHT`：消费左右两个列半区。
+- **A6切分行为**：
+    - 仅支持 `TileSplitAxis::TILE_NO_SPLIT`，因为 A6 硬件只支持一个 AIC 与一个 AIV 通信。
 - **NPU同步**：
     - 每次 `TPOP` 都会执行数据就绪等待。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。
 - **GlobalData槽位视图**：
     - `gmTensor` 会被赋值为由 `pipe.cons.tileIndex` 选择的FIFO槽位基地址。
-    - 对于C2V分裂模式，会根据 `Split` 应用向量子块偏移。
+    - 对于C2V切分模式，会根据 `Split` 应用向量子块偏移。
     - 从槽位视图完成所有加载后，调用者必须调用 `TFREE(Pipe&, GlobalData&)`。
 - **CPU_SIM FIFO模型**：
     - `TPOP` 使用主机FIFO的互斥锁和条件变量等待生产者提交槽位。

@@ -46,6 +46,12 @@
 %idx = pto.get_block_idx
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -69,6 +75,12 @@ result = block_idx()
 ```mlir
 %idx = pto.get_subblock_idx
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -94,6 +106,12 @@ result = subblock_idx()
 %num = pto.get_block_num
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -117,6 +135,12 @@ result = block_num()
 ```mlir
 %num = pto.get_subblock_num
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -144,6 +168,12 @@ result = subblock_num()
 pto.tsetval ins(<offset>, <val> : index, <scalar_type>)
             outs(<dst> : !pto.tile_buf<...>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -186,6 +216,12 @@ pto.tsetval ins(%offset, %val : index, f16)
 ```mlir
 %val = pto.tgetval ins(<src>, <offset> : !pto.tile_buf<...>, index) outs : <scalar_type>
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -237,6 +273,12 @@ result = src[offset]  // 从线性偏移处读取单个标量值
 pto.print ins(<format_str>, <scalar> : <scalar_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -277,6 +319,12 @@ pto.tprint ins(<src> : !pto.tile_buf<...>)
 pto.tprint ins(<src>, <tmp> : !pto.tile_buf<...>, !pto.partition_tensor_view<...>)
           {printFormat = <fmt>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -345,6 +393,12 @@ pto.tprint ins(%pv : !pto.partition_tensor_view<16x16xf32>)
 ```mlir
 pto.trap
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

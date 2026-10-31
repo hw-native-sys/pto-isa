@@ -31,6 +31,12 @@ pto.tsort32 ins(<src>, <idx>, <tmp> : <src_type>, <idx_type>, <tmp_type>)
             outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -88,6 +94,12 @@ pto.tmrgsort ins(<src0>, <src1>, ... , <tmp> {exhausted = <bool>} :
                  <src_type>, <src_type>, ... , <tmp_type>)
              outs(<dst>, <executed> : <dst_type>, vector<4xi16>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -155,6 +167,12 @@ pto.tmrgsort ins(%src0, %src1, %tmp2 {exhausted = false} :
 pto.thistogram ins(<src>, <idx> : <src_type>, <idx_type>)
                outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：不支持
+- Atlas A2系列产品：不支持
 
 **语义：**
 

@@ -70,6 +70,8 @@ PTO_INTERNAL void TFREE_IMPL(Pipe &pipe)
 
 ## Constraints
 
+- **A6 split behavior**:
+    - Only `TileSplitAxis::TILE_NO_SPLIT` is supported, because A6 hardware allows one AIC to communicate with one AIV.
 - **TileData flow**:
     - Use `TFREE(Pipe&)` when the data in the popped FIFO slot is no longer needed.
     - Use TPUSH/TPOP/TFREE together for inter-core synchronization and data transfer; the size ratio between the pushed tile shape and the popped tile shape must be 1:1 or 1:2.

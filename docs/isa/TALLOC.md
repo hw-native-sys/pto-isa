@@ -76,6 +76,8 @@ struct TPipe;
     - `TileSplitAxis::TILE_NO_SPLIT`: no sub-vector offset is applied.
     - `TileSplitAxis::TILE_UP_DOWN`: vector subblocks map to row halves.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: vector subblocks map to column halves.
+- **A6 split behavior**:
+    - Only `TileSplitAxis::TILE_NO_SPLIT` is supported, because A6 hardware allows one AIC to communicate with one AIV.
 - **Synchronization**:
     - Free-space waits are sparse and controlled by `Pipe::SyncPeriod`.
     - `TALLOC` does not record data-ready; use `TPUSH(Pipe&, GlobalData&)` after writing the slot.

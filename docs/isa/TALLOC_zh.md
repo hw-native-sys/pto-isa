@@ -17,7 +17,7 @@
 
 从 `TPipe` 中分配一个生产者FIFO槽位，并将其暴露为 `GlobalTensor` 视图。
 
-`TALLOC` 用于 `GlobalData` 分裂接口。它允许生产者获取当前FIFO槽位地址，使用 `TSTORE` 等普通内存指令向该槽位写入数据，然后通过 `TPUSH(Pipe&, GlobalData&)` 提交该槽位。
+`TALLOC` 用于 `GlobalData` 切分接口。它允许生产者获取当前FIFO槽位地址，使用 `TSTORE` 等普通内存指令向该槽位写入数据，然后通过 `TPUSH(Pipe&, GlobalData&)` 提交该槽位。
 
 ## 操作语义
 
@@ -63,19 +63,21 @@ struct TPipe;
 - **Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品GlobalData生产者**：
     - `GlobalData` 必须满足 `is_global_data_v<GlobalData>`。
     - `Direction::DIR_C2V`：生产者可以看到整个FIFO槽位。
-    - `Direction::DIR_V2C`：对于向量子块，可能会根据 `Split` 应用分裂偏移。
+    - `Direction::DIR_V2C`：对于向量子块，可能会根据 `Split` 应用切分偏移。
 - **Ascend 950PR/Ascend 950DT GlobalData生产者**：
     - `GlobalData` 必须满足 `is_global_data_v<GlobalData>`。
     - `Direction::DIR_C2V_GM`：生产者可以看到整个FIFO槽位。
-    - `Direction::DIR_V2C_GM`：对于向量子块，可能会根据 `Split` 应用分裂偏移。
+    - `Direction::DIR_V2C_GM`：对于向量子块，可能会根据 `Split` 应用切分偏移。
 - **FIFO槽位**：
     - `SlotSize` 必须足够容纳一个逻辑FIFO条目。
     - `SlotNum >= 1`。
     - `Pipe::SyncPeriod` 由 `SlotNum` 派生：`(SlotNum <= 2) ? SlotNum : SlotNum / 2`。
-- **分裂行为**：
+- **切分行为**：
     - `TileSplitAxis::TILE_NO_SPLIT`：不应用子向量偏移。
     - `TileSplitAxis::TILE_UP_DOWN`：向量子块映射到上下两个行半区。
     - `TileSplitAxis::TILE_LEFT_RIGHT`：向量子块映射到左右两个列半区。
+- **A6切分行为**：
+    - 仅支持 `TileSplitAxis::TILE_NO_SPLIT`，因为 A6 硬件只支持一个 AIC 与一个 AIV 通信。
 - **同步**：
     - 空闲空间等待是稀疏的，并由 `Pipe::SyncPeriod` 控制。
     - `TALLOC` 不记录数据就绪；写入槽位后使用 `TPUSH(Pipe&, GlobalData&)`。
@@ -112,7 +114,7 @@ AICORE void example_talloc(__gm__ void *fifoMem)
 }
 ```
 
-### V2C分裂分配
+### V2C切分分配
 
 ```cpp
 #include <pto/pto-inst.hpp>

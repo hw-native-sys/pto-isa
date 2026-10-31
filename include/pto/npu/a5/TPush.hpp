@@ -43,10 +43,6 @@ struct TPipe {
     static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat || is_v2c_ctrl;
     static_assert(
         is_c2v || is_v2c || is_both || is_both_gm, "Fix: TPipe only supports C2V or V2C or Both communication on A5.");
-    // Local no-split FIFOs get their initial capacity from shouldWaitFree's startup window.
-    // GM and split FIFOs use the explicit constructor/destructor credit protocol below.
-    static constexpr bool uses_local_no_split_credit_protocol =
-        IsNoSplit && (is_c2v_ub || is_v2c_mat || is_v2c_ctrl || is_both);
     static constexpr uint8_t VEC_CORE_ID_OFFSET = 16;
     static_assert(
         FlagIDPlusOne <= MAX_SYC_ID,
@@ -59,18 +55,24 @@ struct TPipe {
 
     PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex)
     {
-        // Startup protection: Don't check flags when buffer is empty
-        if (tileIndex < SlotNum) {
-            return false;
+        if constexpr (SlotNum == 1) {
+            // First push uses the empty slot; later pushes wait for TPOP free.
+            return tileIndex > 0;
+        } else {
+            if (tileIndex < SlotNum) {
+                return false;
+            }
+            return (tileIndex % SyncPeriod) == 0;
         }
-        // Sparse sync: Only check flags periodically to reduce overhead
-        return (tileIndex % SyncPeriod) == 0;
     }
 
     PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
     {
-        // Notify consumer to free buffer when producer is one slot ahead of consumer
-        return ((tileIndex + 1) % SyncPeriod) == 0;
+        if constexpr (SlotNum == 1) {
+            return true;
+        } else {
+            return ((tileIndex + 1) % SyncPeriod) == 0;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -128,9 +130,10 @@ struct TPipe {
          * 1. (iter >= Depth): Startup protection. Don't check flags when buffer is empty.
          * 2. (iter % Period == 0): Sparse sync. Only check flag periodically.
          */
-        template <TileSplitAxis Split = TileSplitAxis::TILE_UP_DOWN>
+        template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void allocate() const
         {
+            CheckSplitMode<Split>();
             if constexpr (is_c2v) {
 #ifdef PTO_COMPILE_CUBE
                 waitIntraBlockBySplit<PIPE_FIX, Split>(FlagIDPlusOne);
@@ -171,9 +174,10 @@ struct TPipe {
          * record - Producer signals that data is ready
          * Called by the producer after completing the operation (TSTORE_C2GM or TSTORE_V2GM)
          */
-        template <TileSplitAxis Split = TileSplitAxis::TILE_UP_DOWN>
+        template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void record() const
         {
+            CheckSplitMode<Split>();
             if constexpr (is_c2v) {
 #ifdef PTO_COMPILE_CUBE
                 setIntraBlockBySplit<PIPE_FIX, Split>(FlagID);
@@ -341,6 +345,7 @@ struct TPipe {
         template <typename TileProd, TileSplitAxis Split>
         PTO_INTERNAL void push(RingFiFo& fifo, TileProd& tile, int32_t subBlockId)
         {
+            CheckSplitMode<Split>();
             if constexpr (TileProd::Loc == TileType::Acc) {
                 if constexpr (is_c2v_ub || is_both) {
                     pushAcc2VecFiFo<TileProd, Split>(fifo, tile);
@@ -492,9 +497,10 @@ struct TPipe {
         /**
          * wait: Block until data is ready
          */
-        template <TileSplitAxis Split = TileSplitAxis::TILE_UP_DOWN>
+        template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void wait() const
         {
+            CheckSplitMode<Split>();
             if constexpr (is_c2v_gm) {
                 wait_intra_block(PIPE_MTE2, FlagID);
             } else if constexpr (is_c2v_ub) {
@@ -529,9 +535,10 @@ struct TPipe {
         /**
          * free: Release space in FIFO
          */
-        template <TileSplitAxis Split = TileSplitAxis::TILE_UP_DOWN>
+        template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void free() const
         {
+            CheckSplitMode<Split>();
             if constexpr (is_c2v_gm) {
 #ifdef PTO_COMPILE_VEC
                 set_intra_block(PIPE_MTE2, FlagIDPlusOne);
@@ -661,6 +668,7 @@ struct TPipe {
         template <typename TileCons, TileSplitAxis Split>
         PTO_INTERNAL bool pop(RingFiFo& fifo, TileCons& tile, int32_t subBlockId)
         {
+            CheckSplitMode<Split>();
             static_assert(
                 TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat || TileCons::Loc == TileType::Ctrl,
                 "Fix: TPOP has unsupported tile type!");
@@ -693,27 +701,17 @@ struct TPipe {
 
     PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
-    {
-        if constexpr (!uses_local_no_split_credit_protocol) {
-            for (uint32_t i = 0; i < SyncPeriod; ++i) {
-                if constexpr (IsNoSplit) {
-                    cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
-                } else {
-                    cons.template free<TileSplitAxis::TILE_UP_DOWN>();
-                }
-            }
-        }
-    }
+    {}
 
     // Destructor for TPipe
     PTO_INTERNAL ~TPipe()
     {
-        if constexpr (uses_local_no_split_credit_protocol) {
-            const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
-            uint32_t numPushWait = 0;
-            if constexpr (SlotNum == 1) {
-                numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
-            } else if (prod.tileIndex > SlotNum) {
+        const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
+        uint32_t numPushWait = 0;
+        if constexpr (SlotNum == 1) {
+            numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
+        } else {
+            if (prod.tileIndex > SlotNum) {
                 constexpr uint32_t firstAligned =
                     (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
                 const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
@@ -721,19 +719,9 @@ struct TPipe {
                     numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
                 }
             }
-            const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
-            for (uint32_t i = 0; i < drainCount; ++i) {
-                prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
-            }
-        } else {
-            for (uint32_t i = 0; i < SyncPeriod; ++i) {
-                if constexpr (IsNoSplit) {
-                    prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
-                } else {
-                    prod.template allocate<TileSplitAxis::TILE_UP_DOWN>();
-                }
-            }
         }
+        const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
+        ClearFreeSignal<IsNoSplit>(prod, drainCount);
     }
 };
 
@@ -1029,14 +1017,15 @@ struct TMPipe {
             if constexpr (isSplitM) {
                 // split M between vectors
                 constexpr uint32_t VecM = ConsM / VEC_CORES;
-                int row_offset = VecM * static_cast<size_t>(get_subblockid());
+                int subblock_base_rows = VecM * static_cast<size_t>(get_subblockid());
+                int row_offset = subblock_base_rows + entryOffset;
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
                 TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);
                 TINSERT_IMPL(matTile, tile, static_cast<uint16_t>(row_offset), static_cast<uint16_t>(0));
             } else if constexpr (isSplitN) {
                 // split N between vectors
-                int col_index = ProdN * static_cast<size_t>(get_subblockid());
+                int col_index = ProdN;
                 uint64_t entryBase = (tile_id % DataFiFo::fifoDepth) * ConsM * ConsN * sizeof(T);
                 TileDataCons matTile;
                 TASSIGN_IMPL(matTile, fifo.fifoBase + entryBase);

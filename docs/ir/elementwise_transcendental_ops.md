@@ -40,6 +40,12 @@ pto.tdiv ins(<src0>, <src1> : <src0_type>, <src1_type>)
          {precisionType = <precision>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -102,6 +108,12 @@ pto.tlog ins(<src> : <src_type>)
          {precisionType = <precision>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -155,6 +167,12 @@ pto.trecip ins(<src> : <src_type>)
            outs(<dst> : <dst_type>)
            {precisionType = <precision>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -215,6 +233,12 @@ pto.trsqrt ins(<src>, <tmp> : <src_type>, <tmp_type>)
            outs(<dst> : <dst_type>)
            {precisionType = #pto<rsqrt_precision high_precision>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -289,6 +313,12 @@ pto.tsqrt ins(<src> : <src_type>)
           {precisionType = <precision>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -341,6 +371,12 @@ pto.texp ins(<src> : <src_type>)
          {precisionType = <precision>}
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -389,6 +425,12 @@ pto.trem ins(<src0>, <src1>, <tmp> : <src0_type>, <src1_type>, <tmp_type>)
          outs(<dst> : <dst_type>)
          {precisionType = <precision>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -455,6 +497,12 @@ pto.tfmod ins(<src0>, <src1> : <src0_type>, <src1_type>)
           outs(<dst> : <dst_type>)
           {precisionType = <precision>}
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

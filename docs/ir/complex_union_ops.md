@@ -29,6 +29,12 @@ pto.tpartadd ins(<src0>, <src1> : <src0_type>, <src1_type>)
              outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -84,6 +90,12 @@ pto.tpartadd ins(%a, %b :
 pto.tpartmul ins(<src0>, <src1> : <src0_type>, <src1_type>)
              outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -141,6 +153,12 @@ pto.tpartmax ins(<src0>, <src1> : <src0_type>, <src1_type>)
              outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -196,6 +214,12 @@ pto.tpartmax ins(%a, %b :
 pto.tpartmin ins(<src0>, <src1> : <src0_type>, <src1_type>)
              outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -253,6 +277,12 @@ pto.tpartargmax ins(<src0>, <src1>, <src0Idx>, <src1Idx>
                     : <src0_type>, <src1_type>, <idx0_type>, <idx1_type>)
                 outs(<dst>, <dstIdx> : <dst_type>, <dstIdx_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -321,6 +351,12 @@ pto.tpartargmin ins(<src0>, <src1>, <src0Idx>, <src1Idx>
                     : <src0_type>, <src1_type>, <idx0_type>, <idx1_type>)
                 outs(<dst>, <dstIdx> : <dst_type>, <dstIdx_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

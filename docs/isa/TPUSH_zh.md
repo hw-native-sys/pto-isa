@@ -89,6 +89,8 @@ struct TPipe;
     - `TileSplitAxis::TILE_NO_SPLIT`：不做切分。
     - `TileSplitAxis::TILE_UP_DOWN`：将数据按照上下切分。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validRows必须为2的整数倍。当Vector->Cube方向且UB->L1通路时，vector子块会分别插入上、下两个行区域。
     - `TileSplitAxis::TILE_LEFT_RIGHT`：将数据按照左右切分成两个列半区。当Cube->Vector方向且L0C->UB通路时，该切分模式仅支持数据类型为b32，且srcTile的validCols必须为32的整数倍。当Vector->Cube方向且UB->L1通路时，该切分模式下validCols必须是32字节的整数倍。
+- **A6切分行为**：
+    - 仅支持 `TileSplitAxis::TILE_NO_SPLIT`，因为 A6 硬件只支持一个 AIC 与一个 AIV 通信。
 - **简化版TileData接口**：
     - `TPUSH(TileData&, Pipe&)` 内部使用 `TileSplitAxis::TILE_NO_SPLIT` 语义。
     - `TileData::Loc` 必须为 `TileType::Acc` 或 `TileType::Vec`。

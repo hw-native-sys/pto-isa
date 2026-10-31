@@ -32,6 +32,12 @@ pto.op ins(<src>, ... : <src_type>, ...) outs(<dst> : <dst_type>)
 %view = pto.treshape <src> : <src_type> -> <result_type>
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -74,6 +80,12 @@ view = reinterpret_view(src, result_type)
 pto.tconcat ins(<src0>, <src1> : !pto.tile_buf, !pto.tile_buf)
             outs(<dst> : !pto.tile_buf)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -131,6 +143,12 @@ pto.tconcatidx ins(<src0>, <src1>, <src0Idx>, <src1Idx>
                    : <src0_type>, <src1_type>, <idx0_type>, <idx1_type>)
                outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -198,6 +216,12 @@ pto.textract ins(<src>, <indexRow>, <indexCol> : !pto.tile_buf, index, index)
              outs(<dst> : !pto.tile_buf)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -255,6 +279,12 @@ pto.textract ins(<src>, <indexRow>, <indexCol> : <src_type>, index, index
              outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -309,6 +339,12 @@ pto.textract ins(%src, %row, %col : !pto.tile_buf<loc=acc, dtype=f32, rows=32, c
 pto.tinsert ins(<src>, <indexRow>, <indexCol> : !pto.tile_buf, index, index)
             outs(<dst> : !pto.tile_buf)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -366,6 +402,12 @@ pto.tinsert ins(<src>, <indexRow>, <indexCol> : <src_type>, index, index
                fp <fp> : <fp_type>)
             outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -433,6 +475,12 @@ pto.tgather ins(<src>, <kValue> : <src_type>, <scalar_type>)
 pto.tgather ins(<src>, {maskPattern = #pto.mask_pattern<<pattern>>} : <src_type>, "row")
             outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 
@@ -548,6 +596,12 @@ pto.tgatherb ins(<src>, <offsets> : <src_type>, <offsets_type>)
              outs(<dst> : <dst_type>)
 ```
 
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
+
 **语义：**
 
 ```text
@@ -610,6 +664,12 @@ pto.tscatter ins(<src>, <indexes> : <src_type>, <indexes_type>)
 pto.tscatter ins(<src>, {maskPattern = #pto.mask_pattern<<pattern>>} : <src_type>, <axis>)
              outs(<dst> : <dst_type>)
 ```
+
+**产品支持情况：**
+
+- Ascend 950PR&950DT系列产品：支持
+- Atlas A3系列产品：支持
+- Atlas A2系列产品：支持
 
 **语义：**
 

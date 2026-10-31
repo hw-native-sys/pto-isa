@@ -167,6 +167,77 @@ void runVectorToCubeNoSplitInactiveLaneNoOp()
         EXPECT_EQ(sharedState.occupied, 0);
     }
 }
+// Exercise logical FP4 elements in packed storage, including signed zero (0x8).
+// Both layouts are used by native kernels; compare bits instead of float values.
+template <typename T, int rows, int slotBytes, bool fractal>
+void runPackedFp4Wraparound()
+{
+    constexpr int cols = 128;
+    constexpr int depth = 2;
+    using VecTile = Tile<
+        TileType::Vec, T, rows, cols, fractal ? BLayout::ColMajor : BLayout::RowMajor, rows, cols,
+        fractal ? SLayout::RowMajor : SLayout::NoneBox>;
+    using MatTile = Tile<TileType::Mat, T, rows, cols, BLayout::ColMajor, rows, cols, SLayout::RowMajor>;
+    using Pipe = TPipe<kPipeFlagId + 3, Direction::DIR_V2C, slotBytes, depth, depth, true>;
+    static_assert(VecTile::GetSizeInBytes() == rows * cols / 2);
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe(nullptr, 0, kMatConsumerBase);
+    const T guard = T::FromRaw(0xA5);
+    std::vector<T> source(VecTile::GetSizeInUnits() + 2, guard);
+    std::vector<T> result(MatTile::GetSizeInUnits() + 2, guard);
+    VecTile vecTile;
+    MatTile matTile;
+    vecTile.data() = source.data() + 1;
+    matTile.data() = result.data() + 1;
+    cpu_sim::ScopedExecutionContext ctx(0, 0, 1);
+    auto rawValue = [](int iter, int r, int c) { return (iter * 7 + r * 3 + c) & 0xF; };
+    auto push = [&](int iter) {
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                vecTile.SetElement(r, c, T::FromRaw(rawValue(iter, r, c)));
+            }
+        }
+        TPUSH<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, vecTile);
+    };
+    push(0);
+    push(1);
+    for (int iter = 0; iter < 5; ++iter) {
+        TPOP<Pipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, matTile);
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                ASSERT_EQ(matTile.GetElement(r, c).RawData(), rawValue(iter, r, c))
+                    << "iter=" << iter << ", row=" << r << ", col=" << c;
+            }
+        }
+        TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+        if (iter + depth < 5) {
+            push(iter + depth);
+        }
+    }
+    EXPECT_EQ(source.front().RawData(), guard.RawData());
+    EXPECT_EQ(source.back().RawData(), guard.RawData());
+    EXPECT_EQ(result.front().RawData(), guard.RawData());
+    EXPECT_EQ(result.back().RawData(), guard.RawData());
+}
+
+template <typename T>
+void checkPackedByteBounds()
+{
+    std::array<uint8_t, 4> storage{0xA5, 0xBC, 0xDE, 0xF1};
+    // A nonzero entry offset with three logical values: preserve the unused high nibble.
+    for (std::size_t i = 0; i < 3; ++i) {
+        cpu_pipe::StoreByteStorageElement(storage, 0, 1, 3, i, T::FromRaw(i + 7), "test");
+    }
+    EXPECT_EQ(storage, (std::array<uint8_t, 4>{0xA5, 0x87, 0xD9, 0xF1}));
+    for (std::size_t i = 0; i < 3; ++i) {
+        EXPECT_EQ(cpu_pipe::LoadByteStorageElement<T>(storage, 0, 1, 3, i, "test").RawData(), i + 7);
+    }
+    EXPECT_EQ(cpu_pipe::GetStorageByteCount<T>(3), 2u);
+    EXPECT_THROW(cpu_pipe::StoreByteStorageElement(storage, 0, 1, 3, 4, T::FromRaw(0), "test"), std::out_of_range);
+    EXPECT_THROW(cpu_pipe::LoadByteStorageElement<T>(storage, 0, 1, 3, 4, "test"), std::out_of_range);
+    EXPECT_EQ(storage, (std::array<uint8_t, 4>{0xA5, 0x87, 0xD9, 0xF1}));
+}
+
 } // namespace
 
 class TPushPopVCNoSplitTest : public testing::Test {
@@ -197,4 +268,27 @@ TEST_F(TPushPopVCNoSplitTest, vector_to_cube_fifo_wraparound_float_16x32)
 TEST_F(TPushPopVCNoSplitTest, vector_to_cube_inactive_aiv1_is_noop_in_no_split_mode)
 {
     runVectorToCubeNoSplitInactiveLaneNoOp<float, 16, 32>();
+}
+
+TEST_F(TPushPopVCNoSplitTest, fp4_e2m1_exact_capacity_wraparound)
+{
+    runPackedFp4Wraparound<float4_e2m1x2_t, 16, 1024, true>();
+}
+
+TEST_F(TPushPopVCNoSplitTest, fp4_e1m2_exact_capacity_wraparound)
+{
+    runPackedFp4Wraparound<float4_e1m2x2_t, 16, 1024, true>();
+}
+
+TEST_F(TPushPopVCNoSplitTest, fp4_e2m1_index_score_query_shape)
+{
+    runPackedFp4Wraparound<float4_e2m1x2_t, 192, 16384, true>();
+}
+
+TEST_F(TPushPopVCNoSplitTest, fp4_row_major_to_fractal) { runPackedFp4Wraparound<float4_e2m1x2_t, 16, 1024, false>(); }
+
+TEST_F(TPushPopVCNoSplitTest, fp4_preserves_nibbles_and_checks_byte_bounds)
+{
+    checkPackedByteBounds<float4_e2m1x2_t>();
+    checkPackedByteBounds<float4_e1m2x2_t>();
 }

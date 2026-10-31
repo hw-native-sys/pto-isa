@@ -137,6 +137,41 @@ struct DataFIFO<
     PTO_INTERNAL DataFIFO(uint32_t base) : fifoBase(base) {}
 };
 
+// A5 defaults to a two-AIV split. A6 has one AIV, so an omitted Split must stay legal.
+#if defined(PTO_NPU_ARCH_A6)
+inline constexpr TileSplitAxis kDefaultSplitMode = TileSplitAxis::TILE_NO_SPLIT;
+#else
+inline constexpr TileSplitAxis kDefaultSplitMode = TileSplitAxis::TILE_UP_DOWN;
+#endif
+
+// A6 is 1 AIC : 1 AIV, so a split axis has no second vector subblock to address.
+template <TileSplitAxis Split>
+PTO_INTERNAL constexpr void CheckSplitMode()
+{
+#if defined(PTO_NPU_ARCH_A6)
+    static_assert(
+        Split == TileSplitAxis::TILE_NO_SPLIT,
+        "A6 pairs one AIC with one AIV, so TileSplitAxis::TILE_NO_SPLIT is required.");
+#endif
+}
+
+// Drain leftover free-flag credits. A6 has one AIC point to one AIV, so the drain always uses the no-split flag.
+template <bool IsNoSplit, typename Producer>
+PTO_INTERNAL void ClearFreeSignal(const Producer& prod, uint32_t drainCount)
+{
+    for (uint32_t i = 0; i < drainCount; ++i) {
+#if defined(PTO_NPU_ARCH_A6)
+        prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
+#else
+        if constexpr (IsNoSplit) {
+            prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
+        } else {
+            prod.template allocate<TileSplitAxis::TILE_UP_DOWN>();
+        }
+#endif
+    }
+}
+
 PTO_CPU_TARGET_NAMESPACE_END
 } // namespace pto
 #endif
