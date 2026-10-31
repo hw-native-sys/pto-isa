@@ -401,9 +401,16 @@ PTO_INTERNAL void FillTile(TileData& tile, typename TileData::DType value)
 {
     for (int r = 0; r < tile.GetValidRow(); ++r) {
         for (int c = 0; c < tile.GetValidCol(); ++c) {
-            tile.data()[GetTileElementOffset<TileData>(r, c)] = value;
+            SetProperDataPart(tile.data(), GetTileElementOffset<TileData>(r, c), value);
         }
     }
+}
+
+template <typename T>
+PTO_INTERNAL constexpr std::size_t GetStorageByteCount(std::size_t elementCount)
+{
+    constexpr std::size_t elementsPerUnit = IsTwinType<T>() ? 2 : 1;
+    return (elementCount / elementsPerUnit + (elementCount % elementsPerUnit != 0)) * sizeof(T);
 }
 
 template <typename T, std::size_t StorageSize>
@@ -413,8 +420,10 @@ PTO_INTERNAL std::size_t GetCheckedByteStorageOffset(
 {
     (void)storage;
     static_assert(std::is_trivially_copyable_v<T>, "CPU TPipe byte storage requires a trivially copyable type.");
+    constexpr std::size_t elementsPerUnit = IsTwinType<T>() ? 2 : 1;
+    const std::size_t storageIndex = elementIndex / elementsPerUnit;
     if (baseByteOffset > regionByteEnd || regionByteEnd > StorageSize ||
-        elementIndex >= (regionByteEnd - baseByteOffset) / sizeof(T)) {
+        storageIndex >= (regionByteEnd - baseByteOffset) / sizeof(T)) {
         std::ostringstream message;
         message << "CPU TPipe " << operation << " exceeds local slot storage: slot=" << slotIndex
                 << ", base_byte_offset=" << baseByteOffset << ", element_index=" << elementIndex
@@ -422,7 +431,7 @@ PTO_INTERNAL std::size_t GetCheckedByteStorageOffset(
                 << ", storage_size=" << StorageSize;
         throw std::out_of_range(message.str());
     }
-    return baseByteOffset + elementIndex * sizeof(T);
+    return baseByteOffset + storageIndex * sizeof(T);
 }
 
 template <typename T, std::size_t StorageSize>
@@ -432,9 +441,15 @@ PTO_INTERNAL T LoadByteStorageElement(
 {
     const std::size_t byteOffset =
         GetCheckedByteStorageOffset<T>(storage, slotIndex, baseByteOffset, regionByteEnd, elementIndex, operation);
-    T value;
-    std::copy(storage.data() + byteOffset, storage.data() + byteOffset + sizeof(T), reinterpret_cast<uint8_t*>(&value));
-    return value;
+    if constexpr (IsTwinType<T>()) {
+        const uint32_t shift = (elementIndex % 2) * 4;
+        return T::FromRaw((storage[byteOffset] >> shift) & 0xF);
+    } else {
+        T value;
+        std::copy(
+            storage.data() + byteOffset, storage.data() + byteOffset + sizeof(T), reinterpret_cast<uint8_t*>(&value));
+        return value;
+    }
 }
 
 template <typename T, std::size_t StorageSize>
@@ -444,8 +459,13 @@ PTO_INTERNAL void StoreByteStorageElement(
 {
     const std::size_t byteOffset =
         GetCheckedByteStorageOffset<T>(storage, slotIndex, baseByteOffset, regionByteEnd, elementIndex, operation);
-    const auto* src = reinterpret_cast<const uint8_t*>(&value);
-    std::copy(src, src + sizeof(T), storage.data() + byteOffset);
+    if constexpr (IsTwinType<T>()) {
+        const uint32_t shift = (elementIndex % 2) * 4;
+        storage[byteOffset] = (storage[byteOffset] & ~(0xF << shift)) | ((value.RawData() & 0xF) << shift);
+    } else {
+        const auto* src = reinterpret_cast<const uint8_t*>(&value);
+        std::copy(src, src + sizeof(T), storage.data() + byteOffset);
+    }
 }
 
 template <typename T, std::size_t StorageSize>
@@ -494,7 +514,8 @@ PTO_INTERNAL void CopyTileWindowToLinear(
     constexpr bool use_relu = reluPreMode == ReluPreMode::NormalRelu;
     for (uint32_t r = 0; r < dstRows; ++r) {
         for (uint32_t c = 0; c < dstCols; ++c) {
-            SrcT val = src.data()[GetTileElementOffset<SrcTileData>(r + srcRowOffset, c + srcColOffset)];
+            SrcT val =
+                GetProperDataPart(src.data(), GetTileElementOffset<SrcTileData>(r + srcRowOffset, c + srcColOffset));
             StoreByteStorageElement(
                 dst, slotIndex, baseByteOffset, regionByteEnd, static_cast<std::size_t>(r) * dstStrideCols + c,
                 ConvertStoreValue<DstT, SrcT, quantMode, use_relu>(val, scalars[c]), "CopyTileWindowToLinear");
@@ -509,9 +530,11 @@ PTO_INTERNAL void CopyLinearToTile(
 {
     for (int r = 0; r < dst.GetValidRow(); ++r) {
         for (int c = 0; c < dst.GetValidCol(); ++c) {
-            dst.data()[GetTileElementOffset<DstTileData>(r, c)] = LoadByteStorageElement<T>(
-                src, slotIndex, baseByteOffset, regionByteEnd,
-                static_cast<std::size_t>(r) * srcCols + static_cast<std::size_t>(c), "CopyLinearToTile");
+            SetProperDataPart(
+                dst.data(), GetTileElementOffset<DstTileData>(r, c),
+                LoadByteStorageElement<T>(
+                    src, slotIndex, baseByteOffset, regionByteEnd,
+                    static_cast<std::size_t>(r) * srcCols + static_cast<std::size_t>(c), "CopyLinearToTile"));
         }
     }
 }
@@ -527,7 +550,8 @@ PTO_INTERNAL void InsertTileWindowToLinear(
                 (static_cast<uint32_t>(r) + dstRowOffset) * dstCols + static_cast<uint32_t>(c) + dstColOffset;
             StoreByteStorageElement(
                 dst, slotIndex, baseByteOffset, regionByteEnd, elementIndex,
-                static_cast<DstT>(src.data()[GetTileElementOffset<SrcTileData>(r, c)]), "InsertTileWindowToLinear");
+                static_cast<DstT>(GetProperDataPart(src.data(), GetTileElementOffset<SrcTileData>(r, c))),
+                "InsertTileWindowToLinear");
         }
     }
 }
@@ -1281,17 +1305,21 @@ PTO_INTERNAL void TPush_v2c(Pipe& pipe, TileProd& tile, size_t slotIndex)
             slotStorage, slotIndex, baseByteOffset, Pipe::RingFiFo::SLOT_SIZE,
             (static_cast<std::size_t>(rowOffset) + rows - 1) * consCols + colOffset + cols - 1, "TPush_v2c");
     }
+    // Packed writes preserve the other nibble with a read-modify-write. Serialize
+    // split producers, including their payload and MX metadata updates.
+    std::lock_guard<std::mutex> lock(sharedState.mutex);
     if constexpr (Pipe::HAS_PACKED_MX) {
-        // Split producers can update different windows of the same slot at once.
-        std::lock_guard<std::mutex> lock(sharedState.mutex);
         auto& entries = sharedState.packed_mx_entries[slotIndex];
         if constexpr (Split == TileSplitAxis::TILE_NO_SPLIT) {
-            entries.eraseOverlapping(baseByteOffset, static_cast<std::size_t>(rows) * cols * sizeof(DstT));
+            entries.eraseOverlapping(
+                baseByteOffset, cpu_pipe::GetStorageByteCount<DstT>(static_cast<std::size_t>(rows) * cols));
         } else {
             for (uint32_t r = 0; r < rows && entries.count != 0; ++r) {
-                entries.eraseOverlapping(
-                    baseByteOffset + ((static_cast<std::size_t>(rowOffset) + r) * consCols + colOffset) * sizeof(DstT),
-                    static_cast<std::size_t>(cols) * sizeof(DstT));
+                const std::size_t firstElement = (static_cast<std::size_t>(rowOffset) + r) * consCols + colOffset;
+                constexpr std::size_t elementsPerUnit = IsTwinType<DstT>() ? 2 : 1;
+                const std::size_t firstByte = firstElement / elementsPerUnit * sizeof(DstT);
+                const std::size_t endByte = cpu_pipe::GetStorageByteCount<DstT>(firstElement + cols);
+                entries.eraseOverlapping(baseByteOffset + firstByte, endByte - firstByte);
             }
         }
     }
@@ -1311,7 +1339,6 @@ PTO_INTERNAL void TPush_v2c(Pipe& pipe, TileProd& tile, size_t slotIndex)
             // Publish only after the copy succeeds. Bounds checking and overlap
             // removal leave room for this entry: it occupies at least 32 bytes,
             // disjoint from every retained record in the SlotSize-byte slot.
-            std::lock_guard<std::mutex> lock(sharedState.mutex);
             sharedState.packed_mx_entries[slotIndex].insert(
                 static_cast<uint32_t>(baseByteOffset), cpu_pipe::PackedMxShape{rows, cols});
         }

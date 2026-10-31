@@ -127,6 +127,7 @@ tprint
 tpushpop
 tpushpop_lifetime
 tpushpop_fixpipe
+tpushpop_vc_nosplit
 tput
 tput_async
 tput_async_notify
