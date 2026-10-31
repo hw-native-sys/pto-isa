@@ -155,6 +155,48 @@ PTO_INTERNAL constexpr void CheckSplitMode()
 #endif
 }
 
+// Free-credit cadence shared by TPUSH waits, TFREE notifications, and the TPipe destructor.
+// The first SlotNum pushes find empty slots and do not wait. kInitialFreeCredits stays 0:
+// posting SyncPeriod constructor credits on top of that window lets a depth-2 split C2V
+template <uint32_t SlotNum>
+struct TPipeFreeCredit {
+    static_assert(SlotNum >= 1, "Fix: TPipe requires SlotNum >= 1.");
+    static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
+    static constexpr uint32_t kInitialFreeCredits = 0;
+
+    // Wait on the push that reuses slot 0, then every SyncPeriod pushes after that.
+    // Aligning the first wait to SyncPeriod instead skips the wrap when SlotNum is not
+    // a multiple of SyncPeriod (depth 5 waits at index 6 and overwrites slot 0).
+    PTO_INTERNAL static constexpr bool shouldWaitFree(uint32_t tileIndex)
+    {
+        return tileIndex >= SlotNum && ((tileIndex - SlotNum) % SyncPeriod) == 0;
+    }
+
+    PTO_INTERNAL static constexpr bool shouldNotifyFree(uint32_t tileIndex)
+    {
+        return ((tileIndex + 1) % SyncPeriod) == 0;
+    }
+
+    PTO_INTERNAL static constexpr uint32_t countProducerWaits(uint32_t tileCount)
+    {
+        if (tileCount <= SlotNum) {
+            return 0;
+        }
+        return (tileCount - SlotNum - 1) / SyncPeriod + 1;
+    }
+
+    PTO_INTERNAL static constexpr uint32_t countConsumerNotifies(uint32_t tileCount) { return tileCount / SyncPeriod; }
+
+    // Credits still posted when the pipe is destroyed: constructor credits + consumer
+    // notifications - producer waits.
+    PTO_INTERNAL static constexpr uint32_t countPendingFreeCredits(uint32_t tileCount)
+    {
+        const uint32_t posted = kInitialFreeCredits + countConsumerNotifies(tileCount);
+        const uint32_t waited = countProducerWaits(tileCount);
+        return (posted > waited) ? (posted - waited) : 0;
+    }
+};
+
 // Drain leftover free-flag credits. A6 has one AIC point to one AIV, so the drain always uses the no-split flag.
 template <bool IsNoSplit, typename Producer>
 PTO_INTERNAL void ClearFreeSignal(const Producer& prod, uint32_t drainCount)
