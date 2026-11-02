@@ -105,6 +105,7 @@ tmin
 tmins
 tmov
 tmov_acc2mat
+tmov_nd2nz
 tmrgsort
 tmul
 tmula
