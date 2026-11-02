@@ -452,7 +452,9 @@ PTO_INTERNAL void Int64ShiftRegs(
     vsel(dl, lo0, lo1, lt32);
     vsel(dh, hi0, hi1, lt32);
 }
+#endif
 
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <Int64Op Op, typename T>
 PTO_INTERNAL void Int64MinMax(
     vector_s32& dstLow, vector_s32& dstHigh, vector_s32& src0Low, vector_s32& src0High, vector_s32& src1Low,

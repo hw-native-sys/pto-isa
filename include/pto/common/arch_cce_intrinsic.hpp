@@ -485,5 +485,76 @@ __aicore__ inline void copy_gm_to_ubuf_align_v2(
 }
 #endif
 
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename S>
+PTO_INTERNAL void pto_vshls(T& dst, T& src, S scalar, vector_bool mask)
+{
+#if defined(PTO_NPU_ARCH_A6)
+    // A6 vshls only accepts an UNSIGNED shift amount whose width matches the data width
+    // (uint16_t for 8/16-bit data, uint32_t for 32-bit data), so the caller's scalar type
+    // must already carry the element width; a narrower literal is not widened here.
+    vshls(dst, src, static_cast<std::make_unsigned_t<S>>(scalar), mask, MODE_ZEROING);
+#else
+    // A5 and kirin vshls take a signed shift amount; keep the width of the caller's scalar.
+    vshls(dst, src, static_cast<std::make_signed_t<S>>(scalar), mask, MODE_ZEROING);
+#endif
+}
+
+#if defined(PTO_NPU_ARCH_A6)
+namespace pto {
+template <typename T>
+struct RegTensor; // defined in pto/npu/a5/common.hpp and pto/npu/kirin9030/common.hpp
+
+// A5 hands the signed shift-amount register to vshr unchanged, while A6 only takes an
+// UNSIGNED amount vector (a6/TShr.hpp passes the |src1| magnitude). Reinterpret the amount
+// register to the unsigned counterpart of the same element width for A6.
+template <typename S>
+struct VshrAmountAsUnsigned {
+    using Type = S;
+};
+
+template <typename T>
+struct VshrAmountAsUnsigned<RegTensor<T>> {
+    using Type = RegTensor<std::make_unsigned_t<T>>;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s8> {
+    using Type = vector_u8;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s16> {
+    using Type = vector_u16;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s32> {
+    using Type = vector_u32;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s64> {
+    using Type = vector_u64;
+};
+} // namespace pto
+#endif
+
+// Vector-vector right shift: the shift amount (src1) is a register whose element type may
+// differ from the data type, and its lanes must already hold non-negative values.
+template <typename T, typename S>
+PTO_INTERNAL void pto_vshr(T& dst, T& src0, S& src1, vector_bool mask)
+{
+#if defined(PTO_NPU_ARCH_A6)
+    using AmountT = typename pto::VshrAmountAsUnsigned<S>::Type;
+    vshr(dst, src0, (AmountT&)src1, mask, MODE_ZEROING);
+#else
+    // A5 and kirin accept the signed shift-amount register as-is.
+    vshr(dst, src0, src1, mask, MODE_ZEROING);
+#endif
+}
+#endif
+
 #endif // __CPU_SIM
 #endif // ARCH_CCE_INTRINSIC_HPP
