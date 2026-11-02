@@ -108,7 +108,7 @@ PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T* dst, int64_t repeatConfig, 
 template <typename T, typename U, typename S>
 PTO_INTERNAL void pto_vexpdif(T& dst, U& src0, U& src1, vector_bool mask, S part)
 {
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     vexpdif(dst, src0, src1, mask, part);
 #elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90)
     vsub(dst, src0, src1, mask, MODE_ZEROING);
@@ -146,7 +146,7 @@ template <TileType type>
 PTO_INTERNAL void pto_set_tload_pad_val(uint64_t config)
 {
     if constexpr (type == TileType::Vec) {
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRINX90)
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRINX90)
         set_mov_pad_val(config);
 #elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050)
         set_pad_val_outtoub(config);
@@ -260,8 +260,8 @@ PTO_INTERNAL void pto_copy_gm_to_cbuf_multi_nd2nz(
             }
         }
     } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
-        uint16_t dValueb64 = dValue * sizeof(T) / sizeof(uint64_t);
-        uint16_t srcDValueb64 = srcDValue * sizeof(T) / sizeof(uint64_t);
+        uint16_t dValueb64 = dValue * sizeof(T) / sizeof(uint16_t);
+        uint16_t srcDValueb64 = srcDValue * sizeof(T) / sizeof(uint16_t);
         copy_gm_to_cbuf_multi_nd2nz_b16(
             reinterpret_cast<__cbuf__ uint16_t*>(dst), reinterpret_cast<__gm__ uint16_t*>(src), sid, ndNum, nValue,
             dValueb64, srcNdMatrixStride, srcDValueb64, dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
