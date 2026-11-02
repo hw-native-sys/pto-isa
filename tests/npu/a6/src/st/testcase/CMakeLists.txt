@@ -87,6 +87,8 @@ set(ALL_TESTCASES
     tshls
     tshr
     tshrs
+    tinterleave
+    tdeinterleave
     syncall
 )
 
