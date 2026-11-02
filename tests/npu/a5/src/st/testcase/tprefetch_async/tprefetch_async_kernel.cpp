@@ -252,11 +252,16 @@ bool RunPrefetchAsyncCorrectness(int deviceId, uint32_t postCount, bool waitEach
     FillAndUpload<T>(env, count, 1000);
 
     SdmaWorkspaceManager sdmaMgr;
-    const bool sdmaOk = sdmaMgr.Init();
-    if (!sdmaOk) {
+    uint64_t workspaceSize = 0;
+    void* workspaceAddr = nullptr;
+    uint8_t* wsAddr = nullptr;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize == 0 || aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS) &&
+        sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        wsAddr = reinterpret_cast<uint8_t*>(sdmaMgr.GetWorkspaceAddr());
+    } else {
         std::cerr << "[WARN] SdmaWorkspaceManager Init failed - prefetch will be skipped inside kernel" << std::endl;
     }
-    uint8_t* wsAddr = sdmaOk ? reinterpret_cast<uint8_t*>(sdmaMgr.GetWorkspaceAddr()) : nullptr;
 
     TPrefetchAsyncCorrectnessKernel<T, count><<<1, nullptr, env.stream>>>(
         reinterpret_cast<T*>(env.srcDevice), reinterpret_cast<T*>(env.dstDevice), static_cast<int>(count), postCount,
@@ -266,6 +271,9 @@ bool RunPrefetchAsyncCorrectness(int deviceId, uint32_t postCount, bool waitEach
     const bool isOk = VerifyOutputAndPrint<T>(env, count, 1000, "TPREFETCH_ASYNC GlobalTensor correctness");
     env.Teardown();
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     return isOk && env.aclStatus == 0;
 }
 
@@ -297,9 +305,15 @@ bool RunPrefetchAsyncL2Benefit(int deviceId, double& coldAverageUs, double& pref
     env.aclStatus |= aclrtCmoAsync(env.srcDevice, kDataBytes, ACL_RT_CMO_TYPE_INVALID, env.stream);
 
     SdmaWorkspaceManager sdmaMgr;
-    const bool sdmaOk = sdmaMgr.Init();
-    uint8_t* wsAddr = sdmaOk ? reinterpret_cast<uint8_t*>(sdmaMgr.GetWorkspaceAddr()) : nullptr;
-    if (env.aclStatus == 0 && sdmaOk) {
+    uint64_t workspaceSize = 0;
+    void* workspaceAddr = nullptr;
+    uint8_t* wsAddr = nullptr;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize == 0 || aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS) &&
+        sdmaMgr.Init(workspaceAddr, workspaceSize)) {
+        wsAddr = reinterpret_cast<uint8_t*>(sdmaMgr.GetWorkspaceAddr());
+    }
+    if (env.aclStatus == 0 && wsAddr != nullptr) {
         TPrefetchAsyncL2BenefitKernel<<<1, nullptr, env.stream>>>(
             reinterpret_cast<float*>(env.srcDevice), kPairCount, reinterpret_cast<uint64_t*>(metricsDevice), wsAddr);
         env.aclStatus |= aclrtSynchronizeStream(env.stream);
@@ -322,7 +336,10 @@ bool RunPrefetchAsyncL2Benefit(int deviceId, double& coldAverageUs, double& pref
     env.aclStatus |= aclrtFree(metricsDevice);
     env.Teardown();
     sdmaMgr.Finalize();
-    return sdmaOk && kernelOk && env.aclStatus == 0;
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
+    return wsAddr != nullptr && kernelOk && env.aclStatus == 0;
 }
 #endif
 

@@ -8,7 +8,7 @@
 
 Provide a unified logging interface, log levels, output format, and file management for the PTO-ISA Host side. Callers supply the level, module name, and message body; the logging component handles filtering, formatting, and output.
 
-Logging is synchronous and targets Linux Host environments. CCU / Device logging, `PTO_ASSERT`, and `static_assert` remain unchanged.
+Logging is synchronous and targets Linux Host environments, including CCU host orchestration. Device logging, `PTO_ASSERT`, and `static_assert` remain unchanged.
 
 ### 2. Logging Behavior
 

@@ -118,47 +118,60 @@ inline bool WorkspaceManager::InitializeSqOwners(const host::SqContext& sq, uint
     return true;
 }
 
-inline bool WorkspaceManager::PrepareRdmaInfoLayout(std::vector<uint8_t>& hostBuffer, RdmaInfoHostLayout& layout)
+inline WorkspaceManager::RdmaInfoLayout WorkspaceManager::ComputeLayout(uint32_t rankCount, uint32_t qpNum)
 {
-    const uint64_t queueCount = static_cast<uint64_t>(rankCount_) * qpNum_;
-    constexpr size_t bytesPerQueue = 2 * sizeof(RoceSqCtx) + 2 * sizeof(RoceCqCtx) + sizeof(QueueState);
-    const uint64_t memBytes = sizeof(RdmaMemInfo) * static_cast<uint64_t>(rankCount_);
-    if (memBytes > SIZE_MAX - sizeof(RdmaInfo) - sizeof(QueueState) ||
-        queueCount > (SIZE_MAX - sizeof(RdmaInfo) - sizeof(QueueState) - memBytes) / bytesPerQueue) {
-        PTO_HOST_LOG_ERROR("RDMA", "[RoCE] RDMA workspace size overflow");
-        return false;
+    const uint64_t queueCount = static_cast<uint64_t>(rankCount) * qpNum;
+    const uint64_t sqBytes = queueCount * sizeof(RoceSqCtx);
+    const uint64_t cqBytes = queueCount * sizeof(RoceCqCtx);
+    RdmaInfoLayout layout{};
+    layout.rqOffset = sizeof(RdmaInfo) + sqBytes;
+    layout.scqOffset = layout.rqOffset + sqBytes;
+    layout.rcqOffset = layout.scqOffset + cqBytes;
+    layout.memoryOffset = layout.rcqOffset + cqBytes;
+    const uint64_t metadataBytes = layout.memoryOffset + static_cast<uint64_t>(rankCount) * sizeof(RdmaMemInfo);
+    layout.stateOffset = (metadataBytes + sizeof(QueueState) - 1) & ~(sizeof(QueueState) - 1);
+    layout.notifyOffset = layout.stateOffset + queueCount * sizeof(QueueState);
+    layout.totalBytes = layout.notifyOffset + queueCount * kNotifyOperandSlots * sizeof(int32_t);
+    return layout;
+}
+
+inline aclError WorkspaceManager::GetWorkspaceSize(uint32_t rankCount, uint64_t* bytes, uint32_t qpNum)
+{
+    if (bytes == nullptr) {
+        return ACL_ERROR_INVALID_PARAM;
     }
-    const size_t sqBytes = sizeof(RoceSqCtx) * static_cast<size_t>(queueCount);
-    const size_t cqBytes = sizeof(RoceCqCtx) * static_cast<size_t>(queueCount);
-    const size_t metadataBytes = sizeof(RdmaInfo) + 2 * sqBytes + 2 * cqBytes + memBytes;
-    const size_t stateOffset = (metadataBytes + sizeof(QueueState) - 1) & ~(sizeof(QueueState) - 1);
-    layout.totalSize = stateOffset + sizeof(QueueState) * static_cast<size_t>(queueCount);
-    workspaceBytes_ = static_cast<uint64_t>(layout.totalSize);
-    if (aclrtMalloc(&rdmaInfoDevice_, layout.totalSize, ACL_MEM_MALLOC_HUGE_FIRST) != 0 || rdmaInfoDevice_ == nullptr) {
-        PTO_HOST_LOG_ERROR("RDMA", "[RoCE] aclrtMalloc(rdmaInfo) failed");
-        return false;
+    *bytes = 0;
+    if (rankCount == 0 || qpNum == 0 || static_cast<uint64_t>(rankCount) * qpNum > UINT32_MAX) {
+        return ACL_ERROR_INVALID_PARAM;
     }
+    *bytes = ComputeLayout(rankCount, qpNum).totalBytes;
+    return ACL_SUCCESS;
+}
+
+inline void WorkspaceManager::PrepareRdmaInfoLayout(std::vector<uint8_t>& hostBuffer, RdmaInfoHostLayout& layout)
+{
+    const RdmaInfoLayout offsets = ComputeLayout(rankCount_, qpNum_);
+    layout.totalSize = static_cast<size_t>(offsets.notifyOffset);
     hostBuffer.assign(layout.totalSize, 0);
-    layout.stateDeviceBase = reinterpret_cast<uint64_t>(rdmaInfoDevice_) + stateOffset;
+    auto* deviceBase = static_cast<uint8_t*>(rdmaInfoDevice_);
+    layout.stateDeviceBase = reinterpret_cast<uint64_t>(deviceBase + offsets.stateOffset);
     layout.info = reinterpret_cast<RdmaInfo*>(hostBuffer.data());
     layout.info->magic = kRdmaWorkspaceMagic;
     layout.info->version = kRdmaWorkspaceVersion;
     layout.info->backend = RdmaBackend::HNS_1825;
     layout.info->qpNum = qpNum_;
     layout.info->rankCount = rankCount_;
-    uint8_t* deviceBase = static_cast<uint8_t*>(rdmaInfoDevice_) + sizeof(RdmaInfo);
-    layout.info->sqPtr = reinterpret_cast<uint64_t>(deviceBase);
-    layout.info->rqPtr = reinterpret_cast<uint64_t>(deviceBase + sqBytes);
-    layout.info->scqPtr = reinterpret_cast<uint64_t>(deviceBase + 2 * sqBytes);
-    layout.info->rcqPtr = reinterpret_cast<uint64_t>(deviceBase + 2 * sqBytes + cqBytes);
-    layout.info->memPtr = reinterpret_cast<uint64_t>(deviceBase + 2 * sqBytes + 2 * cqBytes);
-    uint8_t* hostBase = hostBuffer.data() + sizeof(RdmaInfo);
-    layout.sq = reinterpret_cast<RoceSqCtx*>(hostBase);
-    layout.rq = reinterpret_cast<RoceSqCtx*>(hostBase + sqBytes);
-    layout.scq = reinterpret_cast<RoceCqCtx*>(hostBase + 2 * sqBytes);
-    layout.rcq = reinterpret_cast<RoceCqCtx*>(hostBase + 2 * sqBytes + cqBytes);
-    layout.memory = reinterpret_cast<RdmaMemInfo*>(hostBase + 2 * sqBytes + 2 * cqBytes);
-    return true;
+    layout.info->sqPtr = reinterpret_cast<uint64_t>(deviceBase + sizeof(RdmaInfo));
+    layout.info->rqPtr = reinterpret_cast<uint64_t>(deviceBase + offsets.rqOffset);
+    layout.info->scqPtr = reinterpret_cast<uint64_t>(deviceBase + offsets.scqOffset);
+    layout.info->rcqPtr = reinterpret_cast<uint64_t>(deviceBase + offsets.rcqOffset);
+    layout.info->memPtr = reinterpret_cast<uint64_t>(deviceBase + offsets.memoryOffset);
+    auto* hostBase = hostBuffer.data();
+    layout.sq = reinterpret_cast<RoceSqCtx*>(hostBase + sizeof(RdmaInfo));
+    layout.rq = reinterpret_cast<RoceSqCtx*>(hostBase + offsets.rqOffset);
+    layout.scq = reinterpret_cast<RoceCqCtx*>(hostBase + offsets.scqOffset);
+    layout.rcq = reinterpret_cast<RoceCqCtx*>(hostBase + offsets.rcqOffset);
+    layout.memory = reinterpret_cast<RdmaMemInfo*>(hostBase + offsets.memoryOffset);
 }
 
 inline bool WorkspaceManager::FillLocalMemoryInfo(RdmaMemInfo* memory)
@@ -308,8 +321,8 @@ inline bool WorkspaceManager::FillRdmaInfo()
 {
     std::vector<uint8_t> hostBuffer;
     RdmaInfoHostLayout layout;
-    if (!PrepareRdmaInfoLayout(hostBuffer, layout) || !FillLocalMemoryInfo(layout.memory) ||
-        !FillPeerRdmaInfoEntries(layout)) {
+    PrepareRdmaInfoLayout(hostBuffer, layout);
+    if (!FillLocalMemoryInfo(layout.memory) || !FillPeerRdmaInfoEntries(layout)) {
         return false;
     }
     LogRdmaInfo(layout);

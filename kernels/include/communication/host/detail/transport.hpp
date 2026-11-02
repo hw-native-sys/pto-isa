@@ -15,13 +15,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #error "communication/host/detail/transport.hpp is host-only"
 #endif
 
-#include <iostream>
 #include <memory>
 
 #include "securec.h"
 
 #include "acl/acl.h"
 
+#include "pto/comm/logger/host_log.hpp"
 #include "communication/host/comm_context_data.hpp"
 #include "communication/comm_domain_types.hpp"
 
@@ -30,18 +30,18 @@ namespace comm {
 namespace domain {
 namespace detail {
 
-inline bool SetupSdmaTransport(CommContext& ctx)
+inline bool SetupSdmaTransport(CommContext& ctx, void* workspaceAddr, uint64_t workspaceSize)
 {
     ctx.sdmaMgr = std::make_unique<sdma::SdmaWorkspaceManager>();
-    if (!ctx.sdmaMgr->Init()) {
-        std::cerr << "[PTO-DOMAIN] SdmaWorkspaceManager::Init failed\n";
+    if (!ctx.sdmaMgr->Init(workspaceAddr, workspaceSize)) {
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] SdmaWorkspaceManager::Init failed");
         ctx.sdmaMgr.reset();
         return false;
     }
     // C-style cast: reinterpret_cast to __gm__* is ill-formed under -xcce.
     ctx.sdmaWs = (__gm__ uint8_t*)(ctx.sdmaMgr->GetWorkspaceAddr());
     if (ctx.sdmaWs == nullptr) {
-        std::cerr << "[PTO-DOMAIN] SDMA workspace addr is null\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] SDMA workspace addr is null");
         ctx.sdmaMgr.reset();
         return false;
     }
@@ -49,7 +49,7 @@ inline bool SetupSdmaTransport(CommContext& ctx)
 }
 
 #ifdef PTO_DOMAIN_URMA_HOST
-inline bool BackfillUrmaWindows(const CommConfig& cfg, CommContext& ctx)
+inline bool BackfillUrmaWindows(const CommConfig& cfg, CommContext& ctx, void* devCtx, uint64_t deviceContextSize)
 {
     memset_s(&ctx.urmaHostCtx, sizeof(ctx.urmaHostCtx), 0, sizeof(ctx.urmaHostCtx));
     ctx.urmaHostCtx.rankId = static_cast<uint32_t>(cfg.rankId);
@@ -58,25 +58,23 @@ inline bool BackfillUrmaWindows(const CommConfig& cfg, CommContext& ctx)
     for (uint32_t peer = 0; peer < ctx.urmaHostCtx.rankNum && peer < kMaxRankNum; ++peer) {
         ctx.urmaHostCtx.windowsIn[peer] = ctx.urmaMgr->PeerBaseAddr(peer);
     }
-    void* devCtx = nullptr;
-    aclError aRet = aclrtMalloc(&devCtx, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST);
-    if (aRet != ACL_SUCCESS || devCtx == nullptr) {
-        std::cerr << "[PTO-DOMAIN] URMA aclrtMalloc CommDeviceContext failed\n";
+    if (devCtx == nullptr || deviceContextSize < sizeof(CommDeviceContext)) {
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] URMA external deviceCtx address or capacity is invalid");
         return false;
     }
-    aRet = aclrtMemcpy(
+    aclError aRet = aclrtMemcpy(
         devCtx, sizeof(CommDeviceContext), &ctx.urmaHostCtx, sizeof(CommDeviceContext), ACL_MEMCPY_HOST_TO_DEVICE);
     if (aRet != ACL_SUCCESS) {
-        aclrtFree(devCtx);
-        std::cerr << "[PTO-DOMAIN] URMA H2D CommDeviceContext failed\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] URMA H2D CommDeviceContext failed");
         return false;
     }
     ctx.urmaDevCtx = reinterpret_cast<CommDeviceContext*>(devCtx);
-    ctx.ownsUrmaDevCtx = true;
     return true;
 }
 
-inline bool SetupUrmaTransport(const CommConfig& cfg, CommContext& ctx)
+inline bool SetupUrmaTransport(
+    const CommConfig& cfg, CommContext& ctx, void* workspaceAddr, uint64_t workspaceSize, void* deviceContextAddr,
+    uint64_t deviceContextSize)
 {
     // CommConfig mirrors the URMA layout enum so comm_domain_types.hpp does not
     // have to include the URMA headers; keep the two in step.
@@ -89,38 +87,42 @@ inline bool SetupUrmaTransport(const CommConfig& cfg, CommContext& ctx)
     ctx.urmaMgr = std::make_unique<urma::UrmaWorkspaceManager>();
     if (!ctx.urmaMgr->Init(
             ctx.comm, static_cast<uint32_t>(cfg.rankId), static_cast<uint32_t>(cfg.rankNum), ctx.urmaDevBuf,
-            cfg.symBytes, static_cast<urma::UrmaLayout>(cfg.urmaLayout), cfg.urmaAivCount, cfg.urmaJettiesPerCore)) {
-        std::cerr << "[PTO-DOMAIN] UrmaWorkspaceManager::Init failed\n";
+            cfg.symBytes, workspaceAddr, workspaceSize, static_cast<urma::UrmaLayout>(cfg.urmaLayout), cfg.urmaAivCount,
+            cfg.urmaJettiesPerCore)) {
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] UrmaWorkspaceManager::Init failed");
         ctx.urmaMgr.reset();
         return false;
     }
     // C-style cast: reinterpret_cast to __gm__* is ill-formed under -xcce.
     ctx.urmaWs = (__gm__ uint8_t*)(ctx.urmaMgr->GetWorkspaceAddr());
     if (ctx.urmaWs == nullptr) {
-        std::cerr << "[PTO-DOMAIN] URMA workspace addr is null\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] URMA workspace addr is null");
         ctx.urmaMgr.reset();
         return false;
     }
-    return BackfillUrmaWindows(cfg, ctx);
+    return BackfillUrmaWindows(cfg, ctx, deviceContextAddr, deviceContextSize);
 }
 #endif
 
-inline bool SetupTransport(const CommConfig& cfg, CommContext& ctx)
+inline bool SetupTransport(
+    const CommConfig& cfg, CommContext& ctx, const CommWorkspaceAddresses& addresses,
+    const CommWorkspaceSizes& capacities)
 {
     if (HasBackend(cfg.backends, CommBackend::SDMA)) {
-        if (!SetupSdmaTransport(ctx)) {
+        if (!SetupSdmaTransport(ctx, addresses.sdma, capacities.sdma)) {
             return false;
         }
     }
 #ifdef PTO_DOMAIN_URMA_HOST
     if (HasBackend(cfg.backends, CommBackend::URMA)) {
-        if (!SetupUrmaTransport(cfg, ctx)) {
+        if (!SetupUrmaTransport(
+                cfg, ctx, addresses.urma, capacities.urma, addresses.urmaDeviceContext, capacities.urmaDeviceContext)) {
             return false;
         }
     }
 #else
     if (HasBackend(cfg.backends, CommBackend::URMA)) {
-        std::cerr << "[PTO-DOMAIN] URMA transport not available in this build\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] URMA transport not available in this build");
         return false;
     }
 #endif

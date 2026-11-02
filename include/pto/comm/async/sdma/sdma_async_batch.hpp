@@ -136,12 +136,13 @@ PTO_INTERNAL AsyncEvent SdmaDeferAsyncPut(
 struct SdmaBatchSubmitState {
     __gm__ BatchWriteChannelInfo* channels;
     __gm__ uint8_t* flagPayload;
+    uint64_t postId;
+    uint64_t eventHandle;
     SdmaSqCursor cursor;
     uint32_t queueNum;
     uint32_t dataQueueCount;
     uint32_t postQueueCount;
-    uint64_t postId;
-    uint64_t eventHandle;
+    uint32_t reserved;
 };
 
 PTO_INTERNAL bool PrepareSdmaBatchSubmit(

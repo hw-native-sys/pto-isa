@@ -55,15 +55,16 @@ struct RdmaExecContext {
 
 struct RdmaEventContext {
     __gm__ uint8_t* contextGm{nullptr};
-    RdmaBackend backend{RdmaBackend::NONE};
     RdmaTmpBuffer tmpBuf{};
+    RdmaBackend backend{RdmaBackend::NONE};
     uint32_t syncId{0};
 };
 
 struct RdmaSession {
     RdmaExecContext execCtx{};
     RdmaEventContext eventCtx{};
-    bool valid{false};
+    uint8_t valid{0};
+    uint8_t resv[7]{};
 };
 
 enum class RdmaOpcode : uint32_t {
@@ -79,12 +80,12 @@ struct RdmaSge {
 };
 
 struct RdmaSendWr {
-    uint32_t send_flags;
-    uint32_t imm_data;
     __gm__ uint8_t* remote_addr;
-    uint32_t rkey;
     __gm__ uint8_t* local_addr;
     uint64_t message_len;
+    uint32_t send_flags;
+    uint32_t imm_data;
+    uint32_t rkey;
     uint32_t lkey;
 };
 

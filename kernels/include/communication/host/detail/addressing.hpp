@@ -16,7 +16,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #endif
 
 #include <cstddef>
-#include <iostream>
 #include <vector>
 
 #include "securec.h"
@@ -25,6 +24,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hccl/hccl.h"
 #include "hccl/hccl_types.h"
 
+#include "pto/comm/logger/host_log.hpp"
 #include "communication/host/comm_context_data.hpp"
 #include "communication/comm_domain_types.hpp"
 #include "communication/host/detail/hccl_tiling.hpp"
@@ -50,11 +50,10 @@ inline constexpr uint32_t kCommIsNotSetDevice = 0;
 inline bool InitMeshWindow(CommContext& ctx, void* ctxPtr)
 {
     ctx.winDevCtx = reinterpret_cast<CommDeviceContext*>(ctxPtr);
-    ctx.ownsWinDevCtx = false;
     aclError aRet = aclrtMemcpy(
         &ctx.winHostCtx, sizeof(ctx.winHostCtx), ctx.winDevCtx, sizeof(ctx.winHostCtx), ACL_MEMCPY_DEVICE_TO_HOST);
     if (aRet != ACL_SUCCESS) {
-        std::cerr << "[PTO-DOMAIN] MESH D2H CommDeviceContext failed: " << static_cast<int>(aRet) << "\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] MESH D2H CommDeviceContext failed: " << static_cast<int>(aRet));
         return false;
     }
     ctx.winBase = reinterpret_cast<void*>(ctx.winHostCtx.windowsIn[ctx.winHostCtx.rankId]);
@@ -75,7 +74,7 @@ inline bool FillRingWindowsFromRemote(
         }
         uint64_t devPtr = remoteResArr[i].nextDevicePtr;
         if (devPtr == 0) {
-            std::cerr << "[PTO-DOMAIN] RING remoteRes[" << i << "] null\n";
+            PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] RING remoteRes[" << i << "] null");
             return false;
         }
         CommRankRelationResV2 remoteInfo{};
@@ -83,7 +82,7 @@ inline bool FillRingWindowsFromRemote(
             &remoteInfo, sizeof(remoteInfo), reinterpret_cast<void*>(devPtr), sizeof(remoteInfo),
             ACL_MEMCPY_DEVICE_TO_HOST);
         if (aRet != ACL_SUCCESS) {
-            std::cerr << "[PTO-DOMAIN] RING read relation failed\n";
+            PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] RING read relation failed");
             return false;
         }
         ctx.winHostCtx.windowsIn[i] = remoteInfo.windowsIn;
@@ -91,35 +90,31 @@ inline bool FillRingWindowsFromRemote(
     return true;
 }
 
-inline bool UploadRingDeviceCtx(CommContext& ctx)
+inline bool UploadRingDeviceCtx(CommContext& ctx, void* newDevMem, uint64_t deviceContextSize)
 {
-    void* newDevMem = nullptr;
-    aclError aRet = aclrtMalloc(&newDevMem, sizeof(CommDeviceContext), ACL_MEM_MALLOC_HUGE_FIRST);
-    if (aRet != ACL_SUCCESS || newDevMem == nullptr) {
-        std::cerr << "[PTO-DOMAIN] RING aclrtMalloc deviceCtx failed\n";
+    if (newDevMem == nullptr || deviceContextSize < sizeof(CommDeviceContext)) {
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] RING external deviceCtx address or capacity is invalid");
         return false;
     }
-    aRet = aclrtMemcpy(
+    aclError aRet = aclrtMemcpy(
         newDevMem, sizeof(CommDeviceContext), &ctx.winHostCtx, sizeof(CommDeviceContext), ACL_MEMCPY_HOST_TO_DEVICE);
     if (aRet != ACL_SUCCESS) {
-        aclrtFree(newDevMem);
-        std::cerr << "[PTO-DOMAIN] RING H2D deviceCtx failed\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] RING H2D deviceCtx failed");
         return false;
     }
     ctx.winDevCtx = reinterpret_cast<CommDeviceContext*>(newDevMem);
-    ctx.ownsWinDevCtx = true;
     ctx.winBase = reinterpret_cast<void*>(ctx.winHostCtx.windowsIn[ctx.winHostCtx.rankId]);
     return true;
 }
 
-inline bool InitRingWindow(CommContext& ctx, void* ctxPtr)
+inline bool InitRingWindow(CommContext& ctx, void* ctxPtr, void* deviceContextAddr, uint64_t deviceContextSize)
 {
     auto* rawCtx = reinterpret_cast<uint8_t*>(ctxPtr);
     CommOpResParamHead head{};
     const size_t headOff = offsetof(CommOpResParam, localUsrRankId);
     aclError aRet = aclrtMemcpy(&head, sizeof(head), rawCtx + headOff, sizeof(head), ACL_MEMCPY_DEVICE_TO_HOST);
     if (aRet != ACL_SUCCESS || head.rankSize == 0 || head.rankSize > kMaxRankNum) {
-        std::cerr << "[PTO-DOMAIN] RING read head failed or bad rankSize\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] RING read head failed or bad rankSize");
         return false;
     }
     std::vector<RemoteResPtr> remoteResArr(head.rankSize);
@@ -128,7 +123,7 @@ inline bool InitRingWindow(CommContext& ctx, void* ctxPtr)
     aRet = aclrtMemcpy(
         remoteResArr.data(), remoteResBytes, rawCtx + remoteResOff, remoteResBytes, ACL_MEMCPY_DEVICE_TO_HOST);
     if (aRet != ACL_SUCCESS) {
-        std::cerr << "[PTO-DOMAIN] RING read remoteRes failed\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] RING read remoteRes failed");
         return false;
     }
     uint64_t wsFields[2] = {0, 0};
@@ -138,27 +133,27 @@ inline bool InitRingWindow(CommContext& ctx, void* ctxPtr)
     }
     ctx.winHostCtx.workSpace = wsFields[0];
     ctx.winHostCtx.workSpaceSize = wsFields[1];
-    return UploadRingDeviceCtx(ctx);
+    return UploadRingDeviceCtx(ctx, deviceContextAddr, deviceContextSize);
 }
 
-inline bool AllocWindowByTiling(CommContext& ctx)
+inline bool AllocWindowByTiling(CommContext& ctx, void* deviceContextAddr, uint64_t deviceContextSize)
 {
     char group[128] = {};
     HcclResult hret = HcclGetCommName(ctx.comm, group);
     if (hret != HCCL_SUCCESS) {
-        std::cerr << "[PTO-DOMAIN] HcclGetCommName failed\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] HcclGetCommName failed");
         return false;
     }
     CommTopo topoRet = static_cast<CommTopo>(0);
     hret = HcomGetL0TopoTypeEx(group, &topoRet, kCommIsNotSetDevice);
     if (hret != HCCL_SUCCESS) {
-        std::cerr << "[PTO-DOMAIN] HcomGetL0TopoTypeEx failed\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] HcomGetL0TopoTypeEx failed");
         return false;
     }
     HcclComm commHandle = nullptr;
     hret = HcomGetCommHandleByGroup(group, &commHandle);
     if (hret != HCCL_SUCCESS || commHandle == nullptr) {
-        std::cerr << "[PTO-DOMAIN] HcomGetCommHandleByGroup failed\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] HcomGetCommHandleByGroup failed");
         return false;
     }
     if (ctx.bootstrap == Bootstrap::Mpi) {
@@ -169,49 +164,51 @@ inline bool AllocWindowByTiling(CommContext& ctx)
     void* ctxPtr = nullptr;
     hret = HcclAllocComResourceByTiling(commHandle, ctx.stream, &tiling, &ctxPtr);
     if (hret != HCCL_SUCCESS || ctxPtr == nullptr) {
-        std::cerr << "[PTO-DOMAIN] HcclAllocComResourceByTiling failed: " << static_cast<int>(hret) << "\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] HcclAllocComResourceByTiling failed: " << static_cast<int>(hret));
         return false;
     }
     if (topoRet == kCommTopoMesh) {
         return InitMeshWindow(ctx, ctxPtr);
     }
-    return InitRingWindow(ctx, ctxPtr);
+    return InitRingWindow(ctx, ctxPtr, deviceContextAddr, deviceContextSize);
 }
 
 #ifdef PTO_DOMAIN_URMA_HOST
-inline bool SetupUrmaDevBuf(const CommConfig& cfg, CommContext& ctx)
+inline bool SetupUrmaDevBuf(const CommConfig& cfg, CommContext& ctx, void* symmetricAddr, uint64_t symmetricSize)
 {
     if (cfg.symBytes == 0) {
-        std::cerr << "[PTO-DOMAIN] URMA requires symBytes > 0\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] URMA requires symBytes > 0");
         return false;
     }
-    aclError aRet = aclrtMalloc(&ctx.urmaDevBuf, cfg.symBytes, ACL_MEM_MALLOC_HUGE_FIRST);
-    if (aRet != ACL_SUCCESS || ctx.urmaDevBuf == nullptr) {
-        std::cerr << "[PTO-DOMAIN] URMA aclrtMalloc failed: " << static_cast<int>(aRet) << "\n";
+    if (symmetricAddr == nullptr || symmetricSize < cfg.symBytes) {
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] URMA external symmetric address or capacity is invalid");
         return false;
     }
+    ctx.urmaDevBuf = symmetricAddr;
     return true;
 }
 #endif
 
-inline bool SetupAddressing(const CommConfig& cfg, CommContext& ctx)
+inline bool SetupAddressing(
+    const CommConfig& cfg, CommContext& ctx, const CommWorkspaceAddresses& addresses,
+    const CommWorkspaceSizes& capacities)
 {
     if (NeedsWindowFamily(cfg.backends)) {
-        if (!AllocWindowByTiling(ctx)) {
-            std::cerr << "[PTO-DOMAIN] setupAddressing(Window) failed\n";
+        if (!AllocWindowByTiling(ctx, addresses.windowDeviceContext, capacities.windowDeviceContext)) {
+            PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] setupAddressing(Window) failed");
             return false;
         }
     }
 #ifdef PTO_DOMAIN_URMA_HOST
     if (NeedsUrmaFamily(cfg.backends)) {
-        if (!SetupUrmaDevBuf(cfg, ctx)) {
-            std::cerr << "[PTO-DOMAIN] setupAddressing(URMA) failed\n";
+        if (!SetupUrmaDevBuf(cfg, ctx, addresses.urmaSymmetric, capacities.urmaSymmetric)) {
+            PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] setupAddressing(URMA) failed");
             return false;
         }
     }
 #else
     if (NeedsUrmaFamily(cfg.backends)) {
-        std::cerr << "[PTO-DOMAIN] URMA not supported on this arch build\n";
+        PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] URMA not supported on this arch build");
         return false;
     }
 #endif

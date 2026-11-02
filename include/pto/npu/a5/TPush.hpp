@@ -35,7 +35,8 @@ struct TPipe {
     static constexpr bool is_c2v_gm = (DIR_TYPE == Direction::DIR_C2V_GM);     // 5
     static constexpr bool is_v2c_gm = (DIR_TYPE == Direction::DIR_V2C_GM);     // 6
     static constexpr bool is_both_gm = (DIR_TYPE == Direction::DIR_BOTH_GM);   // 7
-    static constexpr uint32_t SyncPeriod = (SlotNum <= 2) ? SlotNum : SlotNum / 2;
+    using FreeCredit = TPipeFreeCredit<SlotNum>;
+    static constexpr uint32_t SyncPeriod = FreeCredit::SyncPeriod;
     static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
     static constexpr uint8_t FlagIDPlusTwo = FlagID + 2;
     static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
@@ -53,27 +54,9 @@ struct TPipe {
     // -------------------------------------------------------------------------
     using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
 
-    PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex)
-    {
-        if constexpr (SlotNum == 1) {
-            // First push uses the empty slot; later pushes wait for TPOP free.
-            return tileIndex > 0;
-        } else {
-            if (tileIndex < SlotNum) {
-                return false;
-            }
-            return (tileIndex % SyncPeriod) == 0;
-        }
-    }
+    PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex) { return FreeCredit::shouldWaitFree(tileIndex); }
 
-    PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
-    {
-        if constexpr (SlotNum == 1) {
-            return true;
-        } else {
-            return ((tileIndex + 1) % SyncPeriod) == 0;
-        }
-    }
+    PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex) { return FreeCredit::shouldNotifyFree(tileIndex); }
 
     // -------------------------------------------------------------------------
     // Producer Interface
@@ -699,28 +682,27 @@ struct TPipe {
     Producer prod;
     Consumer cons;
 
+    // The first SlotNum pushes already occupy empty slots. FreeCredit::kInitialFreeCredits
+    // is 0, including for split local pipes: SyncPeriod constructor credits would satisfy
+    // the first wrap wait before the consumer retires that tile (issue 390).
     PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
-    {}
-
-    // Destructor for TPipe
-    PTO_INTERNAL ~TPipe()
     {
-        const uint32_t numPopFree = prod.tileIndex / SyncPeriod;
-        uint32_t numPushWait = 0;
-        if constexpr (SlotNum == 1) {
-            numPushWait = (prod.tileIndex > 0) ? prod.tileIndex - 1 : 0;
-        } else {
-            if (prod.tileIndex > SlotNum) {
-                constexpr uint32_t firstAligned =
-                    (SlotNum % SyncPeriod == 0) ? SlotNum : ((SlotNum / SyncPeriod) + 1) * SyncPeriod;
-                const uint32_t lastAligned = ((prod.tileIndex - 1) / SyncPeriod) * SyncPeriod;
-                if (lastAligned >= firstAligned) {
-                    numPushWait = (lastAligned - firstAligned) / SyncPeriod + 1;
+        if constexpr (FreeCredit::kInitialFreeCredits > 0) {
+            for (uint32_t credit = 0; credit < FreeCredit::kInitialFreeCredits; ++credit) {
+                if constexpr (IsNoSplit) {
+                    cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
+                } else {
+                    cons.template free<TileSplitAxis::TILE_UP_DOWN>();
                 }
             }
         }
-        const uint32_t drainCount = (numPopFree > numPushWait) ? (numPopFree - numPushWait) : 0;
+    }
+
+    // Drain credits the producer did not wait for. Split pipes wait on both flag lanes.
+    PTO_INTERNAL ~TPipe()
+    {
+        const uint32_t drainCount = FreeCredit::countPendingFreeCredits(prod.tileIndex);
         ClearFreeSignal<IsNoSplit>(prod, drainCount);
     }
 };

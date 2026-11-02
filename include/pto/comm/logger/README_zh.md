@@ -8,7 +8,7 @@
 
 统一 PTO-ISA Host 侧的日志接口、级别、输出格式和文件管理。调用方提供级别、模块名和正文，日志组件负责过滤、格式化及输出。
 
-采用同步日志，面向 Linux Host。CCU / Device 日志、`PTO_ASSERT`、`static_assert` 保持原样；
+采用同步日志，面向 Linux Host，包括 CCU 的 host 控制代码。Device 日志、`PTO_ASSERT`、`static_assert` 保持原样。
 
 ### 2. 日志行为
 

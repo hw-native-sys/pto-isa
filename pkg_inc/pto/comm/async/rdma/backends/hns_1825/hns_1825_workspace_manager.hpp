@@ -50,9 +50,9 @@ namespace hns_1825 {
 //   4. Read ChannelEntity SQ/CQ/MR metadata and copy RdmaInfo to device memory.
 //
 // Teardown releases resources in reverse ownership order: channels, registered
-// memory, endpoint, then device metadata. The caller supplies peer network and
-// symmetric-memory metadata. PTO_ROCE_VERBOSE controls optional progress logs;
-// all diagnostics use the unified host logger.
+// memory and endpoint, then detaches the caller-owned device workspace.
+// The caller supplies workspace, peer network and symmetric-memory metadata.
+// PTO_ROCE_VERBOSE controls optional progress logs; all diagnostics use the unified host logger.
 class WorkspaceManager {
 public:
     WorkspaceManager() = default;
@@ -63,17 +63,22 @@ public:
 
     void SetTraceId(uint32_t traceId) { traceId_ = traceId; }
 
+    // Query metadata and notify-operand capacity without creating communication resources.
+    static aclError GetWorkspaceSize(uint32_t rankCount, uint64_t* bytes, uint32_t qpNum = 1);
+
     // rankId/rankCount     — this PE and the total number of PEs.
     // phyId/localIp        — this rank's physical device and RoCE IPv4.
     // basePort             — base port for the HCOMM channel handshake.
     // peerIps/peerPhyIds   — every rank's RoCE endpoint information.
     // peerSymAddrs         — every rank's registered communication-buffer base.
     // symmetricAddr/Size   — this rank's symmetric communication buffer.
+    // workspaceAddr/Size   — caller-owned device workspace and capacity; see the size query.
     // qpNum                — QPs per peer, equal on every rank.
     bool Init(
         uint32_t rankId, uint32_t rankCount, uint32_t phyId, const std::string& localIp, uint16_t basePort,
         const std::vector<std::string>& peerIps, const std::vector<uint32_t>& peerPhyIds,
-        const std::vector<uint64_t>& peerSymAddrs, void* symmetricAddr, uint64_t symmetricSize, uint32_t qpNum = 1);
+        const std::vector<uint64_t>& peerSymAddrs, void* symmetricAddr, uint64_t symmetricSize, void* workspaceAddr,
+        uint64_t workspaceSize, uint32_t qpNum = 1);
 
     static bool Verbose();
 
@@ -84,7 +89,7 @@ public:
     // Device address of the RdmaInfo table passed to the RDMA kernel.
     void* GetWorkspaceAddr() const { return rdmaInfoDevice_; }
 
-    // Size of that table, recorded when its layout is prepared. Zero before a successful Init.
+    // Required capacity including notify operands; zero before binding a workspace.
     uint64_t GetWorkspaceSize() const { return workspaceBytes_; }
 
 private:
@@ -92,6 +97,18 @@ private:
         const char* abiName;
         uint8_t dbCos;
     };
+
+    struct RdmaInfoLayout {
+        uint64_t rqOffset{0};
+        uint64_t scqOffset{0};
+        uint64_t rcqOffset{0};
+        uint64_t memoryOffset{0};
+        uint64_t stateOffset{0};
+        uint64_t notifyOffset{0};
+        uint64_t totalBytes{0};
+    };
+
+    static RdmaInfoLayout ComputeLayout(uint32_t rankCount, uint32_t qpNum);
 
     struct RdmaInfoHostLayout {
         size_t totalSize{0};
@@ -123,7 +140,6 @@ private:
     bool DestroyChannels();
     bool UnregisterMemory();
     bool DestroyEndpoint();
-    bool FreeDeviceInfo();
     bool HasOwnedResources() const;
     static bool ValidateBasicInitArguments(
         uint32_t rankId, uint32_t rankCount, uint32_t phyId, const std::string& localIp, uint16_t basePort,
@@ -159,7 +175,7 @@ private:
     static bool WriteU32Device(uint64_t deviceAddress, uint32_t value);
     bool InitializeQueueMirrors(const host::SqContext& sq, const host::CqContext& cq, uint32_t peer) const;
     bool InitializeSqOwners(const host::SqContext& sq, uint32_t peer) const;
-    bool PrepareRdmaInfoLayout(std::vector<uint8_t>& hostBuffer, RdmaInfoHostLayout& layout);
+    void PrepareRdmaInfoLayout(std::vector<uint8_t>& hostBuffer, RdmaInfoHostLayout& layout);
     bool FillLocalMemoryInfo(RdmaMemInfo* memory);
     bool FillPeerRdmaInfo(size_t channelIndex, RdmaInfoHostLayout& layout);
     bool FillPeerRdmaInfoEntries(RdmaInfoHostLayout& layout);
@@ -217,7 +233,7 @@ private:
     std::vector<uint32_t> channelPeer_;
     void* rdmaInfoDevice_{nullptr};
     uint64_t workspaceBytes_{0};
-    bool initialized_{false};
+    uint8_t initialized_{0};
     uint32_t traceId_{0};
 };
 

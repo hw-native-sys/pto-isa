@@ -363,9 +363,8 @@ bash run.sh --world-size 8 --m 512 --k 7168 --n 4096 --topk 8 --experts 16 --max
 | 环境变量 | 用途 | 默认行为 |
 | --- | --- | --- |
 | `ASCEND_HOME_PATH` | 当前 CANN 安装目录 | 由 CANN `set_env.sh` 设置 |
-| `MPI_ENV_BIN` | MPI/conda bin 路径 | `/home/ntlab/miniconda3/envs/ltr_pto/bin` |
-| `MPI_ENV_LIB` | MPI/conda lib 路径 | `/home/ntlab/miniconda3/envs/ltr_pto/lib` |
-| `MPI_LIB_PATH` | `libmpi.so` 绝对路径 | `${MPI_ENV_LIB}/libmpi.so` |
+| `MPI_SEARCH_DIRS` | 按顺序搜索 MPICH 的 bin 目录列表，以空格分隔 | 搜索常见 MPICH 安装目录，并兼容 `PATH` 中已有的启动器 |
+| `MPI_LIB_PATH` | `libmpi.so` 绝对路径 | 未设置时从探测目录或 `PATH` 中的 MPI 启动器推导 |
 | `MPI_RUNNER` | MPI 启动命令 | `mpirun` |
 | `HCCL_BUFFSIZE` | HCCL RDMA window 大小 | `run.sh` 按 case 自动抬高到安全值 |
 | `DISPATCH_MEGA_COMBINE_START_SYNC_DEBUG` | 同步 kernel 入口，用于比较跨核计时 | 默认关闭 |
@@ -391,7 +390,7 @@ bash run.sh --world-size 8 --m 512 --k 7168 --n 4096 --topk 8 --experts 16 --max
 | --- | --- |
 | `ASCEND_HOME_PATH must be set` | 运行 `run.sh` 前需要 source CANN 环境并导出 `ASCEND_HOME_PATH` |
 | HCCL window too small | 手动设置的 `HCCL_BUFFSIZE` 低于 case 需求；取消覆盖或调大该变量 |
-| MPI 启动失败 | 检查 `MPI_ENV_BIN`、`MPI_ENV_LIB`、`MPI_LIB_PATH` 是否指向同一个 conda/MPI 环境 |
+| MPI 启动失败 | 加载 MPI 环境，或通过 `MPI_SEARCH_DIRS` 指定 MPICH bin 目录；必要时通过 `MPI_LIB_PATH` 指定动态库 |
 | golden 生成很慢 | 使用默认 `python-batch`，必要时调大 `--golden-chunk-rows`；只有调试对照才使用 `python-naive` |
 | 小 M 性能不稳定 | 检查 FullLoad 是否命中，以及 SwiGLU worker 数、GMM2 扩组点和 Combine 启动点是否加重 HBM 竞争 |
 | 结果 diff 异常 | 先检查 data cache 是否复用旧分布；改变 expert 分布或 case 关键参数后不要使用旧 `out/` |

@@ -727,7 +727,7 @@ AICORE inline bool BuildSession(
     session.eventCtx.backend = RdmaBackend::HNS_1825;
     session.eventCtx.tmpBuf = tmpBuf;
     session.eventCtx.syncId = syncId;
-    session.valid = true;
+    session.valid = 1;
     return true;
 }
 

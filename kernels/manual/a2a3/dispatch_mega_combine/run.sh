@@ -30,15 +30,46 @@ GOLDEN_CHUNK_ROWS=${DISPATCH_MEGA_COMBINE_GOLDEN_CHUNK_ROWS:-512}
 REUSE_DATA=${DISPATCH_MEGA_COMBINE_REUSE_DATA:-0}
 
 : "${ASCEND_HOME_PATH:?ASCEND_HOME_PATH must be set before running run.sh}"
-MPI_ENV_BIN=${MPI_ENV_BIN:-/home/ntlab/miniconda3/envs/ltr_pto/bin}
-MPI_ENV_LIB=${MPI_ENV_LIB:-/home/ntlab/miniconda3/envs/ltr_pto/lib}
-MPI_LIB_PATH=${MPI_LIB_PATH:-${MPI_ENV_LIB}/libmpi.so}
 MPI_RUNNER=${MPI_RUNNER:-mpirun}
 
 export ASCEND_HOME_PATH
-export PATH="${MPI_ENV_BIN}:$PATH"
-export LD_LIBRARY_PATH="${MPI_ENV_LIB}:${LD_LIBRARY_PATH:-}"
-export MPI_LIB_PATH
+
+# MPI setup: search common MPICH install locations.
+# Override with MPI_SEARCH_DIRS (space-separated list of bin/ directories).
+if [[ -z "${MPI_SEARCH_DIRS:-}" ]]; then
+  MPI_SEARCH_DIRS="/usr/local/mpich/bin /home/mpich/bin /usr/lib64/mpich/bin"
+  for candidate in /home/*/mpich/bin /home/*/*/mpich/bin; do
+    [[ -d "${candidate}" ]] && MPI_SEARCH_DIRS="${MPI_SEARCH_DIRS} ${candidate}"
+  done
+fi
+MPI_SEARCH_HIT=0
+for mpi_bin_dir in ${MPI_SEARCH_DIRS}; do
+  if [[ -x "${mpi_bin_dir}/mpirun" ]]; then
+    export PATH="${mpi_bin_dir}:${PATH}"
+    MPI_LIB_DIR="$(dirname "${mpi_bin_dir}")/lib"
+    export LD_LIBRARY_PATH="${MPI_LIB_DIR}:${LD_LIBRARY_PATH:-}"
+    export MPI_LIB_PATH="${MPI_LIB_PATH:-${MPI_LIB_DIR}/libmpi.so}"
+    MPI_SEARCH_HIT=1
+    break
+  fi
+done
+if ! command -v "${MPI_RUNNER}" >/dev/null 2>&1; then
+  echo "[ERROR] ${MPI_RUNNER} not found. Install MPICH or set MPI_SEARCH_DIRS." >&2
+  exit 1
+fi
+if [[ "${MPI_SEARCH_HIT}" == "0" ]]; then
+  MPI_RUNNER_PATH="$(readlink -f "$(command -v "${MPI_RUNNER}")")"
+  MPI_PREFIX="$(dirname "$(dirname "${MPI_RUNNER_PATH}")")"
+  for mpi_lib_dir in "${MPI_PREFIX}/lib" "${MPI_PREFIX}/lib64"; do
+    for mpi_lib_path in "${mpi_lib_dir}"/libmpi.so*; do
+      if [[ -f "${mpi_lib_path}" ]]; then
+        export LD_LIBRARY_PATH="${mpi_lib_dir}:${LD_LIBRARY_PATH:-}"
+        export MPI_LIB_PATH="${MPI_LIB_PATH:-${mpi_lib_path}}"
+        break 2
+      fi
+    done
+  done
+fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -105,7 +136,7 @@ python3 "${SCRIPT_DIR}/scripts/gen_data.py" \
 cmake -S "${SCRIPT_DIR}" -B "${BUILD_DIR}"
 cmake --build "${BUILD_DIR}" --target dispatch_mega_combine -j16
 
-export LD_LIBRARY_PATH="${BUILD_DIR}/lib:${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="${BUILD_DIR}/lib:${LD_LIBRARY_PATH:-}"
 export DISPATCH_MEGA_COMBINE_CASE_DIR="${OUT_DIR}"
 export DISPATCH_MEGA_COMBINE_WARMUP_ITERS="${WARMUP_ITERS}"
 export DISPATCH_MEGA_COMBINE_MEASURE_ITERS="${MEASURE_ITERS}"

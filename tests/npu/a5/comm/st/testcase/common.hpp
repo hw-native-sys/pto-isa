@@ -399,6 +399,8 @@ struct UrmaTestContext {
     HcclComm comm{nullptr};
     void* devBuf{nullptr};
     size_t allocSize{0};
+    void* workspaceAddr{nullptr};
+    uint64_t workspaceSize{0};
     UrmaWorkspaceManager urmaMgr;
     CommDeviceContext* notifyDeviceCtx{nullptr};
     CommDeviceContext notifyHostCtx{};
@@ -508,6 +510,10 @@ struct UrmaTestContext {
         notifyDeviceCtx = nullptr;
         notifyHostCtx = {};
         urmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            aclrtFree(workspaceAddr);
+            workspaceAddr = nullptr;
+        }
         if (devBuf) {
             aclrtFree(devBuf);
             devBuf = nullptr;
@@ -540,9 +546,13 @@ struct UrmaTestContext {
             CleanupSetupFailure();
             return false;
         }
-        if (!urmaMgr.Init(
-                comm, static_cast<uint32_t>(rank_id), static_cast<uint32_t>(n_ranks), devBuf, allocSize, layout,
-                aivCount, jettiesPerCore, sqDepth)) {
+        UrmaWorkspaceManager::GetWorkspaceSize(
+            static_cast<uint32_t>(n_ranks), &workspaceSize, layout, aivCount, jettiesPerCore);
+        if ((workspaceSize > 0 &&
+             aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+            !urmaMgr.Init(
+                comm, static_cast<uint32_t>(rank_id), static_cast<uint32_t>(n_ranks), devBuf, allocSize, workspaceAddr,
+                workspaceSize, layout, aivCount, jettiesPerCore, sqDepth)) {
             std::cerr << "[ERROR] UrmaWorkspaceManager Init failed!" << std::endl;
             CleanupSetupFailure();
             return false;
@@ -565,6 +575,10 @@ struct UrmaTestContext {
         notifyDeviceCtx = nullptr;
         notifyHostCtx = {};
         urmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            aclrtFree(workspaceAddr);
+            workspaceAddr = nullptr;
+        }
         if (devBuf) {
             aclrtFree(devBuf);
             devBuf = nullptr;

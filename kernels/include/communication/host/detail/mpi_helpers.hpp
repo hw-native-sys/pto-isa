@@ -17,7 +17,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cstdlib>
 #include <dlfcn.h>
-#include <iostream>
+
+#include "pto/comm/logger/host_log.hpp"
 
 namespace pto {
 namespace comm {
@@ -70,7 +71,7 @@ inline void* LoadMpiLibrary()
             return h;
         }
     }
-    std::cerr << "[PTO-DOMAIN] Cannot find MPI library; set MPI_LIB_PATH\n";
+    PTO_HOST_LOG_ERROR("DOMAIN", "[PTO-DOMAIN] Cannot find MPI library; set MPI_LIB_PATH");
     return nullptr;
 }
 

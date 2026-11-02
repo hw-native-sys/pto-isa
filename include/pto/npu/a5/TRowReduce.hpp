@@ -13,6 +13,7 @@ full text of the License.
 #define __ROW_REDUCE__
 #include "common.hpp"
 #include "pto/common/pto_tile.hpp"
+#include "pto/common/arch_cce_intrinsic.hpp"
 #include "TPartBinOps.hpp"
 #include <type_traits>
 
@@ -38,7 +39,7 @@ PTO_INTERNAL void Int64RowSumRepeat(
     vadd(outHigh, outHigh, tmp, mask, MODE_ZEROING);
     vand(low16, low16, mask16, mask, MODE_ZEROING);
     vand(mid16, mid16, mask16, mask, MODE_ZEROING);
-    vshls(mid16, mid16, 16, mask, MODE_ZEROING);
+    pto_vshls(mid16, mid16, 16, mask);
     vor(outLow, low16, mid16, mask);
 }
 

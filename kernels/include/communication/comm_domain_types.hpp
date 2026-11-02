@@ -75,6 +75,26 @@ struct CommConfig {
     uint32_t urmaJettiesPerCore = 1;
 };
 
+// The caller queries these requirements before reserving device storage.
+// Reserve conversion storage before runtime topology is known; Array layouts borrow HCCL's context.
+struct CommWorkspaceSizes {
+    uint64_t sdma{0};
+    uint64_t urma{0};
+    uint64_t windowDeviceContext{0};
+    uint64_t urmaDeviceContext{0};
+    uint64_t urmaSymmetric{0};
+};
+
+// Each nonzero requirement needs a distinct, aligned external memory region.
+// All regions remain caller-owned through both successful and failed builds.
+struct CommWorkspaceAddresses {
+    void* sdma{nullptr};
+    void* urma{nullptr};
+    void* windowDeviceContext{nullptr};
+    void* urmaDeviceContext{nullptr};
+    void* urmaSymmetric{nullptr};
+};
+
 inline constexpr uint32_t kSignalPrefixBytes = 64u * sizeof(int32_t);
 
 inline bool HasBackend(uint32_t backends, CommBackend bit) { return (backends & static_cast<uint32_t>(bit)) != 0u; }

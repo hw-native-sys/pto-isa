@@ -25,13 +25,15 @@ namespace ccu {
 // and consumed by the AIV trigger entry (pto::comm::CkeTrigger) or
 // host trigger path.
 struct CcuGateDescriptor {
+    uint64_t mmioAddr; // Per-CKE 8B slot VA from rtGetDevResAddress(dieId, ckeId)
     uint32_t dieId;    // Physical die index (matches driver udie_idx, typically 0 or 1)
     uint32_t ckeId;    // CKE entry index (0-based, resolved during Translate)
     uint32_t mask;     // 16-bit signal-event mask (low 16 bits used)
-    uint64_t mmioAddr; // Per-CKE 8B slot VA from rtGetDevResAddress(dieId, ckeId)
+    uint32_t resv;
 };
 
 static_assert(sizeof(CcuGateDescriptor) == 24, "CcuGateDescriptor ABI size changed: update consumers");
+static_assert(alignof(CcuGateDescriptor) == 8, "CcuGateDescriptor must be 8-byte aligned");
 
 constexpr uint32_t CCU_GATE_MASK = 1u << 0;
 constexpr uint32_t CCU_DONE_MASK = 1u << 0;

@@ -22,7 +22,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // GeneArgs packing are identical and live here once.
 
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -35,6 +34,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hcomm/ccu/ccu_task_arg_v1.h"
 
 #include "pto/comm/async/ccu/ccu_gate_registry.hpp"
+#include "pto/comm/logger/host_log.hpp"
 
 namespace pto {
 namespace comm {
@@ -43,20 +43,19 @@ namespace ccu {
 static constexpr uint32_t kMaxCcuMeshRanks = 16;
 
 struct CcuRootedKernelArgBase : public hcomm::CcuKernelArg {
+    uint64_t payloadBytes{0};
     uint32_t rankId{0};
     uint32_t rankSize{1};
     uint32_t rootId{0};
-
     uint32_t gateMask{1u << 0};
     uint32_t doneMask{1u << 0};
-
-    uint64_t payloadBytes{0};
+    uint32_t resv{0};
 
     CcuRootedKernelArgBase() = default;
     CcuRootedKernelArgBase(
         uint32_t rid, uint32_t rsize, uint32_t root, uint64_t bytes, uint32_t gMask = (1u << 0),
         uint32_t dMask = (1u << 0))
-        : rankId(rid), rankSize(rsize), rootId(root), gateMask(gMask), doneMask(dMask), payloadBytes(bytes)
+        : payloadBytes(bytes), rankId(rid), rankSize(rsize), rootId(root), gateMask(gMask), doneMask(dMask)
     {}
 
     // Shared signature layout: version name + rank/root + (optional typed extras)
@@ -106,10 +105,11 @@ struct CcuMeshTaskArg : public hcomm::CcuTaskArg {
     uint64_t length{0};
     uint64_t token{0};
 
-    uint32_t peerCount{0};
     uint64_t peerInput[kMaxCcuMeshRanks]{};
     uint64_t peerOutput[kMaxCcuMeshRanks]{};
     uint64_t peerToken[kMaxCcuMeshRanks]{};
+    uint32_t peerCount{0};
+    uint32_t resv{0};
 
     CcuMeshTaskArg() = default;
     CcuMeshTaskArg(uint64_t in, uint64_t out, uint64_t len, uint64_t tok)
@@ -187,10 +187,10 @@ public:
         }
 
         ownChannels_ = arg.channels;
-        std::fprintf(
-            stderr, "[%s/ctor] rank=%u rankSize=%u rootId=%u payloadBytes=%llu ownChannels=%zu channels_=%zu\n",
-            Derived::kTraceName, rankId_, rankSize_, rootId_, static_cast<unsigned long long>(payloadBytes_),
-            ownChannels_.size(), channels_.size());
+        PTO_HOST_LOG_INFO(
+            Derived::kTraceName, "[ctor] rank=" << rankId_ << " rankSize=" << rankSize_ << " rootId=" << rootId_
+                                                << " payloadBytes=" << payloadBytes_ << " ownChannels="
+                                                << ownChannels_.size() << " channels_=" << channels_.size());
     }
 
     inline HcclResult Algorithm() override
@@ -199,9 +199,8 @@ public:
 
         HcclResult ret = InitResource();
         if (ret != HcclResult::HCCL_SUCCESS) {
-            std::fprintf(
-                stderr, "[%s/algo] rank=%u InitResource FAILED ret=%d\n", Derived::kTraceName, rankId_,
-                static_cast<int>(ret));
+            PTO_HOST_LOG_ERROR(
+                Derived::kTraceName, "[algo] rank=" << rankId_ << " InitResource FAILED ret=" << static_cast<int>(ret));
             return ret;
         }
 
@@ -237,7 +236,7 @@ public:
     {
         const auto* tArg = dynamic_cast<const CcuMeshTaskArg*>(&arg);
         if (tArg == nullptr) {
-            std::fprintf(stderr, "[%s/gene] GeneArgs FAILED dynamic_cast\n", Derived::kTraceName);
+            PTO_HOST_LOG_ERROR(Derived::kTraceName, "[gene] GeneArgs FAILED dynamic_cast");
             return {};
         }
 
@@ -245,13 +244,12 @@ public:
         const uint32_t ckeId = static_cast<uint32_t>(gateEvent_.Id());
         pto::comm::ccu::Publish(rankId_, dieId, ckeId, gateMask_);
 
-        std::fprintf(
-            stderr,
-            "[%s/gene] rank=%u published (die=%u, cke=%u, mask=0x%x) "
-            "input=0x%llx output=0x%llx len=%llu token=0x%llx peerCount=%u gateOnly=%d\n",
-            Derived::kTraceName, rankId_, dieId, ckeId, gateMask_, static_cast<unsigned long long>(tArg->inputAddr),
-            static_cast<unsigned long long>(tArg->outputAddr), static_cast<unsigned long long>(tArg->length),
-            static_cast<unsigned long long>(tArg->token), tArg->peerCount, static_cast<int>(gateOnly_));
+        PTO_HOST_LOG_INFO(
+            Derived::kTraceName,
+            "[gene] rank=" << rankId_ << " published (die=" << dieId << ", cke=" << ckeId << ", mask=0x" << std::hex
+                           << gateMask_ << ") input=0x" << tArg->inputAddr << " output=0x" << tArg->outputAddr
+                           << std::dec << " len=" << tArg->length << " token=0x" << std::hex << tArg->token << std::dec
+                           << " peerCount=" << tArg->peerCount << " gateOnly=" << static_cast<uint32_t>(gateOnly_));
 
         if (gateOnly_) {
             return {};
@@ -262,8 +260,7 @@ public:
 protected:
     inline void Trace(const char* tag, const char* msg) const
     {
-        std::fprintf(stderr, "[%s/%s] rank=%u %s\n", Derived::kTraceName, tag, rankId_, msg);
-        std::fflush(stderr);
+        PTO_HOST_LOG_INFO(Derived::kTraceName, "[" << tag << "] rank=" << rankId_ << " " << msg);
     }
 
     inline HcclResult InitCommonResources()
@@ -284,7 +281,7 @@ protected:
     uint32_t gateMask_{1u << 0};
     uint32_t doneMask_{1u << 0};
     uint64_t payloadBytes_{0};
-    bool gateOnly_{false};
+    uint8_t gateOnly_{0};
     decltype(std::declval<hcomm::CcuKernelArg>().channels) ownChannels_;
 
     std::vector<hcomm::CcuRep::Variable> input_;
@@ -308,11 +305,8 @@ private:
 
     inline HcclResult InitResourceGateOnly()
     {
-        std::fprintf(
-            stderr,
-            "[%s/init] rank=%u — no channels, "
-            "gate-only mode (SetDieId fallback).\n",
-            Derived::kTraceName, rankId_);
+        PTO_HOST_LOG_INFO(
+            Derived::kTraceName, "[init] rank=" << rankId_ << " — no channels, gate-only mode (SetDieId fallback).");
         uint32_t pinDieId = 1U;
         const char* env = std::getenv("HCCL_PTO_GATE_DIE_ID");
         if (env != nullptr && *env != '\0') {

@@ -112,8 +112,16 @@ bool RunGetAsyncRootGetKernel(
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    uint64_t workspaceSize = 0;
+    void* workspaceAddr = nullptr;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
         std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         return false;
     }
 
@@ -170,6 +178,9 @@ bool RunGetAsyncRootGetKernel(
     ctx.aclStatus |= aclrtFreeHost(input_host);
     ctx.aclStatus |= aclrtFreeHost(output_host);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
 
     return ctx.Finalize() && is_ok;
 }
@@ -285,8 +296,16 @@ bool RunGetAsyncWithConfigKernel(
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    uint64_t workspaceSize = 0;
+    void* workspaceAddr = nullptr;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
         std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         return false;
     }
 
@@ -330,6 +349,9 @@ bool RunGetAsyncWithConfigKernel(
     ctx.aclStatus |= aclrtFreeHost(input_host);
     ctx.aclStatus |= aclrtFreeHost(output_host);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
 
     return ctx.Finalize() && is_ok;
 }
@@ -459,8 +481,16 @@ bool RunGetAsyncMultiCoreKernel(
     aclrtMemcpy(recvBuf, recv_elems * sizeof(T), output_host, recv_elems * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
     SdmaWorkspaceManager sdmaMgr;
-    if (!sdmaMgr.Init()) {
+    uint64_t workspaceSize = 0;
+    void* workspaceAddr = nullptr;
+    SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    if ((workspaceSize > 0 && aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) ||
+        !sdmaMgr.Init(workspaceAddr, workspaceSize)) {
         std::cerr << "[ERROR] SdmaWorkspaceManager Init failed!" << std::endl;
+        sdmaMgr.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         return false;
     }
 
@@ -500,6 +530,9 @@ bool RunGetAsyncMultiCoreKernel(
     ctx.aclStatus |= aclrtFreeHost(input_host);
     ctx.aclStatus |= aclrtFreeHost(output_host);
     sdmaMgr.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
 
     return ctx.Finalize() && is_ok;
 }

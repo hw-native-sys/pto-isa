@@ -25,7 +25,8 @@ inline WorkspaceManager::~WorkspaceManager() { (void)Finalize(); }
 inline bool WorkspaceManager::Init(
     uint32_t rankId, uint32_t rankCount, uint32_t phyId, const std::string& localIp, uint16_t basePort,
     const std::vector<std::string>& peerIps, const std::vector<uint32_t>& peerPhyIds,
-    const std::vector<uint64_t>& peerSymAddrs, void* symmetricAddr, uint64_t symmetricSize, uint32_t qpNum)
+    const std::vector<uint64_t>& peerSymAddrs, void* symmetricAddr, uint64_t symmetricSize, void* workspaceAddr,
+    uint64_t workspaceSize, uint32_t qpNum)
 {
     if (HasOwnedResources() && !Finalize()) {
         PTO_HOST_LOG_ERROR(
@@ -40,9 +41,17 @@ inline bool WorkspaceManager::Init(
             symmetricSize)) {
         return false;
     }
+    const RdmaInfoLayout layout = ComputeLayout(rankCount, qpNum);
+    if (workspaceAddr == nullptr || workspaceSize < layout.totalBytes) {
+        PTO_HOST_LOG_ERROR("RDMA", "[RoCE] invalid external workspace address or capacity");
+        return false;
+    }
     AssignInitArguments(
         rankId, rankCount, phyId, localIp, basePort, peerIps, peerPhyIds, peerSymAddrs, symmetricAddr, symmetricSize);
     qpNum_ = qpNum;
+    rdmaInfoDevice_ = workspaceAddr;
+    workspaceBytes_ = layout.totalBytes;
+    notifyOperands_ = static_cast<uint8_t*>(workspaceAddr) + layout.notifyOffset;
     const auto initStart = std::chrono::steady_clock::now();
     Trace(
         "INIT begin manager=", static_cast<const void*>(this), " endpoint=", endpoint_, " memHandle=", memHandle_,
@@ -59,7 +68,7 @@ inline bool WorkspaceManager::Init(
     if (Verbose()) {
         PTO_HOST_LOG_INFO("RDMA", "[RoCE][rank " << rankId_ << "] connect DONE");
     }
-    initialized_ = true;
+    initialized_ = 1;
     Trace(
         "INIT success total_us=", ElapsedUs(initStart), " endpoint=", endpoint_, " memHandle=", memHandle_,
         " channels=", channelHandles_.size(), " rdmaInfo=", rdmaInfoDevice_);
@@ -78,8 +87,9 @@ inline bool WorkspaceManager::Finalize()
     const auto finalizeStart = std::chrono::steady_clock::now();
     if (hadResources) {
         Trace(
-            "FINALIZE begin initialized=", initialized_, " endpoint=", endpoint_, " memHandle=", memHandle_,
-            " channels=", channelHandles_.size(), " rdmaInfo=", rdmaInfoDevice_, " symAddr=", symmetricAddr_);
+            "FINALIZE begin initialized=", static_cast<uint32_t>(initialized_), " endpoint=", endpoint_,
+            " memHandle=", memHandle_, " channels=", channelHandles_.size(), " rdmaInfo=", rdmaInfoDevice_,
+            " symAddr=", symmetricAddr_);
     }
     bool ok = true;
     auto phaseStart = std::chrono::steady_clock::now();
@@ -105,14 +115,6 @@ inline bool WorkspaceManager::Finalize()
         ok = false;
     } else if (hadResources) {
         Trace("FINALIZE stage=EndpointDestroy ok elapsed_us=", ElapsedUs(phaseStart));
-    }
-    phaseStart = std::chrono::steady_clock::now();
-    const bool deviceInfoOk = FreeDeviceInfo();
-    if (!deviceInfoOk) {
-        Trace("FINALIZE failed stage=FreeRdmaInfo elapsed_us=", ElapsedUs(phaseStart));
-        ok = false;
-    } else if (hadResources) {
-        Trace("FINALIZE stage=FreeRdmaInfo ok elapsed_us=", ElapsedUs(phaseStart));
     }
     ResetOwnedState();
     if (hadResources) {
@@ -275,21 +277,6 @@ inline bool WorkspaceManager::DestroyEndpoint()
     return true;
 }
 
-inline bool WorkspaceManager::FreeDeviceInfo()
-{
-    void* allocations[] = {rdmaInfoDevice_, notifyOperands_};
-    rdmaInfoDevice_ = nullptr;
-    notifyOperands_ = nullptr;
-    bool ok = true;
-    for (void* allocation : allocations) {
-        if (allocation != nullptr && aclrtFree(allocation) != ACL_SUCCESS) {
-            PTO_HOST_LOG_ERROR("RDMA", "[RoCE] workspace allocation release failed");
-            ok = false;
-        }
-    }
-    return ok;
-}
-
 inline bool WorkspaceManager::HasOwnedResources() const
 {
     return initialized_ || endpoint_ != nullptr || memHandle_ != nullptr || notifyMemHandle_ != nullptr ||
@@ -378,6 +365,7 @@ inline void WorkspaceManager::ResetOwnedState()
     notifyLkey_ = 0;
     endpoint_ = nullptr;
     rdmaInfoDevice_ = nullptr;
+    workspaceBytes_ = 0;
     symmetricAddr_ = nullptr;
     symmetricSize_ = 0;
     localIp_.clear();
@@ -386,7 +374,7 @@ inline void WorkspaceManager::ResetOwnedState()
     qpNum_ = 1;
     phyId_ = 0;
     basePort_ = 60032;
-    initialized_ = false;
+    initialized_ = 0;
 }
 
 } // namespace hns_1825

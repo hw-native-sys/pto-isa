@@ -87,7 +87,6 @@ struct CommContext {
     CommDeviceContext winHostCtx{};
     CommDeviceContext* winDevCtx = nullptr;
     void* winBase = nullptr;
-    bool ownsWinDevCtx = false;
     __gm__ uint8_t* sdmaWs = nullptr;
     std::unique_ptr<sdma::SdmaWorkspaceManager> sdmaMgr;
 
@@ -96,7 +95,6 @@ struct CommContext {
     CommDeviceContext* urmaDevCtx = nullptr;
     void* urmaDevBuf = nullptr;
     __gm__ uint8_t* urmaWs = nullptr;
-    bool ownsUrmaDevCtx = false;
     std::unique_ptr<urma::UrmaWorkspaceManager> urmaMgr;
 #endif
 
@@ -117,7 +115,6 @@ inline void CommContext::MoveFrom(CommContext& other) noexcept
     winHostCtx = other.winHostCtx;
     winDevCtx = other.winDevCtx;
     winBase = other.winBase;
-    ownsWinDevCtx = other.ownsWinDevCtx;
     sdmaWs = other.sdmaWs;
     sdmaMgr = std::move(other.sdmaMgr);
 #ifdef PTO_DOMAIN_URMA_HOST
@@ -125,7 +122,6 @@ inline void CommContext::MoveFrom(CommContext& other) noexcept
     urmaDevCtx = other.urmaDevCtx;
     urmaDevBuf = other.urmaDevBuf;
     urmaWs = other.urmaWs;
-    ownsUrmaDevCtx = other.ownsUrmaDevCtx;
     urmaMgr = std::move(other.urmaMgr);
 #endif
     other.backends = 0;
@@ -135,14 +131,12 @@ inline void CommContext::MoveFrom(CommContext& other) noexcept
     other.winHostCtx = {};
     other.winDevCtx = nullptr;
     other.winBase = nullptr;
-    other.ownsWinDevCtx = false;
     other.sdmaWs = nullptr;
 #ifdef PTO_DOMAIN_URMA_HOST
     other.urmaHostCtx = {};
     other.urmaDevCtx = nullptr;
     other.urmaDevBuf = nullptr;
     other.urmaWs = nullptr;
-    other.ownsUrmaDevCtx = false;
 #endif
 }
 

@@ -87,6 +87,39 @@ PTO_INTERNAL void TMovAccToMat(DstTileData& dst, SrcTileData& src, ScaleAt scale
     }
 }
 
+// A5 ND->NZ TMOV (TMovToVecNd2Nz)
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TMovVecNd2Nz(DstTileData& dst, SrcTileData& src)
+{
+    static_assert(
+        SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Vec, "TMOV ND->NZ requires Vec tiles.");
+    static_assert(
+        SrcTileData::isRowMajor && SrcTileData::SFractal == SLayout::NoneBox && !DstTileData::isRowMajor &&
+            DstTileData::SFractal == SLayout::RowMajor,
+        "TMOV ND->NZ requires a RowMajor/NoneBox source and an NZ (ColMajor/RowMajor-fractal) destination.");
+    static_assert(
+        std::is_same_v<typename DstTileData::DType, typename SrcTileData::DType>,
+        "TMOV ND->NZ requires matching source and destination dtypes.");
+    PTO_ASSERT(src.GetValidRow() > 0, "Fix: TMOV ND->NZ source validRow is 0.");
+    PTO_CPU_ASSERT(src.GetValidRow() <= dst.GetValidRow(), "TMOV ND->NZ source validRow exceeds destination validRow.");
+    PTO_CPU_ASSERT(src.GetValidCol() <= dst.GetValidCol(), "TMOV ND->NZ source validCol exceeds destination validCol.");
+    // A5 (TMovToVecNd2Nz) derives the copy extent from the destination valid width:
+    // the vsstb predicate masks dstValidCol columns, so the source bytes in
+    // [srcValidCol, dstValidCol) are transferred verbatim. The source row must
+    // therefore physically hold dstValidCol columns.
+    PTO_CPU_ASSERT(
+        static_cast<size_t>(dst.GetValidCol()) <= static_cast<size_t>(SrcTileData::Cols),
+        "Fix: TMOV ND->NZ source physical width must cover the destination valid columns.");
+
+    const size_t rows = std::min(static_cast<size_t>(src.GetValidRow()), static_cast<size_t>(dst.GetValidRow()));
+    const size_t cols = static_cast<size_t>(dst.GetValidCol());
+    for (size_t c = 0; c < cols; ++c) {
+        for (size_t r = 0; r < rows; ++r) {
+            dst.SetElement(r, c, src.GetElement(r, c));
+        }
+    }
+}
+
 template <typename DstTileData, typename SrcTileData, STPhase Phase = STPhase::Unspecified>
 PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
 {
@@ -95,6 +128,11 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
         TEXTRACT(dst, src, 0, 0);
     } else if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
         TMovAccToMat<DstTileData, SrcTileData, QuantMode_t::NoQuant, false>(dst, src, [](size_t) { return 0; });
+    } else if constexpr (
+        SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Vec && SrcTileData::isRowMajor &&
+        SrcTileData::SFractal == SLayout::NoneBox && !DstTileData::isRowMajor &&
+        DstTileData::SFractal == SLayout::RowMajor) {
+        TMovVecNd2Nz(dst, src);
     } else {
         assert(src.GetValidRow() == dst.GetValidRow() && src.GetValidCol() == dst.GetValidCol());
         for (size_t c = 0; c < src.GetValidCol(); c++) {

@@ -100,7 +100,8 @@ struct SdmaSession {
     SdmaExecContext execCtx{};
     SdmaEventContext eventCtx{};
     mutable detail::SdmaRuntimeContext runtimeCtx{};
-    bool valid{false};
+    uint8_t valid{0};
+    uint8_t resv[7]{};
 };
 
 constexpr uint32_t kAutoChannelGroupIdx = UINT32_MAX;
@@ -196,7 +197,7 @@ union EngineRuntimeContext {
 // ============================================================================
 struct AsyncSession {
     DmaEngine engine{DmaEngine::SDMA};
-    bool valid{false};
+    uint8_t valid{0};
     AsyncSubmitMode submitMode{AsyncSubmitMode::IMMEDIATE};
     // Explicit stand-in for the padding the compiler would otherwise insert before
     // batchSize. Keeping it named means the layout is stated rather than implied.

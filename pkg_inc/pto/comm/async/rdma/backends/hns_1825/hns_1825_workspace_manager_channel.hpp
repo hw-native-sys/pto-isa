@@ -69,10 +69,6 @@ inline bool WorkspaceManager::RegisterMemory()
         PTO_HOST_LOG_INFO("RDMA", "[RoCE][rank " << rankId_ << "] (2/4) MR registered: size=" << symmetricSize_);
     }
     const uint64_t notifyBytes = static_cast<uint64_t>(rankCount_) * qpNum_ * kNotifyOperandSlots * sizeof(int32_t);
-    if (aclrtMalloc(&notifyOperands_, notifyBytes, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
-        PTO_HOST_LOG_ERROR("RDMA", "[RoCE] notify operand allocation failed");
-        return false;
-    }
     memory.addr = notifyOperands_;
     memory.size = notifyBytes;
     if (HcommMemReg(endpoint_, "PtoRoceNotify", &memory, &notifyMemHandle_) != 0 || notifyMemHandle_ == nullptr) {

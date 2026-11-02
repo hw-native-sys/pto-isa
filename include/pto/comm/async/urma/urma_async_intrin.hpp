@@ -44,7 +44,8 @@ struct UrmaPostResult {
     uint64_t handle;
     uint32_t targetCqe;
     uint32_t jetty;
-    bool failed{false};
+    uint8_t failed{0};
+    uint8_t reserved[7]{};
 };
 
 struct UrmaMultiPostResult {
@@ -53,14 +54,16 @@ struct UrmaMultiPostResult {
     uint32_t jettyCount;
     uint32_t targetBb[kUrmaMaxJettiesPerCore];
     uint32_t targetCqe[kUrmaMaxJettiesPerCore];
-    bool failed{false};
+    uint8_t failed{0};
+    uint8_t reserved[7]{};
 };
 
-// One jetty's slice completion targets; ok stays false on a drain failure.
+// One jetty's slice completion targets; ok stays zero on a drain failure.
 struct UrmaSlicePostResult {
-    bool ok;
     uint32_t targetBb;
     uint32_t targetCqe;
+    uint8_t ok;
+    uint8_t reserved[3];
 };
 
 AICORE inline uint64_t EncodeHandle(uint32_t peer, uint32_t targetBb)

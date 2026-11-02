@@ -105,6 +105,7 @@ tmin
 tmins
 tmov
 tmov_acc2mat
+tmov_nd2nz
 tmrgsort
 tmul
 tmula
@@ -125,6 +126,7 @@ tprefetch
 tprelu
 tprint
 tpushpop
+tpushpop_credit
 tpushpop_lifetime
 tpushpop_fixpipe
 tpushpop_vc_nosplit

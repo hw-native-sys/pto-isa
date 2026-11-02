@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef TDIV754_HPP
 #define TDIV754_HPP
+#include "pto/common/arch_cce_intrinsic.hpp"
 
 namespace pto {
 template <typename T, typename U>
@@ -68,7 +69,7 @@ PTO_INTERNAL void DivDiffCompensationFloatImpl(U& dstReg, U& srcReg0, U& srcReg1
     vsub(scaleExponent, thresholdReg, src0Exponent, mask, MODE_ZEROING);
     vmax(scaleExponent, scaleExponent, zeroReg, mask, MODE_ZEROING);
     vadds(scaleBiasedExponent, scaleExponent, exponentBias, needScaleMask, MODE_ZEROING);
-    vshls(scaleBits, (RegTensor<uint32_t>&)scaleBiasedExponent, (int16_t)23, needScaleMask, MODE_ZEROING);
+    pto_vshls(scaleBits, (RegTensor<uint32_t>&)scaleBiasedExponent, (int32_t)23, needScaleMask);
     vdup(scaleOne, 1.0f, mask, MODE_ZEROING);
     vsel(scale, (RegTensor<T>&)scaleBits, scaleOne, needScaleMask);
     vmul(scaledSrc0, srcReg0, scale, mask, MODE_ZEROING);
@@ -272,7 +273,7 @@ PTO_INTERNAL void DivIEEE754FloatImpl(
 
     // Apply 2^normalizeAdjust. The subnormal predicates are no longer needed here.
     vadds(tmp1, normalizeAdjust, 127, mask, MODE_ZEROING);
-    vshls(tmp1, tmp1, (int16_t)23, mask);
+    pto_vshls(tmp1, tmp1, (int32_t)23, mask);
     vmul(dst, dst, (RegTensor<float>&)tmp1, mask, MODE_ZEROING);
 
     // preserve sign for error handling section below
@@ -336,14 +337,14 @@ PTO_INTERNAL void DivIEEE754FloatImpl(
 
     vdup(tmp0, 0, maskValid, MODE_ZEROING);
     vcmp_gt(mask0, scale, (RegTensor<int32_t>&)tmp0, maskValid);
-    vshls(tmp1, scale, (int16_t)23, mask0);
+    pto_vshls(tmp1, scale, (int32_t)23, mask0);
     vmul(z1, dst, (RegTensor<float>&)tmp1, mask0);
     vsel(dst, z1, dst, mask0);
 
     pnot(mask0, mask0, maskValid);
     vdup(tmp0, 4194304, mask0, MODE_ZEROING); // set 0x0040 0000
     vabs(scale, scale, mask0);
-    vshr(scale, (RegTensor<int32_t>&)tmp0, scale, mask0);
+    pto_vshr(scale, (RegTensor<int32_t>&)tmp0, scale, mask0);
     vmul(z1, dst, (RegTensor<float>&)scale, mask0);
     vsel(dst, z1, dst, mask0);
 
@@ -479,7 +480,7 @@ PTO_INTERNAL void DivIEEE754HalfImpl(RegTensor<half>& dst, RegTensor<half>& src0
 
     // Apply 2^normalizeAdjust. The subnormal predicates are no longer needed here.
     vadds(tmp1, normalizeAdjust, 15, mask, MODE_ZEROING);
-    vshls(tmp1, tmp1, (int16_t)10, mask);
+    pto_vshls(tmp1, tmp1, (int16_t)10, mask);
     vmul(dst, dst, (RegTensor<half>&)tmp1, mask, MODE_ZEROING);
 
     // preserve sign for error handling section below
@@ -543,14 +544,14 @@ PTO_INTERNAL void DivIEEE754HalfImpl(RegTensor<half>& dst, RegTensor<half>& src0
 
     vdup(tmp0, 0, maskValid, MODE_ZEROING);
     vcmp_gt(mask0, scale, (RegTensor<int16_t>&)tmp0, maskValid);
-    vshls(tmp1, scale, (int16_t)10, mask0);
+    pto_vshls(tmp1, scale, (int16_t)10, mask0);
     vmul(z1, dst, (RegTensor<half>&)tmp1, mask0);
     vsel(dst, z1, dst, mask0);
 
     pnot(mask0, mask0, maskValid);
     vdup(tmp0, 512, mask0, MODE_ZEROING); // set 0x0200
     vabs(scale, scale, mask0);
-    vshr(scale, (RegTensor<int16_t>&)tmp0, scale, mask0);
+    pto_vshr(scale, (RegTensor<int16_t>&)tmp0, scale, mask0);
     vmul(z1, dst, (RegTensor<half>&)scale, mask0);
     vsel(dst, z1, dst, mask0);
 

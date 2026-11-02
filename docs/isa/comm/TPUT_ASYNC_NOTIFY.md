@@ -149,7 +149,7 @@ PTO_INTERNAL bool BuildAsyncSession(
 | Parameter | Default | Description |
 |---|---|---|
 | `scratchTile` | — | UB scratch tile for SDMA control metadata. |
-| `workspace` | — | GM pointer allocated by the host-side `SdmaWorkspaceManager`. |
+| `workspace` | — | GM pointer allocated by the caller and initialized by the host-side `SdmaWorkspaceManager`. |
 | `session` | — | Output `AsyncSession`. |
 | `syncId` | `0` | MTE3/MTE2 pipeline synchronization event ID in the range 0-7. |
 | `baseConfig` | `{kDefaultSdmaBlockBytes, 0, 1}` | SDMA block bytes, communication-block offset, and queue count. |
@@ -173,7 +173,7 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 
 | Parameter | Description |
 |---|---|
-| `workspace` | GM pointer allocated by the host-side `UrmaWorkspaceManager`. |
+| `workspace` | GM pointer allocated by the caller and initialized by the host-side `UrmaWorkspaceManager`. |
 | `session` | Output `AsyncSession`. |
 
 URMA does not require `scratchTile` and requires CANN Toolkit >= 9.1.0. The session does not bind a destination rank;

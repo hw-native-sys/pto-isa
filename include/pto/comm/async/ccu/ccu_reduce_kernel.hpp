@@ -25,7 +25,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Dependencies: hcomm pkg_inc only (libhcomm.so). No hccl dependency.
 
 #include <cstdint>
-#include <cstdio>
 #include <vector>
 
 #include "hcomm/ccu/ccu_kernel.h"
@@ -34,6 +33,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "hcomm/ccu/ccu_task_arg_v1.h"
 
 #include "pto/comm/async/ccu/ccu_mesh_common.hpp"
+#include "pto/comm/logger/host_log.hpp"
 
 namespace pto {
 namespace comm {
@@ -93,9 +93,9 @@ public:
             outputDataType_ = kArg->outputDataType;
             reduceOp_ = kArg->reduceOp;
         }
-        std::fprintf(
-            stderr, "[CCU_REDUCE/ctor] dataType=%d reduceOp=%d\n", static_cast<int>(dataType_),
-            static_cast<int>(reduceOp_));
+        PTO_HOST_LOG_INFO(
+            kTraceName,
+            "[ctor] dataType=" << static_cast<int>(dataType_) << " reduceOp=" << static_cast<int>(reduceOp_));
     }
 
     ~CcuReduceMesh1D() override = default;

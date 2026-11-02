@@ -108,7 +108,7 @@ PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T* dst, int64_t repeatConfig, 
 template <typename T, typename U, typename S>
 PTO_INTERNAL void pto_vexpdif(T& dst, U& src0, U& src1, vector_bool mask, S part)
 {
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     vexpdif(dst, src0, src1, mask, part);
 #elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90)
     vsub(dst, src0, src1, mask, MODE_ZEROING);
@@ -146,7 +146,7 @@ template <TileType type>
 PTO_INTERNAL void pto_set_tload_pad_val(uint64_t config)
 {
     if constexpr (type == TileType::Vec) {
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_KIRINX90)
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRINX90)
         set_mov_pad_val(config);
 #elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050)
         set_pad_val_outtoub(config);
@@ -260,8 +260,8 @@ PTO_INTERNAL void pto_copy_gm_to_cbuf_multi_nd2nz(
             }
         }
     } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
-        uint16_t dValueb64 = dValue * sizeof(T) / sizeof(uint64_t);
-        uint16_t srcDValueb64 = srcDValue * sizeof(T) / sizeof(uint64_t);
+        uint16_t dValueb64 = dValue * sizeof(T) / sizeof(uint16_t);
+        uint16_t srcDValueb64 = srcDValue * sizeof(T) / sizeof(uint16_t);
         copy_gm_to_cbuf_multi_nd2nz_b16(
             reinterpret_cast<__cbuf__ uint16_t*>(dst), reinterpret_cast<__gm__ uint16_t*>(src), sid, ndNum, nValue,
             dValueb64, srcNdMatrixStride, srcDValueb64, dstNzC0Stride, dstNzNStride, dstNzMatrixStride);
@@ -482,6 +482,77 @@ __aicore__ inline void copy_gm_to_ubuf_align_v2(
     copy_gm_to_ubuf_align_v2(
         dst, src, sid, nBurst, lenBurst, leftPaddingCount, rightPaddingCount, constantPaddingCtl,
         false /* pre_allocation */, l2CacheCtl, burstSrcStride, burstDstStride, false /* non_eod_ctrl */);
+}
+#endif
+
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+    defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90)
+template <typename T, typename S>
+PTO_INTERNAL void pto_vshls(T& dst, T& src, S scalar, vector_bool mask)
+{
+#if defined(PTO_NPU_ARCH_A6)
+    // A6 vshls only accepts an UNSIGNED shift amount whose width matches the data width
+    // (uint16_t for 8/16-bit data, uint32_t for 32-bit data), so the caller's scalar type
+    // must already carry the element width; a narrower literal is not widened here.
+    vshls(dst, src, static_cast<std::make_unsigned_t<S>>(scalar), mask, MODE_ZEROING);
+#else
+    // A5 and kirin vshls take a signed shift amount; keep the width of the caller's scalar.
+    vshls(dst, src, static_cast<std::make_signed_t<S>>(scalar), mask, MODE_ZEROING);
+#endif
+}
+
+#if defined(PTO_NPU_ARCH_A6)
+namespace pto {
+template <typename T>
+struct RegTensor; // defined in pto/npu/a5/common.hpp and pto/npu/kirin9030/common.hpp
+
+// A5 hands the signed shift-amount register to vshr unchanged, while A6 only takes an
+// UNSIGNED amount vector (a6/TShr.hpp passes the |src1| magnitude). Reinterpret the amount
+// register to the unsigned counterpart of the same element width for A6.
+template <typename S>
+struct VshrAmountAsUnsigned {
+    using Type = S;
+};
+
+template <typename T>
+struct VshrAmountAsUnsigned<RegTensor<T>> {
+    using Type = RegTensor<std::make_unsigned_t<T>>;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s8> {
+    using Type = vector_u8;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s16> {
+    using Type = vector_u16;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s32> {
+    using Type = vector_u32;
+};
+
+template <>
+struct VshrAmountAsUnsigned<vector_s64> {
+    using Type = vector_u64;
+};
+} // namespace pto
+#endif
+
+// Vector-vector right shift: the shift amount (src1) is a register whose element type may
+// differ from the data type, and its lanes must already hold non-negative values.
+template <typename T, typename S>
+PTO_INTERNAL void pto_vshr(T& dst, T& src0, S& src1, vector_bool mask)
+{
+#if defined(PTO_NPU_ARCH_A6)
+    using AmountT = typename pto::VshrAmountAsUnsigned<S>::Type;
+    vshr(dst, src0, (AmountT&)src1, mask, MODE_ZEROING);
+#else
+    // A5 and kirin accept the signed shift-amount register as-is.
+    vshr(dst, src0, src1, mask, MODE_ZEROING);
+#endif
 }
 #endif
 

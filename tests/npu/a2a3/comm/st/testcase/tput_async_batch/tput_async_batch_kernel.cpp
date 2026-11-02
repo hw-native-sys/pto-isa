@@ -774,13 +774,25 @@ bool RunTPutAsyncBatchDocExampleRank(
             aclrtMemset(deviceStatus, sizeof(uint32_t), 0, sizeof(uint32_t)) == ACL_SUCCESS;
     }
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaManager;
-    setupOk = setupOk && sdmaManager.Init();
-    if (!AllRanksReady(setupOk, nRanks)) {
+    uint64_t workspaceSize = 0;
+    if (setupOk) {
+        SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    }
+    if (!AllRanksReady(
+            setupOk &&
+                (workspaceSize == 0 ||
+                 aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS) &&
+                sdmaManager.Init(workspaceAddr, workspaceSize),
+            nRanks)) {
         if (deviceStatus != nullptr) {
             (void)aclrtFree(deviceStatus);
         }
         sdmaManager.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         if (ownsContext) {
             (void)ctx.Finalize();
         }
@@ -810,6 +822,9 @@ bool RunTPutAsyncBatchDocExampleRank(
 
     ctx.aclStatus |= aclrtFree(deviceStatus);
     sdmaManager.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     const bool result = isOk && ctx.aclStatus == ACL_SUCCESS;
     return ownsContext ? ctx.Finalize() && result : result;
 }
@@ -863,9 +878,18 @@ bool RunTPutAsyncBatchConsumeRank(
             aclrtMemset(deviceStatus, sizeof(uint32_t), 0, sizeof(uint32_t)) == ACL_SUCCESS;
     }
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaManager;
-    setupOk = setupOk && sdmaManager.Init();
-    if (!AllRanksReady(setupOk, nRanks)) {
+    uint64_t workspaceSize = 0;
+    if (setupOk) {
+        SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    }
+    if (!AllRanksReady(
+            setupOk &&
+                (workspaceSize == 0 ||
+                 aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS) &&
+                sdmaManager.Init(workspaceAddr, workspaceSize),
+            nRanks)) {
         if (deviceConsumed != nullptr) {
             (void)aclrtFree(deviceConsumed);
         }
@@ -873,6 +897,9 @@ bool RunTPutAsyncBatchConsumeRank(
             (void)aclrtFree(deviceStatus);
         }
         sdmaManager.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         if (ownsContext) {
             (void)ctx.Finalize();
         }
@@ -903,6 +930,9 @@ bool RunTPutAsyncBatchConsumeRank(
     ctx.aclStatus |= aclrtFree(deviceConsumed);
     ctx.aclStatus |= aclrtFree(deviceStatus);
     sdmaManager.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     const bool result = isOk && ctx.aclStatus == ACL_SUCCESS;
     return ownsContext ? ctx.Finalize() && result : result;
 }
@@ -967,9 +997,18 @@ bool RunTPutAsyncBatchMultiAivConsumeRank(
             aclrtMemset(deviceStatus, statusBytes, 0, statusBytes) == ACL_SUCCESS;
     }
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaManager;
-    setupOk = setupOk && sdmaManager.Init();
-    if (!AllRanksReady(setupOk, nRanks)) {
+    uint64_t workspaceSize = 0;
+    if (setupOk) {
+        SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    }
+    if (!AllRanksReady(
+            setupOk &&
+                (workspaceSize == 0 ||
+                 aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS) &&
+                sdmaManager.Init(workspaceAddr, workspaceSize),
+            nRanks)) {
         if (deviceConsumed != nullptr) {
             (void)aclrtFree(deviceConsumed);
         }
@@ -977,6 +1016,9 @@ bool RunTPutAsyncBatchMultiAivConsumeRank(
             (void)aclrtFree(deviceStatus);
         }
         sdmaManager.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         if (ownsContext) {
             (void)ctx.Finalize();
         }
@@ -1017,6 +1059,9 @@ bool RunTPutAsyncBatchMultiAivConsumeRank(
     ctx.aclStatus |= aclrtFree(deviceConsumed);
     ctx.aclStatus |= aclrtFree(deviceStatus);
     sdmaManager.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     const bool result = isOk && ctx.aclStatus == ACL_SUCCESS;
     return ownsContext ? ctx.Finalize() && result : result;
 }
@@ -1064,13 +1109,25 @@ bool RunTPutAsyncBatchP0Rank(
             aclrtMemset(deviceStatus, sizeof(uint32_t), 0, sizeof(uint32_t)) == ACL_SUCCESS;
     }
 
+    void* workspaceAddr = nullptr;
     SdmaWorkspaceManager sdmaManager;
-    setupOk = setupOk && sdmaManager.Init();
-    if (!AllRanksReady(setupOk, nRanks)) {
+    uint64_t workspaceSize = 0;
+    if (setupOk) {
+        SdmaWorkspaceManager::GetWorkspaceSize(&workspaceSize);
+    }
+    if (!AllRanksReady(
+            setupOk &&
+                (workspaceSize == 0 ||
+                 aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST) == ACL_SUCCESS) &&
+                sdmaManager.Init(workspaceAddr, workspaceSize),
+            nRanks)) {
         if (deviceStatus != nullptr) {
             (void)aclrtFree(deviceStatus);
         }
         sdmaManager.Finalize();
+        if (workspaceAddr != nullptr) {
+            (void)aclrtFree(workspaceAddr);
+        }
         if (ownsContext) {
             (void)ctx.Finalize();
         }
@@ -1114,6 +1171,9 @@ bool RunTPutAsyncBatchP0Rank(
 
     ctx.aclStatus |= aclrtFree(deviceStatus);
     sdmaManager.Finalize();
+    if (workspaceAddr != nullptr) {
+        (void)aclrtFree(workspaceAddr);
+    }
     const bool result = isOk && ctx.aclStatus == ACL_SUCCESS;
     return ownsContext ? ctx.Finalize() && result : result;
 }

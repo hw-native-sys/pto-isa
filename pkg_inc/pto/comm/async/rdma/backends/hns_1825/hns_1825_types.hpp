@@ -8,7 +8,7 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-// HNS_1825 NIC-visible SQ/CQ/WQE/CQE layouts and constants.
+// HNS_1825 PTO queue descriptors, NIC-visible WQE/CQE layouts, and constants.
 
 #ifndef PTO_COMM_ASYNC_RDMA_BACKENDS_HNS_1825_TYPES_HPP
 #define PTO_COMM_ASYNC_RDMA_BACKENDS_HNS_1825_TYPES_HPP
@@ -36,34 +36,34 @@ struct QueueState {
 };
 
 struct SqContext {
-    uint32_t wqn;
     uint64_t bufAddr;
-    uint32_t wqeSize;
-    uint32_t depth;
     uint64_t headAddr;
     uint64_t tailAddr;
-    RdmaDbMode dbMode;
     uint64_t dbAddr;
-    uint32_t sl;
     uint64_t amoAddr;
-    uint32_t amoLkey;
     uint64_t dbSwAddr;
+    uint64_t stateAddr;
+    uint32_t wqn;
+    uint32_t wqeSize;
+    uint32_t depth;
+    uint32_t sl;
+    uint32_t amoLkey;
+    RdmaDbMode dbMode;
     uint8_t mtuShift{4};
     uint8_t dbCos{0x7};
     uint8_t reserved[6];
-    uint64_t stateAddr;
 };
 
 struct CqContext {
-    uint32_t cqn;
     uint64_t bufAddr;
-    uint32_t cqeSize;
-    uint32_t depth;
     uint64_t headAddr;
     uint64_t tailAddr;
-    RdmaDbMode dbMode;
     uint64_t dbAddr;
     uint64_t dbSwAddr;
+    uint32_t cqn;
+    uint32_t cqeSize;
+    uint32_t depth;
+    RdmaDbMode dbMode;
 };
 
 struct WqeCtrlSeg {
@@ -165,6 +165,8 @@ constexpr uint32_t kPostSendBatch = 32;
 constexpr uint32_t kNotifyOperandSlots = 1024;
 
 static_assert(sizeof(QueueState) == 64, "unexpected HNS1825 queue-state layout");
+static_assert(sizeof(SqContext) == 88 && alignof(SqContext) == 8, "unexpected HNS1825 SQ context layout");
+static_assert(sizeof(CqContext) == 56 && alignof(CqContext) == 8, "unexpected HNS1825 CQ context layout");
 
 #if defined(PTO_NPU_ARCH_A2A3) || defined(__DAV_C220_VEC__) || defined(__DAV_C220_CUBE__)
 constexpr uint64_t kCycleToTimeBase = 50;

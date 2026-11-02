@@ -68,7 +68,7 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 | Parameter | Default | Description |
 |---|---|---|
 | `scratchTile` | — | UB scratch tile for SDMA control metadata (see [scratchTile Role](#scratchtile-role)). |
-| `workspace` | — | GM pointer allocated by host-side `SdmaWorkspaceManager`. |
+| `workspace` | — | GM pointer allocated by the caller and initialized by host-side `SdmaWorkspaceManager`. |
 | `session` | — | Output `AsyncSession` object. |
 | `syncId` | `0` | MTE3/MTE2 pipe sync event id (0-7). Override if kernel uses other pipe barriers on the same id. |
 | `baseConfig` | `{kDefaultSdmaBlockBytes, 0, 1}` | `{block_bytes, comm_block_offset, queue_num}`. Suitable for most single-queue transfers. |
@@ -90,7 +90,7 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 
 | Parameter | Description |
 |---|---|
-| `workspace` | GM pointer allocated by host-side `UrmaWorkspaceManager`. |
+| `workspace` | GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`. |
 | `destRankId` | Remote PE rank id that this session communicates with. For `TGET_ASYNC` this is the source rank. |
 | `session` | Output `AsyncSession` object. |
 
@@ -136,8 +136,8 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
 - Both SDMA and URMA paths require source tensor to be **flat contiguous logical 1D only**
-- SDMA workspace must be a valid GM pointer allocated by host-side `SdmaWorkspaceManager`
-- URMA workspace must be a valid GM pointer allocated by host-side `UrmaWorkspaceManager`
+- SDMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `SdmaWorkspaceManager`
+- URMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`
 - Keep the session and its workspace alive until all associated events have completed
 - URMA is only available on NPU_ARCH 3510 (Ascend950)
 - URMA requires CANN Toolkit **>= 9.1.0**
