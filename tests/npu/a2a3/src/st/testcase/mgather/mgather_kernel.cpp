@@ -52,6 +52,42 @@ inline AICORE void runRow(__gm__ T* out, __gm__ T* table, __gm__ TIdx* indices)
     TSTORE(outGlobal, dstTile);
 }
 
+template <pto::GatherOOB Oob, typename T, typename TIdx, uint32_t kDstRows, uint32_t kDstCols, uint32_t kTableRows>
+inline AICORE void runRowAsync(__gm__ T* out, __gm__ T* table, __gm__ TIdx* indices)
+{
+    using TableShape = pto::Shape<1, 1, 1, kTableRows, kDstCols>;
+    using TableStride = pto::Stride<1, 1, 1, kDstCols, 1>;
+    using IdxShape = pto::Shape<1, 1, 1, 1, kDstRows>;
+    using IdxStride = pto::Stride<1, 1, 1, kDstRows, 1>;
+    using OutShape = pto::Shape<1, 1, 1, kDstRows, kDstCols>;
+    using OutStride = pto::Stride<1, 1, 1, kDstCols, 1>;
+
+    GlobalTensor<T, TableShape, TableStride> tableGlobal(table);
+    GlobalTensor<TIdx, IdxShape, IdxStride> idxGlobal(indices);
+    GlobalTensor<T, OutShape, OutStride> outGlobal(out);
+
+    using DstTile = Tile<TileType::Vec, T, kDstRows, kDstCols, BLayout::RowMajor, kDstRows, kDstCols>;
+    using IdxTile = Tile<TileType::Vec, TIdx, 1, kDstRows, BLayout::RowMajor, 1, kDstRows>;
+
+    DstTile dstTile;
+    IdxTile idxTile;
+
+    constexpr uint32_t idxBytes = ((1u * kDstRows * sizeof(TIdx) + 31u) / 32u) * 32u;
+    TASSIGN(idxTile, 0x0);
+    TASSIGN(dstTile, idxBytes);
+
+    TLOAD(idxTile, idxGlobal);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    MGATHER<Coalesce::Row, Oob, pto::GatherSync::Async>(dstTile, tableGlobal, idxTile);
+
+    set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+
+    TSTORE(outGlobal, dstTile);
+}
+
 template <
     pto::GatherOOB Oob, typename T, typename TIdx, uint32_t kValidRows, uint32_t kPadRows, uint32_t kPadCols,
     uint32_t kPadIdxCols, uint32_t kTableRows>
@@ -414,6 +450,16 @@ inline AICORE void runElem2DNz(__gm__ T* out, __gm__ T* table, __gm__ TIdx* indi
         runMGATHER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices); \
     }
 
+#define DEFINE_ROW_ASYNC(NAME, THOST, T, TIDX, R, C, TR, OOB)                                                       \
+    extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices)       \
+    {                                                                                                               \
+        runRowAsync<pto::GatherOOB::OOB, T, TIDX, R, C, TR>(out, table, indices);                                   \
+    }                                                                                                               \
+    void Launch_##NAME(THOST* out, THOST* table, TIDX* indices, void* stream)                                       \
+    {                                                                                                               \
+        runMGATHER_##NAME<<<1, nullptr, stream>>>(reinterpret_cast<T*>(out), reinterpret_cast<T*>(table), indices); \
+    }
+
 #define DEFINE_ROW_PAD(NAME, THOST, T, TIDX, VR, PR, PC, PIC, TR, OOB)                                              \
     extern "C" __global__ AICORE void runMGATHER_##NAME(__gm__ T* out, __gm__ T* table, __gm__ TIDX* indices)       \
     {                                                                                                               \
@@ -518,6 +564,12 @@ DEFINE_ROW(row_uint8_8x32_32rows, uint8_t, uint8_t, int32_t, 8, 32, 32, Undefine
 DEFINE_ROW(row_float_clamp_8x32_8rows, float, float, int32_t, 8, 32, 8, Clamp)
 DEFINE_ROW(row_int32_wrap_8x16_8rows, int32_t, int32_t, int32_t, 8, 16, 8, Wrap)
 DEFINE_ROW(row_half_zero_8x32_8rows, aclFloat16, half, int32_t, 8, 32, 8, Zero)
+
+DEFINE_ROW_ASYNC(row_async_float_8x32_64rows, float, float, int32_t, 8, 32, 64, Undefined)
+DEFINE_ROW_ASYNC(row_async_half_16x64_64rows, aclFloat16, half, int32_t, 16, 64, 64, Undefined)
+DEFINE_ROW_ASYNC(row_async_bfloat16_16x16_64rows, uint16_t, bfloat16_t, int32_t, 16, 16, 64, Undefined)
+DEFINE_ROW_ASYNC(row_async_int8_8x32_32rows, int8_t, int8_t, int32_t, 8, 32, 32, Undefined)
+DEFINE_ROW_ASYNC(row_async_bfloat16_64x512_128rows, uint16_t, bfloat16_t, int32_t, 64, 512, 128, Undefined)
 
 DEFINE_ROW_PAD(row_int32_unaligned_3x8_8rows, int32_t, int32_t, int32_t, 3, 3, 8, 8, 8, Undefined)
 DEFINE_ROW_PAD(row_float_partial_4x16_in_8x16, float, float, int32_t, 4, 8, 16, 8, 8, Undefined)
