@@ -14,6 +14,8 @@ full text of the License.
 #define TREM_HPP
 
 #include <pto/common/constants.hpp>
+#include <pto/npu/a2a3/custom/TFmodRemHp.hpp>
+#include <pto/npu/a2a3/custom/TRemHpStaged.hpp>
 
 namespace pto {
 // Formula: remainder(a, b) = a - floor(a/b) * b
@@ -58,18 +60,21 @@ struct RemOp {
         pipe_barrier(PIPE_V);
 
         // VSEL_TENSOR_TENSOR_MODE (2) reads the packed bitmask from UB through a
-        // two-level address indirection: set_cmpmask must receive a buffer holding
-        // the mask's address, replicated over cmpmaskLen uint32 lanes (64-bit for
-        // B32, same convention as TSel). cmpMask occupies
+        // two-level address indirection: set_cmpmask dereferences a full 64-bit
+        // address. Duplicating the 32-bit address with vector_dup fills both
+        // halves ((addr<<32)|addr), so vsel reads the mask from a garbage
+        // address (observed as effectively random per-element selects). Store
+        // the true 64-bit address with a scalar UB store, flags around it
+        // (pypto arch32 select idiom). cmpMask occupies
         // dstRowStride..dstRowStride+maskFloats, addrBuf follows it, aligned to 32 bytes.
         unsigned maskBytes = CeilDivision(dstRowStride, BIT_TO_BYTE);
         unsigned maskFloats = CeilDivision(maskBytes, BLOCK_BYTE_SIZE) * BIT_TO_BYTE;
-        constexpr unsigned cmpmaskLen = 2; // 64-bit address for B32 dtype
         __ubuf__ uint32_t* addrBuf = reinterpret_cast<__ubuf__ uint32_t*>(tmp + dstRowStride + maskFloats);
-        uint32_t maskAddr = static_cast<uint32_t>(reinterpret_cast<int64_t>(cmpMask));
-        set_vector_mask(0, cmpmaskLen);
-        vector_dup(addrBuf, maskAddr, 1, 1, 1, 8, 0);
-        pipe_barrier(PIPE_V);
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        *(reinterpret_cast<__ubuf__ uint64_t*>(addrBuf)) = static_cast<uint64_t>(reinterpret_cast<int64_t>(cmpMask));
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
         set_cmpmask(addrBuf);
         pipe_barrier(PIPE_V);
         set_vector_mask(0, validCols);
@@ -126,15 +131,15 @@ struct RemOp {
         vadd(tmp_f, dst_f, src1_f, 1, 1, 1, 1, 8, 8, 8);
         pipe_barrier(PIPE_V);
 
-        // VSEL_TENSOR_TENSOR_MODE (2): same 64-bit address buffer as the f32 path.
+        // VSEL_TENSOR_TENSOR_MODE (2): same true 64-bit address store as the f32 path.
         unsigned maskByte = CeilDivision(dstRowStride, BIT_TO_BYTE); // shape
         unsigned maskFloat = CeilDivision(maskByte, BLOCK_BYTE_SIZE) * BIT_TO_BYTE;
-        constexpr unsigned cmpmaskLen = 2; // 64-bit address for B32 dtype
         __ubuf__ uint32_t* addrBufs = reinterpret_cast<__ubuf__ uint32_t*>(tmp + dstRowStride + maskFloat);
-        uint32_t maskAddr = static_cast<uint32_t>(reinterpret_cast<int64_t>(cmpMask));
-        set_vector_mask(0, cmpmaskLen);
-        vector_dup(addrBufs, maskAddr, 1, 1, 1, 8, 0);
-        pipe_barrier(PIPE_V);
+        set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+        *(reinterpret_cast<__ubuf__ uint64_t*>(addrBufs)) = static_cast<uint64_t>(reinterpret_cast<int64_t>(cmpMask));
+        set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+        wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
         set_cmpmask(addrBufs);
         pipe_barrier(PIPE_V);
         set_vector_mask(0, validCols);
@@ -157,7 +162,7 @@ struct RemOp {
 };
 
 template <
-    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp,
+    auto PrecisionType, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename TileDataTmp,
     unsigned elementsPerRepeat, unsigned blockSizeElem, unsigned dstRowStride, unsigned src0RowStride = dstRowStride,
     unsigned src1RowStride = dstRowStride>
 __tf__ PTO_INTERNAL void TRem(
@@ -170,6 +175,29 @@ __tf__ PTO_INTERNAL void TRem(
     __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
     __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
     __ubuf__ T* tmpPtr = (__ubuf__ T*)__cce_get_tile_ptr(tmp);
+
+    if constexpr (
+        PrecisionType == RemAlgorithm::HIGH_PRECISION && (std::is_same_v<T, float> || std::is_same_v<T, float32_t>)) {
+        // High precision remainder (issue #2): staged loop inversion when the
+        // tile has enough full vectors and dst aliases neither input;
+        // per-vector iterations otherwise (see custom/TRemHpStaged.hpp).
+        if (TRemVStagedEligibleA2A3<TileDataDst, TileDataSrc0, TileDataSrc1>(
+                reinterpret_cast<__ubuf__ float*>(dstPtr), reinterpret_cast<__ubuf__ float*>(src0Ptr),
+                reinterpret_cast<__ubuf__ float*>(src1Ptr), validRows, validCols)) {
+            TRemVStagedA2A3<false, dstRowStride, src0RowStride, src1RowStride>(
+                reinterpret_cast<__ubuf__ float*>(dstPtr), reinterpret_cast<__ubuf__ float*>(src0Ptr),
+                reinterpret_cast<__ubuf__ float*>(src1Ptr), reinterpret_cast<__ubuf__ float*>(tmpPtr), validRows,
+                validCols);
+        } else {
+            TRemVHpRegister<false, dstRowStride, src0RowStride, src1RowStride>(
+                reinterpret_cast<__ubuf__ float*>(dstPtr), reinterpret_cast<__ubuf__ float*>(src0Ptr),
+                reinterpret_cast<__ubuf__ float*>(src1Ptr), reinterpret_cast<__ubuf__ float*>(tmpPtr), validRows,
+                validCols);
+        }
+        set_mask_norm();
+        set_vector_mask(-1, -1);
+        return;
+    }
 
     constexpr unsigned tmpRowStride = TileDataTmp::RowStride;
     uint16_t repeatTimes = CeilDivision(validCols, elementsPerRepeat);
@@ -224,14 +252,24 @@ PTO_INTERNAL void TREM_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& 
 {
     using T = typename TileDataDst::DType;
     TRemCheck<T, TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp>(dst, src0, src1, tmp);
+    if constexpr (
+        PrecisionType == RemAlgorithm::HIGH_PRECISION && (std::is_same_v<T, float> || std::is_same_v<T, float32_t>)) {
+        // HP scratch contract from custom/TFmodRemHp.hpp (vector divisor),
+        // sized for the staged capacity (full vectors per row, >= 1)
+        constexpr unsigned elemsPerRepeatHp = REPEAT_BYTE / sizeof(float);
+        unsigned capVecs = dst.GetValidCol() / elemsPerRepeatHp;
+        PTO_ASSERT(
+            tmp.GetValidRow() >= 1 && tmp.GetValidCol() >= HpScratchRequiredColsV(capVecs > 0 ? capVecs : 1),
+            "TREM HP: tmp tile too small for the high precision scratch contract (see docs/trems_hp_a2a3.md).");
+    }
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned src0RowStride = TileDataSrc0::RowStride;
     constexpr unsigned src1RowStride = TileDataSrc1::RowStride;
     TRem<
-        TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp, elementsPerRepeat, blockSizeElem, dstRowStride,
-        src0RowStride, src1RowStride>(
+        PrecisionType, TileDataDst, TileDataSrc0, TileDataSrc1, TileDataTmp, elementsPerRepeat, blockSizeElem,
+        dstRowStride, src0RowStride, src1RowStride>(
         dst.data(), src0.data(), src1.data(), tmp.data(), dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto
