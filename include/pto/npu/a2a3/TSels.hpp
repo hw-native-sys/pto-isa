@@ -32,10 +32,11 @@ __tf__ PTO_INTERNAL void TSels(
     __ubuf__ MaskT* maskPtr = (__ubuf__ MaskT*)__cce_get_tile_ptr(mask);
     __ubuf__ typename SrcTile::DType* scalarPtr = (__ubuf__ typename SrcTile::DType*)__cce_get_tile_ptr(tmp);
 
-    *scalarPtr = scalar;
     set_mask_count();
+    set_vector_mask(0, 1);
+    vector_dup(scalarPtr, scalar, 0, 1, 1, 8, 8);
+    pipe_barrier(PIPE_V);
     set_vector_mask(0, validCol);
-    PtoSetWaitFlag<PIPE_S, PIPE_V>();
     set_cmpmask(scalarPtr);
     pipe_barrier(PIPE_V);
     for (unsigned i = 0; i < validRow; i++) {
