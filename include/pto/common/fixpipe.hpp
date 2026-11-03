@@ -80,7 +80,7 @@ struct FixpipeConsDType {
         isHalf, half, std::conditional_t<isBfloat16, bfloat16_t, std::conditional_t<isInt8, int8_t, SrcType>>>;
 };
 
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <typename SrcType>
 struct FixpipeConsDType<QuantMode_t::QF322HIF8_PRE, SrcType> {
     using type = hifloat8_t;

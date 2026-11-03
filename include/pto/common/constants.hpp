@@ -472,7 +472,7 @@ struct PadValueMap<uint8_t, PadValue::Max> {
 
 // Low-precision pad maps. Values are raw bit patterns, same as other PadValueMap
 // specializations. fp4x2 stores the same nibble in both halves.
-#if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(__CPU_SIM)
 template <>
 struct PadValueMap<float8_e4m3_t, PadValue::Null> {
     static constexpr auto value = uint8_t(0);
@@ -542,7 +542,7 @@ struct PadValueMap<float4_e1m2x2_t, PadValue::Max> {
 };
 #endif
 
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <>
 struct PadValueMap<hifloat8_t, PadValue::Null> {
     static constexpr auto value = uint8_t(0);
