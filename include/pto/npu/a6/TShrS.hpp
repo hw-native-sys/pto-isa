@@ -15,8 +15,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/utils.hpp>
 #include <pto/npu/a6/common.hpp>
 #include <pto/npu/a6/utils.hpp>
-#include <pto/npu/a5/TBinSOp.hpp>
 #include <pto/npu/a6/TShiftOp.hpp>
+#include <pto/npu/a5/TBinSOp.hpp>
 #include <pto/common/debug.h>
 
 namespace pto {
