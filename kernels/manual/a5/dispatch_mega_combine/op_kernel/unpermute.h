@@ -63,7 +63,7 @@ private:
     AICORE inline void LoadRouteChunk(uint32_t bufferId, uint32_t compactRow, uint32_t col, uint32_t cols) const;
     AICORE inline void AccumulateChunk(uint32_t bufferId, float prob, uint32_t cols);
     AICORE inline void StoreOutputChunk(uint32_t token, uint32_t col, uint32_t cols);
-    AICORE inline void ProcessToken(uint32_t batchStart, uint32_t localToken);
+    AICORE inline uint32_t ProcessToken(uint32_t batchStart, uint32_t localToken);
     AICORE inline bool TokenReadyForExpertProgress(
         uint32_t batchStart, uint32_t localToken, const uint32_t* readyExpertCounts) const;
     AICORE inline bool BuildTokenRankRequirements(uint32_t token, uint32_t* requiredExpertCounts) const;
@@ -78,7 +78,6 @@ private:
     AICORE inline void ProcessRankStreaming();
 
     const __gm__ MegaMoeTilingData* tilingData_ = nullptr;
-
     PtoRemoteWindow remoteWindow_;
     __gm__ OutputElement* combineOutputPtr_ = nullptr;
     __gm__ int32_t* expertIdPtr_ = nullptr;
@@ -256,10 +255,11 @@ AICORE inline void Unpermute<OutputElement>::StoreOutputChunk(uint32_t token, ui
 }
 
 template <typename OutputElement>
-AICORE inline void Unpermute<OutputElement>::ProcessToken(uint32_t batchStart, uint32_t localToken)
+AICORE inline uint32_t Unpermute<OutputElement>::ProcessToken(uint32_t batchStart, uint32_t localToken)
 {
     const uint32_t token = batchStart + localToken;
     const uint32_t inputBufferCount = InputBufferCount();
+    uint32_t validRoutes = 0U;
     for (uint32_t col = 0; col < problemK_; col += TileCols()) {
         const uint32_t cols = (problemK_ - col > TileCols()) ? TileCols() : (problemK_ - col);
         PtoFillUb<float, kUnpermuteVecTileElems>(ubAccOffset_, 0.0f, cols); // 初始化输出UB
@@ -269,6 +269,8 @@ AICORE inline void Unpermute<OutputElement>::ProcessToken(uint32_t batchStart, u
             if (expandedRow < 0) {
                 continue;
             }
+            if (col == 0U)
+                ++validRoutes;
             const float prob = ReadProb(localToken, topkIdx);
             pto::PtoSetWaitFlag<PIPE_S, PIPE_V>();
             const uint32_t bufferId = pingpongId_;
@@ -281,6 +283,7 @@ AICORE inline void Unpermute<OutputElement>::ProcessToken(uint32_t batchStart, u
         }
         StoreOutputChunk(token, col, cols); // 写回GM
     }
+    return validRoutes;
 }
 
 template <typename OutputElement>
@@ -360,7 +363,6 @@ AICORE inline void Unpermute<OutputElement>::ProcessPhase1Range(
     uint32_t currentBatchStart = tokenStart;
     uint32_t currentBatchTokens = tokenCount < batchLimit ? tokenCount : batchLimit;
     PrefetchMetadata(currentBatchStart, currentBatchTokens);
-
     uint32_t consumedTokens = 0U;
     while (consumedTokens < tokenCount) {
         WaitMetadata();
@@ -377,7 +379,7 @@ AICORE inline void Unpermute<OutputElement>::ProcessPhase1Range(
         for (uint32_t localToken = 0U; localToken < currentBatchTokens; ++localToken) {
             const bool phase1Task = TokenReadyForExpertProgress(currentBatchStart, localToken, phase1ReadyExpertCounts);
             if (phase1Task) {
-                ProcessToken(currentBatchStart, localToken);
+                (void)ProcessToken(currentBatchStart, localToken);
             }
         }
         if (hasNext) {
@@ -402,7 +404,6 @@ AICORE inline void Unpermute<OutputElement>::ProcessLiveRankStreamingRange(
     for (uint32_t producerRank = 0U; producerRank < rankSize_; ++producerRank) {
         acquiredReadyExpertCounts[producerRank] = twoPhase ? phase1ReadyExpertCounts[producerRank] : 0U;
     }
-
     uint32_t remainingTokens = 0U;
     for (uint32_t localToken = 0U; localToken < tokenCount; ++localToken) {
         const bool phase1Owned =
@@ -463,7 +464,7 @@ AICORE inline void Unpermute<OutputElement>::ProcessLiveRankStreamingRange(
                 WaitMetadata();
                 metadataReady = true;
             }
-            ProcessToken(tokenStart, localToken);
+            (void)ProcessToken(tokenStart, localToken);
             tokenWord |= tokenBit;
             --remainingTokens;
             consumedToken = true;
@@ -479,11 +480,11 @@ template <typename OutputElement>
 AICORE inline void Unpermute<OutputElement>::ProcessRankStreaming()
 {
     const uint32_t rankCount = rankSize_;
-    const uint32_t allReadyMask = (1U << rankSize_) - 1U;
+    const uint32_t allReadyMask = MegaMoeRankMask(rankSize_);
     const __gm__ MegaMoeUnpermuteTiling& unpermute = tilingData_->unpermuteTiling;
     const uint32_t initialWorkerCount = unpermute.rankStreamingInitialWorkerCount;
     const bool twoPhase = initialWorkerCount != 0U;
-    const uint32_t initialWorkerStart = twoPhase ? tilingData_->fixedGroupTiling.physicalAicNum : 0U;
+    const uint32_t initialWorkerStart = 0U;
     const uint32_t initialWorkerEnd = initialWorkerStart + initialWorkerCount;
     const bool phase1Worker = coreIdx_ >= initialWorkerStart && coreIdx_ < initialWorkerEnd;
     uint32_t phase1ReadyExpertCounts[COMBINE_EXPERT_PROGRESS_MAX_RANKS] = {0U};
@@ -492,7 +493,6 @@ AICORE inline void Unpermute<OutputElement>::ProcessRankStreaming()
         WaitEpochAcquire(remoteWindow_.LocalUnpermutePhase1MaskEpochSlot(), dataReadyEpoch_);
         phase1Mask = remoteWindow_.ReadUnpermutePhase1Progress(phase1ReadyExpertCounts, rankCount) & allReadyMask;
     }
-
     if (phase1Worker && phase1Mask != 0U) {
         const uint32_t phase1WorkerIdx = coreIdx_ - initialWorkerStart;
         uint32_t phase1TokenStart = 0U;

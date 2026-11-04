@@ -47,7 +47,7 @@ kernels/manual/a5/dispatch_mega_combine/
 │   ├── gmm_expert_progress.h       # Combine completion 到 rank progress 的协调
 │   ├── gmm1.h                      # 第一层 grouped matmul 和 GMM1 mailbox 消费
 │   ├── swiglu.h                    # SwiGLU + dynamic quant
-│   ├── gmm2.h                      # wave0 直通与 mailbox GMM2 消费
+│   ├── gmm2.h                      # producer 派发的 GMM2 mailbox 消费
 │   ├── combine.h                   # CV tile 消费和远端 route output 写回
 │   ├── unpermute.h                 # token-ready topK reduce 和原 token 顺序还原
 │   └── utils/                      # PTO vector、sync、HCCL window、GMM pipeline helper
@@ -92,39 +92,27 @@ for each rank, token:
 
 ## 优化说明
 
-- **Mask Pull Front**：源 token 只量化一次，形成 E4M3/E8M0 记录；PTO `TCMPS` 生成逐 expert route
-  mask，Dispatch 只拉取命中记录。
-- **Deferred metadata**：预留 AIV0 在 Dispatch 和首段 GMM 推进期间并行构造 GMM task descriptor、
-  source-rank `preSum`、expert-major route 顺序及逆映射 `expandedRowIdx`。
-- **CV 直传**：GMM1 通过单槽 CV FIFO 把 BF16 x/gate tile 直接交给 SwiGLU；GMM2 通过单槽 CV FIFO
-  把 BF16 结果直接交给 Combine，两层 GMM 输出均不落 GM 中间结果。
-- **自适应向量流水**：Front 使用 quant ping-pong；Dispatch 和 Unpermute 在 216 KiB 主 UB 内分别选择
-  2～6 槽的远端 token ring 和 BF16/FP32 输入 ring。
-- **GMM1 双模式调度**：`M <= 512` 使用全 AIC wave0 直通和 mailbox P/C 后缀；更大场景使用
-  fixed-wave GMM1，Group2 在配置的全 AIC wave 前缀结束后无全局 barrier 地切换到 GMM2。
-- **GMM2 动态调度**：初始 GMM2 组直通执行 wave0，其余 GMM2 tile 均由 producer 分配 mailbox ticket；
-  Group1 AIC 完成 GMM1 handoff 后即可加入消费。
-- **Token-ready Unpermute**：Combine 在远端写完成后发布有序 expert-prefix progress；一个 token 的全部
-  TopK route ready 后，Unpermute worker 即可消费。
+Front 为每个 expert 分配一个 mask owner，单独发布紧凑的 raw count；Dispatch 与 deferred metadata 构造
+expert-major 全局前缀，不再使用旧的 mask 尾部 count 协议。
 
-Host 通过 `aclrtGetDeviceInfo(..., ACL_DEV_ATTR_AICORE_CORE_NUM, ...)` 查询 AICore 数并选择已验证的
-mixed-core 分配。每个 physical block 包含一个 AIC 和两个 AIV subblock。默认分配如下：
+所有 M 的 GMM1 都只直通 wave0，后续由 producer 分配；GMM2 从第一个 expert 开始就消费 mailbox 任务。
+GMM 分组根据发布进度动态选择：`M <= 128` 目标是 GMM2 落后 4～6 个 expert，大场景目标是 1～2 个。
+GMM 内部 L1 panel 按 expert 行数自适应，同时保留生产版 Gate/Up 拼接权重加载和 CV 交接。
 
-| AIC | AIV | 默认 Dispatch AIV0 / 稳态 GMM1 AIC | 初始 GMM2 AIC | 两阶段 Unpermute AIV0 |
-| ---: | ---: | --- | --- | ---: |
-| 28 | 56 | `0..19`（20） | `20..27`（8） | 16 |
-| 32 | 64 | `0..20`（21） | `21..31`（11） | 16 |
-| 36 | 72 | `0..23`（24） | `24..35`（12） | 16 |
+| AIC | AIV | 默认 Dispatch AIV0 池 | 初始 GMM1:GMM2 映射 | 大 M Unpermute phase1 AIV0 |
+| ---: | ---: | ---: | --- | ---: |
+| 28 | 56 | 18 | 20:8 | 18 |
+| 32 | 64 | 21 | 21:11 | 21 |
+| 36 | 72 | 24 | 24:12 | 24 |
 
-fixed-wave GMM1 先执行配置的全 AIC wave 前缀。36 AIC canonical 场景中，
-`(worldSize=8, M=1024/2048, expertPerRank=16)` 和
-`(worldSize=16, M=1024, expertPerRank=16)` 的稳态分组覆盖为 `22:14`；其中八卡 `M=2048` 在切分前保持 4 个全 AIC wave，其它已列场景使用默认全 AIC 前缀和比例。
-每个 AIV1 都是配对 AIC 的 SwiGLU/Combine consumer；所有 AIV 参与 Unpermute 最终阶段，`M >= 512`
-时额外启用 16 个 AIV0 phase1 worker 消费冻结的 progress 快照。
+初始映射不是最终运行时配比。`M <= 256` 的 Dispatch 改由全部配对 AIV1 在 SwiGLU 前执行；更大 M 使用
+上表的 AIV0 池，按商和余数分配 rank，避免丢弃剩余 worker。Dispatch 分工不绑定 GMM 分组。
 
-`run.sh --aicore-num 0|28|32|36` 选择有效 launch 核数（`0` 表示采用 runtime 查询值）。请求值不能超过
-实际物理核数。Dispatch 宽度至少扩展到 `worldSize`；rank 上限为 `min(32, aicNum - 2)`，以保留
-deferred metadata worker 和 mailbox producer。
+Combine 保留 CV 交接，使用 PTO `TSTORE`。`M < 512` 的 Unpermute 只有一阶段；`M >= 512` 时先由
+Dispatch 释放的 AIV0 池消费冻结进度快照，最终由全部 AIV 参与 live 阶段。
+
+`run.sh --aicore-num 0|28|32|36` 选择有效核数，零表示设备查询值，不能超过实际物理核数。
+保留 当前 rank 上限 `min(32, aicNum - 2)`；更宽 EP 会相应扩大 Dispatch 池，保证每个 rank 至少有一个 worker。
 
 ## Tiling 参数
 
@@ -143,7 +131,7 @@ deferred metadata worker 和 mailbox producer。
 | `Front Mask Pull` | 唯一 Front 实现；host 拒绝 clipping、非法 expert、inactive token 和接收容量不足 |
 | `固定角色 AIV UB` | Dispatch、SwiGLU、Combine、Unpermute 使用 216 KiB 主区；尾部 40 KiB 保留给同步快照 |
 | `Dispatch / Unpermute tile` | Dispatch 使用自适应 2～6 槽 packed-token ring；Unpermute 尽量保留完整 K 行、单 tile 最多 8192 列，并使用自适应 2～6 槽输入 ring |
-| `GMM / AIV CV tile` | GMM1 通过一个 CV 槽传递成对的 `256 x 256` BF16 half-tile；GMM2 通过一个 CV 槽传递 `256 x 256` BF16 tile |
+| `GMM / AIV CV tile` | GMM1/GMM2 的 AIC 结果都由 FIX 从 L0C 转为 BF16 后通过 CV 槽交给配对 AIV1；基础调度 tile 为 `256 x 256` |
 
 ## 支持 Case
 
@@ -175,63 +163,34 @@ aivNum=2 * aicNum
 ## 整体架构
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Front Mask Pull (AIV)                                                       │
-│   BF16 -> MXFP8 source record + per-expert route mask/partial count          │
-└──────────────────────────────┬───────────────────────────────────────────────┘
-                               │ front metadata ready
-┌──────────────────────────────▼───────────────────────────────────────────────┐
-│ Dispatch + deferred metadata + dynamic GMM task producer                    │
-│                                                                              │
-│ AIV0: mask compact/pull + route sort/inverse + mailbox descriptor            │
-│ AIC : GMM1 direct/fixed/mailbox -> released AIC joins GMM2 mailbox           │
-│ AIV1:       CV SwiGLU                    CV Combine -> remote compact row     │
-│                                                                              │
-│ hybrid GMM1/GMM2 使用 wave0 直通 + mailbox 后缀；fixed GMM1 按 wave 调度       │
-└──────────────────────────────┬───────────────────────────────────────────────┘
-                               │ 有序 expert-prefix progress
-┌──────────────────────────────▼───────────────────────────────────────────────┐
-│ RankStreaming Unpermute（全部 AIV）                                         │
-│   expandedRowIdx + compact output + probs -> topK reduce -> out[M, K]        │
-└──────────────────────────────────────────────────────────────────────────────┘
+Front：packed token + route mask + raw expert count
+  -> Dispatch 与 deferred metadata 并行
+  -> GMM1：wave0 直通 + mailbox 任务
+  -> SwiGLU：配对 AIV1 消费 CV 并做 MXFP8 量化
+  -> GMM2：mailbox 任务，逐 expert 等待输入 ready
+  -> Combine：TSTORE 写同 server 输出或跨 server URMA staging
+  -> Unpermute：token-ready TopK 加权累加
 ```
+
+AIC 计算、AIV 元数据处理与通信重叠。producer 控制运行时 GMM 配比；MTE 和 URMA 保持相同的任务与完成语义。
 
 ## Front Mask Pull 阶段
 
-Front 在源 rank 保留每个 token 的一份 MXFP8 记录，并向目标 rank 发布逐 global expert 的 route mask：
+所有 AIV 量化自身 token 后，直接复用私有 UB 生成 route mask；每个全局 expert 只有一个 mask owner。
+raw count 独立使用 `[localExpert][sourceRank]` 布局。
 
-```text
-x[M, K] + expertId[M, topK]
-  -> sourceTokenRecords[M, 对齐的 E4M3 数据 + 对齐的 E8M0 scale]
-  -> routeMaskSlots[localExpert, srcRank, mask + laneCapacity * 32B partial counts]
-  -> cumsumMM[srcRank, localExpert] / expertTokenNums[localExpert]
-```
-
-所有 AIV 按 token 维均分量化任务，不切 K。同一个 expert 可由多个 AIV lane 并行生成 mask；lane 只写
-完整的 32B mask block，每个 block 覆盖 256 个 route slot，并写对齐的 partial-count record。Front
-量化使用两组 PTO UB。所有 source rank 发布 front-ready epoch 后，协调核归约 lane count，并构造
-source-major `cumsumMM` 和 `expertTokenNums`。
-
-与此同时，预留 AIV0 把 route slot 排成 expert-major 顺序，构造 `expandedRowIdx`，发布 source-rank
-`preSumBeforeRank`，并生成 GMM1/GMM2 mailbox descriptor。只有 deferred metadata、本地 Dispatch 和
-全部 source-rank preSum 可见后，才放行 GMM2 入口。
+deferred metadata 构造 expert-major 全局 `cumsumMM`、route 顺序、逆索引和任务描述符。
+GMM2 入口等待所需元数据与 preSum，不再等待整个 Dispatch 结束；计算输入由每个消费者自行获取 ready。
+URMA 继续使用原有 metadata 交换，并把接收的 count 放入相同的本地布局。
 
 ## Dispatch 阶段
 
-Dispatch 在目标 rank 运行。每个 source rank 分到 `dispatchGroupSize / worldSize` 个 AIV0 lane；所有 lane
-扫描同一 mask，但只消费各自的命中序号区间：
+Dispatch 只拉取命中的源 token，把 E4M3 数据和 E8M0 scale 写入 GMM1 workspace。
+小 M 使用 AIV1 rolling worker；大 M 使用 AIV0 池按商和余数分配 rank。2～6 槽 ring 重叠数据搬入与写回，
+每个 expert 的 256-row M tile 在 payload store 完成后发布 ready count。
 
-```text
-srcRank.sourceTokenRecords[routeSlot / topK]
-  -> workspace.gmA[dstRow, 0:K]                  (E4M3)
-  -> workspace.gmAScale[dstRow, 0:K/32]          (E8M0)
-  -> workspace.routeMeta[dstRow] = {srcRank, routeSlot, 0...}
-```
-
-PTO vector mask 压缩生成命中 route index。每个 source rank 获得
-`floor(dispatchGroupSize / worldSize)` 个 active AIV0 lane，多余 Dispatch 角色保持空闲。自适应
-2～6 槽 ring 重叠远端 packed record 搬入与 E4M3/E8M0、metadata 写回。Dispatch 按 expert 和
-256-row M tile 发布 cache-line 隔离的 ready count，GMM1 只等待当前将消费的输入 tile。
+小 M 的每个 AIV1 为配对 AIC 发布一行 expert count。跨 server payload 地址继续来自 URMA relay。
+route record 不参与主体计算。
 
 ## GMM1 / SwiGLU / GMM2 阶段
 
@@ -241,18 +200,18 @@ GMM1 在 AIC 上执行第一层 MXFP8 grouped matmul：
 
 ```text
 gmA[E4M3] / gmAScale[E8M0] x weight1[E4M3] / scale1[E8M0]
-  -> int32 accumulator
-  -> fixpipe MX scale 和 BF16 cast
-  -> 成对的 x/gate CV tile
+  -> TMATMUL_MX（A/B data 与 scale 一起参与计算）
+  -> L0C FP32 accumulator
+  -> FIX 转 BF16 并送入成对的 x/gate CV tile
 ```
 
-每个 local expert 按 `256 x 256` 半输出 tile 切分，x 和 gate 成对计算，并通过单槽 CV FIFO 直接交给
-配对 AIV1。线性 tile id 使用 swizzle 改善 B 侧 L1 复用。`M <= 512` 时全部 AIC 直通执行 wave0，
-稳态 GMM1 组从 mailbox 消费后缀；更大 M 使用 fixed-wave GMM1，先执行配置的全 AIC wave 前缀，再按配置分组。
+每个 local expert 按 `256 x 256` 半输出 tile 切分，Gate/Up 以拼接权重 panel 成对计算，CV tile 采用交错布局，通过单槽 CV FIFO 直接交给
+配对 AIV1。所有 M 都执行 wave0 直通，随后消费 mailbox 任务。逻辑输出 tile 仍是 `256 x 256`，
+内部 L1 panel 根据整个 expert 的行数自适应。
 
 ### SwiGLU
 
-SwiGLU 在配对 AIV1 上消费 BF16 x/gate CV tile：
+SwiGLU 在配对 AIV1 上消费 BF16 Gate/Up 交错 CV tile：
 
 ```text
 x/gate BF16 CV tile
@@ -270,14 +229,13 @@ GMM2 在 AIC 上执行第二层 MXFP8 grouped matmul：
 
 ```text
 gmSwigluA[E4M3] / gmSwigluScale[E8M0] x weight2[E4M3] / scale2[E8M0]
-  -> int32 accumulator
-  -> fixpipe MX scale 和 BF16 cast
-  -> GMM2/Combine CV tile
+  -> TMATMUL_MX（A/B data 与 scale 一起参与计算）
+  -> L0C FP32 accumulator
+  -> FIX 转 BF16 并送入 GMM2/Combine CV tile
 ```
 
-配置的 GMM2 组直通执行 wave0，其余 tile 都是 producer 分配的 mailbox 任务。Group1 AIC 完成各自
-调度模式对应的 GMM1 handoff 后，立即进入 GMM2 mailbox，不经过全局 GMM1/GMM2 barrier。每个 AIC
-通过单槽 CV FIFO 把 BF16 `256 x 256` 结果流式交给配对 Combine AIV1。
+所有 GMM2 tile 都由 producer 分配。GMM1 释放的 AIC 根据运行时分组与发布进度加入，不经过全局
+GMM1/GMM2 barrier。消费者先等待自身输入依赖，再计算并通过 CV FIFO 将 BF16 结果交给配对 Combine AIV1。
 
 ## Combine / Unpermute 阶段
 
@@ -289,8 +247,7 @@ GMM2 BF16 CV tile
   -> srcRank.combineOutputByRouteSlot[compactRow, 0:K]
 ```
 
-Combine 预取 `cumsumMM` 和 `preSumBeforeRank`，然后对每个 source-rank 交集执行带 stride 的
-UB-to-GM 写。发布 expert completion count 前会先排空此前的远端 MTE3 写，因此 progress coordinator
+Combine 预取 `cumsumMM` 和 `preSumBeforeRank`，然后对每个 source-rank 交集执行带 stride 的 PTO `TSTORE`。发布 expert completion count 前会先排空此前的远端 MTE3 写，因此 progress coordinator
 向各源 rank 暴露的是有序 expert prefix。
 
 Unpermute 是最后的源 rank 还原阶段：
@@ -302,7 +259,7 @@ expandedRowIdx[token * topK + topk]
   -> out[M, K]
 ```
 
-`M < 512` 时全部 AIV 直接执行单个 live 阶段；`M >= 512` 时先由 16 个 AIV0 worker 消费冻结 progress
+`M < 512` 时全部 AIV 直接执行单个 live 阶段；`M >= 512` 时先由 Dispatch 释放的 AIV0 池消费冻结 progress
 快照允许的 token，再由全部 AIV 根据 live expert-prefix progress 消费剩余 token。RankStreaming 是唯一
 Unpermute 实现，不支持的 shape 由 Host 校验直接拒绝，不回退到 barrier kernel。
 
@@ -319,21 +276,18 @@ HCCL remote window 主要承载跨 rank 可见的数据：
 | signal tail | HCCL window | Front/preSum/data-ready epoch 和 rank-progress slot |
 | `gmA` / `gmAScale` | workspace GM | Dispatch 生成的 E4M3/E8M0 GMM1 输入 |
 | `gmSwigluA` / `gmSwigluScale` | workspace GM | SwiGLU 生成的 E4M3/E8M0 GMM2 输入 |
-| `routeMeta` | workspace GM | 包含 `{srcRank, routeSlot}` 的 32B Dispatch row record |
-| `cumsumMM` | workspace GM | Dispatch 目标行地址使用的 source-major 累计 row |
+| `cumsumMM` | workspace GM | expert-major、按 source-rank 累积的全局 row 前缀，供 Dispatch/GMM/Combine 定位 |
 | `sortedRouteSlot` / `expandedRowIdx` | workspace GM | expert-major route 顺序及其 route-slot 到 compact-row 的逆映射 |
 | GMM queue/mailbox | workspace GM | runtime task descriptor、ticket、dependency counter 和 completion counter |
 
-`run.sh` 在未设置时使用 `HCCL_BUFFSIZE=512`（MiB），保留用户显式覆盖。
-布局与容量检查只由 C++ tiling 维护；容量不足会明确报错，大 case 需调大该变量。
+`HCCL_BUFFSIZE` 由外部运行环境设置。
+布局与容量检查只由 C++ tiling 维护；容量不足会明确报错，大 case 需在外部调大该变量。
 
 ## 构建与运行
 
-配置 Ascend CANN 环境：
-
-```bash
-source ~/zy/set_env.sh
-```
+构建前 source CANN 安装目录中的 `set_env.sh`，由其提供 `ASCEND_HOME_PATH` 和工具链环境。
+MPI、CANN 的动态库搜索路径、HCCL 参数及设备可见性均由外部环境配置，设备可见性需与 rank 到设备的映射一致。
+`run.sh` 继承这些配置，不自行修改。数据生成需要 Python 3.10 或更高版本及 NumPy。
 
 只编译 A5 mixed-core kernel 和 host：
 
@@ -343,6 +297,8 @@ bash run.sh --build-only
 ```
 
 请使用连续且可用的 A5 设备运行。环境需要提供 MPICH，MPI 兼容包装不支持 OpenMPI。
+将 MPICH 启动程序目录加入 `PATH`，或设置 `MPI_RUNNER`；通过系统动态库搜索配置（例如 `LD_LIBRARY_PATH`）
+提供其共享库，或显式设置 `MPI_LIB_PATH`。启动程序和共享库必须来自同一套 MPICH，安装路径由部署环境配置。
 
 ```bash
 bash run.sh --soc Ascend910_9599 --world-size 2 --first-device 2 --m 2048 --k 7168 --n 4096 \
@@ -362,12 +318,12 @@ bash run.sh --soc Ascend910_9599 --world-size 2 --first-device 2 --m 512 --k 716
 
 | 环境变量 | 用途 | 默认行为 |
 | --- | --- | --- |
-| `ASCEND_HOME_PATH` | CANN 安装目录 | 必须提前设置 |
+| `ASCEND_HOME_PATH` | CANN 安装目录 | 必须在构建前从外部设置 |
 | `CMAKE_COMPILER` | CMake 使用的编译器 | `bisheng` |
 | `FIRST_DEVICE` | 连续 rank 映射中的第一张物理卡 | 默认 `0`，可由 `--first-device` 覆盖 |
-| `MPI_LIB_PATH` | 可选的 MPICH `libmpi.so` 绝对路径 | 默认从 `LD_LIBRARY_PATH` 解析 |
-| `MPI_RUNNER` | MPICH 启动命令 | 使用已 source 环境中的 `mpirun` |
-| `HCCL_BUFFSIZE` | HCCL RDMA window 大小 | 未设置时为 512 MiB；保留显式覆盖，不自动抬高 |
+| `MPI_LIB_PATH` | 可选的 MPICH 共享库路径 | 默认通过系统动态库搜索解析 `libmpi.so` 或 `libmpich.so` |
+| `MPI_RUNNER` | MPICH 启动命令 | 使用 `PATH` 中的 `mpirun` |
+| `HCCL_BUFFSIZE` | HCCL RDMA window 大小 | 由外部运行环境配置 |
 | `DISPATCH_MEGA_COMBINE_AICORE_NUM` | 有效 AIC 数 | 默认 `0`，使用 runtime 查询值 |
 | `DISPATCH_MEGA_COMBINE_REUSE_DATA` | 复用兼容的已生成 case 数据 | 默认关闭；非零值等价于 `--reuse-data` |
 | `DISPATCH_MEGA_COMBINE_WARMUP_ITERS` | 计时前的 warmup 启动次数 | `3` |
@@ -402,9 +358,9 @@ bash run.sh --world-size 8 --first-device 0 --m 512 --k 7168 --n 4096 --topk 8 -
 
 | 问题 | 原因与解决 |
 | --- | --- |
-| `ASCEND_HOME_PATH must be set` | 运行 `run.sh` 前需要 source CANN 环境并导出 `ASCEND_HOME_PATH` |
-| HCCL window too small | 配置的 `HCCL_BUFFSIZE` 低于 case 需求；调大该变量（默认 512 MiB） |
-| MPI 启动失败 | source 项目环境，并确认 `mpirun --version` 显示 MPICH/HYDRA；不支持 OpenMPI |
+| 缺少 CANN 安装路径 | source CANN 安装目录中的 `set_env.sh`，由其设置 `ASCEND_HOME_PATH` |
+| HCCL window too small | 在外部运行环境调大 `HCCL_BUFFSIZE`，使其满足 case 需求 |
+| MPI 启动失败 | 检查 `MPI_RUNNER`/`PATH` 及配套 MPICH 共享库配置，启动程序版本应显示 MPICH/HYDRA；不支持 OpenMPI |
 | golden 生成很慢 | 首次生成后使用 `--reuse-data` 复用文件；chunk 大小由程序内部固定 |
 | shape 或 rank 拓扑被拒绝 | 检查 28/32/36-AIC 选择、rank 上限、MXFP8 对齐、UB 容量和 RankStreaming 每 worker token 上限 |
 | 结果 diff 异常 | 先检查 data cache 是否复用旧分布；改变 expert 分布或 case 关键参数后不要使用旧 `out/` |

@@ -42,6 +42,7 @@ public:
         serverId_ = tilingData_->multiServerTiling.serverId;
     }
 
+    // Only senders need the launch epoch and queue state; address readers do not.
     AICORE inline void InitForSubmission(const __gm__ MegaMoeTilingData* tilingData)
     {
         Init(tilingData);
@@ -51,6 +52,7 @@ public:
     }
 
     AICORE inline uint32_t Rank() const { return rank_; }
+
     AICORE inline uint32_t ServerId() const { return serverId_; }
     AICORE inline uint32_t ServerNum() const { return serverNum_; }
 
@@ -79,7 +81,8 @@ public:
         return get_subblockid() == 0U && get_block_idx() == PeerOwnerBlock(peer);
     }
 
-    // Queue ownership never crosses AIVs; refresh this core after kernel relaunch.
+    // Queue ownership never crosses AIVs. Refresh this block's own software
+    // state once per object/phase, including after a kernel relaunch.
     AICORE inline void RefreshSubmitQueue() const
     {
         const pto::comm::AsyncSession& session = SubmitSession(0U);
@@ -127,6 +130,13 @@ public:
         return reinterpret_cast<__gm__ int32_t*>(
                    MetadataBlockForSource(srcRank) + tilingData_->multiServerTiling.metadataPreSumOffsetBytes) +
                localExpert;
+    }
+
+    AICORE inline __gm__ int32_t* LocalMetadataReady(uint32_t srcRank) const
+    {
+        const auto& multi = tilingData_->multiServerTiling;
+        return reinterpret_cast<__gm__ int32_t*>(
+            LocalBase() + multi.metadataReadyOffset + static_cast<uint64_t>(srcRank) * multi.readySlotBytes);
     }
 
     AICORE inline void WaitSignal(__gm__ int32_t* slot, int32_t expected) const
@@ -181,7 +191,10 @@ public:
 
     AICORE inline void MarkLocalFrontDone() const
     {
-        MarkLocalEpoch(tilingData_->multiServerTiling.metadataReadyOffset, rank_);
+        __gm__ int32_t* slot = LocalMetadataReady(rank_);
+        st_dev(static_cast<uint32_t>(epoch_), reinterpret_cast<__gm__ uint32_t*>(slot), 0);
+        dcci((__gm__ void*)slot, SINGLE_CACHE_LINE);
+        dsb(DSB_DDR);
     }
 
     AICORE inline void WaitAllFrontDoneByGet() const
@@ -191,6 +204,7 @@ public:
 
     AICORE inline __gm__ int8_t* DispatchSourceRecords(uint32_t srcRank) const
     {
+        const auto& front = tilingData_->frontReorderTiling;
         if (IsSameServer(srcRank)) {
             return reinterpret_cast<__gm__ int8_t*>(remoteWindow_.RemoteBase(0U, static_cast<int32_t>(srcRank)));
         }
@@ -227,7 +241,7 @@ public:
             const uint64_t remoteOffset = multi.relayDataOffset +
                                           static_cast<uint64_t>(sourceServer) * multi.relaySourceStrideBytes +
                                           tokenByteOffset;
-            __gm__ uint8_t* localSrc = LocalBase() + tokenByteOffset;
+            __gm__ uint8_t* localSrc = LocalBase() + 0U + tokenByteOffset;
             const pto::comm::AsyncEvent event = PutBytes(relayRank, localSrc, remoteOffset, bytes);
             (void)WaitEvent(event, relayRank);
         }
@@ -249,9 +263,18 @@ public:
             LocalBase() + multi.transportReadyOffset + static_cast<uint64_t>(rank) * multi.readySlotBytes);
     }
 
+    AICORE inline int32_t EncodeExpertProgress(uint32_t readyExpertCount) const
+    {
+        const uint32_t count = readyExpertCount & COMBINE_EXPERT_PROGRESS_COUNT_MASK;
+        return static_cast<int32_t>((static_cast<uint32_t>(epoch_) << COMBINE_EXPERT_PROGRESS_COUNT_BITS) | count);
+    }
+
     AICORE inline void MarkPeerCombineDone(uint32_t dstRank) const
     {
-        MarkLocalEpoch(tilingData_->multiServerTiling.transportReadyOffset, dstRank);
+        __gm__ int32_t* slot = LocalTransportReady(dstRank);
+        st_dev(static_cast<uint32_t>(epoch_), reinterpret_cast<__gm__ uint32_t*>(slot), 0);
+        dcci((__gm__ void*)slot, SINGLE_CACHE_LINE);
+        dsb(DSB_DDR);
     }
 
     AICORE inline void WaitAllLocalCrossServerCombineDone() const
@@ -264,7 +287,13 @@ public:
         }
     }
 
-    AICORE inline void MarkLocalCombineDone() const { MarkPeerCombineDone(rank_); }
+    AICORE inline void MarkLocalCombineDone() const
+    {
+        __gm__ int32_t* slot = LocalTransportReady(rank_);
+        st_dev(static_cast<uint32_t>(epoch_), reinterpret_cast<__gm__ uint32_t*>(slot), 0);
+        dcci((__gm__ void*)slot, SINGLE_CACHE_LINE);
+        dsb(DSB_DDR);
+    }
 
     AICORE inline void WaitAllCombineDoneByGet() const
     {
@@ -273,18 +302,32 @@ public:
 
     AICORE inline void PrepareLocalUnpermuteAllReady() const
     {
-        // Same-server progress remains live; cross-server slots follow all payload events.
+        // Publish cross-server readiness after payload completion; local progress uses MTE.
+        using Shape = pto::Shape<1, 1, 1, 1, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT>;
+        using Stride = pto::Stride<
+            REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT,
+            REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, 1>;
+        using Global = pto::GlobalTensor<int32_t, Shape, Stride, pto::Layout::ND>;
+        using Tile = pto::Tile<
+            pto::TileType::Vec, int32_t, 1, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, pto::BLayout::RowMajor, -1, -1>;
         for (uint32_t peer = 0U; peer < rankSize_; ++peer) {
             if (IsSameServer(peer))
                 continue;
-            remoteWindow_.StoreRankReadySignal(
-                const_cast<__gm__ int32_t*>(remoteWindow_.LocalDataReadySlot(peer)),
-                REMOTE_WINDOW_FINAL_SIGNAL_UB_OFFSET +
-                    static_cast<uint64_t>(peer) * REMOTE_WINDOW_READY_SIGNAL_SLOT_BYTES,
-                tilingData_->megaMoeInfo.expertPerRank, epoch_, true, EVENT_ID0);
+            Tile tile(1U, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT);
+            pto::TASSIGN(
+                tile, REMOTE_WINDOW_FINAL_SIGNAL_UB_OFFSET +
+                          static_cast<uint64_t>(peer) * REMOTE_WINDOW_READY_SIGNAL_SLOT_BYTES);
+            for (uint32_t i = 0U; i < REMOTE_WINDOW_SYNC_VALUES_PER_SLOT; ++i)
+                tile.SetValue(i, 0);
+            tile.SetValue(0U, epoch_);
+            tile.SetValue(COMBINE_EXPERT_PROGRESS_OFFSET, EncodeExpertProgress(tilingData_->megaMoeInfo.expertPerRank));
+            Global global(const_cast<__gm__ int32_t*>(remoteWindow_.LocalDataReadySlot(peer)));
+            pto::PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
+            pto::TSTORE(global, tile);
         }
         pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
         dsb(DSB_DDR);
+        MarkLocalEpoch(tilingData_->multiServerTiling.finalizeReadyOffset, 0U);
     }
 
     AICORE inline void StartSync() const
@@ -325,18 +368,19 @@ public:
 private:
     AICORE inline void BuildSubmitSession(uint32_t peer, pto::comm::AsyncSession& session) const
     {
-        using namespace pto::comm;
         if (!MegaMoeUrmaEnabled(tilingData_) || urmaWorkspace_ == nullptr || get_subblockid() != 0U ||
             peer >= rankSize_)
             trap();
-        auto* info = reinterpret_cast<__gm__ urma::UrmaInfo*>(urmaWorkspace_);
+        auto* info = reinterpret_cast<__gm__ pto::comm::urma::UrmaInfo*>(urmaWorkspace_);
         const uint32_t perCore = info->jettiesPerCore;
-        if (info->layout != urma::UrmaLayout::SHARED_POOL || perCore == 0U || perCore > urma::kUrmaMaxJettiesPerCore ||
+        if (info->layout != pto::comm::urma::UrmaLayout::SHARED_POOL || perCore == 0U ||
+            perCore > pto::comm::urma::kUrmaMaxJettiesPerCore ||
             info->jettyCount != tilingData_->multiServerTiling.urmaJettyCount ||
             info->jettyCount != tilingData_->fixedGroupTiling.physicalAicNum * perCore || info->rankCount != rankSize_)
             trap();
-        if (!BuildAsyncSession<DmaEngine::URMA>(urmaWorkspace_, peer, session) || session.cfg.urma.qpCount != perCore ||
-            session.qpIdxBase != get_block_idx() * perCore || !urma::detail::ValidateUrmaSession(session, peer))
+        if (!pto::comm::BuildAsyncSession<pto::comm::DmaEngine::URMA>(urmaWorkspace_, peer, session) ||
+            session.cfg.urma.qpCount != perCore || session.qpIdxBase != get_block_idx() * perCore ||
+            !pto::comm::urma::detail::ValidateUrmaSession(session, peer))
             trap();
     }
 
@@ -353,17 +397,16 @@ private:
         uint32_t peer, __gm__ uint8_t* localAddr, uint64_t remoteOffset, uint32_t bytes,
         pto::comm::urma::UrmaOpcode opcode) const
     {
-        namespace urma = pto::comm::urma;
         const pto::comm::AsyncSession& session = SubmitSession(peer);
-        auto* info = reinterpret_cast<__gm__ urma::UrmaInfo*>(urmaWorkspace_);
-        auto* mem = urma::detail::GetRemoteMemInfo(info, peer, session.qpIdxBase);
+        auto* info = reinterpret_cast<__gm__ pto::comm::urma::UrmaInfo*>(urmaWorkspace_);
+        auto* mem = pto::comm::urma::detail::GetRemoteMemInfo(info, peer, session.qpIdxBase);
         if (peer == rank_ || bytes == 0U || remoteOffset > mem->len || bytes > mem->len - remoteOffset)
             trap();
-        const auto result = urma::detail::UrmaPostSend(
+        const auto result = pto::comm::urma::detail::UrmaPostSend(
             reinterpret_cast<__gm__ uint8_t*>(mem->addr) + remoteOffset, localAddr, bytes, opcode, session, peer);
         if (result.jettyCount != session.cfg.urma.qpCount || result.jettyBase != session.qpIdxBase)
             trap();
-        return urma::MakeUrmaMultiJettyEvent(result);
+        return pto::comm::urma::MakeUrmaMultiJettyEvent(result);
     }
 
     const __gm__ MegaMoeTilingData* tilingData_ = nullptr;

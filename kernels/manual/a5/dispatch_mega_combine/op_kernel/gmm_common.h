@@ -18,13 +18,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils/const_args.hpp"
 #include "utils/pto_gmm_mx_preload.hpp"
 
-// GMM1 and GMM2 both match the ops BlockSchedulerSwizzle<3, 1> order.
+// Use the same core swizzle order for both GMM stages.
 constexpr uint32_t kGmmCommonSwizzleOffset = 3U;
 // Direct Combine benefits from assigning adjacent physical cores to different
 // M bands, which spreads their remote stores across source ranks.
 constexpr uint32_t kGmm2CombineSwizzleOffset = 1U;
 
-using GmmCommonPipeline = PtoGmmMxPreloadPipeline<256, 256, 256, 256, 256, 128, kMegaMoeMxScalePrefetchK>;
+using GmmCommonPipeline = PtoGmmMxPreloadPipeline<
+    kMegaMoeGmmTileM, kMegaMoeGmmTileN, 512U, kMegaMoeGmmTileM, kMegaMoeGmmTileN, 128U, kMegaMoeMxScalePrefetchK, 256U,
+    128U>;
 
 struct GmmCommonTileInfo {
     uint32_t blockM = 0;
@@ -116,20 +118,6 @@ AICORE inline GmmCommonTileInfo GmmCommonBuildTileInfo(uint32_t currentM, uint32
     return info;
 }
 
-template <uint32_t SwizzleOffset>
-AICORE inline GmmCommonTileInfo GmmCommonBuildTileInfoWithOffset(uint32_t currentM, uint32_t problemN, uint32_t loopIdx)
-{
-    GmmCommonTileInfo info;
-    const uint32_t tileM = GmmCommonTileM(currentM);
-    const uint32_t tileN = GmmCommonTileN(problemN);
-    GmmCommonGetBlockCoordMNWithOffset<SwizzleOffset>(loopIdx, tileM, tileN, info.blockM, info.blockN);
-    GmmCommonGetActualBlockShapeMN(
-        info.blockM, info.blockN, tileM, tileN, currentM, problemN, info.actualM, info.actualN);
-    info.blockRowStart = info.blockM * kMegaMoeGmmTileM;
-    info.blockColStart = info.blockN * kMegaMoeGmmTileN;
-    return info;
-}
-
 AICORE inline GmmCommonTileInfo GmmCommonBuildTileInfoFromCoord(
     uint32_t currentM, uint32_t problemN, uint32_t blockM, uint32_t blockN)
 {
@@ -144,10 +132,12 @@ AICORE inline GmmCommonTileInfo GmmCommonBuildTileInfoFromCoord(
     return info;
 }
 
-AICORE inline uint32_t MoeCurrentMRaw(
-    __gm__ int32_t* cumsumMMPtr, uint32_t rankSize, uint32_t expertPerRank, uint32_t groupIdx)
+AICORE inline uint32_t MoeCurrentMRaw(__gm__ int32_t* cumsumMMPtr, uint32_t rankSize, uint32_t expert)
 {
-    return static_cast<uint32_t>(cumsumMMPtr[static_cast<uint64_t>(rankSize - 1U) * expertPerRank + groupIdx]);
+    const uint32_t end = static_cast<uint32_t>(cumsumMMPtr[(expert + 1ULL) * rankSize - 1U]);
+    const uint32_t begin =
+        expert == 0U ? 0U : static_cast<uint32_t>(cumsumMMPtr[static_cast<uint64_t>(expert) * rankSize - 1U]);
+    return end - begin;
 }
 
 #endif // DISPATCH_MEGA_COMBINE_GMM_COMMON_H

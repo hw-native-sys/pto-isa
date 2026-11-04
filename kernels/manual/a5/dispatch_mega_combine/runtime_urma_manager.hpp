@@ -84,24 +84,23 @@ public:
 private:
     static bool ValidatePool(void* workspace, uint32_t ranks, uint32_t submittingAivs, uint32_t& queues)
     {
-        using namespace pto::comm::urma;
-        UrmaInfo info{};
+        pto::comm::urma::UrmaInfo info{};
         if (workspace == nullptr ||
             aclrtMemcpy(&info, sizeof(info), workspace, sizeof(info), ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS ||
-            info.layout != UrmaLayout::SHARED_POOL || info.rankCount != ranks || info.jettiesPerCore == 0U ||
-            info.jettiesPerCore > pto::comm::urma::kUrmaMaxJettiesPerCore ||
+            info.layout != pto::comm::urma::UrmaLayout::SHARED_POOL || info.rankCount != ranks ||
+            info.jettiesPerCore == 0U || info.jettiesPerCore > pto::comm::urma::kUrmaMaxJettiesPerCore ||
             info.jettyCount != submittingAivs * info.jettiesPerCore || info.sqPtr == 0U || info.scqPtr == 0U ||
             info.memPtr == 0U)
             return false;
         queues = info.jettyCount;
-        std::vector<UrmaWQCtx> sq(queues);
-        std::vector<UrmaCqCtx> cq(queues);
+        std::vector<pto::comm::urma::UrmaWQCtx> sq(queues);
+        std::vector<pto::comm::urma::UrmaCqCtx> cq(queues);
         if (aclrtMemcpy(
-                sq.data(), sq.size() * sizeof(UrmaWQCtx), reinterpret_cast<void*>(info.sqPtr),
-                sq.size() * sizeof(UrmaWQCtx), ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS ||
+                sq.data(), sq.size() * sizeof(pto::comm::urma::UrmaWQCtx), reinterpret_cast<void*>(info.sqPtr),
+                sq.size() * sizeof(pto::comm::urma::UrmaWQCtx), ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS ||
             aclrtMemcpy(
-                cq.data(), cq.size() * sizeof(UrmaCqCtx), reinterpret_cast<void*>(info.scqPtr),
-                cq.size() * sizeof(UrmaCqCtx), ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS ||
+                cq.data(), cq.size() * sizeof(pto::comm::urma::UrmaCqCtx), reinterpret_cast<void*>(info.scqPtr),
+                cq.size() * sizeof(pto::comm::urma::UrmaCqCtx), ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS ||
             !IndependentQueues(sq, cq)) {
             std::cerr << "MegaMoE SharedPool: SQ/CQ resources are invalid or alias across AIVs" << std::endl;
             return false;

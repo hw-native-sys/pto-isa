@@ -63,22 +63,26 @@ static_assert(kDirectSwigluRequiredUbBytes <= A5_MAIN_UB_SIZE);
 static_assert(kGmm1SwigluCvSlotBytes == AtlasA5::UB_SIZE);
 
 template <typename DstTile, typename SrcTile>
-__tf__ AICORE inline void DirectSwigluActivation(
-    typename DstTile::TileDType __out__ dstData, typename SrcTile::TileDType __in__ xData,
-    typename SrcTile::TileDType __in__ gateData, uint32_t rows, uint32_t outputCols)
+__tf__ AICORE inline void DirectSwigluActivationInterleaved(
+    typename DstTile::TileDType __out__ dstData, typename SrcTile::TileDType __in__ pair0Data,
+    typename SrcTile::TileDType __in__ pair1Data, uint32_t rows, uint32_t outputCols)
 {
     __ubuf__ bfloat16_t* dst = reinterpret_cast<__ubuf__ bfloat16_t*>(__cce_get_tile_ptr(dstData));
-    __ubuf__ bfloat16_t* x = reinterpret_cast<__ubuf__ bfloat16_t*>(__cce_get_tile_ptr(xData));
-    __ubuf__ bfloat16_t* gate = reinterpret_cast<__ubuf__ bfloat16_t*>(__cce_get_tile_ptr(gateData));
+    __ubuf__ bfloat16_t* pair0 = reinterpret_cast<__ubuf__ bfloat16_t*>(__cce_get_tile_ptr(pair0Data));
+    __ubuf__ bfloat16_t* pair1 = reinterpret_cast<__ubuf__ bfloat16_t*>(__cce_get_tile_ptr(pair1Data));
     constexpr uint32_t kFp32VectorElems = 64U;
-    const uint16_t repeatCount = static_cast<uint16_t>((outputCols + kFp32VectorElems - 1U) / kFp32VectorElems);
+    if (outputCols == 0U || (outputCols & 1U) != 0U) {
+        return;
+    }
+    const uint32_t halfCols = outputCols / 2U;
+    const uint16_t repeatCount = static_cast<uint16_t>((halfCols + kFp32VectorElems - 1U) / kFp32VectorElems);
     __VEC_SCOPE__
     {
-        pto::RegTensor<bfloat16_t> xBf16;
-        pto::RegTensor<bfloat16_t> gateBf16;
+        pto::RegTensor<bfloat16_t> firstBf16;
+        pto::RegTensor<bfloat16_t> secondBf16;
         pto::RegTensor<bfloat16_t> outBf16;
-        pto::RegTensor<float> xFp32;
-        pto::RegTensor<float> gateFp32;
+        pto::RegTensor<float> firstFp32;
+        pto::RegTensor<float> secondFp32;
         pto::RegTensor<float> negFp32;
         pto::RegTensor<float> expFp32;
         pto::RegTensor<float> denominatorFp32;
@@ -87,22 +91,31 @@ __tf__ AICORE inline void DirectSwigluActivation(
         uint32_t fullBf16Count = 2U * kFp32VectorElems;
         pto::MaskReg fullBf16Mask = pto::CreatePredicate<bfloat16_t>(fullBf16Count);
         for (uint16_t row = 0U; row < static_cast<uint16_t>(rows); ++row) {
-            uint32_t remaining = outputCols;
-            for (uint16_t repeat = 0U; repeat < repeatCount; ++repeat) {
-                const uint32_t offset = static_cast<uint32_t>(row) * kDirectSwigluOutputCols +
-                                        static_cast<uint32_t>(repeat) * kFp32VectorElems;
-                pto::MaskReg mask = pto::CreatePredicate<float>(remaining);
-                vlds(xBf16, x, offset, UNPK_B16);
-                vlds(gateBf16, gate, offset, UNPK_B16);
-                vcvt(xFp32, xBf16, fullBf16Mask, PART_EVEN);
-                vcvt(gateFp32, gateBf16, fullBf16Mask, PART_EVEN);
-                vmuls(negFp32, xFp32, -1.0f, mask, MODE_ZEROING);
-                vexp(expFp32, negFp32, mask, MODE_ZEROING);
-                vadds(denominatorFp32, expFp32, 1.0f, mask, MODE_ZEROING);
-                vdiv(siluFp32, xFp32, denominatorFp32, mask, MODE_ZEROING);
-                vmul(outFp32, siluFp32, gateFp32, mask, MODE_ZEROING);
-                vcvt(outBf16, outFp32, mask, ROUND_R, RS_DISABLE, PART_EVEN);
-                vsts(outBf16, dst, offset, PK_B32, mask);
+            const uint32_t rowBase = static_cast<uint32_t>(row) * kDirectSwigluOutputCols;
+            for (uint16_t pairIdx = 0U; pairIdx < 2U; ++pairIdx) {
+                __ubuf__ bfloat16_t* pair = pairIdx == 0U ? pair0 : pair1;
+                const uint32_t outBase = rowBase + static_cast<uint32_t>(pairIdx) * halfCols;
+                uint32_t remaining = halfCols;
+                for (uint16_t repeat = 0U; repeat < repeatCount; ++repeat) {
+                    uint32_t chunk = remaining > kFp32VectorElems ? kFp32VectorElems : remaining;
+                    const uint32_t repeatOffset = static_cast<uint32_t>(repeat) * kFp32VectorElems;
+                    const uint32_t firstOffset = rowBase + repeatOffset;
+                    const uint32_t secondOffset = rowBase + halfCols + repeatOffset;
+                    const uint32_t dstOffset = outBase + repeatOffset;
+                    pto::MaskReg mask = pto::CreatePredicate<float>(chunk);
+                    vlds(firstBf16, pair, firstOffset, UNPK_B16);
+                    vlds(secondBf16, pair, secondOffset, UNPK_B16);
+                    vcvt(firstFp32, firstBf16, fullBf16Mask, PART_EVEN);
+                    vcvt(secondFp32, secondBf16, fullBf16Mask, PART_EVEN);
+                    vmuls(negFp32, firstFp32, -1.0f, mask, MODE_ZEROING);
+                    vexp(expFp32, negFp32, mask, MODE_ZEROING);
+                    vadds(denominatorFp32, expFp32, 1.0f, mask, MODE_ZEROING);
+                    vdiv(siluFp32, firstFp32, denominatorFp32, mask, MODE_ZEROING);
+                    vmul(outFp32, siluFp32, secondFp32, mask, MODE_ZEROING);
+                    vcvt(outBf16, outFp32, mask, ROUND_R, RS_DISABLE, PART_EVEN);
+                    vsts(outBf16, dst, dstOffset, PK_B32, mask);
+                    remaining -= chunk;
+                }
             }
         }
     }
@@ -140,19 +153,20 @@ private:
     }
 
     AICORE inline void ComputeDirectPayload(
-        Gmm1SwigluCvPipe& cvPipe, uint32_t globalRow, uint32_t pairN, uint32_t pairCol, uint32_t rows) const
+        Gmm1SwigluCvPipe& cvPipe, uint32_t globalRow, uint32_t pairN, uint32_t pairCol, uint32_t rows,
+        uint32_t expert) const
     {
         constexpr uint64_t slotBase = kGmm1SwigluCvBufferOffset;
         Gmm1SwigluConsumerWait(cvPipe);
 
-        DirectSwigluBf16Tile xTile(rows, pairN);
-        DirectSwigluBf16Tile gateTile(rows, pairN);
+        DirectSwigluBf16Tile pair0Tile(rows, pairN);
+        DirectSwigluBf16Tile pair1Tile(rows, pairN);
         DirectSwigluQuantSrcTile srcTile(rows, pairN);
-        pto::TASSIGN(xTile, slotBase + kGmm1SwigluCvXOffset);
-        pto::TASSIGN(gateTile, slotBase + kGmm1SwigluCvGateOffset);
+        pto::TASSIGN(pair0Tile, slotBase + kGmm1SwigluCvXOffset);
+        pto::TASSIGN(pair1Tile, slotBase + kGmm1SwigluCvGateOffset);
         pto::TASSIGN(srcTile, kDirectSwigluWorkOffset);
-        DirectSwigluActivation<DirectSwigluQuantSrcTile, DirectSwigluBf16Tile>(
-            srcTile.data(), xTile.data(), gateTile.data(), rows, pairN);
+        DirectSwigluActivationInterleaved<DirectSwigluQuantSrcTile, DirectSwigluBf16Tile>(
+            srcTile.data(), pair0Tile.data(), pair1Tile.data(), rows, pairN);
 
         const uint32_t scaleCols = pairN / kMegaMoeMxGroupSize;
         DirectSwigluQuantFp8Tile fp8Tile(rows, pairN);
@@ -192,7 +206,7 @@ private:
         MegaMoeCoreTileBalancer tileBalancer;
         SetCoreTileBalancerRange(tileBalancer, 0U, participantCount);
         for (uint32_t expert = 0U; expert < wave.end; ++expert) {
-            const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr_, rankSize_, expertPerRank_, expert);
+            const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr_, rankSize_, expert);
             const uint32_t coreLoops = CoreLoops(currentM);
             const uint32_t startCoreIdx = SelectCoreTileStart(tileBalancer, coreLoops);
             const uint32_t startLoopIdx = StartLoopIdx(startCoreIdx);
@@ -200,12 +214,13 @@ private:
                 const GmmCommonTileInfo tileInfo = BuildPairTileInfo(currentM, loopIdx);
                 ComputeDirectPayload(
                     cvPipe, groupBase + tileInfo.blockRowStart, tileInfo.actualN, tileInfo.blockColStart,
-                    tileInfo.actualM);
+                    tileInfo.actualM, expert);
                 PublishGmm2InputExpertTileReady(expert);
             }
             groupBase += currentM;
             CommitCoreTileAssignment(tileBalancer, startCoreIdx, coreLoops);
         }
+
         dsb(DSB_DDR);
     }
 
@@ -214,15 +229,13 @@ private:
     AICORE inline void PublishGmm2InputExpertTileReady(uint32_t expert) const
     {
         const __gm__ MegaMoeGmmQueueTiling& queue = tilingData_->gmmSchedulerTiling.gmm2;
-        __gm__ int32_t* slot = GmmTaskDependencySlot(
-            workspaceGM_, queue, tilingData_->dispatchTiling.readyCountMaxTilesPerExpert, expert, 0U);
+        __gm__ int32_t* slot = GmmTaskDependencySlot(workspaceGM_, queue, expert);
         // Do not let the scalar counter overtake the SwiGLU GM stores.
         pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
         dsb(DSB_DDR);
         (void)atomicAdd(slot, 1);
     }
 
-    AICORE inline void ProcessFixedWave();
     AICORE inline void ProcessHybrid();
 
     GM_ADDR workspaceGM_ = nullptr;
@@ -243,6 +256,7 @@ AICORE inline void Swiglu<InputElement>::Init(GM_ADDR workspaceGM, const __gm__ 
     static_assert(std::is_same_v<InputElement, bfloat16_t>, "MXFP8 SwiGLU requires BF16 GMM output");
     workspaceGM_ = workspaceGM;
     tilingData_ = tilingData;
+
     outputN_ = tilingData_->megaMoeInfo.N / 2U;
     expertPerRank_ = tilingData_->megaMoeInfo.expertPerRank;
     rankSize_ = tilingData_->runtimeInfo.rankSize;
@@ -258,67 +272,7 @@ AICORE inline void Swiglu<InputElement>::ProcessFixed(uint32_t groupLocalId, uin
 {
     coreIdx_ = groupLocalId;
     coreNum_ = groupSize;
-    if (tilingData_->gmmSchedulerTiling.gmm1ScheduleMode == kMegaMoeGmm1ScheduleWave0MailboxSuffix) {
-        ProcessHybrid();
-    } else {
-        ProcessFixedWave();
-    }
-}
-
-template <typename InputElement>
-AICORE inline void Swiglu<InputElement>::ProcessFixedWave()
-{
-    WaitEpochAcquire(
-        FixedSyncSlot(workspaceGM_, tilingData_, kMegaMoeFixedSyncFrontMetadataReadySlot),
-        kMegaMoeFixedFrontMetadataReadyMarker);
-
-    const __gm__ MegaMoeFixedGroupTiling& fixed = tilingData_->fixedGroupTiling;
-    Gmm1SwigluCvPipe cvPipe;
-    uint32_t groupBase = 0U;
-    MegaMoeCoreTileBalancer tileBalancer;
-    for (uint32_t waveIdx = 0U; waveIdx < fixed.totalWaveCount; ++waveIdx) {
-        const uint32_t participantCount =
-            waveIdx < fixed.fullAicGmm1WaveCount ? fixed.physicalAicNum : fixed.gmm1GroupSize;
-        coreNum_ = participantCount;
-        if (coreIdx_ >= participantCount) {
-            break;
-        }
-        SetCoreTileBalancerRange(tileBalancer, 0U, coreNum_);
-        const MegaMoeExpertWaveRange wave = GetExpertWaveRange(
-            waveIdx, expertPerRank_, fixed.fullAicExpertsPerWave, fixed.expertsPerWave, fixed.fullAicGmm1WaveCount);
-        for (uint32_t groupIdx = wave.begin; groupIdx < wave.end; ++groupIdx) {
-            const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr_, rankSize_, expertPerRank_, groupIdx);
-            const uint32_t coreLoops = CoreLoops(currentM);
-            const uint32_t startCoreIdx = SelectCoreTileStart(tileBalancer, coreLoops);
-            const uint32_t startLoopIdx = StartLoopIdx(startCoreIdx);
-            for (uint32_t loopIdx = startLoopIdx; loopIdx < coreLoops; loopIdx += coreNum_) {
-                const GmmCommonTileInfo tileInfo = BuildPairTileInfo(currentM, loopIdx);
-                ComputeDirectPayload(
-                    cvPipe, groupBase + tileInfo.blockRowStart, tileInfo.actualN, tileInfo.blockColStart,
-                    tileInfo.actualM);
-                PublishGmm2InputExpertTileReady(groupIdx);
-            }
-            groupBase += currentM;
-            CommitCoreTileAssignment(tileBalancer, startCoreIdx, coreLoops);
-        }
-
-        dsb(DSB_DDR);
-
-        // Tile consumption has already overlapped the paired AIC producer.
-        // This final per-core marker is only the wave-boundary control path;
-        // it also gives zero-tile participants a deterministic rendezvous.
-        const uint32_t readyEpoch = waveIdx + 1U;
-        (void)WaitEpochAcquire(
-            FixedSyncSlot(workspaceGM_, tilingData_, kMegaMoeFixedSyncGmm1ArrivalBase + coreIdx_),
-            static_cast<int32_t>(readyEpoch));
-    }
-    if (fixed.fullAicGmm1WaveCount > kMegaMoeFullAicGmm1WaveCount && coreIdx_ >= fixed.gmm1GroupSize) {
-        // Only the configured multi-wave split (M2048 today) hands Group2 to
-        // GMM2 locally. Default one-wave fixed schedules arm in the outer path.
-        pipe_barrier(PIPE_ALL);
-        dsb(DSB_DDR);
-        PublishCombineConsumerArmed(workspaceGM_, tilingData_, coreIdx_);
-    }
+    ProcessHybrid();
 }
 
 template <typename InputElement>
@@ -330,11 +284,6 @@ AICORE inline void Swiglu<InputElement>::ProcessHybrid()
 
     Gmm1SwigluCvPipe cvPipe;
     ConsumeDirectWave0(cvPipe);
-    const bool group2DirectGmm2 = coreIdx_ >= tilingData_->fixedGroupTiling.gmm1GroupSize;
-    if (group2DirectGmm2) {
-        dsb(DSB_DDR);
-        return;
-    }
 
     GmmCvTaskInferenceCache inferenceCache;
     while (true) {
@@ -344,14 +293,15 @@ AICORE inline void Swiglu<InputElement>::ProcessHybrid()
         if (IsGmmStageEndControl(control)) {
             break;
         }
-        const MegaMoeGmmTask task = InferGmmCvTask(control, cumsumMMPtr_, rankSize_, expertPerRank_, inferenceCache);
+        const MegaMoeGmmTask task = InferGmmCvTask(control, cumsumMMPtr_, rankSize_, inferenceCache);
         const GmmCommonTileInfo tileInfo =
             GmmCommonBuildTileInfoFromCoord(task.currentM, outputN_, task.blockM, task.blockN);
         ComputeDirectPayload(
             cvPipe, task.expertBase + tileInfo.blockRowStart, tileInfo.actualN, tileInfo.blockColStart,
-            tileInfo.actualM);
+            tileInfo.actualM, task.expert);
         PublishGmm2InputExpertTileReady(task.expert);
     }
+
     dsb(DSB_DDR);
 }
 

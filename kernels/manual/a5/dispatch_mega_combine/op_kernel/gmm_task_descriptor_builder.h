@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "dispatch_mega_combine_tiling.h"
 #include "gmm_common.h"
 #include "gmm_task_queue_device.h"
-#include "utils/mega_expert_sync.hpp"
+#include "utils/mega_wave_schedule.hpp"
 #include "utils/pto_vector.hpp"
 
 constexpr uint32_t kGmmDescriptorBuilderBatch = 256U;
@@ -43,7 +43,7 @@ public:
         expertPerRank_ = tilingData_->megaMoeInfo.expertPerRank;
         uint32_t expertBase = 0U;
         for (uint32_t expert = 0U; expert < expertPerRank_; ++expert) {
-            const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr, rankSize, expertPerRank_, expert);
+            const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr, rankSize, expert);
             currentM_[expert] = currentM;
             expertBase_[expert] = expertBase;
             const GmmCommonTaskShape gmm1Shape = GmmCommonBuildTaskShape(currentM, tilingData_->megaMoeInfo.N / 2U);
@@ -54,37 +54,43 @@ public:
         }
     }
 
-    AICORE inline uint32_t BuildGmm1()
+    AICORE inline void BuildGmm1()
     {
-        return BuildStage<false>(tilingData_->gmmSchedulerTiling.gmm1, gmm1TaskBase_);
+        const __gm__ MegaMoeFixedGroupTiling& fixed = tilingData_->fixedGroupTiling;
+        const uint32_t directExpertEnd =
+            GetExpertWaveRange(
+                0U, expertPerRank_, fixed.fullAicExpertsPerWave, fixed.expertsPerWave, fixed.fullAicGmm1WaveCount)
+                .end;
+        BuildStage<false>(tilingData_->gmmSchedulerTiling.gmm1, gmm1TaskBase_, gmm1TaskBase_[directExpertEnd]);
     }
 
-    AICORE inline uint32_t BuildGmm2() { return BuildStage<true>(tilingData_->gmmSchedulerTiling.gmm2, gmm2TaskBase_); }
-
-    AICORE inline void PublishGeneratedTail(const __gm__ MegaMoeGmmQueueTiling& queue, uint32_t taskCount) const
-    {
-        volatile __gm__ int32_t* tail = &GmmQueueControl(workspaceGM_, queue)->generatedTail;
-        PublishScalarEpoch(tail, static_cast<int32_t>(taskCount));
-    }
+    AICORE inline void BuildGmm2() { BuildStage<true>(tilingData_->gmmSchedulerTiling.gmm2, gmm2TaskBase_, 0U); }
 
 private:
     template <bool IsGmm2>
-    AICORE inline uint32_t BuildStage(const __gm__ MegaMoeGmmQueueTiling& queue, const uint32_t* taskBase)
+    AICORE inline void BuildStage(
+        const __gm__ MegaMoeGmmQueueTiling& queue, const uint32_t* taskBase, uint32_t firstRequiredTask)
     {
         const uint32_t totalTasks = taskBase[expertPerRank_];
-        if (totalTasks == 0U) {
-            return 0U;
+        if (totalTasks == 0U || firstRequiredTask >= totalTasks) {
+            return;
         }
 
+        // Keep ticket indices unchanged; an odd prefix may share one descriptor pair.
+        const uint32_t firstRequiredPair = firstRequiredTask / 2U;
         const uint32_t pairCount = (totalTasks + 1U) / 2U;
-        const uint32_t firstPair = static_cast<uint32_t>(static_cast<uint64_t>(pairCount) * workerIdx_ / workerCount_);
+        const uint32_t remainingPairs = pairCount - firstRequiredPair;
+        const uint32_t firstPair =
+            firstRequiredPair +
+            static_cast<uint32_t>(static_cast<uint64_t>(remainingPairs) * workerIdx_ / workerCount_);
         const uint32_t lastPair =
-            static_cast<uint32_t>(static_cast<uint64_t>(pairCount) * (workerIdx_ + 1U) / workerCount_);
+            firstRequiredPair +
+            static_cast<uint32_t>(static_cast<uint64_t>(remainingPairs) * (workerIdx_ + 1U) / workerCount_);
         const uint32_t firstTask = firstPair * 2U;
         const uint32_t pairTaskEnd = lastPair * 2U;
         const uint32_t lastTask = pairTaskEnd < totalTasks ? pairTaskEnd : totalTasks;
         if (firstTask >= lastTask) {
-            return totalTasks;
+            return;
         }
 
         __gm__ uint32_t* taskWords = reinterpret_cast<__gm__ uint32_t*>(GmmTaskTable(workspaceGM_, queue));
@@ -117,7 +123,7 @@ private:
                 descriptorTile.SetValue(word + 0U, PackGmmTaskControl(task));
                 descriptorTile.SetValue(word + 1U, task.expertBase);
                 descriptorTile.SetValue(word + 2U, task.currentM);
-                descriptorTile.SetValue(word + 3U, 0U);
+                descriptorTile.SetValue(word + 3U, ticket + 1U);
             }
 
             pto::PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
@@ -126,7 +132,6 @@ private:
                 batchTasks * kGmmTaskDescriptorWords);
             pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
         }
-        return totalTasks;
     }
 
     GM_ADDR workspaceGM_ = nullptr;

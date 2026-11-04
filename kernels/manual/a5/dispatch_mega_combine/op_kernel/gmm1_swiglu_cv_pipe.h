@@ -42,6 +42,8 @@ struct Gmm1SwigluCvPipe {
 
     ProducerEndpoint prod;
     ConsumerEndpoint cons;
+    bool producerRequiresInitialFree = false;
+    bool producerInitialFreeConsumed = false;
 };
 
 using Gmm1SwigluCvHalfTile = pto::Tile<
@@ -71,8 +73,12 @@ AICORE inline uint16_t Gmm1SwigluControlFreeFlag(uint32_t slot)
 
 AICORE inline void Gmm1SwigluProducerAllocate(Gmm1SwigluCvPipe& pipe)
 {
-    if (pipe.prod.tileIndex >= kGmm1SwigluCvFifoDepth) {
+    const bool waitInitialFree = pipe.producerRequiresInitialFree && !pipe.producerInitialFreeConsumed;
+    if (waitInitialFree || pipe.prod.tileIndex >= kGmm1SwigluCvFifoDepth) {
         wait_intra_block(PIPE_FIX, Gmm1SwigluAiv1Flag(kGmm1SwigluCvFreeFlag));
+        if (waitInitialFree) {
+            pipe.producerInitialFreeConsumed = true;
+        }
     }
 }
 
@@ -97,26 +103,6 @@ AICORE inline void Gmm1SwigluControlProducerRecord(Gmm1SwigluCvPipe& pipe)
     ++pipe.prod.controlIndex;
 }
 
-AICORE inline void Gmm1SwigluProducerDrain(Gmm1SwigluCvPipe& pipe)
-{
-    if (pipe.prod.tileIndex != 0U) {
-        wait_intra_block(PIPE_FIX, Gmm1SwigluAiv1Flag(kGmm1SwigluCvFreeFlag));
-    }
-    pipe.prod.tileIndex = 0U;
-}
-
-AICORE inline void Gmm1SwigluControlProducerDrain(Gmm1SwigluCvPipe& pipe)
-{
-    const uint32_t firstOutstanding = pipe.prod.controlIndex > kGmm1SwigluControlFifoDepth ?
-                                          pipe.prod.controlIndex - kGmm1SwigluControlFifoDepth :
-                                          0U;
-    for (uint32_t index = firstOutstanding; index < pipe.prod.controlIndex; ++index) {
-        const uint32_t slot = index % kGmm1SwigluControlFifoDepth;
-        wait_intra_block(PIPE_S, Gmm1SwigluAiv1Flag(Gmm1SwigluControlFreeFlag(slot)));
-    }
-    pipe.prod.controlIndex = 0U;
-}
-
 AICORE inline void Gmm1SwigluControlConsumerWait(Gmm1SwigluCvPipe& pipe)
 {
     const uint32_t slot = pipe.cons.controlIndex % kGmm1SwigluControlFifoDepth;
@@ -137,6 +123,8 @@ AICORE inline void Gmm1SwigluControlConsumerRelease(Gmm1SwigluCvPipe& pipe)
     set_intra_block(PIPE_S, Gmm1SwigluControlFreeFlag(slot));
     ++pipe.cons.controlIndex;
 }
+
+AICORE inline void Gmm1SwigluConsumerPrime() { set_intra_block(PIPE_V, kGmm1SwigluCvFreeFlag); }
 
 AICORE inline void Gmm1SwigluConsumerRelease(Gmm1SwigluCvPipe& pipe)
 {

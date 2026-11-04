@@ -39,8 +39,7 @@ constexpr uint32_t kMegaMoeFixedDispatchGroupSize = 32U;
 // reserve the SwiGLU synchronization lanes for the complete AIC set.
 constexpr uint32_t kMegaMoeFixedSwigluGroupSize = kMegaMoeFixedPhysicalAicNum;
 constexpr uint32_t kMegaMoeFixedUnpermuteGroupSize = kMegaMoeFixedPhysicalAivNum;
-// Keep the existing peer-signal layout stable. The active phase-1 worker
-// count is selected by the host tiling schedule.
+// Peer-signal slots have fixed offsets; the host selects phase-1 workers.
 constexpr uint32_t kMegaMoeFixedInitialUnpermuteAiv0WorkerCapacity = 32U;
 constexpr uint32_t kMegaMoeExpertProgressMaxRanks = 32U;
 constexpr uint32_t kMegaMoeFrontMaskCountRecordBytes = 32U;

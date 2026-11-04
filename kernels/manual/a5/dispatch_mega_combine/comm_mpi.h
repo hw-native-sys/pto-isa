@@ -29,17 +29,15 @@ using MpiGatherFunc = int (*)(const void*, int, MPI_Datatype, void*, int, MPI_Da
 using MpiBarrierFunc = int (*)(MPI_Comm);
 using MpiFinalizeFunc = int (*)();
 
-namespace comm_mpi {
-
-inline void*& MpiHandle()
+inline void*& CommMpiHandle()
 {
     static void* handle = nullptr;
     return handle;
 }
 
-inline void* LoadMpiLibrary()
+inline void* CommMpiLoadLibrary()
 {
-    void*& h = MpiHandle();
+    void*& h = CommMpiHandle();
     if (h) {
         return h;
     }
@@ -53,11 +51,6 @@ inline void* LoadMpiLibrary()
     }
 
     static const char* candidates[] = {
-        "/usr/local/mpich/lib/libmpi.so",
-        "/lib/aarch64-linux-gnu/libmpich.so",
-        "/lib/x86_64-linux-gnu/libmpich.so",
-        "/usr/lib/libmpi.so",
-        "/usr/lib/libmpich.so",
         "libmpi.so",
         "libmpich.so",
         nullptr,
@@ -74,20 +67,18 @@ inline void* LoadMpiLibrary()
 }
 
 template <typename T>
-inline T GetFunc(const char* name)
+inline T CommMpiGetFunc(const char* name)
 {
-    void* h = LoadMpiLibrary();
+    void* h = CommMpiLoadLibrary();
     if (h == nullptr) {
         return nullptr;
     }
     return reinterpret_cast<T>(dlsym(h, name));
 }
 
-} // namespace comm_mpi
-
 inline bool CommMpiInit(int* argc, char*** argv)
 {
-    auto fn = comm_mpi::GetFunc<MpiInitFunc>("MPI_Init");
+    auto fn = CommMpiGetFunc<MpiInitFunc>("MPI_Init");
     if (fn == nullptr) {
         return false;
     }
@@ -96,7 +87,7 @@ inline bool CommMpiInit(int* argc, char*** argv)
 
 inline void CommMpiFinalize()
 {
-    auto fn = comm_mpi::GetFunc<MpiFinalizeFunc>("MPI_Finalize");
+    auto fn = CommMpiGetFunc<MpiFinalizeFunc>("MPI_Finalize");
     if (fn != nullptr) {
         fn();
     }
@@ -105,7 +96,7 @@ inline void CommMpiFinalize()
 inline int CommMpiRank()
 {
     int rank = 0;
-    auto fn = comm_mpi::GetFunc<MpiCommRankFunc>("MPI_Comm_rank");
+    auto fn = CommMpiGetFunc<MpiCommRankFunc>("MPI_Comm_rank");
     if (fn != nullptr) {
         fn(COMM_MPI_COMM_WORLD, &rank);
     }
@@ -115,7 +106,7 @@ inline int CommMpiRank()
 inline int CommMpiSize()
 {
     int size = 1;
-    auto fn = comm_mpi::GetFunc<MpiCommSizeFunc>("MPI_Comm_size");
+    auto fn = CommMpiGetFunc<MpiCommSizeFunc>("MPI_Comm_size");
     if (fn != nullptr) {
         fn(COMM_MPI_COMM_WORLD, &size);
     }
@@ -124,7 +115,7 @@ inline int CommMpiSize()
 
 inline void CommMpiBcast(void* buf, int count, MPI_Datatype dt, int root)
 {
-    auto fn = comm_mpi::GetFunc<MpiBcastFunc>("MPI_Bcast");
+    auto fn = CommMpiGetFunc<MpiBcastFunc>("MPI_Bcast");
     if (fn != nullptr) {
         fn(buf, count, dt, root, COMM_MPI_COMM_WORLD);
     }
@@ -134,7 +125,7 @@ inline void CommMpiGather(
     const void* sendbuf, int sendcount, MPI_Datatype sendtype, void* recvbuf, int recvcount, MPI_Datatype recvtype,
     int root)
 {
-    auto fn = comm_mpi::GetFunc<MpiGatherFunc>("MPI_Gather");
+    auto fn = CommMpiGetFunc<MpiGatherFunc>("MPI_Gather");
     if (fn != nullptr) {
         fn(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, COMM_MPI_COMM_WORLD);
     }
@@ -142,7 +133,7 @@ inline void CommMpiGather(
 
 inline void CommMpiBarrier()
 {
-    auto fn = comm_mpi::GetFunc<MpiBarrierFunc>("MPI_Barrier");
+    auto fn = CommMpiGetFunc<MpiBarrierFunc>("MPI_Barrier");
     if (fn != nullptr) {
         fn(COMM_MPI_COMM_WORLD);
     }

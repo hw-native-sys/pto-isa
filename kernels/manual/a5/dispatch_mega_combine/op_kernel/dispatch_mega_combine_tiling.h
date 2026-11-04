@@ -8,11 +8,6 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
-/*!
- * \file dispatch_mega_combine_tiling.h
- * \brief
- */
-
 #pragma once
 
 #include <stddef.h>
@@ -27,12 +22,19 @@ constexpr uint32_t kMegaMoeFrontMaskRouteItemsPerBatch = 2048U;
 constexpr uint32_t kMegaMoeFrontMetadataSortOutLoopElems = 2040U;
 constexpr uint32_t kMegaMoeReadyCountSlotBytes = 64U;
 
+#if defined(__DAV_VEC__) || defined(__DAV_CUBE__)
+#define MEGA_MOE_URMA_HOST_DEVICE_CONSTEXPR AICORE constexpr
+#else
+#define MEGA_MOE_URMA_HOST_DEVICE_CONSTEXPR constexpr
+#endif
+
 struct MegaMoeInfo {
     uint32_t M;
     uint32_t K;
     uint32_t N;
     uint32_t expertPerRank;
     uint32_t topK;
+    uint32_t maxOutputSize = 0U;
 };
 
 struct MegaMoeRuntimeInfo {
@@ -49,7 +51,9 @@ struct MegaMoeFrontReorderTiling {
     uint32_t packedRowStride = 0;
     uint32_t maskBytes = 0;
     uint32_t maskSlotBytes = 0;
-    uint32_t maskLaneCapacity = 0;
+    uint32_t maskRouteItemsPerBatch = 0;
+    uint32_t maskBufferCount = 0;
+    uint64_t expertCountPeerOffset = 0;
     uint64_t routeMaskOffset = 0;
     // Source ranks publish one ExpertPerRank prefix slice to each destination.
     uint64_t preSumBeforeRankPeerOffset = 0;
@@ -68,7 +72,10 @@ struct MegaMoeFrontReorderTiling {
 struct MegaMoeDispatchTiling {
     uint64_t gmAOffset = 0;
     uint64_t gmAScaleOffset = 0;
-    uint64_t routeMetaOffset = 0;
+    uint64_t gmm1ExpertCountOffset = 0;
+    uint32_t gmm1ExpertCountStrideBytes = 0;
+    uint32_t cumsumUbOffset = 0;
+    uint32_t expertCountUbOffset = 0;
     uint64_t readyCountOffset = 0;
     uint32_t readyCountMaxTilesPerExpert = 0;
     uint32_t routeItemsPerBatch = 0;
@@ -85,19 +92,10 @@ struct MegaMoeSwigluTiling {
 };
 
 struct MegaMoeGmmQueueTiling {
-    uint64_t controlOffset = 0;
     uint64_t taskOffset = 0;
     uint64_t dependencyOffset = 0;
     uint64_t completionOffset = 0;
 };
-
-constexpr uint32_t kMegaMoeGmm1ScheduleFixedWave = 0U;
-constexpr uint32_t kMegaMoeGmm1ScheduleWave0MailboxSuffix = 1U;
-
-constexpr uint32_t MegaMoeResolveAutoGmm1ScheduleMode(uint32_t m)
-{
-    return m <= 512U ? kMegaMoeGmm1ScheduleWave0MailboxSuffix : kMegaMoeGmm1ScheduleFixedWave;
-}
 
 struct MegaMoeGmmMailboxTiling {
     uint64_t p2cOffset = 0;
@@ -109,7 +107,6 @@ struct MegaMoeGmmSchedulerTiling {
     MegaMoeGmmQueueTiling gmm1;
     MegaMoeGmmQueueTiling gmm2;
     MegaMoeGmmMailboxTiling mailbox;
-    uint32_t gmm1ScheduleMode = kMegaMoeGmm1ScheduleFixedWave;
 };
 
 struct MegaMoeUnpermuteTiling {
@@ -125,24 +122,27 @@ constexpr uint32_t kMegaMoeRankStreamingMaxTokensPerWorker = 256U;
 constexpr uint32_t kMegaMoeFixedMaxExperts = 32U;
 constexpr uint32_t kMegaMoeFullAicGmm1WaveCount = 1U;
 
+// Rank 31 must remain represented when all 32 bits are used. Never shift a
+// 32-bit value by 32; share this helper between the kernel and Host tests.
+MEGA_MOE_URMA_HOST_DEVICE_CONSTEXPR uint32_t MegaMoeRankMask(uint32_t rankCount)
+{
+    return rankCount >= 32U ? 0xFFFFFFFFU : ((1U << rankCount) - 1U);
+}
+
 constexpr uint32_t kMegaMoeFixedSyncSlotBytes = kMegaMoeReadyCountSlotBytes;
-constexpr uint32_t kMegaMoeFixedSyncHeadCanarySlot = 0U;
-constexpr uint32_t kMegaMoeFixedSyncFrontMetadataReadySlot = kMegaMoeFixedSyncHeadCanarySlot + 1U;
+constexpr uint32_t kMegaMoeFixedSyncFrontMetadataReadySlot = 0U;
 constexpr uint32_t kMegaMoeFixedSyncGmm1ArrivalBase = kMegaMoeFixedSyncFrontMetadataReadySlot + 1U;
 constexpr uint32_t kMegaMoeFixedSyncGmm1ArrivalSlotCount = kMegaMoeFixedPhysicalAicNum;
-constexpr uint32_t kMegaMoeFixedSyncCombineConsumerArmedBase =
-    kMegaMoeFixedSyncGmm1ArrivalBase + kMegaMoeFixedSyncGmm1ArrivalSlotCount;
-constexpr uint32_t kMegaMoeFixedSyncCombineConsumerArmedSlotCount = kMegaMoeFixedPhysicalAicNum;
 constexpr uint32_t kMegaMoeFixedSyncDeferredMetadataArrivalBase =
-    kMegaMoeFixedSyncCombineConsumerArmedBase + kMegaMoeFixedSyncCombineConsumerArmedSlotCount;
+    kMegaMoeFixedSyncGmm1ArrivalBase + kMegaMoeFixedSyncGmm1ArrivalSlotCount;
 constexpr uint32_t kMegaMoeFixedSyncDeferredMetadataReadyBase =
     kMegaMoeFixedSyncDeferredMetadataArrivalBase + kMegaMoeFixedGmm2GroupSize;
-constexpr uint32_t kMegaMoeFixedSyncDeferredExpandedReadySlot =
+constexpr uint32_t kMegaMoeFixedSyncGmm2EntryReadySlot =
     kMegaMoeFixedSyncDeferredMetadataReadyBase + kMegaMoeFixedGmm2GroupSize;
-constexpr uint32_t kMegaMoeFixedSyncDispatchDoneSlot = kMegaMoeFixedSyncDeferredExpandedReadySlot + 1U;
-constexpr uint32_t kMegaMoeFixedSyncGmm2EntryReadySlot = kMegaMoeFixedSyncDispatchDoneSlot + 1U;
-constexpr uint32_t kMegaMoeFixedSyncTailCanarySlot = kMegaMoeFixedSyncGmm2EntryReadySlot + 1U;
-constexpr uint32_t kMegaMoeFixedSyncSlotCount = kMegaMoeFixedSyncTailCanarySlot + 1U;
+constexpr uint32_t kMegaMoeFixedSyncDispatchArrivalBase = kMegaMoeFixedSyncGmm2EntryReadySlot + 1U;
+constexpr uint32_t kMegaMoeFixedSyncGmm1CountReadySlot =
+    kMegaMoeFixedSyncDispatchArrivalBase + kMegaMoeFixedPhysicalAicNum;
+constexpr uint32_t kMegaMoeFixedSyncSlotCount = kMegaMoeFixedSyncGmm1CountReadySlot + 1U;
 constexpr uint32_t kMegaMoeFixedSyncBytes =
     (kMegaMoeFixedSyncSlotCount * kMegaMoeFixedSyncSlotBytes + 511U) / 512U * 512U;
 constexpr uint32_t kMegaMoeFixedCompletionSlotBytes = 64U;
@@ -154,17 +154,12 @@ constexpr uint64_t MegaMoeFixedCompletionBytes(uint32_t physicalAicNum)
     return (rawBytes + 511U) / 512U * 512U;
 }
 
-constexpr uint32_t kMegaMoeFixedHeadCanary = 0x13579BDFU;
-constexpr uint32_t kMegaMoeFixedTailCanary = 0x2468ACE0U;
 constexpr int32_t kMegaMoeFixedFrontMetadataReadyMarker = 1;
-constexpr int32_t kMegaMoeFixedDeferredExpandedReadyMarker = 1;
 constexpr int32_t kMegaMoeFixedGmm1DoneMarker = 1;
-constexpr int32_t kMegaMoeFixedDispatchDoneMarker = 1;
-constexpr int32_t kMegaMoeFixedCombineConsumerArmedMarker = 1;
+constexpr int32_t kMegaMoeFixedGmm1CountReadyMarker = 1;
 constexpr int32_t kMegaMoeFixedGmm2EntryReadyMarker = 1;
-constexpr uint32_t kMegaMoeFixedGmm1GroupDoneEpochOffset = 1U;
 
-static_assert(kMegaMoeFixedSyncSlotCount == 110U);
+static_assert(kMegaMoeFixedSyncSlotCount == 107U);
 static_assert(kMegaMoeFixedSyncBytes == 7168U);
 static_assert(kMegaMoeFixedSyncSlotCount * kMegaMoeFixedSyncSlotBytes <= kMegaMoeFixedSyncBytes);
 
@@ -178,33 +173,25 @@ struct MegaMoeFixedGroupTiling {
     uint32_t gmm2GroupSize = 0;
     uint32_t fullAicExpertsPerWave = 1U;
     uint32_t expertsPerWave = 1U;
-    uint32_t totalWaveCount = 1U;
     uint32_t fullAicGmm1WaveCount = kMegaMoeFullAicGmm1WaveCount;
+    uint32_t runtimeGmm1GroupSizeByCalcStartExpert[kMegaMoeFixedMaxExperts + 1U] = {};
 };
 
 static_assert(sizeof(MegaMoeSwigluTiling) == 16);
-static_assert(sizeof(MegaMoeDispatchTiling) == 64);
-static_assert(sizeof(MegaMoeGmmQueueTiling) == 32);
+static_assert(sizeof(MegaMoeDispatchTiling) == 80);
+static_assert(sizeof(MegaMoeGmmQueueTiling) == 24);
 static_assert(sizeof(MegaMoeGmmMailboxTiling) == 24);
-static_assert(sizeof(MegaMoeGmmSchedulerTiling) == 96);
+static_assert(sizeof(MegaMoeGmmSchedulerTiling) == 72);
 static_assert(sizeof(MegaMoeUnpermuteTiling) == 16);
-static_assert(sizeof(MegaMoeFixedGroupTiling) == 48);
+static_assert(sizeof(MegaMoeFixedGroupTiling) == 176);
 
-#if defined(__DAV_VEC__) || defined(__DAV_CUBE__)
-#define MEGA_MOE_URMA_HOST_DEVICE_CONSTEXPR AICORE constexpr
-#else
-#define MEGA_MOE_URMA_HOST_DEVICE_CONSTEXPR constexpr
-#endif
-
-// Transport extension only. The original production tiling prefix remains byte-compatible.
 struct MegaMoeMultiServerTiling {
     uint64_t urmaWorkspace = 0;
-    uint64_t reservedLegacyTokenTable = 0; // Tokens are indexed by (jetty, peer) in UrmaMemInfo.
+    uint64_t reservedLegacyTokenTable = 0; // Reserved to preserve transport layout offsets.
     uint32_t enabled = 0;
     uint32_t rankNumPerServer = 0;
     uint32_t serverNum = 0;
     uint32_t serverId = 0;
-    uint32_t rankIdInServer = 0;
     uint32_t urmaJettyCount = 0;
     uint64_t metadataSendOffset = 0;
     uint64_t metadataRecvOffset = 0;
@@ -216,9 +203,9 @@ struct MegaMoeMultiServerTiling {
     uint64_t combineTxOwnerStrideBytes = 0;
     uint64_t transportReadyOffset = 0;
     uint64_t startReadyOffset = 0;
+    uint64_t finalizeReadyOffset = 0;
     uint64_t peerDataBytes = 0;
     uint64_t combineStagingOffset = 0;
-    uint64_t combineStagingBytes = 0;
     uint32_t metadataCountOffsetBytes = 0;
     uint32_t metadataPreSumOffsetBytes = 0;
     uint32_t relayChunkTokens = 0;
@@ -254,8 +241,6 @@ MegaMoeUrmaRankExpertIndex(uint32_t rank, uint32_t expert, uint32_t experts)
     return static_cast<uint64_t>(rank) * experts + expert;
 }
 
-#undef MEGA_MOE_URMA_HOST_DEVICE_CONSTEXPR
-
 struct MegaMoeTilingData {
     MegaMoeInfo megaMoeInfo;
     MegaMoeRuntimeInfo runtimeInfo;
@@ -267,3 +252,5 @@ struct MegaMoeTilingData {
     MegaMoeFixedGroupTiling fixedGroupTiling;
     MegaMoeMultiServerTiling multiServerTiling;
 };
+
+#undef MEGA_MOE_URMA_HOST_DEVICE_CONSTEXPR

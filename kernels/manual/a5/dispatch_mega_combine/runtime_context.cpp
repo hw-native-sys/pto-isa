@@ -120,8 +120,6 @@ bool StandaloneHcclContext::CopyHostRemoteWindowContextToDevice()
 }
 
 namespace {
-namespace pto_hccl_compat {
-
 constexpr uint32_t MAX_CC_TILING_NUM = 8U;
 constexpr uint32_t GROUP_NAME_SIZE = 128U;
 constexpr uint32_t ALG_CONFIG_SIZE = 128U;
@@ -296,8 +294,6 @@ struct HcclOpResParam {
     RemoteResPtr remoteRes[1] = {};
 };
 
-} // namespace pto_hccl_compat
-
 template <size_t Size>
 void CopyCStringBounded(char (&dst)[Size], const char* src)
 {
@@ -337,11 +333,9 @@ bool LoadRemoteWindowContext(StandaloneHcclContext& hccl, void* ctx_ptr, int ran
     return hccl.CopyHostRemoteWindowContextToDevice();
 }
 
-bool ReadRingParams(
-    uint8_t* raw_ctx, pto_hccl_compat::HcclOpResParamHead& head,
-    std::vector<pto_hccl_compat::RemoteResPtr>& remote_res_arr)
+bool ReadRingParams(uint8_t* raw_ctx, HcclOpResParamHead& head, std::vector<RemoteResPtr>& remote_res_arr)
 {
-    const size_t head_offset = offsetof(pto_hccl_compat::HcclOpResParam, localUsrRankId);
+    const size_t head_offset = offsetof(HcclOpResParam, localUsrRankId);
     if (aclrtMemcpy(&head, sizeof(head), raw_ctx + head_offset, sizeof(head), ACL_MEMCPY_DEVICE_TO_HOST) !=
         ACL_SUCCESS) {
         return false;
@@ -351,8 +345,8 @@ bool ReadRingParams(
         return false;
     }
 
-    const size_t remote_res_offset = offsetof(pto_hccl_compat::HcclOpResParam, remoteRes);
-    const size_t remote_res_bytes = static_cast<size_t>(head.rankSize) * sizeof(pto_hccl_compat::RemoteResPtr);
+    const size_t remote_res_offset = offsetof(HcclOpResParam, remoteRes);
+    const size_t remote_res_bytes = static_cast<size_t>(head.rankSize) * sizeof(RemoteResPtr);
     remote_res_arr.resize(head.rankSize);
     if (aclrtMemcpy(
             remote_res_arr.data(), remote_res_bytes, raw_ctx + remote_res_offset, remote_res_bytes,
@@ -363,8 +357,8 @@ bool ReadRingParams(
 }
 
 bool BuildRingHostRemoteWindowContext(
-    StandaloneHcclContext& hccl, uint8_t* raw_ctx, const pto_hccl_compat::HcclOpResParamHead& head,
-    const std::vector<pto_hccl_compat::RemoteResPtr>& remote_res_arr, uint32_t ranksPerServer)
+    StandaloneHcclContext& hccl, uint8_t* raw_ctx, const HcclOpResParamHead& head,
+    const std::vector<RemoteResPtr>& remote_res_arr, uint32_t ranksPerServer)
 {
     hccl.ResetHostRemoteWindowContext();
 
@@ -390,7 +384,7 @@ bool BuildRingHostRemoteWindowContext(
             return false;
         }
 
-        pto_hccl_compat::HcclRankRelationResV2 remote_info{};
+        HcclRankRelationResV2 remote_info{};
         if (aclrtMemcpy(
                 &remote_info, sizeof(remote_info), reinterpret_cast<void*>(dev_ptr), sizeof(remote_info),
                 ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
@@ -427,7 +421,7 @@ bool InitStandaloneRankRuntime(
         return ReportRuntimeInitFailure(rank_id, "HcclCommInitRootInfo", initCommRet);
     }
 
-    char group[pto_hccl_compat::GROUP_NAME_SIZE] = {};
+    char group[GROUP_NAME_SIZE] = {};
     const HcclResult getCommNameRet = HcclGetCommName(runtime.hccl.comm, group);
     if (getCommNameRet != HCCL_SUCCESS) {
         return ReportRuntimeInitFailure(rank_id, "HcclGetCommName", getCommNameRet);
@@ -445,7 +439,7 @@ bool InitStandaloneRankRuntime(
         return ReportRuntimeInitFailure(rank_id, "HcomGetCommHandleByGroup", getCommHandleRet);
     }
 
-    pto_hccl_compat::CommResourceTilingV2 tiling{};
+    CommResourceTilingV2 tiling{};
     tiling.init.version = 100U;
     tiling.init.hcommCount = 1U;
     tiling.init.commBlockNum = 48U;
@@ -476,8 +470,8 @@ bool InitStandaloneRankRuntime(
     }
 
     auto* raw_ctx = reinterpret_cast<uint8_t*>(ctx_ptr);
-    pto_hccl_compat::HcclOpResParamHead head{};
-    std::vector<pto_hccl_compat::RemoteResPtr> remote_res_arr;
+    HcclOpResParamHead head{};
+    std::vector<RemoteResPtr> remote_res_arr;
     if (!ReadRingParams(raw_ctx, head, remote_res_arr)) {
         return ReportRuntimeInitFailure(rank_id, "ReadRingParams", -1);
     }
@@ -520,7 +514,7 @@ bool InitStandaloneUrmaRuntime(
         }
     }
     runtime.urma_manager = new SharedUrmaWorkspace();
-    // Retain ownership on failure: HCCL must be destroyed before registered resources are freed.
+    // Keep partially registered resources alive until HCCL teardown.
     if (!runtime.urma_manager->Init(
             runtime.hccl.comm, rank, ranks, reinterpret_cast<void*>(windows.windowIn[rank]), bytes, submittingAivs,
             workspaceAddr, workspaceSize)) {

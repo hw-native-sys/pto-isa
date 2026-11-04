@@ -31,17 +31,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-if(NOT DEFINED ENV{ASCEND_HOME_PATH})
-    message(FATAL_ERROR "Cannot find ASCEND_HOME_PATH, please run set_env.sh.")
-else()
-    set(ASCEND_HOME_PATH $ENV{ASCEND_HOME_PATH})
+if("$ENV{ASCEND_HOME_PATH}" STREQUAL "")
+    message(FATAL_ERROR "Set ASCEND_HOME_PATH in the external build environment.")
 endif()
-
-if(DEFINED ENV{ASCEND_DRIVER_PATH})
-    set(ASCEND_DRIVER_PATH $ENV{ASCEND_DRIVER_PATH})
-else()
-    set(ASCEND_DRIVER_PATH /usr/local/Ascend/driver)
-endif()
+set(ASCEND_HOME_PATH "$ENV{ASCEND_HOME_PATH}")
 
 add_compile_options(
     -D_FORTIFY_SOURCE=2
@@ -100,7 +93,6 @@ include_directories(
     ${ASCEND_HOME_PATH}/include
     ${ASCEND_HOME_PATH}/pkg_inc
     ${ASCEND_HOME_PATH}/pkg_inc/runtime
-    ${ASCEND_DRIVER_PATH}/kernel/inc
     ${ASCEND_HOME_PATH}/include/experiment/runtime
 )
 

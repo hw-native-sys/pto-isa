@@ -565,7 +565,7 @@ RankHostInputs LoadRankHostInputs(const RankFileSet& files)
     return inputs;
 }
 
-MegaMoeBuildResult BuildAndValidateTiling(const CaseConfig& cfg, const StandaloneRankRuntime& runtime, int rankId)
+MegaMoeBuildResult BuildAndReportTiling(const CaseConfig& cfg, const StandaloneRankRuntime& runtime, int rankId)
 {
     MegaMoeBuildResult build = BuildMegaMoeTiling(cfg, runtime);
     const MegaMoeFixedGroupTiling& fixed = build.tiling.fixedGroupTiling;
@@ -793,7 +793,7 @@ bool RunOneRank(
         const RankHostInputs inputs = LoadRankHostInputs(BuildRankFileSet(caseDir, rankId));
         ValidateRankHostInputSizes(cfg, inputs);
         ValidateMaskPullRoutes(cfg, inputs, rankId, worldSize);
-        const MegaMoeBuildResult build = BuildAndValidateTiling(cfg, runtime, rankId);
+        const MegaMoeBuildResult build = BuildAndReportTiling(cfg, runtime, rankId);
         RankDeviceBuffers buffers = AllocateRankDeviceBuffers(cfg, build, inputs);
         const MegaMoeLaunchArgs args = BuildLaunchArgs(build, buffers, rankId, options.startSync);
 
@@ -924,8 +924,7 @@ int main(int argc, char** argv)
         return 1;
     }
     const uint32_t effectiveAicoreNum = requestedAicoreNum == 0 ? runtimeAicoreNum : requestedAicoreNum;
-    const A5FixedScheduleConfig* defaultSchedule = FindA5DefaultSchedule(effectiveAicoreNum);
-    if (defaultSchedule == nullptr) {
+    if (FindA5CoreTopology(effectiveAicoreNum) == nullptr) {
         std::cerr << "rank=" << rankId << " unsupported effective A5 AICore count=" << effectiveAicoreNum
                   << "; supported counts are 28, 32, and 36" << std::endl;
         aclrtResetDevice(deviceId);
@@ -934,10 +933,7 @@ int main(int argc, char** argv)
         return 1;
     }
     std::cout << "rank=" << rankId << " runtimeAicoreNum=" << runtimeAicoreNum
-              << " effectiveAicoreNum=" << effectiveAicoreNum
-              << " defaultSchedule=dispatch_aiv0:" << defaultSchedule->dispatchGroupSize
-              << ",gmm1:" << defaultSchedule->gmm1GroupSize << ",gmm2:" << defaultSchedule->gmm2GroupSize
-              << ",aiv:" << defaultSchedule->PhysicalAivNum() << std::endl;
+              << " effectiveAicoreNum=" << effectiveAicoreNum << std::endl;
 
     HcclRootInfo rootInfo{};
     const HcclResult rootResult = rankId == 0 ? HcclGetRootInfo(&rootInfo) : HCCL_SUCCESS;

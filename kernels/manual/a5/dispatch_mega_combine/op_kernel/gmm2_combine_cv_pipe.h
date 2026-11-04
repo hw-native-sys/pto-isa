@@ -41,6 +41,7 @@ struct Gmm2CombineCvPipe {
     };
 
     ProducerEndpoint prod;
+    bool requireInitialFree = false;
 };
 
 using Gmm2CombineCvTile = pto::Tile<
@@ -62,9 +63,16 @@ AICORE inline uint16_t Gmm2CombineAiv1Flag(uint16_t logicalFlag)
 
 AICORE inline void Gmm2CombineProducerAllocate(Gmm2CombineCvPipe& pipe)
 {
-    if (pipe.prod.tileIndex != 0U) {
+    if (pipe.requireInitialFree || pipe.prod.tileIndex != 0U) {
         wait_intra_block(PIPE_FIX, Gmm2CombineAiv1Flag(kGmm2CombineCvFreeFlagBase));
+        pipe.requireInitialFree = false;
     }
+}
+
+AICORE inline void Gmm2CombineConsumerPrime()
+{
+    // Reused AIV1 UB remains owned by SwiGLU until its final stores drain.
+    set_intra_block(PIPE_MTE3, kGmm2CombineCvFreeFlagBase);
 }
 
 AICORE inline void Gmm2CombineProducerRecord(Gmm2CombineCvPipe& pipe)

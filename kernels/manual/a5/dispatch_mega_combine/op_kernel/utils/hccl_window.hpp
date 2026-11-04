@@ -25,8 +25,7 @@ constexpr uint32_t START_AIV_BARRIER_COUNTER_BASE_INDEX = 14336;
 constexpr uint32_t START_AIV_BARRIER_EPOCH_INDEX = 18432;
 constexpr uint32_t START_AIC_BARRIER_COUNTER_BASE_INDEX = 20480;
 constexpr uint32_t START_AIC_BARRIER_EPOCH_INDEX = 24576;
-// Keep one cache line per producer slot.  These slots are independent from the
-// older all-rank barrier counters above and are reused with a launch epoch.
+// Give each producer an independent cache line and use an epoch when reusing its slot.
 constexpr uint32_t COMBINE_DATA_READY_BASE_INDEX = 26624;
 constexpr uint32_t COMBINE_DATA_READY_STRIDE = 16;
 constexpr uint32_t COMBINE_EXPERT_PROGRESS_OFFSET = 1;
@@ -68,6 +67,13 @@ constexpr uint32_t FRONT_READY_EPOCH_INDEX = FRONT_READY_BASE_INDEX + FRONT_READ
 constexpr uint32_t PRESUM_READY_BASE_INDEX = FRONT_READY_EPOCH_INDEX + FRONT_READY_STRIDE;
 constexpr uint32_t PRESUM_READY_STRIDE = 16;
 constexpr uint32_t PRESUM_READY_SLOT_COUNT = kMegaMoeExpertProgressMaxRanks;
+constexpr uint32_t FRONT_WORKER_EPOCH_BASE_INDEX =
+    PRESUM_READY_BASE_INDEX + PRESUM_READY_SLOT_COUNT * PRESUM_READY_STRIDE;
+constexpr uint32_t FRONT_WORKER_EPOCH_STRIDE = 16U;
+constexpr uint32_t FRONT_WORKER_EPOCH_SLOT_COUNT = kMegaMoeFixedPhysicalAivNum;
+static_assert(
+    FRONT_WORKER_EPOCH_BASE_INDEX + FRONT_WORKER_EPOCH_SLOT_COUNT * FRONT_WORKER_EPOCH_STRIDE <
+    MB_SIZE / sizeof(int32_t));
 constexpr uint32_t REMOTE_WINDOW_SYNC_VALUES_PER_SLOT = 16;
 constexpr uint32_t COMBINE_EXPERT_PROGRESS_MAX_RANKS = kMegaMoeExpertProgressMaxRanks;
 constexpr uint32_t UNPERMUTE_PHASE1_PROGRESS_VALUE_COUNT =
@@ -171,6 +177,43 @@ public:
     }
 
 #if defined(__DAV_VEC__)
+    AICORE inline int32_t CrossRankFrontSync(uint32_t workerIdx, uint32_t workerCount) const
+    {
+        if (workerIdx >= FRONT_WORKER_EPOCH_SLOT_COUNT || workerCount == 0U) {
+            return 1;
+        }
+        __gm__ int32_t* localSignalBase = LocalSignalBase();
+        __gm__ uint32_t* workerCounter = reinterpret_cast<__gm__ uint32_t*>(
+            localSignalBase + FRONT_WORKER_EPOCH_BASE_INDEX + workerIdx * FRONT_WORKER_EPOCH_STRIDE);
+        int32_t count = static_cast<int32_t>(ld_dev(workerCounter, 0)) + 1;
+        if (count <= 0) {
+            count = 1;
+        }
+
+        // Use scalar bypass-DCache loads and stores for cross-rank epoch signaling.
+        for (uint32_t peerRank = workerIdx; peerRank < static_cast<uint32_t>(rankSize_); peerRank += workerCount) {
+            __gm__ uint32_t* remoteSlot = reinterpret_cast<__gm__ uint32_t*>(
+                RemoteSignalBase(static_cast<int32_t>(peerRank)) + FRONT_READY_BASE_INDEX +
+                static_cast<uint32_t>(rank_) * FRONT_READY_STRIDE);
+            st_dev(static_cast<uint32_t>(count), remoteSlot, 0);
+
+            __gm__ uint32_t* localSlot = reinterpret_cast<__gm__ uint32_t*>(
+                localSignalBase + FRONT_READY_BASE_INDEX + peerRank * FRONT_READY_STRIDE);
+            while (static_cast<int32_t>(ld_dev(localSlot, 0)) != count) {
+                __asm__ __volatile__("");
+            }
+        }
+
+        st_dev(static_cast<uint32_t>(count), workerCounter, 0);
+        if (workerIdx == 0U) {
+            __gm__ uint32_t* epochSlot = reinterpret_cast<__gm__ uint32_t*>(localSignalBase + FRONT_READY_EPOCH_INDEX);
+            st_dev(static_cast<uint32_t>(count), epochSlot, 0);
+        }
+        pipe_barrier(PIPE_ALL);
+        pto::SYNCALL<pto::SyncCoreType::AIVOnly>();
+        return count;
+    }
+
     AICORE inline void PrepareFrontReadyEpoch() const
     {
         __gm__ int32_t* epochSlot = LocalSignalBase() + FRONT_READY_EPOCH_INDEX;
@@ -191,46 +234,6 @@ public:
         dcci((__gm__ void*)epochSlot, SINGLE_CACHE_LINE);
         dsb(DSB_DDR);
         return *epochSlot;
-    }
-
-    AICORE inline volatile __gm__ int32_t* LocalFrontReadySlot(int32_t sourceRank) const
-    {
-        if (sourceRank < 0 || sourceRank >= rankSize_ || static_cast<uint32_t>(sourceRank) >= FRONT_READY_SLOT_COUNT) {
-            return nullptr;
-        }
-        return LocalSignalBase() + FRONT_READY_BASE_INDEX + static_cast<uint32_t>(sourceRank) * FRONT_READY_STRIDE;
-    }
-
-    AICORE inline void PublishFrontReady(int32_t consumerRank, int32_t epoch) const
-    {
-        if (consumerRank < 0 || consumerRank >= rankSize_) {
-            return;
-        }
-        if (consumerRank == rank_) {
-            volatile __gm__ int32_t* localSlot = LocalFrontReadySlot(rank_);
-            *localSlot = epoch;
-            dcci((__gm__ void*)localSlot, SINGLE_CACHE_LINE);
-            dsb(DSB_DDR);
-            return;
-        }
-        __gm__ int32_t* remoteSlot =
-            RemoteSignalBase(consumerRank) + FRONT_READY_BASE_INDEX + static_cast<uint32_t>(rank_) * FRONT_READY_STRIDE;
-        auto signal = pto::comm::Signal(remoteSlot);
-        pto::comm::TNOTIFY(signal, epoch, pto::comm::NotifyOp::Set);
-    }
-
-    AICORE inline void WaitAllFrontReady(int32_t epoch) const
-    {
-        if (rankSize_ <= 0 || static_cast<uint32_t>(rankSize_) > FRONT_READY_SLOT_COUNT) {
-            return;
-        }
-        const uint32_t count = static_cast<uint32_t>(rankSize_);
-        const uint32_t allReadyMask = count == 32U ? 0xFFFFFFFFU : ((1U << count) - 1U);
-        __gm__ int32_t* base = const_cast<__gm__ int32_t*>(LocalFrontReadySlot(0));
-        while (ReadEpochMaskMte(base, count, epoch) != allReadyMask) {
-            RemoteWindowSyncPollBackoff();
-        }
-        AcquireDataReady();
     }
 
     AICORE inline volatile __gm__ int32_t* LocalPreSumReadySlot(int32_t sourceRank) const
@@ -309,30 +312,6 @@ public:
         return static_cast<int32_t>((static_cast<uint32_t>(epoch) << COMBINE_EXPERT_PROGRESS_COUNT_BITS) | count);
     }
 
-    // Caller selects local/remote slot and owns the UB ring and final MTE3 drain.
-    AICORE inline void StoreRankReadySignal(
-        __gm__ int32_t* slot, uint64_t signalUbOffset, uint32_t readyExpertCount, int32_t epoch, bool publishDataReady,
-        event_t eventId) const
-    {
-        using SignalShape = pto::Shape<1, 1, 1, 1, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT>;
-        using SignalStride = pto::Stride<
-            REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT,
-            REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, 1>;
-        using SignalGlobal = pto::GlobalTensor<int32_t, SignalShape, SignalStride, pto::Layout::ND>;
-        using SignalTile = pto::Tile<
-            pto::TileType::Vec, int32_t, 1, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, pto::BLayout::RowMajor, -1, -1>;
-
-        SignalGlobal signalGlobal(slot);
-        SignalTile signalTile(1U, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT);
-        pto::TASSIGN(signalTile, signalUbOffset);
-        for (uint32_t valueIdx = 0U; valueIdx < REMOTE_WINDOW_SYNC_VALUES_PER_SLOT; ++valueIdx)
-            signalTile.SetValue(valueIdx, 0);
-        signalTile.SetValue(0U, publishDataReady ? epoch : 0);
-        signalTile.SetValue(COMBINE_EXPERT_PROGRESS_OFFSET, EncodeExpertProgress(epoch, readyExpertCount));
-        pto::PtoSetWaitFlag<PIPE_S, PIPE_MTE3>(eventId, eventId);
-        pto::TSTORE(signalGlobal, signalTile);
-    }
-
     AICORE inline void PublishRankReadyMte(
         int32_t consumerRank, uint32_t readyExpertCount, int32_t epoch, bool publishDataReady, event_t eventId) const
     {
@@ -349,6 +328,16 @@ public:
                    static_cast<uint32_t>(rank_) * COMBINE_DATA_READY_STRIDE;
         }
 
+        using SignalShape = pto::Shape<1, 1, 1, 1, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT>;
+        using SignalStride = pto::Stride<
+            REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT,
+            REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, 1>;
+        using SignalGlobal = pto::GlobalTensor<int32_t, SignalShape, SignalStride, pto::Layout::ND>;
+        using SignalTile = pto::Tile<
+            pto::TileType::Vec, int32_t, 1, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT, pto::BLayout::RowMajor, -1, -1>;
+
+        SignalGlobal signalGlobal(slot);
+        SignalTile signalTile(1U, REMOTE_WINDOW_SYNC_VALUES_PER_SLOT);
         const uint64_t signalUbBase =
             publishDataReady ? REMOTE_WINDOW_FINAL_SIGNAL_UB_OFFSET : REMOTE_WINDOW_PROGRESS_SIGNAL_UB_OFFSET;
         const uint32_t progressExpert = readyExpertCount == 0U ? 0U : readyExpertCount - 1U;
@@ -358,7 +347,14 @@ public:
                                (static_cast<uint64_t>(progressBuffer) * COMBINE_EXPERT_PROGRESS_MAX_RANKS +
                                 static_cast<uint32_t>(consumerRank)) *
                                    REMOTE_WINDOW_READY_SIGNAL_SLOT_BYTES;
-        StoreRankReadySignal(slot, signalUbBase + signalUbOffset, readyExpertCount, epoch, publishDataReady, eventId);
+        pto::TASSIGN(signalTile, signalUbBase + signalUbOffset);
+        for (uint32_t valueIdx = 0U; valueIdx < REMOTE_WINDOW_SYNC_VALUES_PER_SLOT; ++valueIdx) {
+            signalTile.SetValue(valueIdx, 0);
+        }
+        signalTile.SetValue(0U, publishDataReady ? epoch : 0);
+        signalTile.SetValue(COMBINE_EXPERT_PROGRESS_OFFSET, EncodeExpertProgress(epoch, readyExpertCount));
+        pto::PtoSetWaitFlag<PIPE_S, PIPE_MTE3>(eventId, eventId);
+        pto::TSTORE(signalGlobal, signalTile);
     }
 
     AICORE inline void AcquireDataReady() const
@@ -504,38 +500,6 @@ public:
         return static_cast<uint32_t>(base[UNPERMUTE_PHASE1_MASK_VALUE_OFFSET]);
     }
 
-    AICORE inline volatile __gm__ int32_t* LocalDispatchReleaseSlot(uint32_t workerIdx) const
-    {
-        if (workerIdx >= UNPERMUTE_DISPATCH_RELEASE_SLOT_COUNT) {
-            return nullptr;
-        }
-        return LocalSignalBase() + UNPERMUTE_DISPATCH_RELEASE_BASE_INDEX +
-               workerIdx * UNPERMUTE_DISPATCH_RELEASE_STRIDE;
-    }
-
-    AICORE inline void PublishDispatchRelease(uint32_t workerIdx, int32_t epoch) const
-    {
-        volatile __gm__ int32_t* slot = LocalDispatchReleaseSlot(workerIdx);
-        if (slot == nullptr) {
-            return;
-        }
-        *slot = epoch;
-        dcci((__gm__ void*)slot, SINGLE_CACHE_LINE);
-        dsb(DSB_DDR);
-    }
-
-    AICORE inline void WaitDispatchReleaseMte(uint32_t workerCount, int32_t epoch) const
-    {
-        const uint32_t count =
-            workerCount < UNPERMUTE_DISPATCH_RELEASE_SLOT_COUNT ? workerCount : UNPERMUTE_DISPATCH_RELEASE_SLOT_COUNT;
-        const uint32_t allReadyMask = count >= 32U ? 0xFFFFFFFFU : ((1U << count) - 1U);
-        __gm__ int32_t* base = const_cast<__gm__ int32_t*>(LocalDispatchReleaseSlot(0U));
-        while (ReadEpochMaskMte(base, count, epoch) != allReadyMask) {
-            RemoteWindowSyncPollBackoff();
-        }
-        AcquireDataReady();
-    }
-
     AICORE inline void CrossRankStartSyncAiv() const
     {
         if ASCEND_IS_AIV {
@@ -604,6 +568,7 @@ private:
 
 struct MegaMoePeerMemoryLayout {
     int64_t routeMaskSlots = 0;
+    int64_t expertCounts = 0;
     int64_t preSumBeforeRank = 0;
     int64_t combineOutputByRouteSlot = 0;
 
@@ -611,6 +576,7 @@ struct MegaMoePeerMemoryLayout {
     AICORE inline void Init(const FrontTiling& front)
     {
         routeMaskSlots = static_cast<int64_t>(front.routeMaskOffset);
+        expertCounts = static_cast<int64_t>(front.expertCountPeerOffset);
         preSumBeforeRank = static_cast<int64_t>(front.preSumBeforeRankPeerOffset);
         combineOutputByRouteSlot = static_cast<int64_t>(front.combineOutputOffset);
     }
