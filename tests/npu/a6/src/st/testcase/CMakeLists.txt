@@ -109,6 +109,7 @@ endfunction()
 set(ALL_TESTCASES
     tload_large_stride
     mgather_gm2l1
+    textract_ndto2xnz
     tquant
     tload_hif4
     tmatmul_mx
