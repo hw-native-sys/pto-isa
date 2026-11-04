@@ -67,7 +67,7 @@ __global__ AICORE void runTRem(
 
 // High precision remainder (issue #2): TREM<RemAlgorithm::HIGH_PRECISION>.
 // tmp tile follows the a2a3 HP vector-divisor scratch contract
-// (custom/TFmodRemHp.hpp): div + bTmp + k rows + packed mask + addr buffer.
+// (TRem.hpp): div + bTmp + k rows + packed mask + addr buffer.
 template <typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW>
 __global__ AICORE void runTRemHP(
     __gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1, int vRows, int vCols)
@@ -135,6 +135,121 @@ void LaunchTREM(T* out, T* src0, T* src1, void* stream)
         <<<1, nullptr, stream>>>(out, src0, src1, vRows, vCols);
 }
 
+// In-place aliasing probe: dst and src0 share ONE GM buffer and ONE UB tile
+// region (both TASSIGN'd at 0x0, mirroring the A5 runTRemInplace contract);
+// src1 and tmp sit behind them. Probe shapes are compact (vCols == tile
+// width), so TSTORE rewrites the whole GM tile and padding never participates.
+template <bool highPrecision, typename T, int dstTileH, int dstTileW, int vRows, int vCols>
+__global__ AICORE void runTRemInplace(__gm__ T* out, __gm__ T* src1)
+{
+    using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
+    using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
+    using GlobalData = GlobalTensor<T, DynShape, DynStride>;
+
+    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(1, 1, 1, dstTileW, 1));
+    GlobalData src1Global(src1, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(1, 1, 1, dstTileW, 1));
+    TASSIGN(dstGlobal, out);
+    TASSIGN(src1Global, src1);
+
+    using TileData = Tile<TileType::Vec, T, dstTileH, dstTileW, BLayout::RowMajor, -1, -1>;
+    TileData src0Tile(vRows, vCols);
+    TileData dstTile(vRows, vCols);
+    TileData src1Tile(vRows, vCols);
+    constexpr unsigned tileBytes = dstTileH * dstTileW * sizeof(T);
+    constexpr unsigned maskFloatsDef = ((dstTileW + 255) / 256) * 8;
+    constexpr unsigned tmpWDef = dstTileW + maskFloatsDef + 8;
+    constexpr unsigned capVecs = dstTileW / 64 > 0 ? dstTileW / 64 : 1;
+    constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
+    constexpr unsigned tmpWHp = 192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0);
+    constexpr unsigned tmpW = highPrecision ? tmpWHp : tmpWDef;
+    using TileDataTmp = Tile<TileType::Vec, T, 1, tmpW, BLayout::RowMajor, -1, -1>;
+    TileDataTmp tmpTile(1, tmpW);
+
+    // the alias under test: dstTile and src0Tile share UB offset 0
+    TASSIGN(src0Tile, 0x0);
+    TASSIGN(dstTile, 0x0);
+    TASSIGN(src1Tile, tileBytes);
+    TASSIGN(tmpTile, tileBytes * 2);
+
+    TLOAD(src0Tile, dstGlobal);
+    TLOAD(src1Tile, src1Global);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    constexpr auto precisionType = highPrecision ? RemAlgorithm::HIGH_PRECISION : RemAlgorithm::DEFAULT;
+    TREM<precisionType, TileData, TileData, TileData, TileDataTmp>(dstTile, src0Tile, src1Tile, tmpTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+// Disjoint control for the probe kernels above: same body, but dst sits behind
+// src1 in both GM and UB, validating the probe harness on the stock layout.
+template <bool highPrecision, typename T, int dstTileH, int dstTileW, int vRows, int vCols>
+__global__ AICORE void runTRemDisjoint(__gm__ T* out, __gm__ T* src0, __gm__ T* src1)
+{
+    using DynShape = pto::Shape<-1, -1, -1, -1, -1>;
+    using DynStride = pto::Stride<-1, -1, -1, -1, -1>;
+    using GlobalData = GlobalTensor<T, DynShape, DynStride>;
+
+    GlobalData dstGlobal(out, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(1, 1, 1, dstTileW, 1));
+    GlobalData src0Global(src0, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(1, 1, 1, dstTileW, 1));
+    GlobalData src1Global(src1, pto::Shape(1, 1, 1, vRows, vCols), pto::Stride(1, 1, 1, dstTileW, 1));
+    TASSIGN(dstGlobal, out);
+    TASSIGN(src0Global, src0);
+    TASSIGN(src1Global, src1);
+
+    using TileData = Tile<TileType::Vec, T, dstTileH, dstTileW, BLayout::RowMajor, -1, -1>;
+    TileData src0Tile(vRows, vCols);
+    TileData dstTile(vRows, vCols);
+    TileData src1Tile(vRows, vCols);
+    constexpr unsigned tileBytes = dstTileH * dstTileW * sizeof(T);
+    constexpr unsigned maskFloatsDef = ((dstTileW + 255) / 256) * 8;
+    constexpr unsigned tmpWDef = dstTileW + maskFloatsDef + 8;
+    constexpr unsigned capVecs = dstTileW / 64 > 0 ? dstTileW / 64 : 1;
+    constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
+    constexpr unsigned tmpWHp = 192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0);
+    constexpr unsigned tmpW = highPrecision ? tmpWHp : tmpWDef;
+    using TileDataTmp = Tile<TileType::Vec, T, 1, tmpW, BLayout::RowMajor, -1, -1>;
+    TileDataTmp tmpTile(1, tmpW);
+
+    TASSIGN(src0Tile, 0x0);
+    TASSIGN(src1Tile, tileBytes);
+    TASSIGN(dstTile, tileBytes * 2);
+    TASSIGN(tmpTile, tileBytes * 3);
+
+    TLOAD(src0Tile, src0Global);
+    TLOAD(src1Tile, src1Global);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    constexpr auto precisionType = highPrecision ? RemAlgorithm::HIGH_PRECISION : RemAlgorithm::DEFAULT;
+    TREM<precisionType, TileData, TileData, TileData, TileDataTmp>(dstTile, src0Tile, src1Tile, tmpTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+template <bool highPrecision, typename T, int dstTileH, int dstTileW, int vRows, int vCols>
+void LaunchTREMInplace(T* out, T* src1, void* stream)
+{
+    runTRemInplace<highPrecision, T, dstTileH, dstTileW, vRows, vCols><<<1, nullptr, stream>>>(out, src1);
+}
+
+template <bool highPrecision, typename T, int dstTileH, int dstTileW, int vRows, int vCols>
+void LaunchTREMDisjoint(T* out, T* src0, T* src1, void* stream)
+{
+    runTRemDisjoint<highPrecision, T, dstTileH, dstTileW, vRows, vCols><<<1, nullptr, stream>>>(out, src0, src1);
+}
+
 template void LaunchTREM<float, 16, 64, 16, 128, 16, 128, 16, 64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREM<float, 16, 32, 16, 64, 16, 32, 16, 32>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREM<int32_t, 4, 32, 4, 32, 4, 32, 4, 32>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
@@ -186,3 +301,23 @@ template void LaunchTREMHP<float, 4, 136, 4, 136, 4, 136, 4, 136>(float* out, fl
 template void LaunchTREMHP<float, 1, 8128, 1, 8128, 1, 8128, 1, 8128>(
     float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMHP<float, 16, 64, 16, 64, 16, 64, 16, 63>(float* out, float* src0, float* src1, void* stream);
+
+// in-place aliasing probes: sub-repeat, row loop, multi-repeat compare, single
+// wide row; int32 both paths; HP fallback (staged gate rejects the alias)
+template void LaunchTREMInplace<false, float, 4, 8, 4, 8>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<false, float, 33, 64, 33, 64>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<false, float, 8, 192, 8, 192>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<false, float, 1, 8192, 1, 8192>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<false, int32_t, 1, 64, 1, 64>(int32_t* out, int32_t* src1, void* stream);
+template void LaunchTREMInplace<false, int32_t, 2, 192, 2, 192>(int32_t* out, int32_t* src1, void* stream);
+template void LaunchTREMInplace<true, float, 8, 448, 8, 448>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 12, 256, 12, 256>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 32, 64, 32, 64>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 2, 2048, 2, 2048>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 5, 320, 5, 320>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 8, 456, 8, 456>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 4, 136, 4, 136>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 1, 8128, 1, 8128>(float* out, float* src1, void* stream);
+// disjoint controls
+template void LaunchTREMDisjoint<false, float, 33, 64, 33, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMDisjoint<true, float, 8, 448, 8, 448>(float* out, float* src0, float* src1, void* stream);

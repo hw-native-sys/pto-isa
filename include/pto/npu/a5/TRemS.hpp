@@ -16,11 +16,119 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include "utils.hpp"
 #include "TBinSOp.hpp"
-#include "custom/TFmodRemHp.hpp"
-#include "custom/TRemHpStaged.hpp"
 #include "TRem.hpp"
 
 namespace pto {
+// ---- Staged TREMS (scalar divisor) drivers ----
+// Scalar-divisor variant: the divisor is a broadcast register rebuilt once per
+// pass, so no src1 reload is staged.
+template <typename RoundMode, int32_t iterationNum, unsigned DstStride, unsigned Src0Stride>
+PTO_INTERNAL void TRemHpStagePassS(
+    __ubuf__ float* dst, __ubuf__ float* src0, float scalar, uint32_t validRows, uint32_t fullPerRow)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(float);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
+    RegTensor<float> stateReg, divReg, src0Reg;
+    MaskReg preg = PSetWithType<float>(PAT_ALL);
+    vdup(divReg, scalar, preg, MODE_ZEROING);
+    vabs(divReg, divReg, preg, MODE_ZEROING);
+    for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
+        for (uint16_t j = 0; j < (uint16_t)fullPerRow; ++j) {
+            uint32_t col = j * elemsPerRepeat;
+            if constexpr (iterationNum == FMOD_ITERATION_NUM_MAX) {
+                vlds(src0Reg, src0, row * Src0Stride + col, NORM);
+                vabs(stateReg, src0Reg, preg, MODE_ZEROING);
+            } else {
+                vlds(stateReg, dst, row * DstStride + col, NORM);
+            }
+            SolveScale<RoundMode, iterationNum>(
+                stateReg, divReg, scaleList1[iterationNum - 1].f, scaleList2[iterationNum - 1].f, preg);
+            vsts(stateReg, dst, row * DstStride + col, distValue, preg);
+        }
+    }
+    mem_bar(VST_VLD);
+}
+
+template <typename RoundMode, int32_t iterationNum, unsigned DstStride, unsigned Src0Stride>
+PTO_INTERNAL void TRemHpStagePassScopedS(
+    __ubuf__ float* dst, __ubuf__ float* src0, float scalar, uint32_t validRows, uint32_t fullPerRow)
+{
+    __VEC_SCOPE__
+    {
+        TRemHpStagePassS<RoundMode, iterationNum, DstStride, Src0Stride>(dst, src0, scalar, validRows, fullPerRow);
+    }
+    pipe_barrier(PIPE_ALL);
+}
+
+template <typename RoundMode, int32_t iterationNum, unsigned DstStride, unsigned Src0Stride>
+PTO_INTERNAL void TRemHpStageIterS(
+    __ubuf__ float* dst, __ubuf__ float* src0, float scalar, uint32_t validRows, uint32_t fullPerRow)
+{
+    TRemHpStagePassScopedS<RoundMode, iterationNum, DstStride, Src0Stride>(dst, src0, scalar, validRows, fullPerRow);
+    if constexpr (iterationNum > 1) {
+        TRemHpStageIterS<RoundMode, iterationNum - 1, DstStride, Src0Stride>(dst, src0, scalar, validRows, fullPerRow);
+    }
+}
+
+template <bool isFmod, unsigned DstStride, unsigned Src0Stride>
+PTO_INTERNAL void TRemHpPostPassS(
+    __ubuf__ float* dst, __ubuf__ float* src0, float scalar, uint32_t validRows, uint32_t fullPerRow)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(float);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
+    RegTensor<float> stateReg, src0Reg, src1Reg, nanReg;
+    MaskReg preg = PSetWithType<float>(PAT_ALL);
+    vdup(nanReg, nan.f, preg, MODE_ZEROING);
+    vdup(src1Reg, scalar, preg, MODE_ZEROING);
+    for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
+        for (uint16_t j = 0; j < (uint16_t)fullPerRow; ++j) {
+            uint32_t col = j * elemsPerRepeat;
+            vlds(stateReg, dst, row * DstStride + col, NORM);
+            vlds(src0Reg, src0, row * Src0Stride + col, NORM);
+            TFmodRemHPPost<isFmod>(stateReg, src0Reg, src1Reg, nanReg, preg);
+            vsts(stateReg, dst, row * DstStride + col, distValue, preg);
+        }
+    }
+}
+
+template <bool isFmod, unsigned DstStride, unsigned Src0Stride>
+PTO_INTERNAL void TRemHpTailPassS(
+    __ubuf__ float* dst, __ubuf__ float* src0, float scalar, uint32_t validRows, uint32_t validCols)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(float);
+    uint32_t fullPerRow, tailCount;
+    TRemHpStagedVecs<float>(validRows, validCols, fullPerRow, tailCount);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
+    RegTensor<float> vDst, vSrc0, vSrc1;
+    MaskReg preg = CreatePredicate<float>(tailCount);
+    uint32_t col = fullPerRow * elemsPerRepeat;
+    for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
+        vlds(vSrc0, src0, row * Src0Stride + col, NORM);
+        vdup(vSrc1, scalar, preg, MODE_ZEROING);
+        TFmodRemHP<isFmod>(vDst, vSrc0, vSrc1, preg);
+        vsts(vDst, dst, row * DstStride + col, distValue, preg);
+    }
+}
+
+template <bool isFmod, unsigned DstStride, unsigned Src0Stride>
+PTO_INTERNAL void TRemSStaged(
+    __ubuf__ float* dst, __ubuf__ float* src0, float scalar, uint32_t validRows, uint32_t validCols)
+{
+    using RoundMode = std::conditional_t<isFmod, decltype(ROUND_Z), decltype(ROUND_F)>;
+    uint32_t fullPerRow, tailCount;
+    TRemHpStagedVecs<float>(validRows, validCols, fullPerRow, tailCount);
+    // Per-pass VFs with full drains: measured faster than chunked fusion for
+    // the scalar variant (load-light passes lose to bar_all drain stalls).
+    TRemHpStageIterS<RoundMode, FMOD_ITERATION_NUM_MAX, DstStride, Src0Stride>(
+        dst, src0, scalar, validRows, fullPerRow);
+    __VEC_SCOPE__ { TRemHpPostPassS<isFmod, DstStride, Src0Stride>(dst, src0, scalar, validRows, fullPerRow); }
+    if (tailCount > 0) {
+        __VEC_SCOPE__ { TRemHpTailPassS<isFmod, DstStride, Src0Stride>(dst, src0, scalar, validRows, validCols); }
+    }
+}
 
 template <RemSAlgorithm PrecisionType, typename T>
 struct RemSOp {

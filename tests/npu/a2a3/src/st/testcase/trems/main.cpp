@@ -84,6 +84,12 @@ bool ResultCmpRemStrict(
 template <uint32_t caseId>
 void launchTREMSTestCase(void* out, void* src, float scalar, aclrtStream stream);
 
+template <uint32_t caseId>
+void launchTREMSIpTestCase(void* out, float scalar, aclrtStream stream);
+
+template <uint32_t caseId>
+void launchTREMSDisjTestCase(void* out, void* src, float scalar, aclrtStream stream);
+
 class TREMSTest : public testing::Test {
 public:
 protected:
@@ -138,6 +144,131 @@ void TREMSTestFramework()
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
 
     // src copy mapped to dst-tile layout for the comparator's per-element slack
+    std::vector<T> srcVec(dstByteSize / sizeof(T), T(0));
+    for (int r = 0; r < (int)validRow; ++r) {
+        for (int c = 0; c < srcValidCol; ++c) {
+            srcVec[r * dstTileCol + c] = srcHost[r * col + c];
+        }
+    }
+
+    aclrtFree(dstDevice);
+    aclrtFree(srcDevice);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(srcHost);
+
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<T> golden(dstByteSize / sizeof(T));
+    std::vector<T> devFinal(dstByteSize / sizeof(T));
+    ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
+    ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
+
+    bool ret = ResultCmpRemStrict<T>(golden, devFinal, srcVec, scalar);
+    EXPECT_TRUE(ret);
+}
+
+// In-place aliasing probe: the dst GM buffer also feeds src, and the kernel
+// TASSIGNs dst and src over the same UB region. Probe shapes are compact
+// (valid == tile), so TSTORE rewrites every compared element and no memset of
+// the aliased buffer is needed.
+template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int srcValidCol>
+void TREMSTestIpFramework()
+{
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
+    size_t srcByteSize = row * col * sizeof(T);
+    T* dstHost;
+    T* dstDevice;
+    float scalar;
+
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, dstHost, srcByteSize);
+    std::string scalar_file = GetGoldenDir() + "/scalar.bin";
+    std::ifstream file(scalar_file, std::ios::binary);
+
+    file.read(reinterpret_cast<char*>(&scalar), 4);
+    file.close();
+    aclrtMemcpy(dstDevice, srcByteSize, dstHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTREMSIpTestCase<caseId>(dstDevice, scalar, stream);
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
+
+    // feed the real input to the comparator so the per-element slack matches
+    // the stock harness (zero vectors would kill the 8-ulp tolerance)
+    std::vector<T> srcVec(dstByteSize / sizeof(T), T(0));
+    for (int r = 0; r < (int)validRow; ++r) {
+        for (int c = 0; c < srcValidCol; ++c) {
+            srcVec[r * dstTileCol + c] = dstHost[r * col + c];
+        }
+    }
+
+    aclrtFree(dstDevice);
+    aclrtFreeHost(dstHost);
+
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<T> golden(dstByteSize / sizeof(T));
+    std::vector<T> devFinal(dstByteSize / sizeof(T));
+    ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
+    ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
+
+    bool ret = ResultCmpRemStrict<T>(golden, devFinal, srcVec, scalar);
+    EXPECT_TRUE(ret);
+}
+
+// Disjoint control for the in-place probe kernels: same shapes, dst in its own
+// GM buffer (memset like the stock harness).
+template <uint32_t caseId, typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int srcValidCol>
+void TREMSTestDisjFramework()
+{
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    size_t dstByteSize = dstTileRow * dstTileCol * sizeof(T);
+    size_t srcByteSize = row * col * sizeof(T);
+    T* dstHost;
+    T* srcHost;
+    T* dstDevice;
+    T* srcDevice;
+    float scalar;
+
+    aclrtMallocHost((void**)(&dstHost), dstByteSize);
+    aclrtMallocHost((void**)(&srcHost), srcByteSize);
+
+    aclrtMalloc((void**)&dstDevice, dstByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&srcDevice, srcByteSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMemset(dstDevice, dstByteSize, 0, dstByteSize);
+
+    ReadFile(GetGoldenDir() + "/input.bin", srcByteSize, srcHost, srcByteSize);
+    std::string scalar_file = GetGoldenDir() + "/scalar.bin";
+    std::ifstream file(scalar_file, std::ios::binary);
+
+    file.read(reinterpret_cast<char*>(&scalar), 4);
+    file.close();
+    aclrtMemcpy(srcDevice, srcByteSize, srcHost, srcByteSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTREMSDisjTestCase<caseId>(dstDevice, srcDevice, scalar, stream);
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, dstByteSize, dstDevice, dstByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
+
     std::vector<T> srcVec(dstByteSize / sizeof(T), T(0));
     for (int r = 0; r < (int)validRow; ++r) {
         for (int c = 0; c < srcValidCol; ++c) {
@@ -222,3 +353,15 @@ TEST_F(TREMSTest, case56) { TREMSTestFramework<56, float, 8, 456, 8, 8, 456, 456
 TEST_F(TREMSTest, case57) { TREMSTestFramework<57, float, 4, 136, 4, 4, 136, 136>(); }
 TEST_F(TREMSTest, case58) { TREMSTestFramework<58, float, 1, 8192, 1, 1, 8192, 8192>(); }
 TEST_F(TREMSTest, case59) { TREMSTestFramework<59, float, 16, 64, 16, 16, 64, 63>(); }
+
+// In-place aliasing probes (dst tile shares src's GM buffer and UB region):
+// DEFAULT float/int and the HP fallback must all stay alias-safe. Shapes are
+// compact (valid == tile), so golden padding never participates.
+TEST_F(TREMSTest, ip_def_float_33x64) { TREMSTestIpFramework<60, float, 33, 64, 33, 33, 64, 64>(); }
+TEST_F(TREMSTest, ip_def_float_4x8) { TREMSTestIpFramework<61, float, 4, 8, 4, 4, 8, 8>(); }
+TEST_F(TREMSTest, ip_def_float_1x8192) { TREMSTestIpFramework<62, float, 1, 8192, 1, 1, 8192, 8192>(); }
+TEST_F(TREMSTest, ip_def_int32_2x192) { TREMSTestIpFramework<63, int32_t, 2, 192, 2, 2, 192, 192>(); }
+TEST_F(TREMSTest, ip_hp_float_8x448) { TREMSTestIpFramework<64, float, 8, 448, 8, 8, 448, 448>(); }
+TEST_F(TREMSTest, ip_hp_float_32x64) { TREMSTestIpFramework<65, float, 32, 64, 32, 32, 64, 64>(); }
+// disjoint control validating the probe kernel on the stock layout
+TEST_F(TREMSTest, ctrl_disj_def_float_33x64) { TREMSTestDisjFramework<66, float, 33, 64, 33, 33, 64, 64>(); }

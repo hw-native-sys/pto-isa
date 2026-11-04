@@ -40,7 +40,7 @@ PTO_INTERNAL void SetFixpNzPara(
 // FIX L1 to L1 uses LOOP_ENHANCE mode with set_loopenhance_para
 // and the 2-param config form is the only working approach
 // copies in 512-byte (1 NZ block) chunks to stay within proven limits.
-PTO_INTERNAL inline void L1CopyL1Sdk(__cbuf__ void* dst, __cbuf__ void* src, uint32_t totalBytes)
+PTO_INTERNAL void L1CopyL1Sdk(__cbuf__ void* dst, __cbuf__ void* src, uint32_t totalBytes)
 {
     constexpr uint64_t C0_BYTE_SIZE = 32;
     constexpr uint64_t BLOCK_BYTES = 512; // one NZ block = 16 * 32 bytes
@@ -72,7 +72,7 @@ PTO_INTERNAL inline void L1CopyL1Sdk(__cbuf__ void* dst, __cbuf__ void* src, uin
 }
 
 // Single 32-byte L1 -> L1 copy without pipe_barrier wrapping (for batch use).
-PTO_INTERNAL inline void L1CopyL1Raw(__cbuf__ void* dst, __cbuf__ void* src, uint32_t copyBytes)
+PTO_INTERNAL void L1CopyL1Raw(__cbuf__ void* dst, __cbuf__ void* src, uint32_t copyBytes)
 {
     constexpr uint64_t C0_BYTE_SIZE = 32;
     uint64_t copyTimes = copyBytes / C0_BYTE_SIZE;

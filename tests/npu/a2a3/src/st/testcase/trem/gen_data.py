@@ -95,7 +95,7 @@ def divisor_pool(dtype):
 
 
 def hp_divisor_pool(dtype):
-    """High precision divisors. Domain notes (see docs/trems_hp_a2a3.md):
+    """High precision divisors. Domain notes (see docs/isa/TREMS.md):
     - divisor 0 is outside the HP contract (same as A5) and NaN divisors race
       the unguarded src0==+-0 exception fixup;
     - the remainder sign correction probes r*y, which underflows to +-0 when
@@ -170,7 +170,7 @@ def gen_golden_data_trem(param):
 
 class TremParams:
     def __init__(self, dtype, dst_tileR, dst_tileC, src0_tileR, src0_tileC, src1_tileR, src1_tileC, valid_row,
-                 valid_col, seed=20260723, hp=False):
+                 valid_col, seed=20260723, hp=False, mode=""):
         self.dtype = dtype
         self.dst_tile_row = dst_tileR
         self.dst_tile_col = dst_tileC
@@ -182,15 +182,21 @@ class TremParams:
         self.valid_col = valid_col
         self.seed = seed
         self.hp = hp
+        self.mode = mode
 
 
 def generate_case_name(param):
     dtype_str = {np.float32: "float", np.float16: "half", np.int32: "int32", np.int16: "int16"}[param.dtype]
+    kind = "hp_" if getattr(param, "hp", False) else ""
+    mode = getattr(param, "mode", "")
+    if mode:
+        # probe cases use one tile shape everywhere, so the dst tile alone
+        # identifies the case (dir name matches the gtest case name)
+        return f"TREMTest.{mode}{dtype_str}_{param.dst_tile_row}x{param.dst_tile_col}"
     tileStr = (
         f"{param.dst_tile_row}x{param.dst_tile_col}_{param.src0_tile_row}x{param.src0_tile_col}_"
         f"{param.src1_tile_row}x{param.src1_tile_col}_{param.valid_row}x{param.valid_col}"
     )
-    kind = "hp_" if getattr(param, "hp", False) else ""
     return f"TREMTest.case_{kind}{dtype_str}_{tileStr}"
 
 
@@ -243,6 +249,29 @@ if __name__ == "__main__":
         TremParams(np.float32, 4, 136, 4, 136, 4, 136, 4, 136, hp=True),
         TremParams(np.float32, 1, 8128, 1, 8128, 1, 8128, 1, 8128, hp=True),
         TremParams(np.float32, 16, 64, 16, 64, 16, 64, 16, 63, hp=True),
+    ]
+
+    # in-place aliasing probes (dst tile TASSIGN'd over src0) + disjoint
+    # controls: DEFAULT float/int and HP fallback must stay alias-safe.
+    # Shapes are compact (valid == tile) so the whole GM tile is rewritten and
+    # golden padding never participates.
+    case_params_list += [
+        TremParams(f, 4, 8, 4, 8, 4, 8, 4, 8, mode="ip_def_"),
+        TremParams(f, 33, 64, 33, 64, 33, 64, 33, 64, mode="ip_def_"),
+        TremParams(f, 8, 192, 8, 192, 8, 192, 8, 192, mode="ip_def_"),
+        TremParams(f, 1, 8192, 1, 8192, 1, 8192, 1, 8192, mode="ip_def_"),
+        TremParams(i, 1, 64, 1, 64, 1, 64, 1, 64, mode="ip_def_"),
+        TremParams(i, 2, 192, 2, 192, 2, 192, 2, 192, mode="ip_def_"),
+        TremParams(f, 8, 448, 8, 448, 8, 448, 8, 448, hp=True, mode="ip_hp_"),
+        TremParams(f, 12, 256, 12, 256, 12, 256, 12, 256, hp=True, mode="ip_hp_"),
+        TremParams(f, 32, 64, 32, 64, 32, 64, 32, 64, hp=True, mode="ip_hp_"),
+        TremParams(f, 2, 2048, 2, 2048, 2, 2048, 2, 2048, hp=True, mode="ip_hp_"),
+        TremParams(f, 5, 320, 5, 320, 5, 320, 5, 320, hp=True, mode="ip_hp_"),
+        TremParams(f, 8, 456, 8, 456, 8, 456, 8, 456, hp=True, mode="ip_hp_"),
+        TremParams(f, 4, 136, 4, 136, 4, 136, 4, 136, hp=True, mode="ip_hp_"),
+        TremParams(f, 1, 8128, 1, 8128, 1, 8128, 1, 8128, hp=True, mode="ip_hp_"),
+        TremParams(f, 33, 64, 33, 64, 33, 64, 33, 64, mode="ctrl_disj_def_"),
+        TremParams(f, 8, 448, 8, 448, 8, 448, 8, 448, hp=True, mode="ctrl_disj_hp_"),
     ]
 
     for param in case_params_list:

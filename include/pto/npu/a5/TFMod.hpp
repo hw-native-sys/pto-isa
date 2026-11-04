@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/utils.hpp>
 #include <pto/npu/a5/TBinOp.hpp>
 #include <pto/common/debug.h>
-#include "custom/TFmodRemHp.hpp"
+#include "TRem.hpp"
 
 namespace pto {
 

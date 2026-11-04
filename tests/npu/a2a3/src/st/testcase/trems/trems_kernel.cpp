@@ -64,7 +64,7 @@ PTO_INTERNAL void runTREMS(__gm__ T* out, __gm__ T* src, T scalar)
     }
 
 // High precision remainder cases: TREMS<RemSAlgorithm::HIGH_PRECISION>.
-// tmp tile follows the a2a3 HP scratch contract (custom/TFmodRemHp.hpp):
+// tmp tile follows the a2a3 HP scratch contract (TRem.hpp):
 // 7 row buffers + packed mask + addr buffer + sign constant.
 template <typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
 PTO_INTERNAL void runTREMSHP(__gm__ T* out, __gm__ T* src, T scalar)
@@ -165,6 +165,127 @@ DEF_TREMS_CASE_HP(56, float, 8, 456, 8, 8, 456, 456)    // 56 vecs staged + 8-el
 DEF_TREMS_CASE_HP(57, float, 4, 136, 4, 4, 136, 136)    // 8 vecs register + 8-elem tails
 DEF_TREMS_CASE_HP(58, float, 1, 8192, 1, 1, 8192, 8192) // 128 vecs staged, one row
 DEF_TREMS_CASE_HP(59, float, 16, 64, 16, 16, 64, 63)    // register fallback + 63-elem tails
+
+// In-place aliasing probe: dst and src share ONE GM buffer and ONE UB tile
+// region (both TASSIGN'd at 0x0); tmp sits behind them. highPrecision picks
+// the DEFAULT or HP tmp contract. Probe shapes are compact (valid == tile),
+// so TSTORE rewrites the whole GM tile and padding never participates.
+template <bool highPrecision, typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
+PTO_INTERNAL void runTREMSInplace(__gm__ T* out, T scalar)
+{
+    using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
+    using DynDim2Stride = pto::Stride<1, 1, 1, -1, 1>;
+    using GlobalData = GlobalTensor<T, DynDim2Shape, DynDim2Stride>;
+    GlobalData srcGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(col));
+    GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileCol));
+
+    constexpr unsigned maskFloatsDef = ((dstTileCol + 255) / 256) * 8;
+    constexpr unsigned tmpTileColDef = dstTileCol + maskFloatsDef + 8;
+    constexpr unsigned elemsPerRepeat = 256 / sizeof(T);
+    constexpr unsigned capVecs = validCol / elemsPerRepeat > 0 ? validCol / elemsPerRepeat : 1;
+    constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
+    constexpr unsigned tmpTileColHp = 128 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0);
+    constexpr unsigned tmpTileCol = highPrecision ? tmpTileColHp : tmpTileColDef;
+
+    using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
+    using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, -1, -1>;
+    using tmpTileData = Tile<TileType::Vec, T, 1, tmpTileCol, BLayout::RowMajor, -1, -1>;
+    srcTileData srcTile(validRow, validCol);
+    dstTileData dstTile(validRow, validCol);
+    tmpTileData tmpTile(1, tmpTileCol);
+    // the alias under test: dstTile and srcTile share UB offset 0
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstTile, 0x0);
+    TASSIGN(tmpTile, row * col * sizeof(T));
+
+    TLOAD(srcTile, srcGlobal);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+
+    constexpr auto precisionType = highPrecision ? RemSAlgorithm::HIGH_PRECISION : RemSAlgorithm::DEFAULT;
+    TREMS<precisionType>(dstTile, srcTile, scalar, tmpTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+// Disjoint control: same selectable-precision body, stock dst-behind-src layout.
+template <bool highPrecision, typename T, int dstTileRow, int dstTileCol, int row, int validRow, int col, int validCol>
+PTO_INTERNAL void runTREMSDisjoint(__gm__ T* out, __gm__ T* src, T scalar)
+{
+    using DynDim2Shape = Shape<1, 1, 1, -1, -1>;
+    using DynDim2Stride = pto::Stride<1, 1, 1, -1, 1>;
+    using GlobalData = GlobalTensor<T, DynDim2Shape, DynDim2Stride>;
+    GlobalData srcGlobal(src, DynDim2Shape(validRow, validCol), DynDim2Stride(col));
+    GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileCol));
+
+    constexpr unsigned maskFloatsDef = ((dstTileCol + 255) / 256) * 8;
+    constexpr unsigned tmpTileColDef = dstTileCol + maskFloatsDef + 8;
+    constexpr unsigned elemsPerRepeat = 256 / sizeof(T);
+    constexpr unsigned capVecs = validCol / elemsPerRepeat > 0 ? validCol / elemsPerRepeat : 1;
+    constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
+    constexpr unsigned tmpTileColHp = 128 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0);
+    constexpr unsigned tmpTileCol = highPrecision ? tmpTileColHp : tmpTileColDef;
+
+    using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
+    using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, -1, -1>;
+    using tmpTileData = Tile<TileType::Vec, T, 1, tmpTileCol, BLayout::RowMajor, -1, -1>;
+    srcTileData srcTile(validRow, validCol);
+    dstTileData dstTile(validRow, validCol);
+    tmpTileData tmpTile(1, tmpTileCol);
+    TASSIGN(srcTile, 0x0);
+    TASSIGN(dstTile, row * col * sizeof(T));
+    TASSIGN(tmpTile, row * col * sizeof(T) + dstTileRow * dstTileCol * sizeof(T));
+
+    TLOAD(srcTile, srcGlobal);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+
+    constexpr auto precisionType = highPrecision ? RemSAlgorithm::HIGH_PRECISION : RemSAlgorithm::DEFAULT;
+    TREMS<precisionType>(dstTile, srcTile, scalar, tmpTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+#define DEF_TREMS_IP_CASE(ID, HP, T, DR, DC, R, VR, C, VC)                           \
+    extern "C" __global__ AICORE void launchTREMSIpCase##ID(__gm__ T* out, T scalar) \
+    {                                                                                \
+        runTREMSInplace<HP, T, DR, DC, R, VR, C, VC>(out, scalar);                   \
+    }
+
+#define DEF_TREMS_DISJ_CASE(ID, HP, T, DR, DC, R, VR, C, VC)                                          \
+    extern "C" __global__ AICORE void launchTREMSDisjCase##ID(__gm__ T* out, __gm__ T* src, T scalar) \
+    {                                                                                                 \
+        runTREMSDisjoint<HP, T, DR, DC, R, VR, C, VC>(out, src, scalar);                              \
+    }
+
+// ---- in-place aliasing probes: DEFAULT float/int (row loop, sub-repeat,
+// single wide row; negative scalars hit the sign-correction compare) and the
+// HP fallback (staged gate rejects the alias); disjoint control ----
+DEF_TREMS_IP_CASE(60, false, float, 33, 64, 33, 33, 64, 64)
+DEF_TREMS_IP_CASE(61, false, float, 4, 8, 4, 4, 8, 8)
+DEF_TREMS_IP_CASE(62, false, float, 1, 8192, 1, 1, 8192, 8192)
+DEF_TREMS_IP_CASE(63, false, int32_t, 2, 192, 2, 2, 192, 192)
+DEF_TREMS_IP_CASE(64, true, float, 8, 448, 8, 8, 448, 448)
+DEF_TREMS_IP_CASE(65, true, float, 32, 64, 32, 32, 64, 64)
+DEF_TREMS_DISJ_CASE(66, false, float, 33, 64, 33, 33, 64, 64)
 
 template <uint32_t caseId>
 void launchTREMSTestCase(void* out, void* src, float scalar, aclrtStream stream);
@@ -268,3 +389,56 @@ INST_TREMS(56)
 INST_TREMS(57)
 INST_TREMS(58)
 INST_TREMS(59)
+
+template <uint32_t caseId>
+void launchTREMSIpTestCase(void* out, float scalar, aclrtStream stream);
+
+#define RUN_TREMS_IP_CASE(ID, T)                                                        \
+    case ID:                                                                            \
+        launchTREMSIpCase##ID<<<1, nullptr, stream>>>((T*)out, static_cast<T>(scalar)); \
+        break;
+
+template <uint32_t caseId>
+void launchTREMSIpTestCase(void* out, float scalar, aclrtStream stream)
+{
+    switch (caseId) {
+        RUN_TREMS_IP_CASE(60, float)
+        RUN_TREMS_IP_CASE(61, float)
+        RUN_TREMS_IP_CASE(62, float)
+        RUN_TREMS_IP_CASE(63, int32_t)
+        RUN_TREMS_IP_CASE(64, float)
+        RUN_TREMS_IP_CASE(65, float)
+        default:
+            break;
+    }
+}
+
+#define INST_TREMS_IP(ID) template void launchTREMSIpTestCase<ID>(void* out, float scalar, aclrtStream stream);
+INST_TREMS_IP(60)
+INST_TREMS_IP(61)
+INST_TREMS_IP(62)
+INST_TREMS_IP(63)
+INST_TREMS_IP(64)
+INST_TREMS_IP(65)
+
+template <uint32_t caseId>
+void launchTREMSDisjTestCase(void* out, void* src, float scalar, aclrtStream stream);
+
+#define RUN_TREMS_DISJ_CASE(ID, T)                                                                 \
+    case ID:                                                                                       \
+        launchTREMSDisjCase##ID<<<1, nullptr, stream>>>((T*)out, (T*)src, static_cast<T>(scalar)); \
+        break;
+
+template <uint32_t caseId>
+void launchTREMSDisjTestCase(void* out, void* src, float scalar, aclrtStream stream)
+{
+    switch (caseId) {
+        RUN_TREMS_DISJ_CASE(66, float)
+        default:
+            break;
+    }
+}
+
+#define INST_TREMS_DISJ(ID) \
+    template void launchTREMSDisjTestCase<ID>(void* out, void* src, float scalar, aclrtStream stream);
+INST_TREMS_DISJ(66)

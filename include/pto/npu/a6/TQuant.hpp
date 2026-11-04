@@ -2166,7 +2166,37 @@ PTO_INTERNAL void calcQuantizedFP4E2M1Values_DN_Fp16(
     }
 }
 
-template <QuantScaleAlg scale_alg, typename T, unsigned StaticCols>
+// Exponent DN->ZZ interleave in place (exp0 | exp1 << 8), skipping the
+// caller-side TMOV. Pairs run in decreasing order so a write never clobbers
+// an unread row.
+PTO_INTERNAL void InterleaveDnExponentInPlace(
+    __ubuf__ uint8_t* expPtr, uint32_t expStrideBytes, uint32_t srcStaticCols, unsigned validRows, unsigned validCols)
+{
+    constexpr uint32_t grpSize = 32;
+    constexpr uint32_t bytesPerInputVL = CCE_VL / 2;
+    uint32_t pairCount = validRows / (2 * grpSize);
+    uint32_t storeVlCount = CeilDivision((uint32_t)validCols, bytesPerInputVL);
+    for (int p = (int)pairCount - 1; p >= 0; --p) {
+        __ubuf__ uint8_t* row0 = expPtr + (2 * p) * srcStaticCols;
+        __ubuf__ uint8_t* row1 = row0 + srcStaticCols;
+        for (uint32_t vl = 0; vl < storeVlCount; ++vl) {
+            uint32_t off = vl * bytesPerInputVL;
+            uint32_t rem = (validCols > off) ? (validCols - off) : 0;
+            if (rem > bytesPerInputVL)
+                rem = bytesPerInputVL;
+            vector_u8 exp0, exp1;
+            vlds(exp0, row0, off, UNPK_B8);
+            vlds(exp1, row1, off, UNPK_B8);
+            MaskReg preg = CreatePredicate<uint16_t>(rem);
+            vshls((vector_u16&)exp1, (vector_u16&)exp1, 8, preg, MODE_ZEROING);
+            vor((vector_u16&)exp0, (vector_u16&)exp0, (vector_u16&)exp1, preg, MODE_ZEROING);
+            uint32_t dstByteOffset = (uint32_t)p * expStrideBytes + 2 * off;
+            vsts((vector_u16&)exp0, (__ubuf__ uint16_t*)expPtr, dstByteOffset / sizeof(uint16_t), NORM_B16, preg);
+        }
+    }
+}
+
+template <QuantScaleAlg scale_alg, bool interleave, typename T, unsigned StaticCols, unsigned ExpStaticCols>
 PTO_INTERNAL void TQuant_MXFP8_DN(
     __ubuf__ T* srcPtr, __ubuf__ uint8_t* expPtr, __ubuf__ uint8_t* dstPtr, __ubuf__ T* maxPtr, __ubuf__ T* scalingPtr,
     unsigned validRows, unsigned validCols)
@@ -2179,6 +2209,9 @@ PTO_INTERNAL void TQuant_MXFP8_DN(
     // of width StaticCols in the max/scaling/exp tiles.
     // Process each row as a 1D VL sequence so all offsets
     // stay aligned while preserving the 2D tile shape.
+    // With interleave the linear rows land in the base of the
+    // interleaved exp tile and InterleaveDnExponentInPlace below
+    // re-lays them out; see its comment for the overlap proof.
     uint32_t num_grps_per_col = CeilDivision((uint32_t)validRows, grpSize);
     uint32_t num_vls_per_row = CeilDivision((uint32_t)validCols, elementsPerVL);
     for (uint32_t j = 0; j < num_grps_per_col; ++j) {
@@ -2194,6 +2227,10 @@ PTO_INTERNAL void TQuant_MXFP8_DN(
         }
     }
     mem_bar(VST_VLD);
+    if constexpr (interleave) {
+        InterleaveDnExponentInPlace(expPtr, ExpStaticCols, StaticCols, validRows, validCols);
+        mem_bar(VST_VLD);
+    }
     if constexpr (std::is_same<T, float>::value)
         calcQuantizedFP8Values_DN_float<StaticCols>(srcPtr, scalingPtr, dstPtr, validRows, validCols);
     else
@@ -2201,8 +2238,8 @@ PTO_INTERNAL void TQuant_MXFP8_DN(
 }
 
 template <
-    QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
-    typename TileDataScaling>
+    QuantScaleAlg scale_alg, bool interleave, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
+    typename TileDataMax, typename TileDataScaling>
 __tf__ PTO_INTERNAL void TQuant_MXFP8_Impl_DN(
     typename TileDataOut::TileDType __out__ dst, typename TileDataExp::TileDType __out__ exp,
     typename TileDataMax::TileDType __out__ max, typename TileDataScaling::TileDType __out__ scaling,
@@ -2224,7 +2261,7 @@ __tf__ PTO_INTERNAL void TQuant_MXFP8_Impl_DN(
     {
         ZeroPadSourceTile<T, TileDataSrc::Cols>(srcPtr, validRows, validCols);
         mem_bar(VST_VLD);
-        TQuant_MXFP8_DN<scale_alg, T, TileDataSrc::Cols>(
+        TQuant_MXFP8_DN<scale_alg, interleave, T, TileDataSrc::Cols, TileDataExp::Cols>(
             srcPtr, (__ubuf__ uint8_t*)expPtr, (__ubuf__ uint8_t*)dstPtr, maxPtr, scalingPtr, validRows, validCols);
     }
 }
@@ -2232,7 +2269,7 @@ __tf__ PTO_INTERNAL void TQuant_MXFP8_Impl_DN(
 // MXFP4 E2M1 DN: same 3-stage shape as MXFP8 DN but OCP E2M1
 // exponent extraction (OcpF4E2M1Alg -> maxExp 0x0100) and
 // FP4 stage-3 quantize. scaling is bf16.
-template <QuantScaleAlg scale_alg, typename T, unsigned StaticCols>
+template <QuantScaleAlg scale_alg, bool interleave, typename T, unsigned StaticCols, unsigned ExpStaticCols>
 PTO_INTERNAL void TQuant_MXFP4_E2M1_DN(
     __ubuf__ T* srcPtr, __ubuf__ uint8_t* expPtr, __ubuf__ uint8_t* dstPtr, __ubuf__ T* maxPtr, __ubuf__ T* scalingPtr,
     unsigned validRows, unsigned validCols)
@@ -2256,6 +2293,10 @@ PTO_INTERNAL void TQuant_MXFP4_E2M1_DN(
         }
     }
     mem_bar(VST_VLD);
+    if constexpr (interleave) {
+        InterleaveDnExponentInPlace(expPtr, ExpStaticCols, StaticCols, validRows, validCols);
+        mem_bar(VST_VLD);
+    }
     if constexpr (std::is_same<T, bfloat16_t>::value)
         calcQuantizedFP4E2M1Values_DN_Bf16<StaticCols>(srcPtr, scalingPtr, dstPtr, validRows, validCols);
     else
@@ -2263,8 +2304,8 @@ PTO_INTERNAL void TQuant_MXFP4_E2M1_DN(
 }
 
 template <
-    QuantScaleAlg scale_alg, typename TileDataOut, typename TileDataSrc, typename TileDataExp, typename TileDataMax,
-    typename TileDataScaling>
+    QuantScaleAlg scale_alg, bool interleave, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
+    typename TileDataMax, typename TileDataScaling>
 __tf__ PTO_INTERNAL void TQuant_MXFP4_E2M1_Impl_DN(
     typename TileDataOut::TileDType __out__ dst, typename TileDataExp::TileDType __out__ exp,
     typename TileDataMax::TileDType __out__ max, typename TileDataScaling::TileDType __out__ scaling,
@@ -2287,7 +2328,7 @@ __tf__ PTO_INTERNAL void TQuant_MXFP4_E2M1_Impl_DN(
     {
         ZeroPadSourceTile<T, TileDataSrc::Cols>(srcPtr, validRows, validCols);
         mem_bar(VST_VLD);
-        TQuant_MXFP4_E2M1_DN<scale_alg, T, TileDataSrc::Cols>(
+        TQuant_MXFP4_E2M1_DN<scale_alg, interleave, T, TileDataSrc::Cols, TileDataExp::Cols>(
             srcPtr, (__ubuf__ uint8_t*)expPtr, (__ubuf__ uint8_t*)dstPtr, maxPtr, scalingPtr, validRows, validCols);
     }
 }
@@ -3005,6 +3046,58 @@ PTO_INTERNAL void TQuant_Hif4_Impl(
 // runs the five HiF4 stages. The caller just passes the
 // (dst, src, exp, max, scaling) tiles — no layout work.
 template <
+    int grp_axis, MxQuantAlg mx_alg, bool interleave, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
+    typename TileDataMax, typename TileDataScaling>
+PTO_INTERNAL void TQUANT_IMPL(
+    TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
+{
+    // Entry for the pto_instr.hpp TQUANT<grp_axis, mx_alg, interleave> wrapper.
+    // DN (grp_axis=0) writes the exponent interleaved as [groupPair, col,
+    // groupInPair] (aclnnDynamicMxQuant's non-tail-axis output); the linear
+    // layout keeps grp_axis=1 (ND). The A6 form extracts linearly and re-lays
+    // out in place (InterleaveDnExponentInPlace); on A5 the same layout is
+    // fused into the paired extraction pass.
+    using T = typename TileDataSrc::DType;
+    using OutT = typename TileDataOut::DType;
+    constexpr bool isFp8 = (mx_alg == MxQuantAlg::OcpMxFp8E4M3 || mx_alg == MxQuantAlg::NvMxFp8E4M3);
+    constexpr bool isNv = (mx_alg == MxQuantAlg::NvMxFp8E4M3 || mx_alg == MxQuantAlg::NvMxFp4E2M1);
+    constexpr QuantType quant_type = isFp8 ? QuantType::MXFP8 : QuantType::MXFP4_E2M1;
+    constexpr QuantScaleAlg scale_alg = isNv ? QuantScaleAlg::NV : QuantScaleAlg::OCP;
+    CheckTQuantMxTypes<quant_type, T, OutT>();
+    if constexpr (grp_axis == 0) {
+        if constexpr (interleave) {
+            constexpr uint32_t interleavedExpRows = (TileDataSrc::Rows + 63) / 64;
+            constexpr uint32_t interleavedExpCols = ((TileDataSrc::Cols * 2 + 31) / 32) * 32;
+            PTO_STATIC_ASSERT(TileDataSrc::Rows % 64 == 0, "Fix: DN interleave requires 64-aligned tile rows.");
+            PTO_STATIC_ASSERT(
+                TileDataExp::Rows == interleavedExpRows && TileDataExp::Cols == interleavedExpCols,
+                "Fix: DN interleaved exponent tile shape must be [ceil(M/64), align32(2*N)].");
+            PTO_ASSERT(src.GetValidRow() % 64 == 0, "Fix: DN interleave requires 64-aligned valid rows.");
+            PTO_ASSERT(
+                exp->GetValidRow() == CeilDivision(src.GetValidRow(), 64U) &&
+                    exp->GetValidCol() == src.GetValidCol() * 2,
+                "Fix: DN interleaved exponent valid shape must be [ceil(validM/64), 2*validN].");
+        }
+        if constexpr (quant_type == QuantType::MXFP8) {
+            TQuant_MXFP8_Impl_DN<
+                scale_alg, interleave, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+                dst.data(), exp->data(), max->data(), scaling->data(), src.data(), src.GetValidRow(),
+                src.GetValidCol());
+        } else {
+            TQuant_MXFP4_E2M1_Impl_DN<
+                scale_alg, interleave, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+                dst.data(), exp->data(), max->data(), scaling->data(), src.data(), src.GetValidRow(),
+                src.GetValidCol());
+        }
+    } else {
+        static_assert(grp_axis == 1, "Fix: grp_axis must be 0 (DN) or 1 (ND).");
+        static_assert(!interleave, "Fix: exponent interleave is only supported for DN (grp_axis=0).");
+        TQUANT_IMPL<quant_type, scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+            dst, src, exp, max, scaling);
+    }
+}
+
+template <
     int grp_axis, MxQuantAlg mx_alg, typename TileDataOut, typename TileDataSrc, typename TileDataExp,
     typename TileDataMax, typename TileDataScaling>
 PTO_INTERNAL void TQUANT_IMPL(
@@ -3032,12 +3125,13 @@ PTO_INTERNAL void TQUANT_IMPL(
         CheckTQuantMxTypes<quant_type, T, OutT>();
         if constexpr (grp_axis == 0) {
             if constexpr (quant_type == QuantType::MXFP8) {
-                TQuant_MXFP8_Impl_DN<scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+                TQuant_MXFP8_Impl_DN<
+                    scale_alg, false, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
                     dst.data(), exp->data(), max->data(), scaling->data(), src.data(), src.GetValidRow(),
                     src.GetValidCol());
             } else {
                 TQuant_MXFP4_E2M1_Impl_DN<
-                    scale_alg, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
+                    scale_alg, false, TileDataOut, TileDataSrc, TileDataExp, TileDataMax, TileDataScaling>(
                     dst.data(), exp->data(), max->data(), scaling->data(), src.data(), src.GetValidRow(),
                     src.GetValidCol());
             }

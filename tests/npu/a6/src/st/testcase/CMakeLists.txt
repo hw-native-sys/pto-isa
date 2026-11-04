@@ -119,6 +119,9 @@ set(ALL_TESTCASES
     tinterleave
     tdeinterleave
     syncall
+    tmov_nd2nz
+    tmov_zz
+    tquant_dn
 )
 
 if (AUTO_MODE)
