@@ -31,6 +31,16 @@ def saturation(value, min_val, max_val, target_type):
     return np.round(x_clamped).astype(target_type)
 
 
+# Byte pattern used by the W-split host harness to pre-fill the whole destination tensor.
+# Untouched elements must keep this value, so any out-of-box write (even of zeros) fails.
+SENTINEL_BYTE = 0xA5
+
+
+def build_sentinel_tensor(shape, dtype):
+    nbytes = int(np.prod(shape)) * np.dtype(dtype).itemsize
+    return np.frombuffer(np.full(nbytes, SENTINEL_BYTE, dtype=np.uint8).tobytes(), dtype=dtype).reshape(shape).copy()
+
+
 def extract_quant_params(quant_gm):
     quant_gm = int(quant_gm)
     m1_bits = (quant_gm >> 13) & 0xFFFFF
@@ -165,19 +175,37 @@ def gen_golden_data(case_name, g_info):
         # NHWC
         shape = g_info.shape
         golden = golden.reshape(shape[0], shape[1], shape[2], shape[3]).astype(dst_data_type)
-    elif dst_format == 5: 
-        # NCHW
+    elif dst_format == 5:
+        # NCHW: shape is the stored box (N, H, W_box, C); whole_shape is the full (N, H, W, C)
+        # tensor, used by W-split cases. Without whole_shape the box covers the whole tensor.
         shape = g_info.shape
-        golden = golden.reshape(shape[0], shape[1], shape[2], shape[3]).transpose(0, 3, 1, 2).astype(dst_data_type)
-    elif dst_format == 6: 
-        # NCDHW:
+        whole_shape = g_info.whole_shape
+        h0, w0, _ = g_info.dst_offset
+        golden_tile = golden.reshape(shape[0], shape[1], shape[2], shape[3]).transpose(0, 3, 1, 2).astype(
+            dst_data_type)
+        if whole_shape[0] != 0:
+            # W-split: untouched memory keeps the host sentinel so any out-of-box write is caught.
+            golden_nchw = build_sentinel_tensor(
+                (whole_shape[0], whole_shape[3], whole_shape[1], whole_shape[2]), dst_data_type)
+            golden_nchw[:, :, h0:h0 + shape[1], w0:w0 + shape[2]] = golden_tile
+            golden = golden_nchw
+        else:
+            golden = golden_tile
+    elif dst_format == 6:
+        # NCDHW: ncdhw_shape is the full (N, C, D, H, W) tensor, shape is the stored box
+        # (N, H, W_box, C) and dst_offset selects the depth slice / H / W origin.
         shape_ncdhw = g_info.ncdhw_shape
-        golden_ncdhw = np.zeros(shape_ncdhw, dtype=dst_data_type)
         shape_orig = g_info.shape
+        h0, w0, d0 = g_info.dst_offset
+        is_wsplit = (h0, w0, d0) != (0, 0, 0) or shape_orig[2] < shape_ncdhw[4] or shape_orig[1] < shape_ncdhw[3]
+        if is_wsplit:
+            golden_ncdhw = build_sentinel_tensor(shape_ncdhw, dst_data_type)
+        else:
+            golden_ncdhw = np.zeros(shape_ncdhw, dtype=dst_data_type)
         golden_nchw = golden.reshape(
             shape_orig[0], shape_orig[1], shape_orig[2], shape_orig[3]
         ).transpose(0, 3, 1, 2).astype(dst_data_type)
-        golden_ncdhw[:, :, 0, :, :] = golden_nchw
+        golden_ncdhw[:, :, d0, h0:h0 + shape_orig[1], w0:w0 + shape_orig[2]] = golden_nchw
         golden = golden_ncdhw
     if relu_mode == 1:
         golden = np.maximum(golden, 0)
@@ -193,7 +221,7 @@ def gen_golden_data(case_name, g_info):
 
 class TStoreAcc2gmParams:
     def __init__(self, dst_data_type, src_data_type, dst_format, m, n, k, quant_mode=0, scalar=1, relu_mode=0,
-        shape=(0, 0, 0, 0), ncdhw_shape=(0, 0, 0, 0, 0)):
+        shape=(0, 0, 0, 0), ncdhw_shape=(0, 0, 0, 0, 0), whole_shape=(0, 0, 0, 0), dst_offset=(0, 0, 0)):
         self.src_data_type = src_data_type
         self.dst_data_type = dst_data_type
         self.dst_format = dst_format
@@ -205,6 +233,10 @@ class TStoreAcc2gmParams:
         self.relu_mode = relu_mode
         self.shape = shape
         self.ncdhw_shape = ncdhw_shape
+        # W-split: shape is the stored box (N, H, W_box, C), whole_shape is the full (N, H, W, C)
+        # tensor and dst_offset is (h0, w0, d0) in elements for NCHW/NCDHW.
+        self.whole_shape = whole_shape
+        self.dst_offset = dst_offset
 
 if __name__ == "__main__":
     # 用例名称
@@ -290,6 +322,11 @@ if __name__ == "__main__":
         "TStoreAcc2gmTest.case_ncdhw_5",
         "TStoreAcc2gmTest.case_ncdhw_6",
         "TStoreAcc2gmTest.case_ncdhw_7",
+        "TStoreAcc2gmTest.case_nchw_wsplit_1",
+        "TStoreAcc2gmTest.case_nchw_wsplit_2",
+        "TStoreAcc2gmTest.case_nchw_wsplit_3",
+        "TStoreAcc2gmTest.case_ncdhw_wsplit_1",
+        "TStoreAcc2gmTest.case_nchw_wsplit_4",
     ]
 
     case_params_list = [
@@ -409,8 +446,21 @@ if __name__ == "__main__":
             relu_mode=1, shape=(1, 16, 40, 64), ncdhw_shape=(1, 64, 4, 16, 40)),
         TStoreAcc2gmParams(np.float16, fp8_e4m3fn, 6, 352, 64, 32, quant_mode=2, scalar=1, 
             relu_mode=0, shape=(1, 8, 44, 64), ncdhw_shape=(1, 64, 3, 8, 44)),
-        TStoreAcc2gmParams(np.float32, np.float16, 6, 256, 128, 32, quant_mode=2, scalar=1, 
+        TStoreAcc2gmParams(np.float32, np.float16, 6, 256, 128, 32, quant_mode=2, scalar=1,
             relu_mode=1, shape=(1, 64, 4, 128), ncdhw_shape=(1, 128, 4, 64, 4)),
+
+        # NCHW/NCDHW W split: shape is the stored box (N, H, W_box, C), the full tensor is
+        # described by whole_shape (NCHW) or ncdhw_shape (NCDHW), dst_offset is (h0, w0, d0).
+        TStoreAcc2gmParams(np.float32, np.float32, 5, 128, 128, 16, quant_mode=0, scalar=1,
+            relu_mode=0, shape=(1, 16, 8, 128), whole_shape=(1, 16, 64, 128)),
+        TStoreAcc2gmParams(np.float16, np.float32, 5, 128, 64, 32, quant_mode=0, scalar=1,
+            relu_mode=0, shape=(1, 8, 16, 64), whole_shape=(1, 16, 48, 64), dst_offset=(4, 16, 0)),
+        TStoreAcc2gmParams(np.int8, np.float32, 5, 128, 64, 32, quant_mode=1, scalar=2,
+            relu_mode=0, shape=(1, 8, 16, 64), whole_shape=(1, 16, 48, 64), dst_offset=(4, 16, 0)),
+        TStoreAcc2gmParams(np.float32, np.float32, 6, 128, 128, 16, quant_mode=0, scalar=1,
+            relu_mode=0, shape=(1, 16, 8, 128), ncdhw_shape=(1, 128, 2, 16, 64), dst_offset=(0, 0, 1)),
+        TStoreAcc2gmParams(np.float32, np.float32, 5, 256, 128, 16, quant_mode=0, scalar=1,
+            relu_mode=0, shape=(1, 32, 8, 128), whole_shape=(1, 32, 64, 128)),
     ]
 
     for i, case_name  in enumerate(case_name_list):
