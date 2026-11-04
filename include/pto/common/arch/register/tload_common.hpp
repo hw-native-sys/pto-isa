@@ -68,7 +68,7 @@ public:
                 lenBurst, 0, 0, enableUBPad, static_cast<uint8_t>(l2Control), gmStride, ubStride);
             return;
         }
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         // Unroll only small, known burst counts; keep dynamic and large loops compact.
         if (__builtin_constant_p(nBurst) && nBurst <= MAX_UNROLLED_BURSTS) {
             loadUbFallback<MAX_UNROLLED_BURSTS>(dst, src, nBurst, lenBurst, gmStride, ubStride, enableUBPad);
@@ -92,7 +92,7 @@ public:
                 dstStride);
             return;
         }
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         // Unroll only small, known burst counts; keep dynamic and large loops compact.
         if (__builtin_constant_p(nBurst) && nBurst <= MAX_UNROLLED_BURSTS) {
             loadL1Fallback<MAX_UNROLLED_BURSTS>(dst, src, nBurst, lenBurst, srcStride, dstStride, padCount);

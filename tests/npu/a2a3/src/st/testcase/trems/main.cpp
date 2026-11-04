@@ -11,9 +11,75 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "test_common.h"
 #include <acl/acl.h>
 #include <gtest/gtest.h>
+#include <cmath>
+#include <cstdint>
+#include <limits>
 
 using namespace std;
 using namespace PtoTestCommon;
+
+// Strict comparator for TREMS correctness cases:
+// - int32: exact
+// - float: exact bits, except any-NaN == any-NaN (payloads may differ), plus
+//   a cancellation-slack tolerance of 8 ulp of (|x| + |s|) for finite results
+//   and finite-vs-infinite pairs. The 910B1 vector divider/multiplier deviates
+//   from IEEE RN by up to ~2 ulp; for |x| near FLT_MAX, x - floor(x/s)*s is
+//   catastrophic cancellation, so the golden remainder can legitimately differ
+//   from hardware by +-ulp(x), or flip to +-inf when q*s crosses the FLT_MAX
+//   boundary. Logic bugs (wrong select, stale masks) produce errors of order
+//   |s| or garbage, far outside this slack.
+// The previous ResultCmp(eps=0.001) tolerated up to 0.1% wrong elements,
+// which hides row/repeat-boundary mask bugs these cases target.
+template <typename T>
+bool ResultCmpRemStrict(
+    const std::vector<T>& golden, const std::vector<T>& actual, const std::vector<T>& src, float scalarVal)
+{
+    auto ulp = [](float v) {
+        v = std::fabs(v);
+        if (std::isnan(v) || std::isinf(v)) {
+            return std::numeric_limits<float>::infinity();
+        }
+        float next = std::nextafterf(v, std::numeric_limits<float>::infinity());
+        return (next > v) ? (next - v) : (v > 0.0f ? v : std::numeric_limits<float>::denorm_min());
+    };
+    size_t errCount = 0;
+    for (size_t i = 0; i < golden.size(); ++i) {
+        bool ok;
+        if constexpr (std::is_same_v<T, float>) {
+            if (golden[i] == actual[i]) {
+                ok = true; // exact (covers -0 == +0)
+            } else if (std::isnan(golden[i]) && std::isnan(actual[i])) {
+                ok = true;
+            } else {
+                float x = (i < src.size()) ? src[i] : 0.0f;
+                float slack = 8.0f * (ulp(x) + ulp(scalarVal));
+                if (std::isfinite(golden[i]) && std::isfinite(actual[i])) {
+                    ok = std::fabs(golden[i] - actual[i]) <= slack;
+                    if (!ok && std::fabs(actual[i]) <= slack) {
+                        // Last-digit collapse, see the trem comparator comment.
+                        ok = std::fabs(golden[i]) <= std::fabs(scalarVal) + slack;
+                    }
+                } else {
+                    float fin = std::isfinite(golden[i]) ? golden[i] : actual[i];
+                    ok = std::isfinite(fin) ? (std::fabs(fin) <= slack) : (golden[i] == actual[i]);
+                }
+            }
+        } else {
+            ok = golden[i] == actual[i];
+        }
+        if (!ok) {
+            if (errCount < 5) {
+                std::cout << "MISMATCH idx " << i << ": golden " << golden[i] << " vs actual " << actual[i]
+                          << std::endl;
+            }
+            ++errCount;
+        }
+    }
+    if (errCount) {
+        std::cout << "strict compare err count: " << errCount << " / " << golden.size() << std::endl;
+    }
+    return errCount == 0;
+}
 
 template <uint32_t caseId>
 void launchTREMSTestCase(void* out, void* src, float scalar, aclrtStream stream);
@@ -71,6 +137,14 @@ void TREMSTestFramework()
 
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
 
+    // src copy mapped to dst-tile layout for the comparator's per-element slack
+    std::vector<T> srcVec(dstByteSize / sizeof(T), T(0));
+    for (int r = 0; r < (int)validRow; ++r) {
+        for (int c = 0; c < srcValidCol; ++c) {
+            srcVec[r * dstTileCol + c] = srcHost[r * col + c];
+        }
+    }
+
     aclrtFree(dstDevice);
     aclrtFree(srcDevice);
 
@@ -86,7 +160,7 @@ void TREMSTestFramework()
     ReadFile(GetGoldenDir() + "/golden.bin", dstByteSize, golden.data(), dstByteSize);
     ReadFile(GetGoldenDir() + "/output.bin", dstByteSize, devFinal.data(), dstByteSize);
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f, 0, 1000, false, true);
+    bool ret = ResultCmpRemStrict<T>(golden, devFinal, srcVec, scalar);
     EXPECT_TRUE(ret);
 }
 
@@ -109,3 +183,42 @@ TEST_F(TREMSTest, case12) { TREMSTestFramework<12, float, 256, 32, 256, 256, 16,
 TEST_F(TREMSTest, case15) { TREMSTestFramework<15, int32_t, 1, 8192, 1, 1, 8192, 8192>(); }
 
 TEST_F(TREMSTest, case16) { TREMSTestFramework<16, float, 1, 8192, 1, 1, 8192, 8192>(); }
+
+// size matrix (float): repeat-boundary crossing and extremes
+TEST_F(TREMSTest, case20) { TREMSTestFramework<20, float, 1, 64, 1, 1, 64, 64>(); }
+TEST_F(TREMSTest, case21) { TREMSTestFramework<21, float, 1, 72, 1, 1, 72, 65>(); }
+TEST_F(TREMSTest, case22) { TREMSTestFramework<22, float, 2, 128, 2, 2, 128, 127>(); }
+TEST_F(TREMSTest, case23) { TREMSTestFramework<23, float, 2, 128, 2, 2, 128, 128>(); }
+TEST_F(TREMSTest, case24) { TREMSTestFramework<24, float, 2, 136, 2, 2, 136, 129>(); }
+TEST_F(TREMSTest, case25) { TREMSTestFramework<25, float, 3, 256, 3, 3, 256, 256>(); }
+TEST_F(TREMSTest, case26) { TREMSTestFramework<26, float, 3, 264, 3, 3, 264, 257>(); }
+TEST_F(TREMSTest, case27) { TREMSTestFramework<27, float, 8, 192, 8, 8, 192, 192>(); }
+TEST_F(TREMSTest, case28) { TREMSTestFramework<28, float, 33, 64, 33, 33, 64, 64>(); }
+TEST_F(TREMSTest, case29) { TREMSTestFramework<29, float, 1, 1024, 1, 1, 1024, 1024>(); }
+TEST_F(TREMSTest, case30) { TREMSTestFramework<30, float, 2, 2048, 2, 2, 2048, 2048>(); }
+TEST_F(TREMSTest, case31) { TREMSTestFramework<31, float, 4, 64, 4, 4, 64, 63>(); }
+TEST_F(TREMSTest, case32) { TREMSTestFramework<32, float, 4, 8, 4, 4, 8, 8>(); }
+TEST_F(TREMSTest, case33) { TREMSTestFramework<33, float, 2, 4096, 2, 2, 4096, 4096>(); }
+TEST_F(TREMSTest, case34) { TREMSTestFramework<34, float, 2, 512, 2, 2, 384, 384>(); }
+TEST_F(TREMSTest, case35) { TREMSTestFramework<35, float, 5, 128, 5, 5, 128, 128>(); }
+
+// size matrix (int32)
+TEST_F(TREMSTest, case40) { TREMSTestFramework<40, int32_t, 1, 64, 1, 1, 64, 64>(); }
+TEST_F(TREMSTest, case41) { TREMSTestFramework<41, int32_t, 2, 72, 2, 2, 72, 65>(); }
+TEST_F(TREMSTest, case42) { TREMSTestFramework<42, int32_t, 3, 136, 3, 3, 136, 129>(); }
+TEST_F(TREMSTest, case43) { TREMSTestFramework<43, int32_t, 1, 8192, 1, 1, 8192, 8192>(); }
+TEST_F(TREMSTest, case44) { TREMSTestFramework<44, int32_t, 2, 192, 2, 2, 192, 192>(); }
+TEST_F(TREMSTest, case45) { TREMSTestFramework<45, int32_t, 2, 256, 2, 2, 192, 192>(); }
+
+// high precision remainder (issue #2): staged >= 48 full vectors, register
+// fallback, tails, strided dst (goldens are the true floored remainder %)
+TEST_F(TREMSTest, case50) { TREMSTestFramework<50, float, 8, 448, 8, 8, 448, 448>(); }
+TEST_F(TREMSTest, case51) { TREMSTestFramework<51, float, 12, 256, 12, 12, 256, 256>(); }
+TEST_F(TREMSTest, case52) { TREMSTestFramework<52, float, 32, 64, 32, 32, 64, 64>(); }
+TEST_F(TREMSTest, case53) { TREMSTestFramework<53, float, 7, 512, 7, 7, 448, 448>(); }
+TEST_F(TREMSTest, case54) { TREMSTestFramework<54, float, 2, 2048, 2, 2, 2048, 2048>(); }
+TEST_F(TREMSTest, case55) { TREMSTestFramework<55, float, 5, 320, 5, 5, 320, 320>(); }
+TEST_F(TREMSTest, case56) { TREMSTestFramework<56, float, 8, 456, 8, 8, 456, 456>(); }
+TEST_F(TREMSTest, case57) { TREMSTestFramework<57, float, 4, 136, 4, 4, 136, 136>(); }
+TEST_F(TREMSTest, case58) { TREMSTestFramework<58, float, 1, 8192, 1, 1, 8192, 8192>(); }
+TEST_F(TREMSTest, case59) { TREMSTestFramework<59, float, 16, 64, 16, 16, 64, 63>(); }

@@ -477,7 +477,7 @@ __tf__ PTO_INTERNAL void TExtractAccToMat(
     __cc__ srcType* srcData = (__cc__ srcType*)__cce_get_tile_ptr(src) + srcOffset;
     constexpr uint8_t unitFlagCtrl = static_cast<uint8_t>(Phase);
 
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (
         !DstTileData::isRowMajor && DstTileData::SFractal == SLayout::RowMajor &&
         (std::is_same_v<dstType, half> || std::is_same_v<dstType, bfloat16_t>) &&

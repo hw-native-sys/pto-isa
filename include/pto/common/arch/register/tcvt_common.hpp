@@ -10,7 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 /**
  * @file tcvt_common.hpp
- * @brief Common TCVT implementation for A5, Kirin9030, KirinX90
+ * @brief Common TCVT implementation for A5, A6, Kirin9030, KirinX90
  *
  * Architecture differences are handled via preprocessor macros.
  * Define ARCH_xxx before including this file.
@@ -2912,7 +2912,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVT(
     }
 }
 
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 // ============================================================================
 // Exact E2M1 widening uses byte registers throughout. The table repeats every 16
 // lanes, allowing the packed byte itself to index the low-nibble conversion.
@@ -2923,7 +2923,7 @@ PTO_INTERNAL void buildFp4E2M1ToE4M3Lut(RegTensor<uint8_t>& table, MaskReg fullM
     vci((RegTensor<int8_t>&)lane, static_cast<int8_t>(0), INC_ORDER);
     vdup(bitMask, static_cast<uint8_t>(0x07), fullMask, MODE_ZEROING);
     vand(magnitude, lane, bitMask, fullMask, MODE_ZEROING);
-    vshls(table, magnitude, 2, fullMask, MODE_ZEROING);
+    vshls(table, magnitude, static_cast<uint16_t>(2), fullMask, MODE_ZEROING);
     vadds(table, table, static_cast<uint8_t>(0x30), fullMask, MODE_ZEROING);
     vdup(zero, static_cast<uint8_t>(0), fullMask, MODE_ZEROING);
     vdup(half, static_cast<uint8_t>(0x30), fullMask, MODE_ZEROING);
@@ -2934,7 +2934,7 @@ PTO_INTERNAL void buildFp4E2M1ToE4M3Lut(RegTensor<uint8_t>& table, MaskReg fullM
     vsel(table, half, table, isOne);
     vdup(bitMask, static_cast<uint8_t>(0x08), fullMask, MODE_ZEROING);
     vand(sign, lane, bitMask, fullMask, MODE_ZEROING);
-    vshls(sign, sign, 4, fullMask, MODE_ZEROING);
+    vshls(sign, sign, static_cast<uint16_t>(4), fullMask, MODE_ZEROING);
     vor(table, table, sign, fullMask, MODE_ZEROING);
 }
 
@@ -3016,7 +3016,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVTFp4E2M1ToE4
                 // 256 bytes within complete valid rows; no load beyond the group.
                 uint32_t sourceOffset = row * sourceRowBytes;
                 vlds(packed, srcPtr, sourceOffset, NORM);
-                vshrs(highIndex, packed, 4, fullMask, MODE_ZEROING);
+                vshrs(highIndex, packed, static_cast<uint16_t>(4), fullMask, MODE_ZEROING);
                 vselr(low, table, packed);
                 vselr(high, table, highIndex);
                 vintlv(out0, out1, low, high);
@@ -3043,7 +3043,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVTFp4E2M1ToE4
                 uint32_t packedColumn = static_cast<uint32_t>(chunk) * registerBytes;
                 uint32_t sourceOffset = static_cast<uint32_t>(row) * sourceRowBytes + packedColumn;
                 vlds(packed, srcPtr, sourceOffset, NORM);
-                vshrs(highIndex, packed, 4, fullMask, MODE_ZEROING);
+                vshrs(highIndex, packed, static_cast<uint16_t>(4), fullMask, MODE_ZEROING);
                 vselr(low, table, packed);
                 vselr(high, table, highIndex);
                 vintlv(out0, out1, low, high);
@@ -3064,7 +3064,7 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVTFp4E2M1ToE4
                 // BLK reads one aligned 32-byte block. Only its first 64
                 // expanded bytes are stored, so even 1x64 FP4 tiles are safe.
                 vlds(packed, srcPtr, sourceOffset, BLK);
-                vshrs(highIndex, packed, 4, fullMask, MODE_ZEROING);
+                vshrs(highIndex, packed, static_cast<uint16_t>(4), fullMask, MODE_ZEROING);
                 vselr(low, table, packed);
                 vselr(high, table, highIndex);
                 vintlv(out0, out1, low, high);
@@ -3121,7 +3121,7 @@ PTO_INTERNAL void tcvtFp4E2M1ToE4M3(TileDataD& dst, TileDataS& src)
         "TCVT FP4/FP8 valid region exceeds physical tile bounds.");
     implTCVTFp4E2M1ToE4M3<TileDataD, TileDataS>(dst.data(), src.data(), rows, cols);
 }
-#endif // PTO_NPU_ARCH_A5
+#endif // PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_A6
 
 // ============================================================================
 // Saturation Control Helper
@@ -3256,7 +3256,7 @@ public:
 template <typename RoundT, typename TileDataD, typename TileDataS>
 PTO_INTERNAL void tcvtDispatch(TileDataD& dst, TileDataS& src, SaturationMode satMode)
 {
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (
         std::is_same_v<typename TileDataS::DType, float4_e2m1x2_t> &&
         std::is_same_v<typename TileDataD::DType, float8_e4m3_t>) {

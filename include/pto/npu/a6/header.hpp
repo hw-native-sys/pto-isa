@@ -32,6 +32,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a6/TShlS.hpp"
 #include "pto/npu/a6/TShr.hpp"
 #include "pto/npu/a6/TShrS.hpp"
+#include "pto/npu/a6/TInterleave.hpp"
+#include "pto/npu/a6/TDeInterleave.hpp"
 
 #include "pto/npu/a5/MGather.hpp"
 #include "pto/npu/a5/MScatter.hpp"
@@ -67,7 +69,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifdef PTO_COMPILE_VEC
 #include "pto/npu/a5/TCvt.hpp"
 #endif
-#include "pto/npu/a5/TDeInterleave.hpp"
 #include "pto/npu/a5/TDeQuant.hpp"
 #include "pto/npu/a5/TDiv.hpp"
 #include "pto/npu/a5/TDivS.hpp"
@@ -81,7 +82,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/THistogram.hpp"
 #include "pto/npu/a5/TImg2col.hpp"
 #include "pto/npu/a5/TInsert.hpp"
-#include "pto/npu/a5/TInterleave.hpp"
 #include "pto/npu/a5/TLRelu.hpp"
 #include "pto/npu/a5/TMAdd.hpp"
 #include "pto/npu/a5/TMax.hpp"

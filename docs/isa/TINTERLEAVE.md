@@ -11,6 +11,9 @@
 <!-- npu="910b" id3 -->
 - Atlas A2 products: Not supported
 <!-- end id3 -->
+<!-- npu="960" id4 -->
+- Ascend 960 products: Supported
+<!-- end id4 -->
 
 
 

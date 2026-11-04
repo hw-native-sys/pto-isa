@@ -28,11 +28,6 @@ enum class LayoutMode_t : uint8_t {
     NZ2DN = 2,
 };
 
-enum class DequantType {
-    SCALAR = 0,
-    TENSOR = 1,
-};
-
 /*
 //     NoQuant,          // 不使能量化功能
 //     F322F16,          // float转成成half
@@ -53,7 +48,6 @@ enum class DequantType {
 //     VDEQS16,          // int32_t量化成int16_t, tensor量化
 //     QF162S16_PRE,     // half量化成int16_t, scalar量化
 //     VQF162S16_PRE,    // half量化成int16_t, tensor量化
-// using TConfig = FixpipeParams<LayoutMode_t::NZ2ND, QuantMode_t::NoQuant, ReluPreMode::NormalRelu>;
 */
 template <
     LayoutMode_t layoutMode = LayoutMode_t::NZ2ND, QuantMode_t quantMode = QuantMode_t::NoQuant,
@@ -86,7 +80,7 @@ struct FixpipeConsDType {
         isHalf, half, std::conditional_t<isBfloat16, bfloat16_t, std::conditional_t<isInt8, int8_t, SrcType>>>;
 };
 
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <typename SrcType>
 struct FixpipeConsDType<QuantMode_t::QF322HIF8_PRE, SrcType> {
     using type = hifloat8_t;
