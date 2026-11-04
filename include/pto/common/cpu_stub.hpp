@@ -123,12 +123,15 @@ inline int aclFinalize() { return 0; }
 inline void set_flag(pipe_t, pipe_t, int) {}
 inline void wait_flag(pipe_t, pipe_t, int) {}
 #if !defined(__COSTMODEL)
+// CPU stores select atomic behavior through their AtomicType template argument.
+inline void set_atomic_none() {}
 using mem_dsb_t = int;
 struct cache_line_t {
     static constexpr int SINGLE_CACHE_LINE = 0;
     static constexpr int ENTIRE_DATA_CACHE = 0;
     static constexpr int CACHELINE_OUT = 0;
 };
+inline constexpr int SINGLE_CACHE_LINE = cache_line_t::SINGLE_CACHE_LINE;
 struct dcci_dst_t {
     static constexpr int CACHELINE_OUT = 0;
 };

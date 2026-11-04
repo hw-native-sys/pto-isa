@@ -1,0 +1,1 @@
+pto_cpu_sim_st(cpu_cce_compat)
