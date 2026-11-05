@@ -55,6 +55,28 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/a5/TReduce.hpp"
 #endif
 
+#ifdef PTO_NPU_ARCH_A6
+// A6 reuses the A5 communication backend. Each a6 header forwards to its a5
+// counterpart; the shared SDMA/URMA layers are gated for A5 || A6.
+// Point-to-Point Communication (Synchronous)
+#include "pto/comm/a6/TPut.hpp"
+#include "pto/comm/a6/TGet.hpp"
+// Point-to-Point Communication (Asynchronous)
+#include "pto/comm/a6/async/TPutAsync.hpp"
+#include "pto/comm/a6/async/TPutAsyncBatch.hpp"
+#include "../../../pkg_inc/pto/comm/a5/async/TPutAsyncNotify.hpp"
+#include "pto/comm/a6/async/TGetAsync.hpp"
+// Signal-Based Synchronization
+#include "pto/comm/a6/TNotify.hpp"
+#include "pto/comm/a6/TWait.hpp"
+#include "pto/comm/a6/TTest.hpp"
+// Collective Communication
+#include "pto/comm/a6/TGather.hpp"
+#include "pto/comm/a6/TScatter.hpp"
+#include "pto/comm/a6/TBroadCast.hpp"
+#include "pto/comm/a6/TReduce.hpp"
+#endif
+
 #endif
 
 #ifdef __CPU_SIM

@@ -111,7 +111,8 @@ using CurrArch = ArchTraits<ChipArch::A5>;
 template <>
 struct ArchTraits<ChipArch::A6> : ArchTraitsFp4Capable<ChipArch::A6> {
     // A6 supports all FP4-capable flags inherited from ArchTraitsFp4Capable.
-    // (SupportsComm currently false — A6 comm support is a separate workstream.)
+    // Communication reuses the A5 backend (see pto/comm/a6/*).
+    static constexpr bool SupportsComm = true;
 };
 using CurrArch = ArchTraits<ChipArch::A6>;
 

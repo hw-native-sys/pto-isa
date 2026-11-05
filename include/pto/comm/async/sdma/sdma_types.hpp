@@ -21,7 +21,7 @@ namespace sdma {
 
 // NPU-internal SDMA SQE constants
 constexpr uint64_t kRtStarsSqeTypeSdma = 11ULL;
-#ifdef PTO_NPU_ARCH_A5
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 constexpr uint64_t kCreditTimeDefault = 254ULL;
 #else
 constexpr uint64_t kCreditTimeDefault = 240ULL;
@@ -90,7 +90,7 @@ using batch_write_channel_info_t = BatchWriteChannelInfo;
 // ============================================================================
 // Batch Write Item (SQE) Structure
 // ============================================================================
-#ifdef PTO_NPU_ARCH_A5
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 
 struct BatchWriteItem {
     // Header (bytes 0-7)
@@ -207,7 +207,7 @@ struct BatchWriteItem {
     uint32_t reslast[3];
 };
 
-#endif // PTO_NPU_ARCH_A5
+#endif // PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_A6
 using batch_write_item_t = BatchWriteItem;
 
 // ============================================================================
