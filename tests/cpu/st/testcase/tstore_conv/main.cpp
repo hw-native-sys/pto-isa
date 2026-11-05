@@ -27,6 +27,9 @@ enum class TStoreConvCase {
     NC1HWC0ValidDynamic,
     NDC1HWC0ValidStatic,
     NDC1HWC0ValidDynamic,
+    FRACTAL_Z4DValidStatic,
+    FRACTAL_Z5DValidStatic,
+    FRACTAL_Z5DValidDynamic,
 };
 
 template <typename T, TStoreConvCase caseKey, int s0, int s1, int s2, int s3, int s4>
@@ -174,4 +177,19 @@ TEST_F(TStoreConvTest, NDC1HWC0_valid_static)
 TEST_F(TStoreConvTest, NDC1HWC0_valid_dynamic)
 {
     test_tstore_conv_valid<int32_t, TStoreConvCase::NDC1HWC0ValidDynamic, 2, 3, 2, 4, 5, 1, 2, 1, 3, 4>();
+}
+
+TEST_F(TStoreConvTest, FracZ_4D_valid_static_fp16)
+{
+    test_tstore_conv_valid<half, TStoreConvCase::FRACTAL_Z4DValidStatic, 8, 2, 16, 1, 1, 6, 1, 10, 1, 1>();
+}
+
+TEST_F(TStoreConvTest, FracZ_5D_valid_static_int8)
+{
+    test_tstore_conv_valid<int8_t, TStoreConvCase::FRACTAL_Z5DValidStatic, 4, 2, 6, 16, 1, 3, 1, 4, 10, 1>();
+}
+
+TEST_F(TStoreConvTest, FracZ_5D_valid_dynamic_int8)
+{
+    test_tstore_conv_valid<int8_t, TStoreConvCase::FRACTAL_Z5DValidDynamic, 2, 3, 4, 8, 1, 1, 2, 3, 6, 1>();
 }

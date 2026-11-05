@@ -110,5 +110,28 @@ if __name__ == "__main__":
             (1, 2, 1, 3, 4, c0_int32),
             -7,
         ),
+        # FRACTAL_Z: the valid box is the leading [1, v0, v1, v2, C0] sub-block of the packed
+        # 4D target [1, C1HW, N1, N0, C0], or [vC1, vH, vW, vN, C0] of the 5D target [C1, H, W, N, C0].
+        (
+            "TStoreConvTest.FracZ_4D_valid_static_fp16",
+            np.float16,
+            (1, 8, 2, 16, get_c0_size(np.float16)),
+            (1, 6, 1, 10, get_c0_size(np.float16)),
+            -7,
+        ),
+        (
+            "TStoreConvTest.FracZ_5D_valid_static_int8",
+            np.int8,
+            (4, 2, 6, 16, get_c0_size(np.int8)),
+            (3, 1, 4, 10, get_c0_size(np.int8)),
+            -7,
+        ),
+        (
+            "TStoreConvTest.FracZ_5D_valid_dynamic_int8",
+            np.int8,
+            (2, 3, 4, 8, get_c0_size(np.int8)),
+            (1, 2, 3, 6, get_c0_size(np.int8)),
+            -7,
+        ),
     ]
     gen_cases(case_list)

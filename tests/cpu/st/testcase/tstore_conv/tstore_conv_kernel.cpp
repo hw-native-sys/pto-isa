@@ -282,6 +282,61 @@ __global__ AICORE void runTStoreConvValid_NDC1HWC0(__gm__ T __out__* out, __gm__
     TSTORE(dstGlobal, srcTile);
 }
 
+// Flat FRACTAL_Z target view [1, C1HW, N/16, 16, C0]; the tile is [C1HW, N/16, 16, C0].
+template <typename T, int D0, int D1, int v0, int v1, int v2>
+__global__ AICORE void runTStoreConvValid_FractalZ4D(__gm__ T __out__* out, __gm__ T __in__* src)
+{
+    constexpr int C0 = 32 / sizeof(T);
+    constexpr int N0 = 16;
+    constexpr size_t bufferSize = size_t(D0) * D1 * N0 * C0 * sizeof(T);
+
+    using GShape = Shape<1, D0, D1, N0, C0>;
+    using GStride = Stride<(int64_t)D0 * D1 * N0 * C0, (int64_t)D1 * N0 * C0, (int64_t)N0 * C0, C0, 1>;
+    using GlobalData = GlobalTensor<T, GShape, GStride, Layout::FRACTAL_Z>;
+
+    using TShape = ConvTileShape<D0, D1, N0, C0>;
+    using VShape = ConvTileShape<v0, v1, v2, C0>;
+    using SrcConvTile = ConvTile<TileType::Mat, T, bufferSize, Layout::FRACTAL_Z, TShape, VShape>;
+
+    SrcConvTile srcTile;
+    static_assert(srcTile.totalDimCount == 4);
+    TASSIGN(srcTile, 0x0);
+
+    GlobalData srcGlobal(src);
+    GlobalData dstGlobal(out);
+    TLOAD(srcTile, srcGlobal);
+    TSTORE(dstGlobal, srcTile);
+}
+
+template <typename T, int C1, int H, int W, int N, int vC1, int vH, int vW, int vN, bool Dynamic>
+__global__ AICORE void runTStoreConvValid_FractalZ5D(__gm__ T __out__* out, __gm__ T __in__* src)
+{
+    constexpr int C0 = 32 / sizeof(T);
+    constexpr size_t bufferSize = size_t(C1) * H * W * N * C0 * sizeof(T);
+
+    using GShape = Shape<C1, H, W, N, C0>;
+    using GStride = Stride<(int64_t)H * W * N * C0, (int64_t)W * N * C0, (int64_t)N * C0, C0, 1>;
+    using GlobalData = GlobalTensor<T, GShape, GStride, Layout::FRACTAL_Z>;
+
+    using TShape = ConvTileShape<C1, H, W, N, C0>;
+    using VShape = std::conditional_t<
+        Dynamic, ConvTileShape<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC>,
+        ConvTileShape<vC1, vH, vW, vN, C0>>;
+    using SrcConvTile = ConvTile<TileType::Mat, T, bufferSize, Layout::FRACTAL_Z, TShape, VShape>;
+
+    SrcConvTile srcTile;
+    static_assert(srcTile.totalDimCount == 5);
+    TASSIGN(srcTile, 0x0);
+    if constexpr (Dynamic) {
+        srcTile.SetValidShape(int64_t(vC1), int64_t(vH), int64_t(vW), int64_t(vN), int64_t(C0));
+    }
+
+    GlobalData srcGlobal(src);
+    GlobalData dstGlobal(out);
+    TLOAD(srcTile, srcGlobal);
+    TSTORE(dstGlobal, srcTile);
+}
+
 enum class TStoreConvCase {
     NDC1HWC0Static,
     NC1HWC0Static,
@@ -292,6 +347,9 @@ enum class TStoreConvCase {
     NC1HWC0ValidDynamic,
     NDC1HWC0ValidStatic,
     NDC1HWC0ValidDynamic,
+    FRACTAL_Z4DValidStatic,
+    FRACTAL_Z5DValidStatic,
+    FRACTAL_Z5DValidDynamic,
 };
 
 template <typename T, TStoreConvCase caseKey, int s0, int s1, int s2, int s3, int s4>
@@ -332,6 +390,19 @@ void LaunchTStoreConvValid(T* out, T* src, void* stream)
         runTStoreConvValid_NDC1HWC0<T, s0, s1, s2, s3, s4, v0, v1, v2, v3, v4, false>(out, src);
     } else if constexpr (caseKey == TStoreConvCase::NDC1HWC0ValidDynamic) {
         runTStoreConvValid_NDC1HWC0<T, s0, s1, s2, s3, s4, v0, v1, v2, v3, v4, true>(out, src);
+    } else if constexpr (caseKey == TStoreConvCase::FRACTAL_Z4DValidStatic) {
+        (void)s2;
+        (void)s3;
+        (void)s4;
+        (void)v3;
+        (void)v4;
+        runTStoreConvValid_FractalZ4D<T, s0, s1, v0, v1, v2>(out, src);
+    } else if constexpr (caseKey == TStoreConvCase::FRACTAL_Z5DValidStatic) {
+        (void)v4;
+        runTStoreConvValid_FractalZ5D<T, s0, s1, s2, s3, v0, v1, v2, v3, false>(out, src);
+    } else if constexpr (caseKey == TStoreConvCase::FRACTAL_Z5DValidDynamic) {
+        (void)v4;
+        runTStoreConvValid_FractalZ5D<T, s0, s1, s2, s3, v0, v1, v2, v3, true>(out, src);
     }
 }
 
@@ -367,3 +438,12 @@ template void LaunchTStoreConvValid<float, TStoreConvCase::NDC1HWC0ValidStatic, 
     float* out, float* src, void* stream);
 template void LaunchTStoreConvValid<int32_t, TStoreConvCase::NDC1HWC0ValidDynamic, 2, 3, 2, 4, 5, 1, 2, 1, 3, 4>(
     int32_t* out, int32_t* src, void* stream);
+// FRACTAL_Z 4D: flat target [1, 8, 2, 16, 16], valid (6, 1, 10, C0)
+template void LaunchTStoreConvValid<half, TStoreConvCase::FRACTAL_Z4DValidStatic, 8, 2, 16, 1, 1, 6, 1, 10, 1, 1>(
+    half* out, half* src, void* stream);
+// FRACTAL_Z 5D: target (4, 2, 6, 16, C0=32), valid (3, 1, 4, 10, C0)
+template void LaunchTStoreConvValid<int8_t, TStoreConvCase::FRACTAL_Z5DValidStatic, 4, 2, 6, 16, 1, 3, 1, 4, 10, 1>(
+    int8_t* out, int8_t* src, void* stream);
+// FRACTAL_Z 5D dynamic valid: target (2, 3, 4, 8, C0=32), valid (1, 2, 3, 6, C0)
+template void LaunchTStoreConvValid<int8_t, TStoreConvCase::FRACTAL_Z5DValidDynamic, 2, 3, 4, 8, 1, 1, 2, 3, 6, 1>(
+    int8_t* out, int8_t* src, void* stream);
