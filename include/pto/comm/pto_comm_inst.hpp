@@ -378,7 +378,7 @@ PTO_INST AsyncEvent TPUT_ASYNC(
     return deferredEvent;
 }
 
-#elif defined(PTO_NPU_ARCH_A5)
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
 PTO_INST AsyncEvent TPUT_ASYNC(
     GlobalDstData& dstGlobalData, GlobalSrcData& srcGlobalData, const AsyncSession& session, WaitEvents&... events)
@@ -511,7 +511,7 @@ PTO_INST AsyncEvent TPUT_ASYNC(
  * selects its notify resource region.
  * For CPU: @p peer is ignored; the payload delegates to TPUT_ASYNC.
  */
-#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(__CPU_SIM)
 template <
     DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData, typename GlobalSignalData,
     typename... WaitEvents>
@@ -530,7 +530,7 @@ PTO_INST AsyncEvent TPUT_ASYNC_NOTIFY(
             }
         }
     }
-#elif defined(PTO_NPU_ARCH_A5)
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (engine == DmaEngine::URMA) {
         if (session.rt.urma.batchLogicalWqeCount != 0U) {
             if (session.rt.urma.batchPeer != peer) {
@@ -570,7 +570,7 @@ PTO_INST AsyncEvent TGET_ASYNC(
             }
         }
     }
-#elif defined(PTO_NPU_ARCH_A5)
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (engine == DmaEngine::URMA) {
         const uint32_t peer = session.destRankId;
         if (session.rt.urma.batchLogicalWqeCount != 0U) {
@@ -588,7 +588,7 @@ PTO_INST AsyncEvent TGET_ASYNC(
     return TGET_ASYNC_IMPL<engine>(dstGlobalData, srcGlobalData, session);
 }
 
-#if defined(PTO_NPU_ARCH_A5) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(__CPU_SIM)
 /**
  * @brief Asynchronous remote read with explicit peer (A5 / CPU stub).
  *
@@ -603,7 +603,7 @@ PTO_INST AsyncEvent TGET_ASYNC(
 {
     WaitAllEvents(events...);
     AsyncEvent batchEvent;
-#if defined(PTO_NPU_ARCH_A5)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (engine == DmaEngine::URMA) {
         if (session.rt.urma.batchLogicalWqeCount != 0U) {
             if (session.rt.urma.batchPeer != peer) {
