@@ -217,6 +217,7 @@ set(ALL_TESTCASES
     tfmods
     tcolscatter
     tscatter
+    vst_vscatter
     tneg
     tcolexpandadd
     tcolexpandmax

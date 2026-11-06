@@ -138,6 +138,15 @@ TEST_F(TSCATTERTest, case_float_uint32_32x64_32x64)
     EXPECT_TRUE(ret);
 }
 
+// Repro for https://github.com/hw-native-sys/pto-isa/issues/409:
+// idx[flat] = (flat + 128) % 2048 escapes the post-vsts surviving window; without
+// pipe_barrier(PIPE_ALL) between InitUBBuffer and vscatter, only dst[128,256) lands.
+TEST_F(TSCATTERTest, case_float_uint32_32x64_32x64_shift128)
+{
+    bool ret = TScatterTestFramework<12, float, uint32_t, 32, 64, 32, 64>();
+    EXPECT_TRUE(ret);
+}
+
 TEST_F(TSCATTERTest, case_int64_uint32_4x16_4x16)
 {
     EXPECT_TRUE((TScatterTestFramework<8, int64_t, uint32_t, 4, 16, 4, 16>()));
