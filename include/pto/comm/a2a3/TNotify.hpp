@@ -42,10 +42,8 @@ PTO_INTERNAL void TNOTIFY_IMPL(GlobalSignalData& dstSignalData, int32_t value, N
     volatile __gm__ int32_t* sigPtr = (volatile __gm__ int32_t*)dstSignalData.data();
 
     if (op == NotifyOp::AtomicAdd) {
-        // Atomic add using hardware atomic instruction. A6 exposes the scalar
-        // atomicAdd intrinsic (same generation as A5's syncall path); the
-        // set_st_atomic_cfg / st_atomic pair is an A2/A3-only spelling.
-#if defined(PTO_NPU_ARCH_A6)
+        // A5/A6 use atomicAdd; A2/A3 use set_st_atomic_cfg / st_atomic.
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
         detail::DcciSignal((__gm__ int32_t*)sigPtr);
         atomicAdd((__gm__ int32_t*)sigPtr, value);
         detail::DcciSignal((__gm__ int32_t*)sigPtr);
