@@ -151,6 +151,97 @@ PTO_INTERNAL void TRowExpandBinOps_2D_NoPostUpdate32B(
     }
 }
 
+#if defined(PTO_NPU_ARCH_A5)
+// Build a vector whose lanes [r * kCols, (r + 1) * kCols) hold the broadcast scalar of row
+// (baseRow + r), for r < kRows (kRows * kCols == elementsPerRepeat). Row 0's scalar is broadcast to
+// every lane first; each following row is then merged with vsel under a prefix predicate of
+// r * kCols lanes, which keeps the already-packed low lanes and refills the rest with that row's
+// broadcast. vsel is a pure per-lane select and cannot move data between lane halves, so a
+// merge-and-split tree would read the wrong lanes; the sequential prefix overwrite is exact for
+// every element type via the same-width integer register view.
+template <typename T, unsigned kCols, unsigned kRows, typename VldsType>
+PTO_INTERNAL void PackScales(
+    RegTensor<T>& dst, __ubuf__ T* src1Ptr, unsigned baseRow, unsigned stride, VldsType vldsValue)
+{
+    using SelVec =
+        std::conditional_t<sizeof(T) == 1, vector_u8, std::conditional_t<sizeof(T) == 2, vector_u16, vector_u32>>;
+    vlds(dst, src1Ptr, baseRow * stride, vldsValue);
+    RegTensor<T> bcast;
+    for (uint16_t r = 1; r < (uint16_t)kRows; ++r) {
+        vlds(bcast, src1Ptr, (baseRow + r) * stride, vldsValue);
+        uint32_t sreg = (uint32_t)(r * kCols);
+        MaskReg preg = CreatePredicate<T>(sreg);
+        vsel((SelVec&)dst.reg, (SelVec&)dst.reg, (SelVec&)bcast.reg, preg);
+    }
+}
+
+// Packed short-row fast path for the scalar-column broadcast: kPackRows = elementsPerRepeat / Cols
+// short rows are processed within one full-width vector operation instead of one broadcast/mul/store
+// iteration per row (issue #406). Full row groups run with all lanes active; trailing rows and
+// runtime partial-width rows fall back to the per-row path.
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+PTO_INTERNAL void TRowExpandBinOps_1D_PackedShortRows(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
+{
+    using T = typename TileData::DType;
+    if (kValidCols != TileData::Cols) {
+        TRowExpandBinOps_1D_NoPostUpdate<Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+            dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+        return;
+    }
+
+    constexpr unsigned stride = TileDataSrc1::Cols;
+    constexpr unsigned groupRows = elementsPerRepeat / TileData::Cols;
+    unsigned fullGroups = kValidRows / groupRows;
+    unsigned tailRows = kValidRows % groupRows;
+
+    __VEC_SCOPE__
+    {
+        RegTensor<T> vreg0, vreg1, vreg2;
+        MaskReg preg;
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        using VldsType = std::conditional_t<
+            sizeof(T) == 1, decltype(BRC_B8), std::conditional_t<sizeof(T) == 2, decltype(BRC_B16), decltype(BRC_B32)>>;
+        constexpr VldsType vldsValue{};
+        uint32_t sregAll = elementsPerRepeat;
+        MaskReg pregAll = CreatePredicate<T>(sregAll);
+
+        for (uint16_t g = 0; g < (uint16_t)fullGroups; ++g) {
+            uint16_t baseRow = g * groupRows;
+            PackScales<T, TileData::Cols, groupRows>(vreg1, src1Ptr, baseRow, stride, vldsValue);
+            uint32_t offset = baseRow * kValidCols;
+            vlds(vreg0, src0Ptr, offset, NORM);
+            Op::RowExpandBinaryInstr(vreg2, vreg0, vreg1, pregAll);
+            vsts(vreg2, dstPtr, offset, distValue, pregAll);
+        }
+
+        uint32_t sreg = (uint32_t)(kValidCols);
+        for (uint16_t row = (uint16_t)(fullGroups * groupRows); row < (uint16_t)(fullGroups * groupRows + tailRows);
+             ++row) {
+            vlds(vreg1, src1Ptr, row * stride, vldsValue);
+            sreg = (uint32_t)(kValidCols);
+            preg = CreatePredicate<T>(sreg);
+            uint32_t offset = row * kValidCols;
+            vlds(vreg0, src0Ptr, offset, NORM);
+            Op::RowExpandBinaryInstr(vreg2, vreg0, vreg1, preg);
+            vsts(vreg2, dstPtr, offset, distValue, preg);
+        }
+    }
+}
+#else
+// Declaration-only stub for targets without vsel-based scale packing. See TBinOp.hpp for details.
+template <
+    typename Op, typename TileData, typename TileDataSrc0, typename TileDataSrc1, unsigned elementsPerRepeat,
+    unsigned blockSizeElem>
+PTO_INTERNAL void TRowExpandBinOps_1D_PackedShortRows(
+    __ubuf__ typename TileData::DType* dstPtr, __ubuf__ typename TileDataSrc0::DType* src0Ptr,
+    __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols);
+#endif
+
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 // 64-bit elements are emulated as (low, high) 32-bit register pairs, so the broadcast operand has to be
 // materialized as a pair. De-interleaving a RowMajor 32-byte block against itself leaves lane j holding
@@ -248,9 +339,26 @@ PTO_INTERNAL void RowExpandBinaryInstr(
         }
     } else {
         if constexpr (TileData::Cols < elementsPerRepeat && isContiguous) {
+#if defined(PTO_NPU_ARCH_A5)
+            // Short-row packing (issue #406): when the row width divides the vector width, whole row
+            // groups can share one full-width operation; eligible widths are 8/16/32 (and their
+            // half/bf16/byte equivalents), i.e. 2-8 rows per 64/128/256-lane vector.
+            constexpr unsigned groupRows = elementsPerRepeat / TileData::Cols;
+            if constexpr (
+                TileData::Cols >= 8 && elementsPerRepeat % TileData::Cols == 0 && groupRows >= 2 && groupRows <= 8) {
+                TRowExpandBinOps_1D_PackedShortRows<
+                    Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+                    dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+            } else {
+                TRowExpandBinOps_1D_NoPostUpdate<
+                    Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+                    dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+            }
+#else
             TRowExpandBinOps_1D_NoPostUpdate<
                 Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
                 dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+#endif
         } else {
             TRowExpandBinOps_2D_NoPostUpdate<
                 Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(

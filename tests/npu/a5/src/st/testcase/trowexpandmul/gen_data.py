@@ -33,17 +33,26 @@ def gen_golden_data(params):
             return np.random.randint(1, 10, size=shape).astype(dtype)
         return np.random.uniform(low=-10, high=10, size=shape).astype(dtype)
 
+    def rand_scale_array(shape):
+        # big_scale: f32 scales beyond the fp16 range (max ~65504), exercising full-fp32 precision;
+        # restricted to float32 because casting values above 65504 to other dtypes yields inf.
+        if getattr(param, "big_scale", False):
+            if param.dtype != np.float32:
+                raise ValueError("big_scale is only supported for float32; other dtypes would silently yield inf")
+            return np.random.uniform(low=60000.0, high=120000.0, size=shape).astype(dtype)
+        return rand_array(shape)
+
     if param.src0eqdst:
         src0 = rand_array((src0_row, src0_col))
         src0.tofile("input0.bin")
-        src1 = rand_array((src1_row, src1_col))
+        src1 = rand_scale_array((src1_row, src1_col))
         src1.tofile("input1.bin")
 
         reps = (dst_col + src1_col - 1) // src1_col
         src1_expand = np.tile(src1, (1, reps))[:, :dst_col]
         golden = src0 * src1_expand
     else:
-        src0 = rand_array((src1_row, src1_col))
+        src0 = rand_scale_array((src1_row, src1_col))
         src0.tofile("input0.bin")
         src1 = rand_array((src0_row, src0_col))
         src1.tofile("input1.bin")
@@ -59,7 +68,20 @@ def gen_golden_data(params):
 
 
 class TrowexpandParams:
-    def __init__(self, dtype, dst_row, dst_col, src0_row, src0_col, src1_row, src1_col, src0eqdst, is_rowmajor):
+    def __init__(
+        self,
+        dtype,
+        dst_row,
+        dst_col,
+        src0_row,
+        src0_col,
+        src1_row,
+        src1_col,
+        src0eqdst,
+        is_rowmajor,
+        suffix="",
+        big_scale=False,
+    ):
         self.dtype = dtype
         self.dst_row = dst_row
         self.dst_col = dst_col
@@ -69,6 +91,8 @@ class TrowexpandParams:
         self.src1_col = src1_col
         self.src0eqdst = src0eqdst
         self.is_rowmajor = is_rowmajor
+        self.suffix = suffix
+        self.big_scale = big_scale
 
 
 def generate_case_name(param):
@@ -83,7 +107,7 @@ def generate_case_name(param):
         np.int64: "int64",
         np.uint64: "uint64",
     }[param.dtype]
-    return f"TRowExpandMulTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}"
+    return f"TRowExpandMulTest.case_{dtype_str}_{param.dst_row}_{param.dst_col}{param.suffix}"
 
 
 if __name__ == "__main__":
@@ -108,6 +132,26 @@ if __name__ == "__main__":
         TrowexpandParams(np.int64, 16, 32, 16, 32, 16, 1, True, False),
         TrowexpandParams(np.int64, 24, 64, 24, 64, 24, 4, True, True),
         TrowexpandParams(np.uint64, 16, 32, 16, 32, 16, 1, True, False),
+        # Short-row cases (issue #406) with dynamic valid extents: these take the pre-existing
+        # per-row 2D path (isContiguous is false for DYNAMIC valid dimensions). Widths 8/16/32,
+        # the model shapes (1024x16 FP4 groups, 512x32 FP8 groups), a half variant and f32 scales
+        # beyond the fp16 range.
+        TrowexpandParams(np.float32, 8, 8, 8, 8, 8, 1, True, False),
+        TrowexpandParams(np.float32, 16, 16, 16, 16, 16, 1, True, False),
+        TrowexpandParams(np.float32, 16, 16, 16, 16, 16, 1, True, False, suffix="_bigscale", big_scale=True),
+        TrowexpandParams(np.float32, 21, 16, 21, 16, 21, 1, True, False, suffix="_tail"),
+        TrowexpandParams(np.float16, 32, 16, 32, 16, 32, 1, True, False),
+        TrowexpandParams(np.float32, 1024, 16, 1024, 16, 1024, 1, True, False),
+        TrowexpandParams(np.float32, 512, 32, 512, 32, 512, 1, True, False),
+        # Static-valid-extent cases (issue #406): these enter the packed short-row fast path and
+        # cover groupRows = 2 (16x32), 4 (16x16) and 8 (8x8; 16x16 half at elementsPerRepeat 128),
+        # plus f32 scales beyond the fp16 range. The tail case (physical 24 rows, 21 valid) covers
+        # the packed path's trailing partial group (21 % 4 == 1).
+        TrowexpandParams(np.float32, 16, 32, 16, 32, 16, 1, True, False, suffix="_static"),
+        TrowexpandParams(np.float32, 16, 16, 16, 16, 16, 1, True, False, suffix="_static"),
+        TrowexpandParams(np.float32, 8, 8, 8, 8, 8, 1, True, False, suffix="_static"),
+        TrowexpandParams(np.float32, 16, 16, 16, 16, 16, 1, True, False, suffix="_bigscale_static", big_scale=True),
+        TrowexpandParams(np.float16, 16, 16, 16, 16, 16, 1, True, False, suffix="_static"),
     ]
 
     for _, param in enumerate(case_params_list):
