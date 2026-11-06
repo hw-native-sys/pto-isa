@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/common/constants.hpp>
 #include <pto/common/utils.hpp>
+#include "pto/common/arch_cce_intrinsic.hpp"
 #include "utils.hpp"
 #include "TBinOp.hpp"
 
@@ -84,7 +85,7 @@ PTO_INTERNAL void Int64SelectRepeatMask(
     vgather2(maskWord, (__ubuf__ uint32_t*)packedMask, wordIndex, validMask);
     vbr(thirtyOne, 31u);
     vand((vector_u32&)bitIndex, elementIndex, thirtyOne, validMask, MODE_ZEROING);
-    vshr((vector_u32&)maskWord, (vector_u32&)maskWord, bitIndex, validMask, MODE_ZEROING);
+    pto_vshr((vector_u32&)maskWord, (vector_u32&)maskWord, bitIndex, validMask);
     vbr(one, 1u);
     vand(selectedBit, maskWord, one, validMask, MODE_ZEROING);
     vbr(zero, 0u);
