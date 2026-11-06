@@ -20,7 +20,20 @@ if __name__ == "__main__":
         ("SYNCALLTest.case_hard_aiv_only_all_blocks", 18),
         ("SYNCALLTest.case_hard_aic_only_all_blocks", 18),
         ("SYNCALLTest.case_hard_mix_1_1_all_blocks", 36),
+        ("SYNCALLTest.case_soft_aiv_only_all_blocks", 18),
+        ("SYNCALLTest.case_soft_aic_only_all_blocks", 18),
+        ("SYNCALLTest.case_soft_mix_1_1_all_blocks", 36),
     ):
         golden = np.ones(participants, dtype=np.int32)
+        os.makedirs(case_name, exist_ok=True)
+        golden.tofile(os.path.join(case_name, "golden.bin"))
+
+    # Partial cases: the first half join the barrier (1), the rest run but skip it (2).
+    idle_mark = 2
+    for case_name, launch_blocks, sync_blocks in (
+        ("SYNCALLTest.case_soft_aiv_only_partial_blocks", 18, 9),
+        ("SYNCALLTest.case_soft_aic_only_partial_blocks", 18, 9),
+    ):
+        golden = np.array([1 if i < sync_blocks else idle_mark for i in range(launch_blocks)], dtype=np.int32)
         os.makedirs(case_name, exist_ok=True)
         golden.tofile(os.path.join(case_name, "golden.bin"))
