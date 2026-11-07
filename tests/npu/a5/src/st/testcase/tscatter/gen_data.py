@@ -91,6 +91,30 @@ class TScatterParams:
         self.name = f"TSCATTERTest.case_{src_type_str}_{idx_type_str}_{row}x{col}_{idx_row}x{idx_col}"
 
 
+class TScatterCyclicShiftParams:
+    """Reproduce https://github.com/hw-native-sys/pto-isa/issues/409.
+
+    Existing ST indices only take {0,1} (forward at most one row), which stays inside the
+    surviving window after InitUBBuffer's vsts clears. A global cyclic shift of +128 elements
+    writes outside that window and exposes silent drops when the V-pipe is not drained between
+    vsts zeroing and vscatter.
+    """
+
+    def __init__(self, data_type, idx_type, row, col, shift):
+        self.data_type = data_type
+        self.idx_type = idx_type
+        self.row = row
+        self.col = col
+        self.idx_row = row
+        self.idx_col = col
+        self.shift = shift
+        src_type_str = TYPE_MAP.get(data_type, "unknown")
+        idx_type_str = TYPE_MAP.get(idx_type, "unknown")
+        self.name = (
+            f"TSCATTERTest.case_{src_type_str}_{idx_type_str}_{row}x{col}_{row}x{col}_shift{shift}"
+        )
+
+
 class TScatterMaskParams:
     def __init__(self, data_type, row, col, dst_col, pattern):
         self.data_type = data_type
@@ -102,16 +126,32 @@ class TScatterMaskParams:
         self.name = f"TSCATTERTest.case_mask_{data_type_str}_{row}x{col}_{row}x{dst_col}_{pattern}"
 
 
-def gen_golden_data(param):
-    src_data = np.random.uniform(0, 100, (param.row, param.col)).astype(param.data_type)
+def gen_cyclic_shift_indices(row, col, shift, idx_type):
+    numel = row * col
+    flat = (np.arange(numel, dtype=np.int64) + shift) % numel
+    return flat.reshape(row, col).astype(idx_type)
 
-    if isinstance(param, TScatterParams):
-        indices = np.random.randint(0, 2, (param.idx_row, param.idx_col)).astype(param.idx_type)
-        indices = recalculate_indices(indices, param.col)
+
+def gen_golden_data(param):
+    if isinstance(param, TScatterCyclicShiftParams):
+        # Distinct non-zero payload matching issue #409: src[flat] = flat + 1000
+        numel = param.row * param.col
+        src_data = (np.arange(numel, dtype=np.float64) + 1000).reshape(param.row, param.col).astype(
+            param.data_type
+        )
+        indices = gen_cyclic_shift_indices(param.row, param.col, param.shift, param.idx_type)
         golden = scatter(src_data, indices)
         indices.tofile("indexes.bin")
-    elif isinstance(param, TScatterMaskParams):
-        golden = scatter_mask(src_data, param.row, param.dst_col, param.pattern)
+    else:
+        src_data = np.random.uniform(0, 100, (param.row, param.col)).astype(param.data_type)
+
+        if isinstance(param, TScatterParams):
+            indices = np.random.randint(0, 2, (param.idx_row, param.idx_col)).astype(param.idx_type)
+            indices = recalculate_indices(indices, param.col)
+            golden = scatter(src_data, indices)
+            indices.tofile("indexes.bin")
+        elif isinstance(param, TScatterMaskParams):
+            golden = scatter_mask(src_data, param.row, param.dst_col, param.pattern)
 
     src_data.tofile("input.bin")
     golden.tofile("golden.bin")
@@ -126,6 +166,9 @@ if __name__ == "__main__":
         TScatterParams(np.float32, np.int32, 7, 448, 7, 448),
         TScatterParams(np.int8, np.uint16, 256, 32, 256, 32),
         TScatterParams(np.float32, np.uint32, 32, 64, 32, 64),
+        # Issue #409: InitUBBuffer(vsts)+vscatter pipeline hole; +128 cyclic shift escapes the
+        # surviving write window that {0,1}-row ST indices never leave.
+        TScatterCyclicShiftParams(np.float32, np.uint32, 32, 64, 128),
         TScatterParams(np.int64, np.uint32, 4, 16, 4, 16),
         TScatterParams(np.uint64, np.uint32, 4, 16, 4, 16),
         TScatterParams(np.int64, np.uint32, 4, 64, 4, 64),

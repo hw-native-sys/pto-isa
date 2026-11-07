@@ -120,4 +120,142 @@ TEST_F(TRowExpandMulTest, case_uint16_16_64) { test_trowexpandmul<uint16_t, 16, 
 TEST_F(TRowExpandMulTest, case_int64_16_32) { test_trowexpandmul<int64_t, 16, 32, 16, 1, true, false>(); }
 TEST_F(TRowExpandMulTest, case_int64_24_64) { test_trowexpandmul<int64_t, 24, 64, 24, 4, true, true>(); }
 TEST_F(TRowExpandMulTest, case_uint64_16_32) { test_trowexpandmul<uint64_t, 16, 32, 16, 1, true, false>(); }
+// Short-row cases (issue #406) with dynamic valid extents: these tiles use DYNAMIC (-1) valid
+// dimensions, so isContiguous is false and the dispatch keeps the pre-existing per-row 2D path;
+// they act as regression coverage for it. dst aliases src0 in all cases (in-place), scales and
+// values are nonuniform; bigscale uses f32 scales beyond the fp16 range.
+TEST_F(TRowExpandMulTest, case_fp32_8_8) { test_trowexpandmul<float, 8, 8, 8, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp32_16_16) { test_trowexpandmul<float, 16, 16, 16, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp32_16_16_bigscale) { test_trowexpandmul<float, 16, 16, 16, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp16_32_16) { test_trowexpandmul<aclFloat16, 32, 16, 32, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp32_1024_16) { test_trowexpandmul<float, 1024, 16, 1024, 1, true, false>(); }
+TEST_F(TRowExpandMulTest, case_fp32_512_32) { test_trowexpandmul<float, 512, 32, 512, 1, true, false>(); }
+
+template <typename T, uint32_t physRow, uint32_t physCol, uint32_t validRow>
+void launchTRowExpandMulValid(T* out, T* src0, T* src1, void* stream);
+
+template <typename T, uint32_t physRow, uint32_t physCol, uint32_t validRow>
+void test_trowexpandmul_tail()
+{
+    size_t inputFileSize = validRow * sizeof(T);
+    size_t outputFileSize = validRow * physCol * sizeof(T);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    T *dstHost, *src0Host, *src1Host;
+    T *dstDevice, *src0Device, *src1Device;
+
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
+
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
+    ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
+
+    aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, inputFileSize, src1Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTRowExpandMulValid<T, physRow, physCol, validRow>(dstDevice, src0Device, src1Device, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, outputFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(src0Host);
+    aclrtFreeHost(src1Host);
+
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<float> golden(outputFileSize / sizeof(float));
+    std::vector<float> devFinal(outputFileSize / sizeof(float));
+    ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
+    bool ret = ResultCmp(golden, devFinal, 0.001f);
+
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TRowExpandMulTest, case_fp32_21_16_tail) { test_trowexpandmul_tail<float, 24, 16, 21>(); }
+
+template <typename T, uint32_t dstRow, uint32_t dstCol>
+void launchTRowExpandMulStatic(T* out, T* src0, T* src1, void* stream);
+
+template <typename T, uint32_t dstRow, uint32_t dstCol>
+void test_trowexpandmul_static()
+{
+    size_t inputFileSize = dstRow * sizeof(T);
+    size_t outputFileSize = dstRow * dstCol * sizeof(T);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    T *dstHost, *src0Host, *src1Host;
+    T *dstDevice, *src0Device, *src1Device;
+
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
+
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
+    ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
+
+    aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, inputFileSize, src1Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTRowExpandMulStatic<T, dstRow, dstCol>(dstDevice, src0Device, src1Device, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, outputFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(src0Host);
+    aclrtFreeHost(src1Host);
+
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<float> golden(outputFileSize / sizeof(float));
+    std::vector<float> devFinal(outputFileSize / sizeof(float));
+    ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
+    bool ret = ResultCmp(golden, devFinal, 0.001f);
+
+    EXPECT_TRUE(ret);
+}
+
+// Static-valid-extent cases (issue #406): these tiles omit the DYNAMIC valid dimensions, so the
+// dispatch enters the packed short-row fast path; they cover groupRows = 2/4/8 with per-row
+// nonuniform scales (16x32 -> 2, 16x16 -> 4, 8x8 -> 8, half 16x16 -> 8 at elementsPerRepeat 128)
+// and f32 scales beyond the fp16 range (bigscale).
+TEST_F(TRowExpandMulTest, case_fp32_16_32_static) { test_trowexpandmul_static<float, 16, 32>(); }
+TEST_F(TRowExpandMulTest, case_fp32_16_16_static) { test_trowexpandmul_static<float, 16, 16>(); }
+TEST_F(TRowExpandMulTest, case_fp32_8_8_static) { test_trowexpandmul_static<float, 8, 8>(); }
+TEST_F(TRowExpandMulTest, case_fp32_16_16_bigscale_static) { test_trowexpandmul_static<float, 16, 16>(); }
+TEST_F(TRowExpandMulTest, case_fp16_16_16_static) { test_trowexpandmul_static<aclFloat16, 16, 16>(); }
 } // namespace TRowExpandMulTest

@@ -102,6 +102,11 @@ extern "C" __global__ AICORE void launchTSCATTERCase11(
 {
     runTScatter<uint64_t, uint32_t, 4, 64, 4, 64>(out, src, indexes);
 }
+// Issue #409 repro: 32x64 f32 with cyclic index shift +128 (same tile shape as case 7).
+extern "C" __global__ AICORE void launchTSCATTERCase12(__gm__ float* out, __gm__ float* src, __gm__ uint32_t* indexes)
+{
+    runTScatter<float, uint32_t, 32, 64, 32, 64>(out, src, indexes);
+}
 
 template <uint32_t caseId>
 void launchTScatterTestCase(void* out, void* src, void* indexes, void* stream)
@@ -151,6 +156,10 @@ void launchTScatterTestCase(void* out, void* src, void* indexes, void* stream)
             launchTSCATTERCase11<<<1, nullptr, stream>>>((uint64_t*)out, (uint64_t*)src, (uint32_t*)indexes);
             break;
         }
+        case 12: {
+            launchTSCATTERCase12<<<1, nullptr, stream>>>((float*)out, (float*)src, (uint32_t*)indexes);
+            break;
+        }
         default: {
         }
     }
@@ -167,6 +176,7 @@ template void launchTScatterTestCase<8>(void* out, void* src, void* indexes, voi
 template void launchTScatterTestCase<9>(void* out, void* src, void* indexes, void* stream);
 template void launchTScatterTestCase<10>(void* out, void* src, void* indexes, void* stream);
 template void launchTScatterTestCase<11>(void* out, void* src, void* indexes, void* stream);
+template void launchTScatterTestCase<12>(void* out, void* src, void* indexes, void* stream);
 
 template <typename T, int DstRow, int DstCol, int SrcRow, int SrcCol, pto::MaskPattern maskPattern>
 __global__ AICORE void runTScatterMask(__gm__ T* out, __gm__ T* src)

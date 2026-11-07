@@ -278,14 +278,19 @@ template <
     AtomicType atomicType = AtomicType::AtomicNone, TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 PTO_INTERNAL void TSTORE_IMPL(GlobalData& dst, TileData& src, const std::vector<uint64_t>& scalars = {})
 {
-    static_assert(
-        GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN ||
-            GlobalData::layout == pto::Layout::NZ || GlobalData::layout == pto::Layout::NDC1HWC0 ||
-            GlobalData::layout == pto::Layout::NC1HWC0,
-        "Only ND, DN, NZ, NC1HWC0 and NDC1HWC0 GLobal Tensors are currently supported");
     if constexpr (is_conv_tile_v<TileData>) {
+        // ConvTile stores only write the valid box, so every layout TStoreConv expands is accepted here.
+        static_assert(
+            GlobalData::layout == pto::Layout::NC1HWC0 || GlobalData::layout == pto::Layout::NDC1HWC0 ||
+                GlobalData::layout == pto::Layout::FRACTAL_Z,
+            "ConvTile TSTORE only supports NC1HWC0, NDC1HWC0 and FRACTAL_Z Global Tensors");
         TStoreConv<GlobalData, TileData, atomicType>(dst, src);
     } else {
+        static_assert(
+            GlobalData::layout == pto::Layout::ND || GlobalData::layout == pto::Layout::DN ||
+                GlobalData::layout == pto::Layout::NZ || GlobalData::layout == pto::Layout::NDC1HWC0 ||
+                GlobalData::layout == pto::Layout::NC1HWC0,
+            "Only ND, DN, NZ, NC1HWC0 and NDC1HWC0 GLobal Tensors are currently supported");
         TStore<GlobalData, TileData, quantMode, applyRelu, atomicType>(dst, src, scalars);
     }
 }
