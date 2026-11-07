@@ -29,7 +29,7 @@ The current ISA reference no longer exposes the following legacy instruction int
 
 Migration guidance:
 
-- Effective version: this cleanup takes effect in PTO ISA v9.2.0. The compatibility window for these legacy wrappers is closed; no public wrapper is retained.
+- Effective version: this cleanup takes effect in PTO ISA v9.1.0. The compatibility window for these legacy wrappers is closed; no public wrapper is retained.
 - Replace `TSYNC(events...)` with ordinary event-based ordering: pass the event object to the consumer intrinsic, or call `WaitAllEvents(events...)` before the consumer when an explicit wait is required.
 - `TSUBVIEW` is not a public ISA replacement. In-repository implementations may use `pto::detail::PtoSubTileView` as an internal helper; external code should express the data view through supported tile construction and public data movement APIs.
 - Replace ternary/scalar fused arithmetic forms with the corresponding primitive arithmetic sequence, such as `TADD`, `TSUB`, `TADDS`, `TSUBS`, `TMUL`, `TMADD`, and `TRELU`.

@@ -188,7 +188,7 @@ def append_removed_interfaces_en(lines: List[str]) -> None:
     lines.append("Migration guidance:")
     lines.append("")
     lines.append(
-        "- Effective version: this cleanup takes effect in PTO ISA v9.2.0. The compatibility window for "
+        "- Effective version: this cleanup takes effect in PTO ISA v9.1.0. The compatibility window for "
         "these legacy wrappers is closed; no public wrapper is retained."
     )
     lines.append(
@@ -231,7 +231,7 @@ def append_removed_interfaces_zh(lines: List[str]) -> None:
     lines.append("迁移建议：")
     lines.append("")
     lines.append(
-        "- 生效版本：本次清理自 PTO ISA v9.2.0 起生效；这些历史 wrapper 的兼容窗口关闭，不再保留公开 wrapper。"
+        "- 生效版本：本次清理自 PTO ISA v9.1.0 起生效；这些历史 wrapper 的兼容窗口关闭，不再保留公开 wrapper。"
     )
     lines.append(
         "- 将 `TSYNC(events...)` 替换为普通 event 顺序表达：把 event 对象传给消费端 intrinsic，"

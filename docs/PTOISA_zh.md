@@ -44,6 +44,7 @@
 | 逐元素（Tile-Tile） | [`TPRELU`](isa/TPRELU_zh.md) | 带逐元素斜率 Tile 的逐元素参数化 ReLU (PReLU)。 |
 | 逐元素（Tile-Tile） | [`TCVT`](isa/TCVT_zh.md) | 带指定舍入模式的逐元素类型转换。 |
 | 逐元素（Tile-Tile） | [`TSEL`](isa/TSEL_zh.md) | 使用掩码 Tile 在两个 Tile 之间进行选择（逐元素选择）。 |
+| 逐元素（Tile-Tile） | [`TPARTSEL`](isa/TPARTSEL_zh.md) | 允许不同数据 Tile 类型的掩码选择。 |
 | 逐元素（Tile-Tile） | [`TRSQRT`](isa/TRSQRT_zh.md) | 逐元素倒数平方根。 |
 | 逐元素（Tile-Tile） | [`TSQRT`](isa/TSQRT_zh.md) | 逐元素平方根。 |
 | 逐元素（Tile-Tile） | [`TEXP`](isa/TEXP_zh.md) | 逐元素指数运算。 |

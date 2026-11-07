@@ -13,7 +13,7 @@
 <!-- end id3 -->
 
 
-## Instruction Diagram
+## Tile Operation Diagram
 
 > No `SYNCALL.svg` is provided. `SYNCALL` is a **cross-core control-plane** primitive; it does not describe a data transform on a single Tile. Its meaning is "all participants rendezvous at this point before any may proceed".
 
@@ -31,18 +31,18 @@ flowchart TB
   end
 ```
 
-## Summary
+## Introduction
 
 `SYNCALL` is a cross-core synchronization barrier. Its two template parameters are independent:
 
 - `SyncCoreType` selects the participant set: **AIVOnly** (default), **AICOnly**, **Mix** (AIC+AIV).
 - `SyncAllMode` selects the implementation path: **Hard** (FFTS hardware flags, workspace-free overload), **Soft** (shared GM atomic counter, workspace-bearing overload).
 
-## Mathematical Semantics
+## Math Interpretation
 
 Not applicable as an elementwise arithmetic operation. `SYNCALL` expresses a **barrier arrival** relation: once every core in the current participant set has executed this `SYNCALL`, any core may proceed. Hard and Soft have identical semantics and differ only in implementation path.
 
-## C++ Built-in Interface
+## C++ Intrinsic
 
 Public header `<pto/pto-inst.hpp>`; declarations live in `include/pto/common/pto_instr.hpp`:
 

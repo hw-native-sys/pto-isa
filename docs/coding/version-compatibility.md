@@ -142,7 +142,7 @@ See:
 
 ### 5.4 Renamed fused multiply-add instructions
 
-Starting with PTO ISA v9.2.0, the public fused multiply-add instruction names use the shorter ISA mnemonics:
+Starting with PTO ISA v9.1.0, the public fused multiply-add instruction names use the shorter ISA mnemonics:
 
 | Legacy name | Replacement | Semantics |
 | --- | --- | --- |

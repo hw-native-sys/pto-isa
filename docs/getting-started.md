@@ -185,7 +185,7 @@ Set library path (Linux):
 
 ---
 
-## Part 2: NPU Environment (Ascend 910B/910C, Linux Only)
+## Part 2: NPU Environment (Ascend A2/A3/A5, Linux Only)
 
 This section is for users who need to run on Ascend NPU hardware or simulator. It requires a Linux environment and the Ascend CANN toolkit.
 
@@ -219,6 +219,17 @@ make
 sudo make install
 ```
 
+> **No `sudo` / GoogleTest in a custom prefix:** If GoogleTest cannot be installed system-wide, install it under a custom prefix (e.g. `$HOME/pto-3rd`) and export `CMAKE_PREFIX_PATH` before building — CMake reads this environment variable natively, so no extra build flags are required:
+>
+> ```bash
+> export CMAKE_PREFIX_PATH="$HOME/pto-3rd"
+> python3 tests/script/run_st.py -r sim -v a5 -t tadd -g TADDTest.case_float_64x64_64x64_64x64_64x64
+> ```
+>
+> Multiple prefixes are separated with semicolons (quote the whole value, e.g. `export CMAKE_PREFIX_PATH="$HOME/pto-3rd;/opt/gtest"`).
+
+> **Important — compiler ABI must match bisheng:** The ST build (`tests/npu/[a2a3|a5]/src/st/CMakeLists.txt`) compiles kernels with **bisheng**, not the system `gcc`. If GoogleTest is built with a system `gcc` whose ABI differs from the GCC that bisheng wraps, the ST binary fails at link/load time with `undefined symbol` errors such as `__cxa_call_terminate`. Before building GoogleTest, run `bisheng -v` and `gcc -v`; if the reported GCC versions differ, either rebuild GoogleTest with the GCC that bisheng wraps (point `CMAKE_C_COMPILER`/`CMAKE_CXX_COMPILER` at it), or align the system `gcc` with bisheng as described in the "CANN Toolkit Installation" note below. The `-fPIC` flag is still required.
+>
 > **Note:** Python requires packages: os, numpy, ctypes, struct, copy, math, enum, ml_dtypes, en_dtypes, etc.
 >
 > If you installed GoogleTest with different flags (e.g., `-D_GLIBCXX_USE_CXX11_ABI=0`), you must update `tests/npu/[a2a3|a5]/src/st/CMakeLists.txt` accordingly by adding `add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)`.

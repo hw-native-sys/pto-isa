@@ -33,7 +33,7 @@ $$ \mathrm{dst}_{i,j}^{\text{new}} = \mathrm{scalar} \cdot \mathrm{src0}_{i,j} +
 
 > Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
 
-## C++ Intrinsics
+## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`.
 

@@ -52,7 +52,7 @@ where the cascaded filter $F_k$ is defined MSB-first (process $k=3$, then $k=2,1
 
 > `src` and `idx` are ISA-visible tile operands (not compiler scratch).
 
-## C++ Intrinsics
+## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`, available under A5 / Kirin9030 / CPU simulation (`PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_KIRIN9030 || __CPU_SIM`). The `HistByte` enum is defined in `include/pto/common/type.hpp`.
 

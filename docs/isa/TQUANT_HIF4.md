@@ -1,5 +1,7 @@
 # TQUANT HiFloat4 (BF16 → HiF4) — Algorithm & CCE Mapping
 
+> **Page type:** algorithm topic page, not a per-instruction ISA reference. `TQUANT_HIF4` is implemented by `include/pto/npu/a6/TQuant.hpp` and is consumed by `TMATMUL_MX_HIF4` (see [TMATMUL_MX_HIF4.md](TMATMUL_MX_HIF4.md)). The five-element ISA template (Tile Operation Diagram / Introduction / Math Interpretation / C++ Intrinsic / Constraints) does not apply because this page documents a quantization algorithm and its CCE mapping rather than a single Tile primitive. The sections below describe the HiFloat4 standard, the CCE implementation mapping, and the Python golden generator.
+
 ## 1. The HiFloat4 Standard (arXiv:2602.11287)
 
 HiFloat4 (HiF4) encodes 64 4-bit floating-point values together with **32 bits** of

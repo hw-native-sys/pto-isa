@@ -8,12 +8,16 @@
 demos/
 ├── baseline/         # 生产级 PyTorch 算子示例（NPU）
 │   ├── add/          # 基础逐元素加法
+│   ├── allgather_async/  # 与流水线重叠的异步 all-gather
 │   ├── gemm_basic/   # 带流水线优化的 GEMM
 │   └── flash_atten/  # 带动态分块的 Flash Attention
 ├── cpu/              # CPU 模拟演示（跨平台）
 │   ├── gemm_demo/
 │   ├── flash_attention_demo/
 │   └── mla_attention_demo/
+├── auto_mode/        # Auto 模式编排示例
+│   ├── baseline/     # Auto 模式 baseline 算子示例
+│   └── torch_jit/    # Auto 模式 JIT 示例
 └── torch_jit/        # PyTorch JIT 编译示例
     ├── add/
     ├── gemm/
@@ -28,7 +32,7 @@ demos/
 
 **支持平台**：A2/A3/A5
 
-**示例**：逐元素加法、带双缓冲流水线的 GEMM、带自动 tile 大小选择的 Flash Attention。
+**示例**：逐元素加法、带双缓冲流水线的 GEMM、带自动 tile 大小选择的 Flash Attention、与流水线重叠的异步 all-gather。
 
 ### 2. CPU 模拟 (`cpu/`)
 
@@ -42,6 +46,12 @@ demos/
 
 **示例**：JIT 加法、JIT GEMM、带基准测试套件的 JIT Flash Attention。
 
+### 4. Auto 模式 (`auto_mode/`)
+
+Auto 模式编排示例，由 PTO 自动推断 AIC/AIV 切分与事件同步，无需手写跨核握手。目前 `baseline/`、`torch_jit/` 下各有一个 `add` 示例，走 Auto 模式构建路径。
+
+**示例**：Auto 模式 `add`（baseline 形式）、Auto 模式 `add`（JIT 形式）。
+
 ## 快速开始
 
 ### CPU 模拟（推荐第一步）
@@ -50,6 +60,16 @@ demos/
 python3 tests/run_cpu.py --demo gemm --verbose
 python3 tests/run_cpu.py --demo flash_attn --verbose
 ```
+
+### A5 仿真器 ST（单用例）
+
+`demos/` 面向 NPU 与 CPU；A5 仿真器（即 Ascend 950PR&950DT 系列产品）入口在 `tests/script/run_st.py`，在该系列仿真器上运行单个 ST 用例：
+
+```bash
+python3 tests/script/run_st.py -r sim -v a5 -t tadd -g TADDTest.case_float_64x64_64x64_64x64_64x64
+```
+
+完整 ST 工作流（编译选项、GoogleTest ABI 匹配、多 rank 通信测试）见 [tests/README.md](../tests/README_zh.md)。
 
 ### NPU Baseline 示例
 
@@ -80,7 +100,10 @@ python add_compile_and_run.py
 - Python >= 3.9.x、CMake 3.16+
 
 **CPU 演示**：
-- 支持 C++23 的 C++ 编译器
+- 支持 C++23 的 C++ 编译器。演示所依赖的 CPU 仿真头文件使用 `_Float16`，主机编译器需通过 `tests/run_cpu.py` 的探测门槛：
+  - GCC >= 13，或
+  - Clang >= 15（Apple Clang 同用 15 门槛）。
+  如需原生 `std::bfloat16_t`，工具链还需提供 C++23 `<stdfloat>`（GCC >= 14 / Clang >= 15，见 `include/pto/common/type.hpp` 说明）。更早的工具链（如 GCC 11）在编译前就会报 `Could not find a suitable compiler`。
 - CMake 3.16+
 - Python >= 3.9.x（可选）
 

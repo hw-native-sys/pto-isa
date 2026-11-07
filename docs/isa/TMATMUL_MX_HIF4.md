@@ -1,5 +1,7 @@
 # TMATMUL_MX HiF4 (HiFloat4 Cube Matmul)
 
+> **Page type:** algorithm topic page for the HiFloat4 overload of `TMATMUL_MX`. The general `TMATMUL` / `TMATMUL_MX` instruction reference lives in [TMATMUL.md](TMATMUL.md); this page only documents the HiFloat4-specific pipeline, scale layout, and accumulator dtype rules. For the HiFloat4 quantization algorithm see [TQUANT_HIF4.md](TQUANT_HIF4.md).
+
 ## Introduction
 
 `TMATMUL_MX` with the `hifloat4x2_t` overload performs a Cube matmul where both

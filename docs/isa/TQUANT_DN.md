@@ -1,5 +1,7 @@
 # TQUANT DN — Axis-0 Grouped Quantization and DN→ZZ
 
+> **Page type:** algorithm topic page for the DN (axis-0 grouped) quantization path and the DN→ZZ layout transformation consumed by Cube. The general `TQUANT` instruction reference lives in [TQUANT.md](TQUANT.md); this page documents the DN grouping contract, the DN→ZZ transformation, and the `TMOV` interface used to drive Cube directly from packed FP4 codes.
+
 ## Tile Operation Diagram
 
 ![TQUANT tile operation](../figures/isa/TQUANT.svg)

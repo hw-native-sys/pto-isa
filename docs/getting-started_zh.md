@@ -184,7 +184,7 @@ Windows 特定选项（如需要）：
 
 ---
 
-## 第二部分：NPU 环境（Ascend 910B/910C，仅限 Linux）
+## 第二部分：NPU 环境（Ascend A2/A3/A5，仅限 Linux）
 
 本部分适用于需要在 Ascend NPU 硬件或模拟器上运行的用户。它需要 Linux 环境和 Ascend CANN toolkit。
 
@@ -217,6 +217,17 @@ cmake .. -DCMAKE_CXX_FLAGS="-fPIC"
 make
 sudo make install
 ```
+
+> **无 `sudo` 权限 / GoogleTest 装在自定义前缀时：** 若无法系统级安装 GoogleTest，可将其安装到自定义前缀（如 `$HOME/pto-3rd`），构建前导出 `CMAKE_PREFIX_PATH` 环境变量即可——CMake 原生读取该环境变量，无需额外构建参数：
+>
+> ```bash
+> export CMAKE_PREFIX_PATH="$HOME/pto-3rd"
+> python3 tests/script/run_st.py -r sim -v a5 -t tadd -g TADDTest.case_float_64x64_64x64_64x64_64x64
+> ```
+>
+> 多个前缀之间用分号分隔（整体加引号，如 `export CMAKE_PREFIX_PATH="$HOME/pto-3rd;/opt/gtest"`）。
+
+> **重要——编译器 ABI 必须与 bisheng 一致：** ST 构建（`tests/npu/[a2a3|a5]/src/st/CMakeLists.txt`）使用 **bisheng** 编译 kernel，而非系统 `gcc`。如果 GoogleTest 由 ABI 与 bisheng 所封装 GCC 不一致的系统 `gcc` 构建，ST 程序会在链接/加载阶段报 `undefined symbol`（例如 `__cxa_call_terminate`）。构建 GoogleTest 前先执行 `bisheng -v` 与 `gcc -v`；若两者 GCC 版本不同，要么使用 bisheng 所封装的 GCC 重建 GoogleTest（将 `CMAKE_C_COMPILER`/`CMAKE_CXX_COMPILER` 指向它），要么按下文「CANN Toolkit 安装」中的说明将系统 `gcc` 与 bisheng 对齐。`-fPIC` 仍为必需。
 
 > **注意：** Python 需要以下包：os、numpy、ctypes、struct、copy、math、enum、ml_dtypes、en_dtypes 等（CPU 全量测试等需要 `en_dtypes`，可用 `python -m pip install numpy ml_dtypes en_dtypes` 安装）。
 >

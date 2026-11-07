@@ -8,12 +8,16 @@ This directory contains demonstration examples showing how to use PTO Tile Libra
 demos/
 ├── baseline/         # Production PyTorch operator examples (NPU)
 │   ├── add/          # Basic element-wise addition
+│   ├── allgather_async/  # Async all-gather with pipeline overlap
 │   ├── gemm_basic/   # GEMM with pipeline optimization
 │   └── flash_atten/  # Flash Attention with dynamic tiling
 ├── cpu/              # CPU simulation demos (cross-platform)
 │   ├── gemm_demo/
 │   ├── flash_attention_demo/
 │   └── mla_attention_demo/
+├── auto_mode/        # Auto-mode orchestration demos
+│   ├── baseline/     # Auto-mode baseline operator examples
+│   └── torch_jit/    # Auto-mode JIT examples
 └── torch_jit/        # PyTorch JIT compilation examples
     ├── add/
     ├── gemm/
@@ -28,7 +32,7 @@ Production-ready examples showing how to implement custom PTO kernels and expose
 
 **Supported Platforms**: A2/A3/A5
 
-**Examples**: Element-wise addition, GEMM with double-buffering pipeline, Flash Attention with automatic tile size selection.
+**Examples**: Element-wise addition, GEMM with double-buffering pipeline, Flash Attention with automatic tile size selection, async all-gather with pipeline overlap.
 
 ### 2. CPU Simulation (`cpu/`)
 
@@ -42,6 +46,12 @@ Examples showing on-the-fly C++ compilation and direct integration with PyTorch 
 
 **Examples**: JIT addition, JIT GEMM, JIT Flash Attention with benchmark suite.
 
+### 4. Auto Mode (`auto_mode/`)
+
+Auto-mode orchestration examples that let PTO infer the AIC/AIV split and event synchronisation automatically, instead of writing the cross-core handshakes by hand. Currently provides one `add` example in each of the `baseline/` and `torch_jit/` forms, under the auto-mode build path.
+
+**Examples**: Auto-mode `add` in the baseline form, auto-mode `add` in the JIT form.
+
 ## Quick Start
 
 ### CPU Simulation (Recommended First Step)
@@ -50,6 +60,16 @@ Examples showing on-the-fly C++ compilation and direct integration with PyTorch 
 python3 tests/run_cpu.py --demo gemm --verbose
 python3 tests/run_cpu.py --demo flash_attn --verbose
 ```
+
+### A5 Simulator ST (Single-Testcase)
+
+The `demos/` tree targets NPU / CPU; the A5 simulator entry point lives under `tests/script/run_st.py` and runs a single ST testcase on the Ascend 950PR simulator:
+
+```bash
+python3 tests/script/run_st.py -r sim -v a5 -t tadd -g TADDTest.case_float_64x64_64x64_64x64_64x64
+```
+
+See [tests/README.md](../tests/README.md) for the full ST workflow (build flags, GoogleTest ABI matching, multi-rank comm tests).
 
 ### NPU Baseline Example
 
@@ -80,7 +100,10 @@ python add_compile_and_run.py
 - Python >= 3.9.x, CMake 3.16+
 
 **For CPU Demos**:
-- C++ compiler with C++23 support
+- C++ compiler with C++23 support. The CPU simulator headers the demos build against use `_Float16`, so the host compiler must pass the probe in `tests/run_cpu.py`:
+  - GCC >= 13, or
+  - Clang >= 15 (Apple Clang uses the same 15 threshold).
+  Native `std::bfloat16_t` additionally requires a C++23 `<stdfloat>` toolchain (GCC >= 14 / Clang >= 15, see the note in `include/pto/common/type.hpp`). Earlier toolchains (e.g. GCC 11) fail with `Could not find a suitable compiler` before compilation starts.
 - CMake 3.16+
 - Python >= 3.9.x (optional)
 
