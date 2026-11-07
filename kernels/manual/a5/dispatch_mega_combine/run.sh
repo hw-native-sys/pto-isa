@@ -36,13 +36,9 @@ HOSTFILE=""
 # 0 selects the runtime-reported core count. Nonzero values select a validated
 # launch topology and must not exceed the physical device count.
 AICORE_NUM=${DISPATCH_MEGA_COMBINE_AICORE_NUM:-0}
-export HCCL_WHITELIST_DISABLE=1
-
 : "${ASCEND_HOME_PATH:?ASCEND_HOME_PATH must be set before running run.sh}"
 CMAKE_COMPILER=${CMAKE_COMPILER:-bisheng}
 MPI_RUNNER=${MPI_RUNNER:-mpirun}
-
-export ASCEND_HOME_PATH
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -104,10 +100,6 @@ export DISPATCH_MEGA_COMBINE_URMA="$URMA"
 export DISPATCH_MEGA_COMBINE_RANKS_PER_SERVER="$RANKS_PER_SERVER"
 export DISPATCH_MEGA_COMBINE_LOCAL_DEVICE_MAPPING="$LOCAL_DEVICE_MAPPING"
 export DISPATCH_MEGA_COMBINE_WORLD_SIZE="$WORLD_SIZE"
-if [[ -n "${ASCEND_RT_VISIBLE_DEVICES:-}" ]]; then
-  echo "[INFO] Ignoring ASCEND_RT_VISIBLE_DEVICES; binding physical devices with --first-device"
-  unset ASCEND_RT_VISIBLE_DEVICES
-fi
 if (( LOCAL_DEVICE_MAPPING != 0 )); then
   echo "[INFO] Each server maps rank%$RANKS_PER_SERVER to devices $FIRST_DEVICE-$((FIRST_DEVICE+RANKS_PER_SERVER-1))"
 else
@@ -139,15 +131,12 @@ if [[ "${BUILD_ONLY}" != "0" ]]; then
 fi
 
 # Validate runtime options before data generation or MPI; CMake already requires the SharedPool SDK.
-LD_LIBRARY_PATH="${BUILD_DIR}/lib:${LD_LIBRARY_PATH:-}" "${BUILD_DIR}/dispatch_mega_combine" --check-transport
+"${BUILD_DIR}/dispatch_mega_combine" --check-transport
 
 GEN_DATA_EXTRA_ARGS=()
 if [[ "${REUSE_DATA}" != "0" ]]; then
   GEN_DATA_EXTRA_ARGS+=(--reuse-data)
 fi
-
-# C++ tiling owns layout and capacity checks; preserve an explicit caller override.
-export HCCL_BUFFSIZE="${HCCL_BUFFSIZE:-512}"
 
 python3 "${SCRIPT_DIR}/scripts/gen_data.py" \
   --output-dir "${OUT_DIR}" \
@@ -160,14 +149,13 @@ python3 "${SCRIPT_DIR}/scripts/gen_data.py" \
   --rtol "${RTOL}" \
   "${GEN_DATA_EXTRA_ARGS[@]}"
 
-export LD_LIBRARY_PATH="${BUILD_DIR}/lib:${LD_LIBRARY_PATH:-}"
 export DISPATCH_MEGA_COMBINE_CASE_DIR="${OUT_DIR}"
 export DISPATCH_MEGA_COMBINE_AICORE_NUM="${AICORE_NUM}"
 export DISPATCH_MEGA_COMBINE_START_SYNC="${START_SYNC}"
 export DISPATCH_MEGA_COMBINE_WARMUP_ITERS="${WARMUP_ITERS}"
 export DISPATCH_MEGA_COMBINE_MEASURE_ITERS="${MEASURE_ITERS}"
 if ! command -v "${MPI_RUNNER}" >/dev/null 2>&1; then
-  echo "MPICH launcher not found: ${MPI_RUNNER}. Source the project environment before running." >&2
+  echo "MPICH launcher not found: ${MPI_RUNNER}. Add MPICH to PATH or set MPI_RUNNER." >&2
   exit 1
 fi
 MPI_VERSION=$("${MPI_RUNNER}" --version 2>&1 || true)

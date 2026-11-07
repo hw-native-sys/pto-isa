@@ -11,6 +11,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(pto_test)
 
+# bisheng/cce-ld does not support --dependency-file; disable linker dep tracking
+# that CMake 3.27+ enables by default.
+set(CMAKE_LINK_DEPENDS_USE_LINKER FALSE)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -98,7 +102,7 @@ if(RUN_MODE STREQUAL "npu")
     set(CMAKE_CCE_COMPILE_OPTIONS "${CMAKE_CCE_COMPILE_OPTIONS} --cce-pto-enable")
 
     include_directories(
-        ${PROJECT_SOURCE_DIR}/../../../../../include
+        ${PROJECT_SOURCE_DIR}/../../../../../include 
         ${ASCEND_HOME_PATH}/ohos
         ${ASCEND_DRIVER_PATH}/kernel/inc
     )
@@ -110,7 +114,7 @@ else()
     )
 
     include_directories(
-        ${PROJECT_SOURCE_DIR}/../../../../../include
+        ${PROJECT_SOURCE_DIR}/../../../../../include 
         ${ASCEND_HOME_PATH}/include
         ${ASCEND_DRIVER_PATH}/kernel/inc
     )

@@ -90,7 +90,7 @@ __aicore__ inline GmmClaimedTask MegaMoe<CType_>::ProcessFixedGmm1(
 {
     const __gm__ MegaMoeFixedGroupTiling& fixed = tilingData_->fixedGroupTiling;
     Gmm1 gmm1;
-    gmm1.Init(weight1GM_, weightScale1GM_, workspaceGM_, tilingData_);
+    gmm1.Init(weight1GM_, weightScale1GM_, expertTokenNumsGM_, workspaceGM_, tilingData_);
     return gmm1.ProcessFixed(physicalBlockId, fixed.physicalAicNum, gmmPipeline);
 }
 
@@ -98,17 +98,8 @@ template <typename CType_>
 __aicore__ inline void MegaMoe<CType_>::ProcessFixedGmm2(
     uint32_t physicalBlockId, GmmCommonPipeline& gmmPipeline, const GmmClaimedTask& initialTask)
 {
-    const __gm__ MegaMoeFixedGroupTiling& fixed = tilingData_->fixedGroupTiling;
-    const bool mailboxGmm1 = tilingData_->gmmSchedulerTiling.gmm1ScheduleMode == kMegaMoeGmm1ScheduleWave0MailboxSuffix;
-    const bool localFixedHandoff =
-        fixed.fullAicGmm1WaveCount > kMegaMoeFullAicGmm1WaveCount && physicalBlockId >= fixed.gmm1GroupSize;
-    if (mailboxGmm1) {
-        WaitGmm2EntryReady(workspaceGM_, tilingData_);
-    } else if (localFixedHandoff) {
-        WaitCombineConsumerArmed(workspaceGM_, tilingData_, physicalBlockId);
-    } else {
-        WaitGmm2ConsumerReady(workspaceGM_, tilingData_, physicalBlockId);
-    }
+    // P publishes GMM2 tickets only after metadata readiness. Acquire the
+    // actual SwiGLU input per expert in Gmm2, without draining the AIC here.
     Gmm2 gmm2;
     gmm2.Init(weight2GM_, weightScale2GM_, workspaceGM_, tilingData_);
     gmm2.ProcessFixed(physicalBlockId, gmmPipeline, initialTask);
@@ -122,39 +113,39 @@ __aicore__ inline void MegaMoe<CType_>::ProcessFixedGroups()
     const uint32_t physicalBlockId = get_block_idx();
 
 #if defined(__DAV_CUBE__)
-    const bool fixedWaveGmm1 = tilingData_->gmmSchedulerTiling.gmm1ScheduleMode == kMegaMoeGmm1ScheduleFixedWave;
-    if (fixedWaveGmm1) {
-        // Fixed-wave GMM1 owns its local pipeline; GMM2 starts with a fresh one.
-        ProcessFixedGmm1(physicalBlockId, nullptr);
-        if (physicalBlockId < fixed.gmm1GroupSize) {
-            pipe_barrier(PIPE_ALL);
-            dsb(DSB_DDR);
-            PublishGmmMailboxProgress(
-                workspaceGM_, tilingData_->gmmSchedulerTiling.mailbox, physicalBlockId, kGmmMailboxGmm1Wave0EndTicket);
-        }
-        GmmCommonPipeline gmm2Pipeline;
-        const GmmClaimedTask noInitialTask;
-        ProcessFixedGmm2(physicalBlockId, gmm2Pipeline, noInitialTask);
-    } else {
-        // Mailbox handoff carries the first GMM2 task and reuses the GMM pipeline.
-        GmmCommonPipeline sharedPipeline;
-        const GmmClaimedTask initialGmm2 = ProcessFixedGmm1(physicalBlockId, &sharedPipeline);
-        ProcessFixedGmm2(physicalBlockId, sharedPipeline, initialGmm2);
-    }
+    GmmCommonPipeline sharedPipeline;
+    const GmmClaimedTask initialGmm2 = ProcessFixedGmm1(physicalBlockId, &sharedPipeline);
+    ProcessFixedGmm2(physicalBlockId, sharedPipeline, initialGmm2);
 #elif defined(__DAV_VEC__)
     const uint32_t subblockId = get_subblockid();
-    const uint32_t dispatchRankSize = tilingData_->runtimeInfo.rankSize;
-    const uint32_t dispatchLanesPerRank = fixed.dispatchGroupSize / dispatchRankSize;
-    const uint32_t dispatchActiveWorkerCount = dispatchRankSize * dispatchLanesPerRank;
-    const bool gmm1Mailbox = tilingData_->gmmSchedulerTiling.gmm1ScheduleMode == kMegaMoeGmm1ScheduleWave0MailboxSuffix;
+    const uint32_t dispatchActiveWorkerCount = fixed.dispatchGroupSize;
+    const bool smallMRollingDispatch = tilingData_->megaMoeInfo.M <= 256U;
+
+    // Small-M Dispatch runs on paired AIV1 before its SwiGLU phase.
+    const bool dispatchWorker =
+        smallMRollingDispatch ? subblockId == 1U : (subblockId == 0U && physicalBlockId < dispatchActiveWorkerCount);
+    if (dispatchWorker) {
+        DispatchGather dispatchGather;
+        dispatchGather.Init(expertTokenNumsGM_, workspaceGM_, tilingData_);
+        const uint32_t workers = smallMRollingDispatch ? fixed.physicalAicNum : dispatchActiveWorkerCount;
+        dispatchGather.PrepareMetadata(physicalBlockId, workers);
+        if (smallMRollingDispatch)
+            dispatchGather.ProcessRollingFixed(physicalBlockId, workers);
+        else
+            dispatchGather.ProcessFixed(physicalBlockId, workers);
+        pipe_barrier(PIPE_ALL);
+        dsb(DSB_DDR);
+        if (smallMRollingDispatch)
+            Gmm1SwigluConsumerPrime();
+    }
 
     const uint32_t rankStreamingWorkerCount = fixed.physicalAicNum * kMegaMoeFixedAivSubblocksPerPhysicalBlock;
     const uint32_t producerPhysicalBlockId = fixed.physicalAicNum - 1U;
     const uint32_t progressPhysicalBlockId = producerPhysicalBlockId - 1U;
     const bool gmmTaskProducerRole = subblockId == 0U && physicalBlockId == producerPhysicalBlockId;
 
-    // GMM2's mailbox is always active. The producer waits for the front
-    // metadata marker, then schedules both direct-wave suffixes.
+    // The producer starts after the count/metadata marker: GMM1 has a direct
+    // wave0 prefix, while every GMM2 task is assigned by the mailbox.
     if (gmmTaskProducerRole) {
         MegaMoeGmmTaskProducer producer;
         producer.Init(workspaceGM_, tilingData_);
@@ -165,15 +156,16 @@ __aicore__ inline void MegaMoe<CType_>::ProcessFixedGroups()
     if (subblockId == 0U && physicalBlockId >= fixed.dispatchGroupSize && physicalBlockId < producerPhysicalBlockId) {
         const uint32_t metadataWorkerIdx = physicalBlockId - fixed.dispatchGroupSize;
         const uint32_t metadataWorkerCount = producerPhysicalBlockId - fixed.dispatchGroupSize;
-        deferred_route_metadata::DeferredRouteMetadata metadata;
-        metadata.Init(expertIdGM_, workspaceGM_, tilingData_, metadataWorkerIdx, metadataWorkerCount);
+        DeferredRouteMetadata metadata;
+        metadata.Init(
+            expertIdGM_, expertTokenNumsGM_, workspaceGM_, tilingData_, metadataWorkerIdx, metadataWorkerCount);
         metadata.Run();
+
         if (metadataWorkerIdx == 0U) {
-            // Expanded metadata, local Dispatch and every source-rank preSum
-            // must be visible before any GMM2 consumer enters the mailbox.
-            WaitEpochAcquire(
-                FixedSyncSlot(workspaceGM_, tilingData_, kMegaMoeFixedSyncDispatchDoneSlot),
-                kMegaMoeFixedDispatchDoneMarker);
+            // P may cut over before Dispatch finishes. Count tables, expanded
+            // metadata and source preSum must already be visible; per-expert
+            // input readiness remains the GMM2 consumer's own dependency.
+
             PtoRemoteWindow remoteWindow;
             remoteWindow.Init(reinterpret_cast<GM_ADDR>(tilingData_->runtimeInfo.remoteWindowContext));
             const int32_t preSumEpoch = remoteWindow.FrontReadyEpoch();
@@ -191,42 +183,17 @@ __aicore__ inline void MegaMoe<CType_>::ProcessFixedGroups()
         }
     }
 
-    if (subblockId == 0U && physicalBlockId < dispatchActiveWorkerCount) {
-        DispatchGather dispatchGather;
-        dispatchGather.Init(workspaceGM_, tilingData_);
-        dispatchGather.ProcessFixed(physicalBlockId, fixed.dispatchGroupSize);
-        pipe_barrier(PIPE_ALL);
-        dsb(DSB_DDR);
-        PtoRemoteWindow remoteWindow;
-        remoteWindow.Init(reinterpret_cast<GM_ADDR>(tilingData_->runtimeInfo.remoteWindowContext));
-        const int32_t epoch = remoteWindow.DataReadyEpoch();
-        remoteWindow.PublishDispatchRelease(physicalBlockId, epoch);
-        if (physicalBlockId == 0U) {
-            // Some topologies leave a trailing Dispatch role unused after
-            // rank-balanced lane assignment.
-            remoteWindow.WaitDispatchReleaseMte(dispatchActiveWorkerCount, epoch);
-            PublishScalarEpoch(
-                FixedSyncSlot(workspaceGM_, tilingData_, kMegaMoeFixedSyncDispatchDoneSlot),
-                kMegaMoeFixedDispatchDoneMarker);
-        }
-    }
-
     if (subblockId == 1U) {
         Swiglu<CType_> swiglu;
         swiglu.Init(workspaceGM_, tilingData_);
         swiglu.ProcessFixed(physicalBlockId, fixed.physicalAicNum);
 
-        const bool localFixedHandoff =
-            fixed.fullAicGmm1WaveCount > kMegaMoeFullAicGmm1WaveCount && physicalBlockId >= fixed.gmm1GroupSize;
-        if (!localFixedHandoff) {
-            pipe_barrier(PIPE_ALL);
-            dsb(DSB_DDR);
-            PublishCombineConsumerArmed(workspaceGM_, tilingData_, physicalBlockId);
-            WaitGmm2EntryReady(workspaceGM_, tilingData_);
-        }
+        // Release the paired Combine credit only after SwiGLU stores are ordered.
+        Gmm2CombineConsumerPrime();
+        WaitGmm2EntryReady(workspaceGM_, tilingData_);
         Combine<bfloat16_t> combine;
         combine.Init(workspaceGM_, tilingData_);
-        combine.ProcessFixed(physicalBlockId);
+        combine.ProcessFixed();
     }
 
     if (MegaMoeUrmaEnabled(tilingData_) && subblockId == 0U) {
@@ -238,22 +205,15 @@ __aicore__ inline void MegaMoe<CType_>::ProcessFixedGroups()
         if (physicalBlockId == tilingData_->runtimeInfo.rank % fixed.physicalAicNum)
             sender.FinalizeRank();
     }
-
-    // Rank-streaming uses stable logical ordinals: AIV1 is [0, P), AIV0 is
-    // [P, 2P). The dedicated coordinator publishes live expert progress;
-    // the phase-1 coordinator only snapshots progress for two-phase cases.
-    const uint32_t rankStreamingWorkerIdx = subblockId == 1U ? physicalBlockId : fixed.physicalAicNum + physicalBlockId;
+    // AIV0 occupies [0,C), AIV1 [C,2C). The Dispatch AIV0 pool can start
+    // phase1 without stealing AIV1 from the still-running Combine consumers.
+    const uint32_t rankStreamingWorkerIdx = subblockId == 0U ? physicalBlockId : fixed.physicalAicNum + physicalBlockId;
     const bool twoPhaseUnpermute = tilingData_->unpermuteTiling.rankStreamingInitialWorkerCount != 0U;
-    const bool rankStreamingCoordinator = rankStreamingWorkerIdx == fixed.physicalAicNum;
+    const bool rankStreamingCoordinator = rankStreamingWorkerIdx == 0U;
     if (twoPhaseUnpermute && rankStreamingCoordinator) {
-        // Group1 handoff is owned by each AIC. Fixed-wave GMM1 publishes its
-        // final wave epoch; mailbox GMM1 publishes the done marker only after
-        // the AIC has claimed its GMM2 transition ticket.
-        const int32_t gmm1HandoffEpoch =
-            gmm1Mailbox ? kMegaMoeFixedGmm1DoneMarker :
-                          static_cast<int32_t>(fixed.totalWaveCount + kMegaMoeFixedGmm1GroupDoneEpochOffset);
         WaitArrivalMinMte(
-            workspaceGM_, tilingData_, kMegaMoeFixedSyncGmm1ArrivalBase, fixed.gmm1GroupSize, gmm1HandoffEpoch);
+            workspaceGM_, tilingData_, kMegaMoeFixedSyncGmm1ArrivalBase, fixed.physicalAicNum,
+            kMegaMoeFixedGmm1DoneMarker);
         PtoRemoteWindow remoteWindow;
         remoteWindow.Init(reinterpret_cast<GM_ADDR>(tilingData_->runtimeInfo.remoteWindowContext));
         const int32_t epoch = remoteWindow.DataReadyEpoch();
@@ -285,8 +245,9 @@ template <typename CType_>
 __aicore__ inline void MegaMoe<CType_>::Process()
 {
 #if defined(__DAV_VEC__)
-    FrontReorderProcess<CType_>(xGM_, expertIdGM_, expertTokenNumsGM_, workspaceGM_, tilingData_);
+    FrontReorderProcess<CType_>(xGM_, expertIdGM_, tilingData_);
 #endif
+
     ProcessFixedGroups();
 }
 

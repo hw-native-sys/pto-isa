@@ -220,6 +220,18 @@ if __name__ == "__main__":
         TREMSParams("TREMSTest.case57", np.float32, 4, 136, 4, 136, hp=True),
         TREMSParams("TREMSTest.case58", np.float32, 1, 8192, 1, 8192, hp=True),
         TREMSParams("TREMSTest.case59", np.float32, 16, 64, 16, 64, valid_col=63, hp=True),
+        # in-place aliasing probes (dst tile TASSIGN'd over src) + disjoint
+        # control: DEFAULT float/int and the HP fallback must stay alias-safe.
+        # Shapes are compact (valid == tile) so the whole GM tile is rewritten
+        # and golden padding never participates; negative scalars on the
+        # DEFAULT float probes exercise the sign-correction compare.
+        TREMSParams("TREMSTest.ip_def_float_33x64", np.float32, 33, 64, 33, 64, scalar=-7.25),
+        TREMSParams("TREMSTest.ip_def_float_4x8", np.float32, 4, 8, 4, 8),
+        TREMSParams("TREMSTest.ip_def_float_1x8192", np.float32, 1, 8192, 1, 8192, scalar=-7.25),
+        TREMSParams("TREMSTest.ip_def_int32_2x192", np.int32, 2, 192, 2, 192, scalar=-3),
+        TREMSParams("TREMSTest.ip_hp_float_8x448", np.float32, 8, 448, 8, 448, hp=True),
+        TREMSParams("TREMSTest.ip_hp_float_32x64", np.float32, 32, 64, 32, 64, hp=True),
+        TREMSParams("TREMSTest.ctrl_disj_def_float_33x64", np.float32, 33, 64, 33, 64, scalar=-7.25),
     ]
 
     for case in case_params_list:

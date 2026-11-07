@@ -39,7 +39,7 @@ public:
 
         for (uint32_t readyExpertCount = 1U; readyExpertCount <= expertCount; ++readyExpertCount) {
             const uint32_t expert = readyExpertCount - 1U;
-            const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr_, rankCount, expertCount, expert);
+            const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr_, rankCount, expert);
             const uint32_t expectedTiles = GmmCommonCoreLoops(currentM, problemK);
             __gm__ int32_t* completion = GmmExpertCompletionSlot(workspaceGM_, queue, expert);
             while (static_cast<uint32_t>(ld_dev(completion, 0)) < expectedTiles) {
@@ -47,7 +47,7 @@ public:
             }
             dsb(DSB_DDR);
             if (expert != 0U && expert % REMOTE_WINDOW_PROGRESS_SIGNAL_BUFFER_COUNT == 0U) {
-                // Drain the previous bounded progress ring before slot 0 is reused.
+                // Drain pending progress writes before reusing the ring.
                 pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
             }
 
@@ -62,9 +62,7 @@ public:
                     static_cast<int32_t>(consumerRank), readyExpertCount, epoch, allExpertsReady, EVENT_ID0);
             }
             if (!allExpertsReady && readyExpertCount + 1U == expertCount) {
-                // Drain historical progress while the final expert is still
-                // computing, so its ready update does not sit behind the
-                // previous experts' remote MTE3 fan-out.
+                // Drain queued progress stores while the final expert is computing.
                 pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
             }
         }

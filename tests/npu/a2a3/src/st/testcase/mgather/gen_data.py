@@ -199,6 +199,12 @@ add(
     "MGATHERTest.case_row_half_zero_8x32_8rows", lambda n: case_row(n, np.float16, 8, 32, 8, oob="zero", idx_kind="oob")
 )
 
+add("MGATHERTest.case_row_async_float_8x32_64rows", lambda n: case_row(n, np.float32, 8, 32, 64))
+add("MGATHERTest.case_row_async_half_16x64_64rows", lambda n: case_row(n, np.float16, 16, 64, 64))
+add("MGATHERTest.case_row_async_bfloat16_16x16_64rows", lambda n: case_row(n, np.uint16, 16, 16, 64))
+add("MGATHERTest.case_row_async_int8_8x32_32rows", lambda n: case_row(n, np.int8, 8, 32, 32))
+add("MGATHERTest.case_row_async_bfloat16_64x512_128rows", lambda n: case_row(n, np.uint16, 64, 512, 128))
+
 add("MGATHERTest.case_row_int32_unaligned_3x8_8rows", lambda n: case_row(n, np.int32, 3, 8, 8))
 add("MGATHERTest.case_row_float_partial_4x16_in_8x16", lambda n: case_row(n, np.float32, 4, 16, 8))
 add("MGATHERTest.case_row_half_partial_5x32_in_8x32", lambda n: case_row(n, np.float16, 5, 32, 8))

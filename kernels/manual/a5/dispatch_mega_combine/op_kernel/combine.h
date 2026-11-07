@@ -42,21 +42,26 @@ static_assert(
     kDirectCombineCompletionUbOffset + kDirectCombineCompletionUbBytes <= REMOTE_WINDOW_FINAL_SIGNAL_UB_OFFSET);
 
 template <typename CvTile>
-__tf__ AICORE inline void DirectCombineStrideStore(
-    __gm__ bfloat16_t* dst, typename CvTile::TileDType __in__ srcTile, uint32_t rows, uint32_t cols,
-    uint32_t dstLeadingDim)
+AICORE inline void DirectCombineStrideStore(
+    __gm__ bfloat16_t* dst, CvTile& srcTile, uint32_t rows, uint32_t cols, uint32_t dstLeadingDim)
 {
-    __ubuf__ bfloat16_t* src = reinterpret_cast<__ubuf__ bfloat16_t*>(__cce_get_tile_ptr(srcTile));
-    copy_ubuf_to_gm_align_v2(
-        dst, src, 0, rows, cols * sizeof(bfloat16_t), 0, static_cast<uint64_t>(dstLeadingDim) * sizeof(bfloat16_t),
-        CvTile::Cols * sizeof(bfloat16_t));
+    using StoreShape = pto::Shape<1, 1, 1, pto::DYNAMIC, pto::DYNAMIC>;
+    using StoreStride = pto::Stride<pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, pto::DYNAMIC, 1>;
+    using StoreGlobal = pto::GlobalTensor<bfloat16_t, StoreShape, StoreStride, pto::Layout::ND>;
+
+    // Keep the CV tile's physical row pitch; only this rank's valid rows/columns are written.
+    const uint64_t outerStride = static_cast<uint64_t>(rows) * dstLeadingDim;
+    StoreShape shape(rows, cols);
+    StoreStride stride(outerStride, outerStride, outerStride, dstLeadingDim);
+    StoreGlobal dstGlobal(dst, shape, stride);
+    pto::TSTORE(dstGlobal, srcTile);
 }
 
 template <typename OutputElement>
 class Combine {
 public:
     AICORE inline void Init(GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData);
-    AICORE inline void ProcessFixed(uint32_t physicalBlockId);
+    AICORE inline void ProcessFixed();
 
 private:
     static_assert(std::is_same_v<OutputElement, bfloat16_t>, "MXFP8 combine output must be BF16");
@@ -66,8 +71,7 @@ private:
     AICORE inline void PrefetchDirectMetadata();
     AICORE inline void PrepareDirectExpert(uint32_t groupIdx);
     AICORE inline void StoreDirectTile(const GmmCommonTileInfo& tileInfo) const;
-    AICORE inline void ConsumeDirectTile(const GmmCommonTileInfo& tileInfo);
-    AICORE inline void ConsumeDirectWave0();
+    AICORE inline void ConsumeDirectTile(const GmmCommonTileInfo& tileInfo, uint32_t expert);
     AICORE inline void ProcessImpl();
 
     GM_ADDR workspaceGM_ = nullptr;
@@ -83,7 +87,6 @@ private:
     uint32_t routeElems_ = 0U;
     uint32_t expertPerRank_ = 0U;
     uint32_t rankSize_ = 0U;
-    uint32_t physicalBlockId_ = 0U;
     uint32_t directRankRowBegin_[kMegaMoeExpertProgressMaxRanks] = {0U};
     uint32_t directRankRowEnd_[kMegaMoeExpertProgressMaxRanks] = {0U};
     uint32_t directCompactRowBegin_[kMegaMoeExpertProgressMaxRanks] = {0U};
@@ -152,22 +155,20 @@ AICORE inline void Combine<OutputElement>::PrefetchDirectMetadata()
 template <typename OutputElement>
 AICORE inline void Combine<OutputElement>::PrepareDirectExpert(uint32_t groupIdx)
 {
-    if (MegaMoeUrmaEnabled(tilingData_)) {
-        stagingExpertBase_ = 0U;
-        for (uint32_t e = 0U; e < groupIdx; ++e) {
-            stagingExpertBase_ += static_cast<uint32_t>(PtoGetValue<int32_t, kDirectCombineMetadataMaxElems>(
-                kDirectCombineCumsumUbOffset, (rankSize_ - 1U) * expertPerRank_ + e));
-        }
-    }
+    const uint32_t expertBase = groupIdx == 0U ?
+                                    0U :
+                                    static_cast<uint32_t>(PtoGetValue<int32_t, kDirectCombineMetadataMaxElems>(
+                                        kDirectCombineCumsumUbOffset, groupIdx * rankSize_ - 1U));
+    stagingExpertBase_ = expertBase;
     uint32_t rankRowBegin = 0U;
     for (uint32_t srcRank = 0U; srcRank < rankSize_; ++srcRank) {
-        const uint32_t metadataIdx = srcRank * expertPerRank_ + groupIdx;
-        const uint32_t rankRowEnd = static_cast<uint32_t>(
-            PtoGetValue<int32_t, kDirectCombineMetadataMaxElems>(kDirectCombineCumsumUbOffset, metadataIdx));
+        const uint32_t rankRowEnd = static_cast<uint32_t>(PtoGetValue<int32_t, kDirectCombineMetadataMaxElems>(
+                                        kDirectCombineCumsumUbOffset, groupIdx * rankSize_ + srcRank)) -
+                                    expertBase;
         directRankRowBegin_[srcRank] = rankRowBegin;
         directRankRowEnd_[srcRank] = rankRowEnd;
-        directCompactRowBegin_[srcRank] = static_cast<uint32_t>(
-            PtoGetValue<int32_t, kDirectCombineMetadataMaxElems>(kDirectCombinePreSumUbOffset, metadataIdx));
+        directCompactRowBegin_[srcRank] = static_cast<uint32_t>(PtoGetValue<int32_t, kDirectCombineMetadataMaxElems>(
+            kDirectCombinePreSumUbOffset, srcRank * expertPerRank_ + groupIdx));
         rankRowBegin = rankRowEnd;
     }
 }
@@ -211,58 +212,25 @@ AICORE inline void Combine<OutputElement>::StoreDirectTile(const GmmCommonTileIn
                                    static_cast<uint64_t>(srcTileRow) * kGmm2CombineCvTileCols * sizeof(bfloat16_t);
         Gmm2CombineCvTile srcTile(rows, tileInfo.actualN);
         pto::TASSIGN(srcTile, srcOffset);
-        DirectCombineStrideStore<Gmm2CombineCvTile>(dst, srcTile.data(), rows, tileInfo.actualN, problemK_);
+        DirectCombineStrideStore<Gmm2CombineCvTile>(dst, srcTile, rows, tileInfo.actualN, problemK_);
     }
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::ConsumeDirectTile(const GmmCommonTileInfo& tileInfo)
+AICORE inline void Combine<OutputElement>::ConsumeDirectTile(const GmmCommonTileInfo& tileInfo, uint32_t expert)
 {
     // Keep descriptor/expert preparation on Scalar ahead of this wait. The
     // ready event still orders all payload reads behind the AIC FIX TMOV.
     Gmm2CombineConsumerEnqueueReadyWait(cvPipe_);
+
     StoreDirectTile(tileInfo);
     Gmm2CombineConsumerRelease(cvPipe_);
-}
-
-template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::ConsumeDirectWave0()
-{
-    const __gm__ MegaMoeFixedGroupTiling& fixed = tilingData_->fixedGroupTiling;
-    if (physicalBlockId_ < fixed.gmm1GroupSize) {
-        return;
-    }
-    const uint32_t group2LocalId = physicalBlockId_ - fixed.gmm1GroupSize;
-    const MegaMoeExpertWaveRange wave = GetExpertWaveRange(
-        0U, expertPerRank_, fixed.fullAicExpertsPerWave, fixed.expertsPerWave, fixed.fullAicGmm1WaveCount);
-    const __gm__ MegaMoeGmmQueueTiling& queue = tilingData_->gmmSchedulerTiling.gmm2;
-    MegaMoeCoreTileBalancer tileBalancer;
-    SetCoreTileBalancerRange(tileBalancer, fixed.gmm1GroupSize, fixed.gmm2GroupSize);
-    for (uint32_t expert = wave.begin; expert < wave.end; ++expert) {
-        const uint32_t currentM = MoeCurrentMRaw(cumsumMMPtr_, rankSize_, expertPerRank_, expert);
-        const uint32_t coreLoops = GmmCommonCoreLoops(currentM, problemK_);
-        const uint32_t startCoreIdx = SelectCoreTileStart(tileBalancer, coreLoops);
-        const uint32_t startLoopIdx = GmmCommonStartLoopIdx(group2LocalId, fixed.gmm2GroupSize, startCoreIdx);
-        uint32_t assignedTileCount = 0U;
-        if (startLoopIdx < coreLoops) {
-            PrepareDirectExpert(expert);
-        }
-        for (uint32_t loopIdx = startLoopIdx; loopIdx < coreLoops; loopIdx += fixed.gmm2GroupSize) {
-            const GmmCommonTileInfo tileInfo =
-                GmmCommonBuildTileInfoWithOffset<kGmm2CombineSwizzleOffset>(currentM, problemK_, loopIdx);
-            ConsumeDirectTile(tileInfo);
-            ++assignedTileCount;
-        }
-        PublishCompletedExpertTiles(queue, expert, assignedTileCount);
-        CommitCoreTileAssignment(tileBalancer, startCoreIdx, coreLoops);
-    }
 }
 
 template <typename OutputElement>
 AICORE inline void Combine<OutputElement>::ProcessImpl()
 {
     const __gm__ MegaMoeGmmQueueTiling& queue = tilingData_->gmmSchedulerTiling.gmm2;
-    ConsumeDirectWave0();
 
     uint32_t preparedExpert = expertPerRank_;
     uint32_t completionExpert = expertPerRank_;
@@ -273,12 +241,12 @@ AICORE inline void Combine<OutputElement>::ProcessImpl()
         // control first; payload ownership remains unchanged until MTE3
         // finishes consuming the matching CV slot.
         Gmm2CombineControlConsumerWait(cvPipe_);
-        const uint32_t control = ReadGmmCvTaskControl(0U, kGmm2CombineControlFifoDepth);
+        const uint32_t control = ReadGmmCvTaskControl(0U, kGmm2CombineControlFifoDepth, kGmm2CombineControlWordBase);
         Gmm2CombineControlConsumerRelease(cvPipe_);
         if (IsGmmStageEndControl(control)) {
             break;
         }
-        const MegaMoeGmmTask task = InferGmmCvTask(control, cumsumMMPtr_, rankSize_, expertPerRank_, inferenceCache);
+        const MegaMoeGmmTask task = InferGmmCvTask(control, cumsumMMPtr_, rankSize_, inferenceCache);
 
         const GmmCommonTileInfo tileInfo =
             GmmCommonBuildTileInfoFromCoord(task.currentM, problemK_, task.blockM, task.blockN);
@@ -291,22 +259,22 @@ AICORE inline void Combine<OutputElement>::ProcessImpl()
             PrepareDirectExpert(task.expert);
             preparedExpert = task.expert;
         }
-        ConsumeDirectTile(tileInfo);
+
+        ConsumeDirectTile(tileInfo, task.expert);
         ++completionTileCount;
     }
+
     PublishCompletedExpertTiles(queue, completionExpert, completionTileCount);
-    // Drain only this consumer's ordered data/completion MTE3 chain before
-    // the paired AIV can continue into Unpermute. Global readiness is
-    // published once by Gmm2ExpertProgressCoordinator.
-    pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
+    // Payload stores were drained before the completion atomic above.
+    // Its reserved UB source does not overlap Unpermute storage, so leave
+    // the final completion in flight; the progress coordinator acquires it.
 }
 
 template <typename OutputElement>
-AICORE inline void Combine<OutputElement>::ProcessFixed(uint32_t physicalBlockId)
+AICORE inline void Combine<OutputElement>::ProcessFixed()
 {
-    physicalBlockId_ = physicalBlockId;
-    // The Group2 AIV0 coordinator publishes the common start marker only
-    // after local Dispatch and all direct-route metadata are ready.
+    // The metadata coordinator publishes this view before GMM2 admission.
+    // Dispatch is independently gated at per-expert/per-M-tile granularity.
     PrefetchDirectMetadata();
     ProcessImpl();
 }

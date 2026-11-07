@@ -2654,6 +2654,18 @@ PTO_INST RecordEvent MGATHER(TileDst& dst, GlobalData& src, TileInd& indexes, Wa
     return {};
 }
 
+#if defined(PTO_NPU_ARCH_A2A3)
+template <
+    Coalesce CMode, GatherOOB Mode, GatherSync Sync, typename TileDst, typename GlobalData, typename TileInd,
+    typename... WaitEvents>
+PTO_INST RecordEvent MGATHER(TileDst& dst, GlobalData& src, TileInd& indexes, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(MGATHER, PTO_TEMPLATE_ARGS(CMode, Mode, Sync), dst, src, indexes);
+    return {};
+}
+#endif
+
 template <Coalesce CMode, typename TileDst, typename GlobalData, typename GlobalIdx, typename GlobalScratch>
 PTO_INST RecordEvent MGATHER(TileDst& dst, GlobalData& src, GlobalIdx& indexes, GlobalScratch& scratch)
 {

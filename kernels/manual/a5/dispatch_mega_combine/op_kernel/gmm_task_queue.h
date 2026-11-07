@@ -21,7 +21,15 @@ constexpr uint32_t kGmmMailboxEmptyTicket = 0U;
 constexpr uint32_t kGmmMailboxFirstTaskTicket = 1U;
 constexpr uint32_t kGmmMailboxTerminalTicket = UINT32_MAX;
 constexpr uint32_t kGmmMailboxGmm1Wave0EndTicket = UINT32_MAX - 1U;
-constexpr uint32_t kGmmMailboxGmm2Wave0EndTicket = UINT32_MAX - 2U;
+constexpr uint32_t kGmmMailboxGmm1DirectEndTicket = kGmmMailboxGmm1Wave0EndTicket;
+constexpr uint8_t kGmmMailboxProgressEmpty = 0U;
+constexpr uint8_t kGmmMailboxProgressAckMin = 1U;
+constexpr uint8_t kGmmMailboxProgressAckMax = 253U;
+constexpr uint8_t kGmmMailboxProgressGmm1DirectEnd = 254U;
+constexpr uint32_t kGmmMailboxP2cSlotCount = 1U;
+// Separate SSBUF control words while GMM1 StageEnd and GMM2 overlap.
+constexpr uint32_t kGmm1SwigluControlWordBase = 0U;
+constexpr uint32_t kGmm2CombineControlWordBase = 4U;
 constexpr uint32_t kGmmTaskFlagsBits = 3U;
 constexpr uint32_t kGmmTaskExpertBits = 8U;
 constexpr uint32_t kGmmTaskBlockMBits = 12U;
@@ -66,22 +74,15 @@ constexpr uint64_t GmmMailboxP2cStorageBytes(uint32_t physicalAicCount)
 }
 
 struct MegaMoeGmmC2pSlot {
-    uint32_t progressTicket = kGmmMailboxEmptyTicket;
-};
-
-struct alignas(64) MegaMoeGmmQueueControl {
-    int32_t generatedTail = 0;
-    int32_t generatedTailPadding[15] = {0};
+    uint8_t progress = kGmmMailboxProgressEmpty;
 };
 
 static_assert(sizeof(MegaMoeGmmTask) == 24U);
 static_assert(sizeof(MegaMoeGmmTaskDescriptor) == 16U);
 static_assert(kGmmTaskDescriptorWords == 4U);
 static_assert(sizeof(MegaMoeGmmP2cSlot) == sizeof(uint32_t));
-static_assert(sizeof(MegaMoeGmmC2pSlot) == sizeof(uint32_t));
+static_assert(sizeof(MegaMoeGmmC2pSlot) == sizeof(uint8_t));
 static_assert(kGmmTaskBlockNShift + kGmmTaskBlockNBits <= 32U);
 static_assert(kGmmTaskFlagStageEnd <= kGmmTaskFlagsMask);
-static_assert(offsetof(MegaMoeGmmQueueControl, generatedTail) == 0U);
-static_assert(sizeof(MegaMoeGmmQueueControl) == 64U);
 
 #endif // DISPATCH_MEGA_COMBINE_GMM_TASK_QUEUE_H

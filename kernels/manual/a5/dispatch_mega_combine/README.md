@@ -56,7 +56,7 @@ kernels/manual/a5/dispatch_mega_combine/
 │   ├── gmm_expert_progress.h       # Combine completion to rank-progress coordinator
 │   ├── gmm1.h                      # First grouped matmul and GMM1 mailbox consumer
 │   ├── swiglu.h                    # SwiGLU activation and dynamic quantization
-│   ├── gmm2.h                      # Direct-wave0 plus mailbox GMM2 consumer
+│   ├── gmm2.h                      # Producer-driven GMM2 mailbox consumer
 │   ├── combine.h                   # CV-tile consumption and remote route-output writeback
 │   ├── unpermute.h                 # Token-ready TopK reduction in original token order
 │   └── utils/                      # PTO vector, sync, HCCL window, and GMM pipeline helpers
@@ -101,39 +101,29 @@ for each rank, token:
 
 ## Optimization Notes
 
-- **Mask Pull Front**: source tokens are quantized once to E4M3/E8M0 records; PTO `TCMPS` builds per-expert route
-  masks, and Dispatch pulls only matching records.
-- **Deferred metadata**: reserved AIV0 workers build GMM task descriptors, source-rank `preSum`, expert-major route
-  order, and the inverse `expandedRowIdx` while Dispatch and the first GMM stage are progressing.
-- **Direct CV handoff**: GMM1 sends paired BF16 x/gate tiles directly to SwiGLU through a one-slot CV FIFO; GMM2
-  sends BF16 result tiles directly to Combine through a one-slot CV FIFO. Neither GMM output is materialized in GM.
-- **Adaptive vector pipelines**: Front uses ping-pong quant buffers, Dispatch chooses a 2-6-slot remote-token ring,
-  and Unpermute chooses a 2-6-slot BF16/FP32 input ring within the 216 KiB main UB budget.
-- **Dual-mode GMM1 scheduling**: `M <= 512` uses an all-AIC direct wave0 followed by a mailbox P/C suffix. Larger
-  shapes use fixed-wave GMM1; Group2 switches to GMM2 after the configured full-AIC wave prefix, without a global barrier.
-- **Dynamic GMM2 scheduling**: the initial GMM2 group executes wave0 directly; all remaining GMM2 tiles use producer-
-  assigned mailbox tickets, allowing Group1 AICs to join as soon as their GMM1 handoff is complete.
-- **Token-ready Unpermute**: Combine publishes ordered expert-prefix progress after its remote stores are complete.
-  An Unpermute worker consumes a token as soon as all of that token's TopK routes are ready.
+Front quantizes tokens and generates masks with one owner per expert. It publishes compact raw counts separately;
+Dispatch and deferred metadata build expert-major cumulative row tables without restoring the old mask-tail protocol.
 
-The host queries the AICore count with `aclrtGetDeviceInfo(..., ACL_DEV_ATTR_AICORE_CORE_NUM, ...)` and selects a
-validated mixed-core mapping. Every physical block contains one AIC and two AIV subblocks. The default mappings are:
+GMM1 uses only wave0 as the full-AIC direct prefix, followed by producer-assigned work. GMM2 uses mailbox tasks from its
+first expert. The producer selects the GMM1/GMM2 split from the available work; `M <= 128` targets a 4-6 expert GMM2
+lag, while larger cases target 1-2 experts. Internal GMM L1 panels adapt to the expert row count; production Gate/Up paired-weight panel loading and the interleaved CV handoff are retained.
 
-| AIC | AIV | Default Dispatch AIV0 / steady GMM1 AIC | Initial GMM2 AIC | Two-phase Unpermute AIV0 |
-| ---: | ---: | --- | --- | ---: |
-| 28 | 56 | `0..19` (20) | `20..27` (8) | 16 |
-| 32 | 64 | `0..20` (21) | `21..31` (11) | 16 |
-| 36 | 72 | `0..23` (24) | `24..35` (12) | 16 |
+| AIC | AIV | Default Dispatch AIV0 pool | Bootstrap GMM1:GMM2 | Large-M Unpermute phase1 AIV0 |
+| ---: | ---: | ---: | --- | ---: |
+| 28 | 56 | 18 | 20:8 | 18 |
+| 32 | 64 | 21 | 21:11 | 21 |
+| 36 | 72 | 24 | 24:12 | 24 |
 
-Fixed-wave GMM1 starts with a configured full-AIC prefix. For the tuned 36-AIC canonical shapes, the steady split is
-overridden to `22:14` for `(worldSize=8, M=1024/2048, expertPerRank=16)` and `(worldSize=16, M=1024,
-expertPerRank=16)`; the eight-rank `M=2048` case keeps four full-AIC waves before that split, while other listed cases use the default full-AIC prefix and split. Every AIV1 is the paired SwiGLU/Combine consumer for its
-physical AIC. All AIVs participate in final-phase Unpermute, while `M >= 512` additionally enables 16 AIV0 phase-1
-workers from a frozen expert-progress snapshot.
+Bootstrap groups are not the final runtime split. For `M <= 256`, Dispatch instead runs on all paired AIV1 workers
+before SwiGLU; larger M uses the AIV0 pool above. Rank ownership uses quotient/remainder partitioning without dropping
+workers. GMM grouping is independent of the Dispatch pool.
 
-`run.sh --aicore-num 0|28|32|36` selects the effective launch count (`0` uses the runtime-reported count). A requested
-count must not exceed the physical runtime count. Dispatch width grows to at least `worldSize`; the rank limit is
-`min(32, aicNum - 2)`, leaving AIV0 workers for deferred metadata and the mailbox producer.
+Combine retains the CV handoff and uses PTO `TSTORE`. Unpermute has one phase below M512; at M512 and above, the
+released Dispatch AIV0 pool can process a frozen readiness snapshot before all AIVs join the final live phase.
+
+`run.sh --aicore-num 0|28|32|36` chooses the effective core count; zero uses the device-reported value. Requests must not
+exceed the physical core count. The existing rank limit is `min(32, aicNum - 2)`; wider rank configurations can expand
+the Dispatch pool to retain at least one worker per rank.
 
 ## Tiling Parameters
 
@@ -182,63 +172,35 @@ aivNum=2 * aicNum
 ## Overall Architecture
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Front Mask Pull (AIV)                                                       │
-│   BF16 -> MXFP8 source records + per-expert route masks/counts               │
-└──────────────────────────────┬───────────────────────────────────────────────┘
-                               │ front metadata ready
-┌──────────────────────────────▼───────────────────────────────────────────────┐
-│ Dispatch + deferred metadata + dynamic GMM task producer                    │
-│                                                                              │
-│ AIV0: mask compact/pull + route sort/inverse + mailbox descriptors           │
-│ AIC : GMM1 direct/fixed/mailbox -> released AICs join GMM2 mailbox           │
-│ AIV1:       CV SwiGLU                    CV Combine -> remote compact rows    │
-│                                                                              │
-│ Hybrid GMM1/GMM2 use direct wave0 + mailbox suffix; fixed GMM1 uses waves    │
-└──────────────────────────────┬───────────────────────────────────────────────┘
-                               │ ordered expert-prefix progress
-┌──────────────────────────────▼───────────────────────────────────────────────┐
-│ RankStreaming Unpermute (all AIVs)                                          │
-│   expandedRowIdx + compact output + probs -> TopK reduce -> out[M, K]        │
-└──────────────────────────────────────────────────────────────────────────────┘
+Front: packed token records + route masks + raw expert counts
+  -> Dispatch and deferred metadata in parallel
+  -> GMM1: direct wave0 + mailbox work
+  -> SwiGLU: paired AIV1 CV consumption and MXFP8 quantization
+  -> GMM2: mailbox work with per-expert input readiness
+  -> Combine: TSTORE to same-server output or cross-server URMA staging
+  -> Unpermute: token-ready TopK accumulation
 ```
+
+AIC work, AIV metadata, and communication overlap. The producer controls the runtime GMM split; the transport preserves
+the same task and completion semantics in both MTE and URMA modes.
 
 ## FrontReorder Stage
 
-Front keeps one MXFP8 record per source token and publishes one bitmask slot per global expert/source rank:
+All AIVs quantize their own tokens and then reuse their private buffers for route-mask generation. Each global expert
+has one mask owner. Compact raw counts use `[localExpert][sourceRank]` order.
 
-```text
-x[M, K] + expertId[M, topK]
-  -> sourceTokenRecords[M, aligned E4M3 data + aligned E8M0 scales]
-  -> routeMaskSlots[localExpert, srcRank, mask + laneCapacity * 32B partial counts]
-  -> cumsumMM[srcRank, localExpert] / expertTokenNums[localExpert]
-```
-
-Tokens are split across all AIVs without splitting K. Global experts receive balanced AIV lane intervals. Each lane
-writes disjoint 32B mask blocks (256 route slots per block) plus an aligned partial-count record. Front quantization
-uses two PTO UB buffers. After every source publishes its front-ready epoch, one coordinator reduces lane counts and
-builds source-major `cumsumMM` and `expertTokenNums`.
-
-In parallel, reserved AIV0 workers sort route slots into expert-major order, build `expandedRowIdx`, publish
-source-rank `preSumBeforeRank`, and generate GMM1/GMM2 mailbox descriptors. GMM2 entry is released only after deferred
-metadata, local Dispatch, and all source-rank preSum rows are visible.
+Deferred metadata builds the global expert-major `cumsumMM`, route ordering, inverse indices, and task descriptors.
+GMM2 admission waits for the required metadata and preSum, not for all Dispatch workers to finish; input dependencies
+are acquired by each consumer. URMA keeps its metadata exchange and materializes the counts in the same local format.
 
 ## Dispatch Stage
 
-Dispatch runs on the destination rank. Each source rank gets `dispatchGroupSize / worldSize` AIV0 lanes; every lane
-scans the source mask but consumes only its match-ordinal shard:
+Dispatch pulls only routed source tokens and stores E4M3 data and E8M0 scales into the GMM1 workspace. Small cases use
+rolling AIV1 workers; larger cases split AIV0 workers across ranks using quotient/remainder ownership. A 2-6-slot ring
+overlaps loads and stores. Ready counts are published per expert and 256-row M tile after its payload stores complete.
 
-```text
-srcRank.sourceTokenRecords[routeSlot / topK]
-  -> workspace.gmA[dstRow, 0:K]                  (E4M3)
-  -> workspace.gmAScale[dstRow, 0:K/32]          (E8M0)
-  -> workspace.routeMeta[dstRow] = {srcRank, routeSlot, 0...}
-```
-
-PTO vector mask compaction produces matching route indices. Each source rank receives
-`floor(dispatchGroupSize / worldSize)` active AIV0 lanes, with any trailing Dispatch roles left idle. An adaptive
-2-6-slot ring overlaps remote packed-record loads with E4M3/E8M0 and metadata stores. Dispatch publishes cache-line-
-isolated ready counts per expert and 256-row M tile, so GMM1 waits only for the input tile it is about to consume.
+Each small-M AIV1 publishes an expert-count row for its paired AIC. Cross-server token addressing continues to use the
+URMA relay. Route records are retained only for optional debug capture, not for the computation.
 
 ## GMM1 / SwiGLU / GMM2 Stages
 
@@ -254,9 +216,8 @@ gmA[E4M3] / gmAScale[E8M0] x weight1[E4M3] / scale1[E8M0]
 ```
 
 Each local expert is split into `256 x 256` half-output tiles; x and gate are computed as a pair and sent directly to
-the paired AIV1 through a one-slot CV FIFO. Linear tile ids are swizzled for B-side L1 reuse. For `M <= 512`, all AICs
-execute direct wave0 and the steady GMM1 group consumes the suffix from the mailbox. For larger M, fixed-wave GMM1
-uses all AICs for the configured full-AIC wave prefix and the configured GMM1 group afterwards.
+the paired AIV1 through a one-slot CV FIFO. All M cases execute direct wave0 and then consume mailbox work.
+The internal L1 panel adapts to the expert row count while the logical output tile stays `256 x 256`.
 
 ### SwiGLU
 
@@ -283,9 +244,9 @@ gmSwigluA[E4M3] / gmSwigluScale[E8M0] x weight2[E4M3] / scale2[E8M0]
   -> GMM2/Combine CV tile
 ```
 
-The configured GMM2 group executes wave0 directly. All suffix tiles are producer-assigned mailbox tasks. Group1 AICs
-enter this mailbox immediately after their mode-specific GMM1 handoff, without a global GMM1/GMM2 barrier. Each AIC
-streams BF16 `256 x 256` results to its paired Combine AIV1 through a one-slot CV FIFO.
+Every GMM2 tile is a producer-assigned mailbox task. Released GMM1 AICs join according to the runtime split and
+publication progress, without a global GMM1/GMM2 barrier. Each consumer acquires its input dependency before loading
+and streams BF16 results to its paired Combine AIV1 through the CV FIFO.
 
 ## Combine / Unpermute Stages
 
@@ -297,7 +258,7 @@ GMM2 BF16 CV tile
   -> srcRank.combineOutputByRouteSlot[compactRow, 0:K]
 ```
 
-Combine preloads `cumsumMM` and `preSumBeforeRank`, then uses strided UB-to-GM stores for each source-rank
+Combine preloads `cumsumMM` and `preSumBeforeRank`, then uses strided PTO `TSTORE` for each source-rank
 intersection. Before publishing an expert completion count, it drains prior remote MTE3 stores; the progress
 coordinator therefore exposes an ordered expert prefix to each source rank.
 
@@ -310,8 +271,8 @@ expandedRowIdx[token * topK + topk]
   -> out[M, K]
 ```
 
-For `M < 512`, all AIVs run the single live phase. For `M >= 512`, 16 AIV0 workers first consume tokens admitted by a
-frozen progress snapshot, then all AIVs consume the remaining tokens from live expert-prefix progress. RankStreaming
+For `M < 512`, all AIVs run the single live phase. For `M >= 512`, the released Dispatch AIV0 pool first consumes
+tokens admitted by a frozen progress snapshot, then all AIVs consume remaining tokens from live expert-prefix progress. RankStreaming
 is the only Unpermute implementation; unsupported shapes fail host validation instead of falling back to a barrier
 kernel.
 
@@ -328,21 +289,20 @@ The HCCL remote window carries cross-rank visible data:
 | signal tail | HCCL window | Front/preSum/data-ready epochs and rank-progress slots |
 | `gmA` / `gmAScale` | workspace GM | E4M3/E8M0 GMM1 input generated by Dispatch |
 | `gmSwigluA` / `gmSwigluScale` | workspace GM | E4M3/E8M0 GMM2 input generated by SwiGLU |
-| `routeMeta` | workspace GM | 32B Dispatch row record containing `{srcRank, routeSlot}` |
 | `cumsumMM` | workspace GM | source-major cumulative rows for Dispatch destination offsets |
 | `sortedRouteSlot` / `expandedRowIdx` | workspace GM | Expert-major route order and its route-slot-to-compact-row inverse |
 | GMM queues/mailbox | workspace GM | Runtime task descriptors, tickets, dependency counters, and completion counters |
 
-`run.sh` defaults `HCCL_BUFFSIZE` to 512 MiB and preserves an explicit override.
+Configure `HCCL_BUFFSIZE` in the external runtime environment.
 C++ tiling owns the layout and rejects insufficient capacity; increase the variable for larger cases.
 
 ## Build and Run
 
-Configure the Ascend CANN environment:
-
-```bash
-source ~/zy/set_env.sh
-```
+Source `set_env.sh` from the CANN installation before building. It provides `ASCEND_HOME_PATH` and the toolchain
+environment.
+Configure MPI and CANN runtime variables externally, including library search paths, HCCL options, and device
+visibility consistent with the rank-to-device mapping. `run.sh` inherits these settings without changing them.
+Data generation requires Python 3.10 or later with NumPy.
 
 Build the A5 mixed-core kernel and host without generating case data:
 
@@ -352,7 +312,10 @@ bash run.sh --build-only
 ```
 
 Run on contiguous available A5 devices. The environment must provide MPICH; OpenMPI is not supported by the MPI
-compatibility wrapper.
+compatibility wrapper. Add the MPICH launcher directory to `PATH` or set `MPI_RUNNER`. Make its shared libraries
+available through the system dynamic loader (for example, `LD_LIBRARY_PATH`), or set `MPI_LIB_PATH` explicitly.
+The launcher and library must come from the same MPICH installation; installation paths belong in the deployment
+environment configuration.
 
 ```bash
 bash run.sh --soc Ascend910_9599 --world-size 2 --first-device 2 --m 2048 --k 7168 --n 4096 \
@@ -372,12 +335,12 @@ bash run.sh --soc Ascend910_9599 --world-size 2 --first-device 2 --m 512 --k 716
 
 | Environment Variable | Purpose | Default Behavior |
 | --- | --- | --- |
-| `ASCEND_HOME_PATH` | CANN installation path | Must be set before running |
+| `ASCEND_HOME_PATH` | CANN installation path | Must be set externally before building |
 | `CMAKE_COMPILER` | Compiler used by CMake | `bisheng` |
 | `FIRST_DEVICE` | First physical device in the contiguous rank mapping | `0`; overridden by `--first-device` |
-| `MPI_LIB_PATH` | Optional absolute path to the MPICH `libmpi.so` | Otherwise resolved from `LD_LIBRARY_PATH` |
-| `MPI_RUNNER` | MPICH launch command | `mpirun` from the sourced environment |
-| `HCCL_BUFFSIZE` | HCCL RDMA window size | 512 MiB when unset; explicit values are preserved |
+| `MPI_LIB_PATH` | Optional path to the MPICH shared library | Otherwise resolves `libmpi.so` or `libmpich.so` through the system dynamic loader |
+| `MPI_RUNNER` | MPICH launch command | `mpirun` from `PATH` |
+| `HCCL_BUFFSIZE` | HCCL RDMA window size | Supplied by the external runtime environment |
 | `DISPATCH_MEGA_COMBINE_AICORE_NUM` | Effective AIC count | `0`, which uses the runtime-reported count |
 | `DISPATCH_MEGA_COMBINE_REUSE_DATA` | Reuse compatible generated case data | Disabled; a nonzero value is equivalent to `--reuse-data` |
 | `DISPATCH_MEGA_COMBINE_WARMUP_ITERS` | Warmup launches before timing | `3` |
@@ -414,9 +377,9 @@ Common constraints:
 
 | Problem | Cause and Fix |
 | --- | --- |
-| `ASCEND_HOME_PATH must be set` | Source the CANN environment and export `ASCEND_HOME_PATH` before running `run.sh` |
-| HCCL window too small | The configured `HCCL_BUFFSIZE` is below the case requirement; increase it (default: 512 MiB) |
-| MPI launch fails | Source the project environment and verify `mpirun --version` reports MPICH/HYDRA; OpenMPI is unsupported |
+| CANN installation path is missing | Source `set_env.sh` from the CANN installation to set `ASCEND_HOME_PATH` |
+| HCCL window too small | Increase `HCCL_BUFFSIZE` in the external runtime environment to meet the case requirement |
+| MPI launch fails | Check `MPI_RUNNER`/`PATH` and the matching MPICH library configuration; the launcher version must report MPICH/HYDRA; OpenMPI is unsupported |
 | Golden generation is slow | Reuse the generated files with `--reuse-data` after the first run; the chunk size is fixed internally |
 | Shape or rank topology is rejected | Check the 28/32/36-AIC selection, rank limit, MXFP8 alignment, UB capacity, and RankStreaming token-per-worker limit |
 | Result diff is abnormal | Check whether old generated data was reused; do not reuse stale `out/` after changing expert distribution or key case parameters |

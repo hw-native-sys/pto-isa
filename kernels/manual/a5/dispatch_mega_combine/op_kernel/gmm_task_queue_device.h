@@ -15,7 +15,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "dispatch_mega_combine_tiling.h"
 #include "gmm_task_queue.h"
-
+#include "utils/gmm_ticket_scheduler.hpp"
 constexpr uint32_t kGmmPollSleepTicks = 50U;
 constexpr uint32_t kGmmCvTaskControlSlotWords = 1U;
 
@@ -30,12 +30,6 @@ AICORE inline void GmmPollBackoff()
     while (get_sys_cnt() < deadline) {
         __asm__ __volatile__("");
     }
-}
-
-AICORE inline __gm__ MegaMoeGmmQueueControl* GmmQueueControl(
-    GM_ADDR workspaceGM, const __gm__ MegaMoeGmmQueueTiling& queue)
-{
-    return reinterpret_cast<__gm__ MegaMoeGmmQueueControl*>(workspaceGM + queue.controlOffset);
 }
 
 AICORE inline __gm__ MegaMoeGmmTaskDescriptor* GmmTaskTable(
@@ -64,25 +58,26 @@ AICORE inline MegaMoeGmmTask DecodeGmmTaskDescriptor(uint32_t control, uint32_t 
     return task;
 }
 
-AICORE inline volatile __ssbuf__ uint32_t* GmmCvTaskControlSlot(uint32_t taskIndex, uint32_t fifoDepth)
+AICORE inline volatile __ssbuf__ uint32_t* GmmCvTaskControlSlot(
+    uint32_t taskIndex, uint32_t fifoDepth, uint32_t controlWordBase = 0U)
 {
     volatile __ssbuf__ uint32_t* base = reinterpret_cast<volatile __ssbuf__ uint32_t*>(0);
-    return base + (taskIndex % fifoDepth) * kGmmCvTaskControlSlotWords;
+    return base + controlWordBase + (taskIndex % fifoDepth) * kGmmCvTaskControlSlotWords;
 }
 
-AICORE inline void WriteGmmCvTaskControl(uint32_t taskIndex, uint32_t fifoDepth, const MegaMoeGmmTask& task)
+AICORE inline void WriteGmmCvTaskControl(
+    uint32_t taskIndex, uint32_t fifoDepth, const MegaMoeGmmTask& task, uint32_t controlWordBase = 0U)
 {
-    *GmmCvTaskControlSlot(taskIndex, fifoDepth) = PackGmmTaskControl(task);
+    *GmmCvTaskControlSlot(taskIndex, fifoDepth, controlWordBase) = PackGmmTaskControl(task);
 }
 
-AICORE inline uint32_t ReadGmmCvTaskControl(uint32_t taskIndex, uint32_t fifoDepth)
+AICORE inline uint32_t ReadGmmCvTaskControl(uint32_t taskIndex, uint32_t fifoDepth, uint32_t controlWordBase = 0U)
 {
-    return *GmmCvTaskControlSlot(taskIndex, fifoDepth);
+    return *GmmCvTaskControlSlot(taskIndex, fifoDepth, controlWordBase);
 }
 
 struct GmmCvTaskInferenceCache {
-    uint32_t nextExpert = 0U;
-    uint32_t nextExpertBase = 0U;
+    uint32_t expert = UINT32_MAX;
     uint32_t expertBase = 0U;
     uint32_t currentM = 0U;
 };
@@ -94,21 +89,18 @@ AICORE inline bool IsGmmStageEndControl(uint32_t control)
 }
 
 AICORE inline MegaMoeGmmTask InferGmmCvTask(
-    uint32_t control, __gm__ int32_t* cumsumMMPtr, uint32_t rankSize, uint32_t expertPerRank,
-    GmmCvTaskInferenceCache& cache)
+    uint32_t control, __gm__ int32_t* cumsumMMPtr, uint32_t rankSize, GmmCvTaskInferenceCache& cache)
 {
     MegaMoeGmmTask task = DecodeGmmTaskDescriptor(control, 0U, 0U);
-    if (cache.nextExpert <= task.expert) {
-        const uint64_t lastRankBase = static_cast<uint64_t>(rankSize - 1U) * expertPerRank;
-        while (cache.nextExpert <= task.expert) {
-            const uint32_t currentM = static_cast<uint32_t>(cumsumMMPtr[lastRankBase + cache.nextExpert]);
-            if (cache.nextExpert == task.expert) {
-                cache.expertBase = cache.nextExpertBase;
-                cache.currentM = currentM;
-            }
-            cache.nextExpertBase += currentM;
-            ++cache.nextExpert;
-        }
+    if (IsGmmStageEndControl(control))
+        return task;
+    if (cache.expert != task.expert) {
+        const uint32_t end = static_cast<uint32_t>(cumsumMMPtr[(task.expert + 1ULL) * rankSize - 1U]);
+        cache.expertBase = task.expert == 0U ?
+                               0U :
+                               static_cast<uint32_t>(cumsumMMPtr[static_cast<uint64_t>(task.expert) * rankSize - 1U]);
+        cache.currentM = end - cache.expertBase;
+        cache.expert = task.expert;
     }
     task.expertBase = cache.expertBase;
     task.currentM = cache.currentM;
@@ -116,11 +108,10 @@ AICORE inline MegaMoeGmmTask InferGmmCvTask(
 }
 
 AICORE inline __gm__ int32_t* GmmTaskDependencySlot(
-    GM_ADDR workspaceGM, const __gm__ MegaMoeGmmQueueTiling& queue, uint32_t slotsPerExpert, uint32_t expert,
-    uint32_t blockM)
+    GM_ADDR workspaceGM, const __gm__ MegaMoeGmmQueueTiling& queue, uint32_t expert)
 {
-    const uint64_t slot = static_cast<uint64_t>(expert) * slotsPerExpert + blockM;
-    return reinterpret_cast<__gm__ int32_t*>(workspaceGM + queue.dependencyOffset + slot * kMegaMoeFixedSyncSlotBytes);
+    return reinterpret_cast<__gm__ int32_t*>(
+        workspaceGM + queue.dependencyOffset + static_cast<uint64_t>(expert) * kMegaMoeFixedSyncSlotBytes);
 }
 
 AICORE inline __gm__ int32_t* GmmExpertCompletionSlot(
@@ -132,11 +123,11 @@ AICORE inline __gm__ int32_t* GmmExpertCompletionSlot(
 
 struct GmmMailboxConsumerCursor {
     uint32_t previousTicket = kGmmMailboxEmptyTicket;
+    uint8_t progressSeq = kGmmMailboxProgressEmpty;
 };
 
 struct GmmMailboxTicketProbe {
     uint32_t ticket = kGmmMailboxEmptyTicket;
-    bool attempted = false;
     bool ready = false;
 };
 
@@ -177,7 +168,6 @@ AICORE inline void ProbeGmmMailboxSuccessorTicket(
     if (probe.ready) {
         return;
     }
-    probe.attempted = true;
     const uint32_t ticket = ReadGmmMailboxTicket(workspaceGM, mailbox, physicalBlockId);
     if (ticket != kGmmMailboxEmptyTicket && ticket != previousTicket) {
         probe.ticket = ticket;
@@ -194,13 +184,16 @@ AICORE inline MegaMoeGmmTask LoadGmmMailboxDescriptor(
         return task;
     }
     const uint32_t localTicket = ticket - ticketBase;
-    __gm__ MegaMoeGmmQueueControl* queueControl = GmmQueueControl(workspaceGM, queue);
-    uint32_t generatedTail = static_cast<uint32_t>(ld_dev(&queueControl->generatedTail, 0));
-    while (localTicket >= generatedTail) {
+    __gm__ MegaMoeGmmTaskDescriptor* descriptor = GmmTaskTable(workspaceGM, queue) + localTicket;
+    const uint32_t expectedVersion = localTicket + 1U;
+    uint32_t observedVersion = static_cast<uint32_t>(ld_dev(&descriptor->reserved, 0));
+    while (observedVersion != expectedVersion) {
         GmmPollBackoff();
-        generatedTail = static_cast<uint32_t>(ld_dev(&queueControl->generatedTail, 0));
+        dcci((__gm__ void*)descriptor, SINGLE_CACHE_LINE);
+        dsb(DSB_DDR);
+        observedVersion = static_cast<uint32_t>(ld_dev(&descriptor->reserved, 0));
     }
-    __gm__ uint32_t* words = reinterpret_cast<__gm__ uint32_t*>(GmmTaskTable(workspaceGM, queue) + localTicket);
+    __gm__ uint32_t* words = reinterpret_cast<__gm__ uint32_t*>(descriptor);
     dsb(DSB_DDR);
     const uint32_t control = static_cast<uint32_t>(ld_dev(words + 0U, 0));
     const uint32_t expertBase = static_cast<uint32_t>(ld_dev(words + 1U, 0));
@@ -219,14 +212,16 @@ AICORE inline GmmClaimedTask WaitGmmMailboxTask(
     if (successorProbe != nullptr && successorProbe->ready) {
         ticket = successorProbe->ticket;
     } else {
-        if (successorProbe != nullptr && successorProbe->attempted) {
-            GmmPollBackoff();
-        }
+        // Re-read at the actual wait boundary before paying backoff for an
+        // earlier speculative miss; the ticket may have arrived meanwhile.
         ticket = ReadGmmMailboxTicket(workspaceGM, mailbox, physicalBlockId);
     }
-    while (ticket == kGmmMailboxEmptyTicket || (previousTicket != kGmmMailboxEmptyTicket && ticket == previousTicket)) {
-        GmmPollBackoff();
-        ticket = ReadGmmMailboxTicket(workspaceGM, mailbox, physicalBlockId);
+    if (ticket == kGmmMailboxEmptyTicket || (previousTicket != kGmmMailboxEmptyTicket && ticket == previousTicket)) {
+        do {
+            GmmPollBackoff();
+            ticket = ReadGmmMailboxTicket(workspaceGM, mailbox, physicalBlockId);
+        } while (ticket == kGmmMailboxEmptyTicket ||
+                 (previousTicket != kGmmMailboxEmptyTicket && ticket == previousTicket));
     }
     cursor.previousTicket = ticket;
     result.mailboxCursor = cursor;
@@ -252,29 +247,44 @@ AICORE inline GmmClaimedTask ResolveGmmMailboxStageTransition(
 }
 
 AICORE inline void PublishGmmMailboxProgress(
-    GM_ADDR workspaceGM, const __gm__ MegaMoeGmmMailboxTiling& mailbox, uint32_t physicalBlockId, uint32_t ticket)
+    GM_ADDR workspaceGM, const __gm__ MegaMoeGmmMailboxTiling& mailbox, uint32_t physicalBlockId, uint8_t& progressSeq)
 {
-    __gm__ MegaMoeGmmC2pSlot* slot = GmmMailboxC2pSlot(workspaceGM, mailbox, physicalBlockId);
-    st_dev(ticket, &slot->progressTicket, 0);
+    progressSeq = NextGmmMailboxProgressAck(progressSeq);
+    // Scheduling credit, not payload completion: retain the selected K probe boundary.
+    st_dev(progressSeq, &GmmMailboxC2pSlot(workspaceGM, mailbox, physicalBlockId)->progress, 0);
+}
+
+AICORE inline void PublishGmmMailboxDirectEnd(
+    GM_ADDR workspaceGM, const __gm__ MegaMoeGmmMailboxTiling& mailbox, uint32_t physicalBlockId)
+{
+    st_dev(kGmmMailboxProgressGmm1DirectEnd, &GmmMailboxC2pSlot(workspaceGM, mailbox, physicalBlockId)->progress, 0);
 }
 
 class GmmMailboxPanelProbe {
 public:
     AICORE inline GmmMailboxPanelProbe(
         GM_ADDR workspaceGM, const __gm__ MegaMoeGmmMailboxTiling& mailbox, uint32_t physicalBlockId,
-        uint32_t currentTicket, GmmTaskStage stage)
+        uint32_t currentTicket, GmmTaskStage stage, uint8_t* progressSeq = nullptr)
         : workspaceGM_(workspaceGM),
           mailbox_(&mailbox),
           physicalBlockId_(physicalBlockId),
           currentTicket_(currentTicket),
-          stage_(stage)
+          stage_(stage),
+          progressSeq_(progressSeq)
     {}
 
-    AICORE inline void ProbeMidpoint(uint32_t kTileIdx, uint32_t kTileCount)
+    AICORE inline void ProbeProgress(uint32_t kTileIdx, uint32_t kTileCount)
     {
-        const uint32_t publishKTile = stage_ == GmmTaskStage::kGmm1 && kTileCount > 3U ? kTileCount - 3U : 0U;
+        const uint32_t publishKTile =
+            stage_ == GmmTaskStage::kGmm2 ? (kTileCount >> 1U) : (kTileCount > 6U ? kTileCount - 6U : 0U);
         if (!published_ && kTileCount != 0U && kTileIdx == publishKTile) {
-            PublishGmmMailboxProgress(workspaceGM_, *mailbox_, physicalBlockId_, currentTicket_);
+            if (currentTicket_ == kGmmMailboxGmm1DirectEndTicket) {
+                PublishGmmMailboxDirectEnd(workspaceGM_, *mailbox_, physicalBlockId_);
+            } else {
+                if (progressSeq_ == nullptr)
+                    trap();
+                PublishGmmMailboxProgress(workspaceGM_, *mailbox_, physicalBlockId_, *progressSeq_);
+            }
             published_ = true;
         }
     }
@@ -293,6 +303,7 @@ private:
     uint32_t currentTicket_ = kGmmMailboxEmptyTicket;
     GmmTaskStage stage_ = GmmTaskStage::kGmm1;
     bool published_ = false;
+    uint8_t* progressSeq_ = nullptr;
     GmmMailboxTicketProbe successorProbe_;
 };
 
@@ -305,11 +316,11 @@ public:
         : cursor_(&cursor), finalTileProbe_(workspaceGM, mailbox, physicalBlockId, waveEndTicket, stage)
     {}
 
-    AICORE inline void ProbeMidpoint(uint32_t kTileIdx, uint32_t kTileCount)
+    AICORE inline void ProbeProgress(uint32_t kTileIdx, uint32_t kTileCount)
     {
         ResolveNextAssignment();
         if (!hasNextAssignment_) {
-            finalTileProbe_.ProbeMidpoint(kTileIdx, kTileCount);
+            finalTileProbe_.ProbeProgress(kTileIdx, kTileCount);
         }
     }
 

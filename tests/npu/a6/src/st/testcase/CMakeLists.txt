@@ -74,12 +74,43 @@ function(pto_cube_st NAME)
         stdc++ ascendcl m tiling_api platform c_sec dl nnopbase GTest::gtest GTest::gtest_main pthread)
 endfunction()
 
+function(pto_mix_st NAME)
+    add_library(${NAME}_kernel_mix SHARED ${NAME}_kernel.cpp)
+    target_compile_options(${NAME}_kernel_mix PRIVATE
+        ${CMAKE_CCE_COMPILE_OPTIONS}
+        --cce-aicore-arch=dav-920r1
+        -DREGISTER_BASE -std=c++17 -Wno-c++20-extensions)
+    target_include_directories(${NAME}_kernel_mix PRIVATE
+        ${ASCEND_HOME_PATH}/pkg_inc/
+        ${ASCEND_HOME_PATH}/pkg_inc/profiling/
+        ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime)
+    target_link_options(${NAME}_kernel_mix PRIVATE --cce-fatobj-link)
+
+    add_executable(${NAME} main.cpp)
+    target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
+    target_include_directories(${NAME} PRIVATE
+        ${PROJECT_SOURCE_DIR}/../../../../common)
+
+    target_link_directories(${NAME} PUBLIC
+        ${ASCEND_HOME_PATH}/lib64
+        ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib)
+
+    target_link_libraries(${NAME} PRIVATE
+        ${NAME}_kernel_mix
+        $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>
+        $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},npu>:runtime>>
+        stdc++ ascendcl m tiling_api platform c_sec dl nnopbase GTest::gtest GTest::gtest_main pthread)
+endfunction()
+
 # testcase list — add new A6 cases here. tquant is the BF16 -> HiF4 boilerplate
 # harness using the raw A6 DMA intrinsics (copy_gm_to_ubuf_align_v2 /
 # copy_ubuf_to_gm_align_v2) directly, since PTO's TLOAD/TSTORE wrappers do not
 # lower correctly for dav-920r1-vec yet (see arch_cce_intrinsic.hpp:114-123).
 set(ALL_TESTCASES
     tload_large_stride
+    mgather_gm2l1
+    mscatter
+    textract_ndto2xnz
     tquant
     tload_hif4
     tmatmul_mx
@@ -90,6 +121,9 @@ set(ALL_TESTCASES
     tinterleave
     tdeinterleave
     syncall
+    tmov_nd2nz
+    tmov_zz
+    tquant_dn
 )
 
 if (AUTO_MODE)

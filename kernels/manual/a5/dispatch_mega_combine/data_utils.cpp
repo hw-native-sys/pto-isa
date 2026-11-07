@@ -47,17 +47,29 @@ std::string GetJsonScalar(const std::string& text, const std::string& key)
 
 bool TryGetJsonScalar(const std::string& text, const std::string& key, std::string& value)
 {
-    try {
-        value = GetJsonScalar(text, key);
-        return true;
-    } catch (const std::exception&) {
+    if (text.find("\"" + key + "\":") == std::string::npos) {
         return false;
     }
+    value = GetJsonScalar(text, key);
+    return true;
 }
 
 uint32_t ParseJsonUInt(const std::string& text, const std::string& key)
 {
-    return static_cast<uint32_t>(std::stoul(GetJsonScalar(text, key)));
+    std::string value = GetJsonScalar(text, key);
+    const size_t end = value.find_last_not_of(" \t\n\r\v\f");
+    if (end == std::string::npos) {
+        throw std::runtime_error("empty integer for key: " + key);
+    }
+    value.resize(end + 1U);
+    if (value.find_first_not_of("0123456789") != std::string::npos) {
+        throw std::runtime_error("invalid unsigned integer for key: " + key);
+    }
+    const unsigned long long number = std::stoull(value);
+    if (number > std::numeric_limits<uint32_t>::max()) {
+        throw std::runtime_error("integer exceeds uint32 for key: " + key);
+    }
+    return static_cast<uint32_t>(number);
 }
 
 double ParseJsonDouble(const std::string& text, const std::string& key, double default_value)
@@ -66,7 +78,12 @@ double ParseJsonDouble(const std::string& text, const std::string& key, double d
     if (!TryGetJsonScalar(text, key, value)) {
         return default_value;
     }
-    return std::stod(value);
+    size_t parsed = 0U;
+    const double number = std::stod(value, &parsed);
+    if (value.find_first_not_of(" \t\n\r\v\f", parsed) != std::string::npos || !std::isfinite(number) || number < 0.0) {
+        throw std::runtime_error("invalid non-negative finite number for key: " + key);
+    }
+    return number;
 }
 
 float Bf16ToFloat(uint16_t value)
@@ -140,13 +157,17 @@ RankFileSet BuildRankFileSet(const std::string& case_dir, int rank)
 AccuracyReport CompareBf16File(
     const std::vector<uint16_t>& expected, const std::vector<uint16_t>& actual, double atol, double rtol)
 {
+    if (!std::isfinite(atol) || !std::isfinite(rtol) || atol < 0.0 || rtol < 0.0) {
+        throw std::invalid_argument("accuracy tolerances must be finite and non-negative");
+    }
     AccuracyReport report;
     if (expected.size() != actual.size()) {
         report.pass = false;
         report.mismatch_count = 1;
         return report;
     }
-    report.err_threshold = static_cast<size_t>(static_cast<double>(expected.size()) * rtol);
+    report.err_threshold =
+        rtol >= 1.0 ? expected.size() : static_cast<size_t>(static_cast<double>(expected.size()) * rtol);
 
     for (size_t i = 0; i < expected.size(); ++i) {
         const float expected_value = Bf16ToFloat(expected[i]);

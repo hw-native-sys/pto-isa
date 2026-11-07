@@ -373,6 +373,179 @@ __tf__ PTO_INTERNAL void TExtractVecToVecNZImpl(
     pto_copy_ubuf_to_ubuf((__ubuf__ void*)dstAddr, (__ubuf__ void*)srcStart, burstNum, burstLen, srcGap, dstGap);
 }
 
+template <typename WorkT, uint32_t SrcRowStride, bool Aligned>
+PTO_INTERNAL void TExtractNd2NzWindowLoop(
+    __ubuf__ WorkT* srcBase, __ubuf__ WorkT* dstPtr, uint16_t repeatTimes, uint16_t innerLoopNum, uint32_t validCol,
+    uint32_t cfgVsstb, uint32_t cfgVsstbLast)
+{
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(WorkT);
+    RegTensor<WorkT> vreg;
+    MaskReg preg;
+    if constexpr (Aligned) {
+        uint32_t cols = validCol;
+        for (uint16_t j = 0; j < repeatTimes; ++j) {
+            uint32_t count = cols - static_cast<uint32_t>(cols > elementsPerRepeat) * (cols - elementsPerRepeat);
+            preg = CreatePredicate<WorkT>(count);
+            uint32_t colOff = static_cast<uint32_t>(j) * elementsPerRepeat;
+            for (uint16_t i = 0; i <= innerLoopNum; ++i) {
+                __ubuf__ WorkT* psrc = srcBase + static_cast<uint32_t>(i) * SrcRowStride + colOff;
+                vlds(vreg, psrc, 0, NORM);
+                vsstb(vreg, dstPtr, (i < innerLoopNum) ? cfgVsstb : cfgVsstbLast, preg, POST_UPDATE);
+            }
+            cols -= elementsPerRepeat;
+        }
+    } else {
+        constexpr uint32_t c0Elems = BLOCK_BYTE_SIZE / sizeof(WorkT);
+        constexpr auto distValue =
+            std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<WorkT, DistVST::DIST_NORM>())>();
+        UnalignReg ureg;
+        uint32_t colBlkStrideElems = (cfgVsstb >> 16u) * c0Elems;
+        uint32_t totalColBlk = CeilDivision(validCol, c0Elems);
+        for (uint16_t i = 0; i <= innerLoopNum; ++i) {
+            __ubuf__ WorkT* rowBase = srcBase + static_cast<uint32_t>(i) * SrcRowStride;
+            uint32_t remaining = validCol;
+            for (uint32_t cb = 0; cb < totalColBlk; ++cb) {
+                uint32_t colsThis = remaining < c0Elems ? remaining : c0Elems;
+                uint32_t predCount = colsThis;
+                preg = CreatePredicate<WorkT>(predCount);
+                __ubuf__ WorkT* psrc = rowBase + cb * c0Elems;
+                vldas(ureg, psrc);
+                vldus(vreg, ureg, psrc);
+                vsts(vreg, dstPtr, cb * colBlkStrideElems + static_cast<uint32_t>(i) * c0Elems, distValue, preg);
+                remaining -= colsThis;
+            }
+        }
+    }
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ PTO_INTERNAL void TExtractNdToNzScalar(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t indexRow,
+    uint16_t indexCol)
+{
+    __ubuf__ T* dstAddr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* srcAddr = (__ubuf__ T*)__cce_get_tile_ptr(src);
+    constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+    set_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
+    dstAddr[0] = srcAddr[static_cast<uint32_t>(indexRow) * srcRowStride + static_cast<uint32_t>(indexCol)];
+    set_flag(PIPE_S, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_S, PIPE_V, EVENT_ID0);
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+__tf__ PTO_INTERNAL void TExtractNdToNz(
+    typename DstTileData::TileDType __out__ dst, typename SrcTileData::TileDType __in__ src, uint16_t indexRow,
+    uint16_t indexCol, uint16_t validRow, uint16_t validCol)
+{
+    using WorkT = std::conditional_t<sizeof(T) == 1, uint8_t, std::conditional_t<sizeof(T) == 2, uint16_t, uint32_t>>;
+    constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t>;
+    constexpr uint32_t srcRowStride = SrcTileData::RowStride;
+    constexpr uint32_t c0Elems = BLOCK_BYTE_SIZE / sizeof(WorkT);
+
+    uint32_t workValidCol = isFp4Type ? static_cast<uint32_t>(validCol) / 2u : static_cast<uint32_t>(validCol);
+    uint32_t workIndexCol = isFp4Type ? static_cast<uint32_t>(indexCol) / 2u : static_cast<uint32_t>(indexCol);
+    uint16_t slideOff = static_cast<uint16_t>(workIndexCol % c0Elems);
+
+    __ubuf__ WorkT* dstPtr = (__ubuf__ WorkT*)__cce_get_tile_ptr(dst);
+    __ubuf__ WorkT* srcPtr = (__ubuf__ WorkT*)__cce_get_tile_ptr(src);
+    __ubuf__ WorkT* srcBase = srcPtr + static_cast<uint32_t>(indexRow) * srcRowStride + workIndexCol;
+
+    constexpr uint32_t elementsPerRepeat = CCE_VL / sizeof(WorkT);
+    uint16_t repeatTimes = static_cast<uint16_t>(CeilDivision(workValidCol, elementsPerRepeat));
+    constexpr bool isOptForConflict = DstTileData::Compact == CompactMode::RowPlusOne;
+    uint32_t alignRow = (static_cast<uint32_t>(validRow) + FRACTAL_NZ_ROW - 1) / FRACTAL_NZ_ROW * FRACTAL_NZ_ROW;
+    uint32_t blockStride = isOptForConflict ? ((alignRow + 1) * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE :
+                                              (alignRow * C0_SIZE_BYTE) / BLOCK_BYTE_SIZE;
+    uint32_t virtualRow = isOptForConflict ? alignRow + 1 : alignRow;
+    uint16_t innerLoopNum = static_cast<uint16_t>(validRow - 1);
+    uint32_t cfgVsstb = (blockStride << 16u) | (1u & 0xFFFFu);
+    uint32_t repeatStrideLast =
+        (CCE_VL * virtualRow - static_cast<uint32_t>(innerLoopNum) * BLOCK_BYTE_SIZE) / BLOCK_BYTE_SIZE;
+    uint32_t cfgVsstbLast = (blockStride << 16u) | (repeatStrideLast & 0xFFFFU);
+
+    __VEC_SCOPE__
+    {
+        if (slideOff == 0) {
+            TExtractNd2NzWindowLoop<WorkT, srcRowStride, true>(
+                srcBase, dstPtr, repeatTimes, innerLoopNum, workValidCol, cfgVsstb, cfgVsstbLast);
+        } else {
+            TExtractNd2NzWindowLoop<WorkT, srcRowStride, false>(
+                srcBase, dstPtr, repeatTimes, innerLoopNum, workValidCol, cfgVsstb, cfgVsstbLast);
+        }
+    }
+}
+
+template <typename T, typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void CheckTExtractNdToNz()
+{
+    static_assert(
+        SrcTileData::Loc == TileType::Vec && DstTileData::Loc == TileType::Vec,
+        "TEXTRACT A6 ND->2xNZ : Source and destinations must be Vec (UB) tiles.");
+    static_assert(
+        SrcTileData::isRowMajor && (SrcTileData::SFractal == SLayout::NoneBox),
+        "TEXTRACT A6 ND->2xNZ : Source must be ND (RowMajor, NoneBox).");
+    static_assert(
+        !DstTileData::isRowMajor && (DstTileData::SFractal == SLayout::RowMajor),
+        "TEXTRACT A6 ND->2xNZ : Destination must be NZ (ColMajor, RowMajor fractal).");
+    static_assert(
+        std::is_same<typename DstTileData::DType, typename SrcTileData::DType>::value,
+        "TEXTRACT A6 ND->2xNZ : Source and destination data types must match.");
+    static_assert(
+        (std::is_same<T, half>::value) || (std::is_same<T, bfloat16_t>::value) || (std::is_same<T, float>::value) ||
+            (std::is_same<T, int32_t>::value) || (std::is_same<T, int8_t>::value) ||
+            (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, float8_e4m3_t>::value) ||
+            (std::is_same<T, float8_e5m2_t>::value) || (std::is_same<T, float8_e8m0_t>::value) ||
+            (std::is_same<T, float4_e2m1x2_t>::value) || (std::is_same<T, float4_e1m2x2_t>::value),
+        "TEXTRACT A6 ND->2xNZ : Unsupported data type.");
+    constexpr uint32_t c0Size = BLOCK_BYTE_SIZE / sizeof(T);
+    static_assert(DstTileData::Cols % c0Size == 0, "TEXTRACT ND->2xNZ : Destination cols must be c0-aligned.");
+    static_assert(
+        (SrcTileData::RowStride * sizeof(T)) % BLOCK_BYTE_SIZE == 0,
+        "TEXTRACT A6 ND->2xNZ : Source row stride must be 32-byte aligned.");
+}
+
+template <typename Dst0TileData, typename Dst1TileData, typename SrcTileData>
+PTO_INTERNAL void TEXTRACT_ND2XNZ_IMPL(
+    Dst0TileData& dst0, Dst1TileData& dst1, SrcTileData& src, uint16_t indexRow0, uint16_t indexCol0,
+    uint16_t indexRow1, uint16_t indexCol1)
+{
+    using T = typename SrcTileData::DType;
+    CheckTExtractNdToNz<T, Dst0TileData, SrcTileData>();
+    CheckTExtractNdToNz<T, Dst1TileData, SrcTileData>();
+
+    uint16_t validRow0 = static_cast<uint16_t>(dst0.GetValidRow());
+    uint16_t validCol0 = static_cast<uint16_t>(dst0.GetValidCol());
+    uint16_t validRow1 = static_cast<uint16_t>(dst1.GetValidRow());
+    uint16_t validCol1 = static_cast<uint16_t>(dst1.GetValidCol());
+
+    PTO_ASSERT(
+        indexRow0 + validRow0 <= SrcTileData::Rows,
+        "TEXTRACT A6 ND->2xNZ : window0 indexRow + validRow exceeds srcRows!");
+    PTO_ASSERT(
+        indexCol0 + validCol0 <= SrcTileData::Cols,
+        "TEXTRACT A6 ND->2xNZ : window0 indexCol + validCol exceeds srcCols!");
+    PTO_ASSERT(
+        indexRow1 + validRow1 <= SrcTileData::Rows,
+        "TEXTRACT A6 ND->2xNZ : window1 indexRow + validRow exceeds srcRows!");
+    PTO_ASSERT(
+        indexCol1 + validCol1 <= SrcTileData::Cols,
+        "TEXTRACT A6 ND->2xNZ : window1 indexCol + validCol exceeds srcCols!");
+
+    if (validRow0 == 1 && validCol0 == 1) {
+        TExtractNdToNzScalar<T, Dst0TileData, SrcTileData>(dst0.data(), src.data(), indexRow0, indexCol0);
+    } else {
+        TExtractNdToNz<T, Dst0TileData, SrcTileData>(
+            dst0.data(), src.data(), indexRow0, indexCol0, validRow0, validCol0);
+    }
+    if (validRow1 == 1 && validCol1 == 1) {
+        TExtractNdToNzScalar<T, Dst1TileData, SrcTileData>(dst1.data(), src.data(), indexRow1, indexCol1);
+    } else {
+        TExtractNdToNz<T, Dst1TileData, SrcTileData>(
+            dst1.data(), src.data(), indexRow1, indexCol1, validRow1, validCol1);
+    }
+}
+
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t indexRow = 0, uint16_t indexCol = 0)
 {

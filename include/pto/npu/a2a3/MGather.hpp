@@ -100,7 +100,8 @@ AICORE PTO_INLINE uint64_t MGatherNZGmOffset(
            (uint64_t)colInBlock * (uint64_t)gStride4;
 }
 
-template <GatherOOB Oob, typename T, typename TIdx, typename DstTile, typename IdxTile>
+template <
+    GatherOOB Oob, typename T, typename TIdx, typename DstTile, typename IdxTile, GatherSync Sync = GatherSync::Default>
 __tf__ AICORE void MGatherRowImpl(
     typename DstTile::TileDType __out__ dst, __gm__ T* tablePtr, typename IdxTile::TileDType __in__ indices,
     uint32_t validRow, uint32_t validCol, uint32_t tableRows, uint32_t tableRowStride)
@@ -143,10 +144,12 @@ __tf__ AICORE void MGatherRowImpl(
     }
 
     PtoSetWaitFlag<PIPE_S, PIPE_MTE2>();
-    PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
-    PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
-    PtoSetWaitFlag<PIPE_S, PIPE_V>();
-    PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
+    if constexpr (Sync == GatherSync::Default) {
+        PtoSetWaitFlag<PIPE_MTE2, PIPE_V>();
+        PtoSetWaitFlag<PIPE_MTE2, PIPE_MTE3>();
+        PtoSetWaitFlag<PIPE_S, PIPE_V>();
+        PtoSetWaitFlag<PIPE_S, PIPE_MTE3>();
+    }
 }
 
 template <GatherOOB Oob, typename T, typename TIdx, typename DstTile, typename IdxTile>
@@ -481,11 +484,19 @@ PTO_INTERNAL void MGatherCheck()
 }
 
 template <
-    Coalesce Mode = Coalesce::Row, GatherOOB Oob = GatherOOB::Undefined, typename DstTile, typename GlobalTable,
-    typename IdxTile>
+    Coalesce Mode = Coalesce::Row, GatherOOB Oob = GatherOOB::Undefined, GatherSync Sync = GatherSync::Default,
+    typename DstTile, typename GlobalTable, typename IdxTile>
 PTO_INTERNAL void MGATHER_IMPL(DstTile& dst, GlobalTable& table, IdxTile& indices)
 {
     using T = typename DstTile::DType;
+
+    if constexpr (Sync == GatherSync::Async) {
+        static_assert(
+            DstTile::Loc != TileType::Mat, "MGATHER A2/A3 async variant is not supported for GM->L1 destinations.");
+        static_assert(GlobalTable::layout != Layout::NZ, "MGATHER A2/A3 async variant is not supported for NZ tables.");
+        static_assert(Mode == Coalesce::Row, "MGATHER A2/A3 async variant only supports Coalesce::Row.");
+        static_assert(Oob == GatherOOB::Undefined, "MGATHER A2/A3 async variant only supports GatherOOB::Undefined.");
+    }
 
     if constexpr (DstTile::Loc == TileType::Mat) {
         MGatherCheckGm2L1<Coalesce::Row, Oob, DstTile, GlobalTable, IdxTile>();
@@ -541,7 +552,7 @@ PTO_INTERNAL void MGATHER_IMPL(DstTile& dst, GlobalTable& table, IdxTile& indice
                     table.GetShape(GlobalTensorDim::DIM_0) * table.GetShape(GlobalTensorDim::DIM_1) *
                     table.GetShape(GlobalTensorDim::DIM_2) * table.GetShape(GlobalTensorDim::DIM_3));
                 const uint32_t tableRowStride = static_cast<uint32_t>(table.GetStride(GlobalTensorDim::DIM_3));
-                MGatherRowImpl<Oob, T, TIdx, DstTile, IdxTile>(
+                MGatherRowImpl<Oob, T, TIdx, DstTile, IdxTile, Sync>(
                     dst.data(), tablePtr, indices.data(), validRow, validCol, tableRows, tableRowStride);
             } else {
                 const uint32_t tableSize = static_cast<uint32_t>(

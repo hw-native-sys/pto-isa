@@ -446,6 +446,8 @@ enum class TInsertMode : uint8_t {
 
 enum class Coalesce : uint8_t { Row = 0, Elem = 1 };
 
+enum class GatherSync : uint8_t { Default = 0, Async = 1 };
+
 struct MrgSortExecutedNumList {
     uint16_t mrgSortList0;
     uint16_t mrgSortList1;

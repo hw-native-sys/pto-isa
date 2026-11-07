@@ -48,6 +48,125 @@ PTO_INST RecordEvent TREMS(TileDataDst &dst, TileDataSrc &src, typename TileData
 * `RemSAlgorithm::DEFAULT`：普通算法，速度快但精度较低。
 * `RemSAlgorithm::HIGH_PRECISION`：高精度算法，速度较慢，仅支持`float`类型。
 
+## 高精度算法
+
+高精度模式计算同样的向下取整求余，但把结果解析到完整 `float32` 精度，而不是在 $|x/s| > 2^{24}$ 后退化（默认路径的一次成形乘积 $q \cdot s$ 在 $x$ 的量级上舍入，随后的减法灾难性抵消，只剩 $\pm(1\ldots 2)\,\mathrm{ulp}(x)$ —— 在 `FLT_MAX` 边界附近甚至翻转为 $\pm\infty$）。特殊值遵循 IEEE 语义（即 numpy 的 `x % s`）：
+
+| x | s | 结果 |
+|---|---|------|
+| $\pm\infty$ | 有限值 | NaN |
+| 有限值 | $\pm\infty$ | x（若 x 也是 $\pm\infty$ 则为 NaN） |
+| $\pm 0$ | $s \ne 0$ | $\pm 0$（保留 x 的符号） |
+| NaN | 任意 | NaN |
+
+算法为以 $2^{24}$ 为基的逐位剥离长除法。在 $\mathit{state} = |x|$、$\mathit{div} = |s|$ 上工作；f32 商的动态范围可达 $\sim 2^{276}$，11 次迭代（$\lceil 276/24 \rceil = 11$）从高位起按约 24 bit 一段剥离指数差：
+
+| 迭代（自高向低执行） | 除数缩放 $\mathit{div} \cdot 2^{e}$ |
+|---|---|
+| 11 | $2^{240}$ |
+| 10 | $2^{216}$ |
+| 9 | $2^{192}$ |
+| 8 | $2^{168}$ |
+| 7 | $2^{144}$ |
+| 6 | $2^{120}$ |
+| 5 | $2^{96}$ |
+| 4 | $2^{72}$ |
+| 3 | $2^{48}$ |
+| 2 | $2^{24}$ |
+| 1 | $2^{0}$（不缩放）+ 次正规区间 |
+
+$$
+\begin{aligned}
+b &= \mathit{div} \cdot 2^{e(i)} \\[2pt]
+k &= \begin{cases} \lfloor \mathit{state}/b \rfloor & \text{求余 remainder} \\[2pt]
+      \operatorname{trunc}(\mathit{state}/b) & \text{fmod} \end{cases} \\[2pt]
+\mathit{state} &\leftarrow \mathit{state} - k \cdot b
+\end{aligned}
+$$
+
+$b$ 是除数的精确 2 的幂缩放；$k$ 为整数，在 f32 中精确（int32 转换饱和，相当于极端指数差下免费的商钳制）；减法只在该量级的 chunk 上有 $\le 1$ ulp 舍入 —— 从不在 $|x|$ 的量级上舍入 —— 从而抵消掉指数差的最高约 24 bit。第 1 次迭代额外在 $|s| \le \mathit{minNormal}$ 时把除数与状态同乘 $2^{24}$（后处理再乘回 $2^{-24}$），执行最终不缩放的 $k = \lfloor \mathit{state}/|s| \rfloor$，并做次正规尺度的符号修正。后处理恢复被除数符号、应用上表的异常修正，并修正余数符号（$\mathit{state} \cdot s < 0 \Rightarrow \mathit{state} \leftarrow \mathit{state} + s$）。
+
+存在两种执行组织方式（issue #2 的循环倒置）。逐向量路径一次一个 64 元素向量，在暂存 state 缓冲中跑完全部 11 次迭代 —— 小 tile、重叠 tile 和行尾的回退路径。staged 路径**每个满向量每遍只推进一次迭代**，逐向量状态暂存于 `dst`；在 A2/A3 上每一遍中的每条操作都是一条覆盖该行全部满向量的 repeat 指令：
+
+```
+seed:      dst[row] = |src[row]|                     (vabs, rep = fullPerRow)
+第 11→1 遍: 对每一行: 在 dst[row] 上原地做 SolveScale迭代 (rep = fullPerRow)
+post:      对每一行: HpPostS
+行尾:      每行不足 64 元素的尾部走逐向量回退
+```
+
+当 `validRows * (validCols / 64) >= TREM_HP_STAGED_MIN_VECS`（48）且 `dst` tile 不与输入重叠时启用 staged；`validCols / 64 <= 255`（8 bit repeatTimes）始终适用 —— 更宽的 tile 请拆分成多次调用。
+
+## 高精度切分预算
+
+### tmp tile 布局
+
+高精度暂存是 `tmp` tile 上一个按容量取宽的窗口，$C = \max(\lfloor N/64 \rfloor, 1)$ 个向量（$N$ = 有效列数）。生命周期不相交的缓冲共享存储：
+
+| 区域 | float 偏移 | 生命周期 |
+|---|---|---|
+| `bTmp` | `[0, 64C)` | 单次迭代内 —— 缩放后的除数，每迭代由宿主侧标量 `vector_dup` |
+| `k` | `[64C, 128C)` | 商；乘积 `vmul` 之后兼作通用临时量（符号因子、选择操作数、探测值、修正候选） |
+| `cmpMask` | `[128C, +maskF)` | 打包比较位掩码，从 `vcmp` 直到消费它的 `vsel` |
+| `addrBuf` | `+8` | `cmpMask` 的完整 64 位地址，伴随每次 `set_cmpmask` |
+| `state` | `+64`，仅 $C = 1$ | 逐向量回退跨 11 次迭代的状态 |
+
+商/临时量共用是安全的：`k` 在读取它的 `vmul` 处即死亡，后处理的探测值在被 `vcmp` 消费后才被候选覆盖 —— 每次交接都以 `pipe_barrier` 分隔（原地 `dst == src0` 操作是 A2/A3 的既有习惯）。staged 路径的状态在 `dst` 中，`state` 绝不随 $C$ 增长。
+
+### tmp 占用
+
+$$
+\mathit{tmpCols}(N)=
+\begin{cases}
+208, & \text{TREMS},\ C=1 \\[2pt]
+128C+8\lceil C/4\rceil+8, & \text{TREMS},\ C\ge 2 \\[2pt]
+272, & \text{TREM},\ C=1 \\[2pt]
+192C+8\lceil C/4\rceil+8, & \text{TREM},\ C\ge 2
+\end{cases}
+\qquad
+C=\max\Bigl(\Bigl\lfloor \frac{N}{64}\Bigr\rfloor,\ 1\Bigr)
+$$
+
+其中 $8\lceil C/4\rceil$ 为打包比较掩码（按 32 字节对齐填充）；$C=1$ 的常量分支折入了 64 个 float 的逐向量 state 缓冲。TREM 比 TREMS 多一个区域 —— 未缩放的 `|src1|` 行必须跨该遍的全部迭代存活作为重新缩放的源（它不能放进会被第 1 次迭代覆盖的 `bTmp`，也不能放进会被商中途覆盖的 `k`）。
+
+### 各 tile 占用与最大切分
+
+数据 tile 共 $n_{\text{tiles}} = 2$（TREMS）或 3（TREM）块 $M \times N$：
+
+$$
+\mathit{UBUF}(M,N) \;=\;
+\underbrace{n_{\text{tiles}}\cdot 4MN}_{\text{数据 tile}} \;+\;
+\underbrace{4\,\mathit{tmpCols}(N)}_{\text{tmp}}
+\;\le\; 196608\ \mathrm{B}, \qquad C \le 255
+$$
+
+算例 —— 每个 tile 的字节大小：
+
+| tile $[M, N]$ | dst | src | tmp | 总 UBUF | 占 196608 B | 分发（$M \cdot C$ 对 48） |
+|---|---|---|---|---|---|---|
+| $[1, 64]$ | 256 | 256 | 832 | 1344 | 1% | 逐向量（1） |
+| $[32, 64]$ | 8192 | 8192 | 832 | 17216 | 9% | 逐向量（32） |
+| $[12, 256]$ | 12288 | 12288 | 2112 | 26688 | 14% | staged（48） |
+| $[8, 448]$ | 14336 | 14336 | 3680 | 32352 | 16% | staged（56） |
+| $[2, 2048]$ | 16384 | 16384 | 16672 | 49440 | 25% | staged（64） |
+| $[1, 8192]$ | 32768 | 32768 | 66592 | 132128 | 67% | staged（128） |
+| $[8, 2688]$ | 86016 | 86016 | 21888 | 193920 | 99% | staged（336） |
+| $[1, 12160]$ | 48640 | 48640 | 98848 | 196128 | 100% | staged（190） |
+
+每个行数下最大的打包 $W$（TREMS；经验公式 $W \lesssim 24576/(R+1)$）：
+
+| 行数 R | 1 | 2 | 3 | 4 | 7 | 8 | 12 | 16 | 32 |
+|---|---|---|---|---|---|---|---|---|---|
+| 最大 W | 12160 | 8128 | 6080 | 4864 | 3008 | 2688 | 1856 | 1408 | 704 |
+
+TREM（$W \lesssim 16384/(R+1)$）：相同行数下最大 W 分别为 8128 / 5440 / 4032 / 3264 / 1984 / 1792 / 1216 / 960 / 448；单行合法最大宽度为 `[1, 8128]`（196128 B）。
+
+切分设计清单：
+- 先定工作宽度 $N$ —— 它单独决定 tmp 大小；行数再由 $M \le (196608 - 4\,\mathit{tmpCols}(N))\,/\,(4N \cdot n_{\text{tiles}})$ 约束。
+- 若需要 staged 路径：$C \le 255$ 且 $M \cdot C \ge 48$。
+- 超出预算的按列分块：每次调用处理一个 tile。
+- DEFAULT 路径的 tmp 契约小得多（`dstRowStride + maskF + 8` 个 float），同一 tile 可能对 DEFAULT 合法而对 HIGH_PRECISION 非法；请按实际分发的精度模式核对预算。
+
 ## 约束
 
 - **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
@@ -56,6 +175,7 @@ PTO_INST RecordEvent TREMS(TileDataDst &dst, TileDataSrc &src, typename TileData
     - `dst` 和 `src` 必须是向量Tile。
     - `dst` 和 `src` 必须是行主序。
     - 运行时：`dst.GetValidRow() == src.GetValidRow() > 0` 且 `dst.GetValidCol() == src.GetValidCol() > 0`。
+    - 原地操作（`dst` 与 `src` 分配到同一UB区域）在两种精度模式下均支持。
     - **tmp缓冲区要求**：
       - `tmp.GetValidCol() >= dst.GetValidCol()`（至少与dst相同的列数）
       - `tmp.GetValidRow() >= 1`（至少1行）
@@ -88,5 +208,12 @@ void example() {
   TileT x, out;
   Tile<TileType::Vec, float, 16, 16> tmp;
   TREMS(out, x, 3.0f, tmp);
+
+  // 高精度：8x448 tile，tmp 按高精度切分预算取宽
+  // (C = 448/64 = 7, tmpCols = 128*7 + 8*ceil(7/4) + 8 = 920)
+  using HpTmpT = Tile<TileType::Vec, float, 1, 920>;
+  Tile<TileType::Vec, float, 8, 448> hpOut, hpSrc;
+  HpTmpT hpTmp;
+  TREMS<RemSAlgorithm::HIGH_PRECISION>(hpOut, hpSrc, 7.5f, hpTmp);
 }
 ```

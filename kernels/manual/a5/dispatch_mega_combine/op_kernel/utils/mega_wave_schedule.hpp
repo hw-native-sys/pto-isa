@@ -133,6 +133,68 @@ MEGA_MOE_WAVE_HOST_DEVICE_INLINE uint64_t WaveCeilDiv(uint64_t value, uint64_t d
     return divisor == 0U ? 0U : value / divisor + (value % divisor != 0U ? 1U : 0U);
 }
 
+struct MegaMoeGmmGroupSplit {
+    uint32_t gmm1GroupSize = 0U;
+    uint32_t gmm2GroupSize = 0U;
+    uint64_t predictedLagNumerator = 0U;
+    uint64_t predictedLagDenominator = 1U;
+};
+
+MEGA_MOE_WAVE_HOST_DEVICE_INLINE MegaMoeGmmGroupSplit SelectGmmGroupSplitForLagWindow(
+    uint32_t physicalAicNum, uint32_t expertCount, uint32_t prefixExpertCount, uint32_t gmm1WorkUnits,
+    uint32_t gmm2WorkUnits, uint32_t minLagExperts, uint32_t maxLagExperts, uint32_t preferredLagNumerator,
+    uint32_t preferredLagDenominator)
+{
+    MegaMoeGmmGroupSplit best;
+    if (physicalAicNum < 2U || expertCount == 0U || prefixExpertCount >= expertCount || gmm1WorkUnits == 0U ||
+        gmm2WorkUnits == 0U || minLagExperts > maxLagExperts || preferredLagDenominator == 0U ||
+        static_cast<uint64_t>(preferredLagNumerator) < static_cast<uint64_t>(minLagExperts) * preferredLagDenominator ||
+        static_cast<uint64_t>(preferredLagNumerator) > static_cast<uint64_t>(maxLagExperts) * preferredLagDenominator) {
+        return best;
+    }
+
+    const uint64_t remainingExperts = expertCount - prefixExpertCount;
+    bool haveBest = false;
+    bool bestInWindow = false;
+    uint64_t bestScoreNumerator = 0U;
+    uint64_t bestScoreDenominator = 1U;
+    for (uint32_t gmm2GroupSize = 1U; gmm2GroupSize < physicalAicNum; ++gmm2GroupSize) {
+        const uint32_t gmm1GroupSize = physicalAicNum - gmm2GroupSize;
+        const uint64_t lagDenominator = static_cast<uint64_t>(gmm2WorkUnits) * gmm1GroupSize;
+        const uint64_t gmm2ProgressNumerator = remainingExperts * static_cast<uint64_t>(gmm1WorkUnits) * gmm2GroupSize;
+        const uint64_t gmm1FinalProgressNumerator = static_cast<uint64_t>(expertCount) * lagDenominator;
+        const uint64_t lagNumerator = gmm2ProgressNumerator >= gmm1FinalProgressNumerator ?
+                                          0U :
+                                          gmm1FinalProgressNumerator - gmm2ProgressNumerator;
+        const uint64_t minLagNumerator = static_cast<uint64_t>(minLagExperts) * lagDenominator;
+        const uint64_t maxLagNumerator = static_cast<uint64_t>(maxLagExperts) * lagDenominator;
+        if (lagNumerator < minLagNumerator) {
+            continue;
+        }
+
+        const bool inWindow = lagNumerator <= maxLagNumerator;
+        const uint64_t actualScaledLag = lagNumerator * preferredLagDenominator;
+        const uint64_t preferredScaledLag = static_cast<uint64_t>(preferredLagNumerator) * lagDenominator;
+        const uint64_t scoreNumerator = actualScaledLag >= preferredScaledLag ? actualScaledLag - preferredScaledLag :
+                                                                                preferredScaledLag - actualScaledLag;
+        const uint64_t scoreDenominator = lagDenominator * preferredLagDenominator;
+        const bool betterClass = !haveBest || (inWindow && !bestInWindow);
+        const bool sameClassBetterScore = haveBest && inWindow == bestInWindow &&
+                                          scoreNumerator * bestScoreDenominator < bestScoreNumerator * scoreDenominator;
+        if (betterClass || sameClassBetterScore) {
+            best.gmm1GroupSize = gmm1GroupSize;
+            best.gmm2GroupSize = gmm2GroupSize;
+            best.predictedLagNumerator = lagNumerator;
+            best.predictedLagDenominator = lagDenominator;
+            bestInWindow = inWindow;
+            bestScoreNumerator = scoreNumerator;
+            bestScoreDenominator = scoreDenominator;
+            haveBest = true;
+        }
+    }
+    return best;
+}
+
 MEGA_MOE_WAVE_HOST_DEVICE_INLINE uint32_t CalcExpertsPerWave(const MegaMoeWavePlannerInput& input)
 {
     if (input.topK == 0U || input.expertCount == 0U || input.activeAicNum == 0U || input.gmm1TileM == 0U ||
@@ -144,8 +206,7 @@ MEGA_MOE_WAVE_HOST_DEVICE_INLINE uint32_t CalcExpertsPerWave(const MegaMoeWavePl
     const uint64_t expectedRows = WaveCeilDiv(routedRows, input.expertCount);
     const uint64_t gmm1MTiles = WaveCeilDiv(expectedRows, input.gmm1TileM);
     const uint64_t gmm2MTiles = WaveCeilDiv(expectedRows, input.gmm2TileM);
-    // A GMM1 scheduler tile computes one 256-column x block and the matching
-    // 256-column gate block. Count the pair as one core task, matching ops.
+    // Count each paired GMM1 Gate/Up tile as one scheduler task.
     const uint64_t gmm1PairWidth = 2U * static_cast<uint64_t>(input.gmm1TileN);
     const uint64_t gmm1TilesPerExpert =
         (gmm1MTiles == 0U ? 1U : gmm1MTiles) * WaveCeilDiv(input.gmm1OutputN, gmm1PairWidth);

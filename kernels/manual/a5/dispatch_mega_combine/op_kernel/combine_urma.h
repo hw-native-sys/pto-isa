@@ -17,13 +17,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils/mega_moe_urma.hpp"
 #include "utils/mega_expert_sync.hpp"
 
-// Multi-server A8W8 Combine transport.
-//
-// AIV1 keeps the depth-one GMM2->Combine CV fast path. Cross-server rows are
-// materialized into the URMA-only production Combine staging workspace and the CV slot
-// is released immediately. This AIV0 peer owner waits only for the local
-// expert completion, bridges contiguous rows into registered HCCL-window
-// staging, then submits one large URMA PUT per row chunk.
+// AIV0 forwards cross-server Combine rows from registered staging after local
+// expert completion, without extending the GMM2-to-Combine CV slot lifetime.
 class UrmaCombineSender {
 public:
     AICORE inline void Init(GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData)
@@ -31,6 +26,7 @@ public:
         workspaceGM_ = workspaceGM;
         tilingData_ = tilingData;
         transport_.InitForSubmission(tilingData_);
+
         cumsumMMPtr_ = reinterpret_cast<__gm__ int32_t*>(workspaceGM_ + tilingData_->frontReorderTiling.cumsumMMOffset);
         stagingPtr_ =
             reinterpret_cast<__gm__ bfloat16_t*>(workspaceGM_ + tilingData_->multiServerTiling.combineStagingOffset);
@@ -45,7 +41,6 @@ public:
             !transport_.IsPeerOwner(dstRank)) {
             return;
         }
-
         // Deferred route metadata owns cumsumMM publication. Match the
         // AIV1 Combine entry gate before deriving per-expert/per-rank rows;
         // otherwise an eager sender can observe the iteration-clear zeros.
@@ -113,11 +108,17 @@ private:
 
     AICORE inline uint32_t ExpertRankRowEnd(uint32_t expert, uint32_t dstRank) const
     {
-        const uint32_t prefix = static_cast<uint32_t>(ld_dev(
-            reinterpret_cast<__gm__ uint32_t*>(
-                cumsumMMPtr_ + MegaMoeUrmaRankExpertIndex(dstRank, expert, expertPerRank_)),
-            0));
-        return prefix;
+        const uint32_t expertBase =
+            expert == 0U ?
+                0U :
+                static_cast<uint32_t>(ld_dev(
+                    reinterpret_cast<__gm__ uint32_t*>(cumsumMMPtr_ + static_cast<uint64_t>(expert) * rankSize_ - 1U),
+                    0));
+        return static_cast<uint32_t>(ld_dev(
+                   reinterpret_cast<__gm__ uint32_t*>(
+                       cumsumMMPtr_ + static_cast<uint64_t>(expert) * rankSize_ + dstRank),
+                   0)) -
+               expertBase;
     }
 
     AICORE inline void BridgeRowsToRegisteredSlot(
@@ -137,6 +138,8 @@ private:
             set_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
             wait_flag(PIPE_MTE3, PIPE_MTE2, EVENT_ID0);
         }
+        // Finish the payload copy before Scalar submits the slot to URMA.
+        pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>();
         dsb(DSB_DDR);
     }
 
@@ -146,6 +149,7 @@ private:
             return;
         }
         (void)transport_.WaitEvent(slotEvents_[slot], dstRank);
+
         slotPending_[slot] = false;
     }
 
@@ -178,6 +182,7 @@ private:
                                           static_cast<uint64_t>(remoteCompactBegin + processed) * rowBytes;
             slotEvents_[slot] = transport_.PutBytes(
                 dstRank, transport_.LocalCombineTxSlot(dstRank, slot), remoteOffset, rows * rowBytes);
+
             slotPending_[slot] = true;
             ++nextSlot_;
             processed += rows;

@@ -41,13 +41,7 @@ AICORE inline void ResetFixedSyncWorkspace(GM_ADDR workspaceGM, const __gm__ Meg
         volatile __gm__ int32_t* slot = FixedSyncSlot(workspaceGM, tilingData, slotId);
         dcci((__gm__ void*)slot, SINGLE_CACHE_LINE);
         __asm__ __volatile__("");
-        uint32_t value = 0U;
-        if (slotId == kMegaMoeFixedSyncHeadCanarySlot) {
-            value = kMegaMoeFixedHeadCanary;
-        } else if (slotId == kMegaMoeFixedSyncTailCanarySlot) {
-            value = kMegaMoeFixedTailCanary;
-        }
-        *slot = static_cast<int32_t>(value);
+        *slot = 0;
     }
     for (uint32_t slotId = 0U; slotId < kMegaMoeFixedSyncSlotCount; ++slotId) {
         dcci((__gm__ void*)FixedSyncSlot(workspaceGM, tilingData, slotId), SINGLE_CACHE_LINE);
@@ -91,22 +85,6 @@ AICORE inline int32_t WaitEpochAcquire(volatile __gm__ int32_t* slot, int32_t ep
     return observed;
 }
 
-AICORE inline void PublishCombineConsumerArmed(
-    GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData, uint32_t physicalBlockId)
-{
-    PublishScalarEpoch(
-        FixedSyncSlot(workspaceGM, tilingData, kMegaMoeFixedSyncCombineConsumerArmedBase + physicalBlockId),
-        kMegaMoeFixedCombineConsumerArmedMarker);
-}
-
-AICORE inline void WaitCombineConsumerArmed(
-    GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData, uint32_t physicalBlockId)
-{
-    WaitEpochAcquire(
-        FixedSyncSlot(workspaceGM, tilingData, kMegaMoeFixedSyncCombineConsumerArmedBase + physicalBlockId),
-        kMegaMoeFixedCombineConsumerArmedMarker);
-}
-
 AICORE inline void PublishGmm2EntryReady(GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData)
 {
     PublishScalarEpoch(
@@ -123,18 +101,6 @@ AICORE inline bool Gmm2EntryReady(GM_ADDR workspaceGM, const __gm__ MegaMoeTilin
 {
     return ReadScalarEpoch(FixedSyncSlot(workspaceGM, tilingData, kMegaMoeFixedSyncGmm2EntryReadySlot)) >=
            kMegaMoeFixedGmm2EntryReadyMarker;
-}
-
-AICORE inline void WaitGmm2ConsumerReady(
-    GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData, uint32_t physicalBlockId)
-{
-    WaitEpochRaw(
-        FixedSyncSlot(workspaceGM, tilingData, kMegaMoeFixedSyncGmm2EntryReadySlot), kMegaMoeFixedGmm2EntryReadyMarker);
-    WaitEpochRaw(
-        FixedSyncSlot(workspaceGM, tilingData, kMegaMoeFixedSyncCombineConsumerArmedBase + physicalBlockId),
-        kMegaMoeFixedCombineConsumerArmedMarker);
-    pipe_barrier(PIPE_ALL);
-    dsb(DSB_DDR);
 }
 
 #if defined(__DAV_VEC__)
@@ -218,16 +184,6 @@ AICORE inline void PublishEpochRangeMte(
     pto::PtoSetWaitFlag<PIPE_MTE3, PIPE_S>(kMegaMoeSyncSnapshotEvent, kMegaMoeSyncSnapshotEvent);
 }
 #endif
-
-AICORE inline void PublishGroupArrival(
-    GM_ADDR workspaceGM, const __gm__ MegaMoeTilingData* tilingData, uint32_t arrivalBaseSlot, uint32_t localId,
-    uint32_t notifyCall)
-{
-    pipe_barrier(PIPE_ALL);
-    dsb(DSB_DDR);
-    PublishScalarEpoch(
-        FixedSyncSlot(workspaceGM, tilingData, arrivalBaseSlot + localId), static_cast<int32_t>(notifyCall + 1U));
-}
 
 #if defined(__DAV_VEC__)
 AICORE inline void NotifyGroupConsumersMte(

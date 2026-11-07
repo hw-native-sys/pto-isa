@@ -41,25 +41,17 @@ struct MegaMoeBuildResult {
     uint64_t workspace_bytes = 0;
 };
 
-struct A5FixedScheduleConfig {
-    uint32_t epSize = 0U;
-    uint32_t shapeConfigM = 0U;
-    uint32_t expertPerRank = 0U;
+// Bootstrap roles only. Runtime GMM balancing selects the actual split later.
+struct A5CoreTopology {
     uint32_t physicalAicNum = 0U;
-    uint32_t dispatchGroupSize = 0U;
     uint32_t gmm1GroupSize = 0U;
     uint32_t gmm2GroupSize = 0U;
-    uint32_t fullAicGmm1WaveCount = kMegaMoeFullAicGmm1WaveCount;
-    uint32_t unpermuteTwoPhaseMinM = 0U;
-    uint32_t unpermutePhase1Aiv0WorkerCount = 0U;
 
     constexpr uint32_t PhysicalAivNum() const { return physicalAicNum * kMegaMoeFixedAivSubblocksPerPhysicalBlock; }
+    constexpr uint32_t DefaultDispatchAiv0Count() const { return 2U * physicalAicNum / 3U; }
 };
 
-// Returns nullptr when the selected effective launch count has no validated default schedule.
-const A5FixedScheduleConfig* FindA5DefaultSchedule(uint32_t effectiveAicNum);
-
-// Exact canonical-shape cases take precedence over the default for the selected AIC count.
-const A5FixedScheduleConfig* SelectA5FixedSchedule(const CaseConfig& cfg);
+// Returns nullptr for unsupported effective launch counts.
+const A5CoreTopology* FindA5CoreTopology(uint32_t effectiveAicNum);
 
 MegaMoeBuildResult BuildMegaMoeTiling(const CaseConfig& cfg, const StandaloneRankRuntime& runtime);

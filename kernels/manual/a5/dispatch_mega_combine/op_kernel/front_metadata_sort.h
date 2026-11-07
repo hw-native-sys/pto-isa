@@ -19,8 +19,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "utils/const_args.hpp"
 #include "utils/pto_vector.hpp"
 
-namespace front_metadata_sort {
-
 constexpr uint32_t kSortBlockElems = 32U;
 constexpr uint32_t kPackedSortBlockElems = 64U;
 constexpr uint32_t kSortMaxElems = 8192U;
@@ -475,7 +473,5 @@ private:
     uint32_t coreIdx_ = 0U;
     uint32_t coreNum_ = 1U;
 };
-
-} // namespace front_metadata_sort
 
 #endif // DISPATCH_MEGA_COMBINE_FRONT_METADATA_SORT_H

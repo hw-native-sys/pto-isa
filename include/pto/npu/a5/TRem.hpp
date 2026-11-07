@@ -17,11 +17,348 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/utils.hpp>
 #include <pto/npu/a5/TBinOp.hpp>
 #include <pto/common/debug.h>
-#include "custom/TFmodRemHp.hpp"
-#include "custom/TRemHpStaged.hpp"
 #include "TDiv.hpp"
 
 namespace pto {
+// ---- High precision remainder/fmod core (issue #2), shared by TFMOD/TFMODS and TREM/TREMS ----
+constexpr uint32_t FMOD_ITERATION_NUM_MAX = 11;
+constexpr FloatUnion inf(0x7f800000);
+constexpr FloatUnion negInf(0xff800000);
+constexpr FloatUnion nan(0x7fc00000);
+
+constexpr FloatUnion scaleList1[FMOD_ITERATION_NUM_MAX] = {
+    FloatUnion(0x4b800000), FloatUnion(0x4b800000), FloatUnion(0x57800000), FloatUnion(0x63800000),
+    FloatUnion(0x6f800000), FloatUnion(0x7b800000), FloatUnion(0x7b800000), FloatUnion(0x7b800000),
+    FloatUnion(0x7b800000), FloatUnion(0x7b800000), FloatUnion(0x7b800000)};
+constexpr FloatUnion scaleList2[FMOD_ITERATION_NUM_MAX] = {
+    FloatUnion(0x3f800000), FloatUnion(0x3f800000), FloatUnion(0x3f800000), FloatUnion(0x3f800000),
+    FloatUnion(0x3f800000), FloatUnion(0x3f800000), FloatUnion(0x4b800000), FloatUnion(0x57800000),
+    FloatUnion(0x63800000), FloatUnion(0x6f800000), FloatUnion(0x7b800000)};
+
+PTO_INTERNAL void GetSignBit(RegTensor<float>& dstReg, RegTensor<float>& srcReg, MaskReg& mask)
+{
+    constexpr int16_t signRightNum = BLOCK_BYTE_SIZE - 1;
+    RegTensor<uint32_t> oneReg, tmpReg;
+    uint32_t len32 = static_cast<uint16_t>(VECTOR_REG_WIDTH / sizeof(float));
+    MaskReg preg_b32 = CreatePredicate<float>(len32);
+    vdup(oneReg, 1, mask, MODE_ZEROING);
+    vshrs(tmpReg, (RegTensor<uint32_t>&)srcReg, signRightNum, mask, MODE_ZEROING);
+    vand(tmpReg, tmpReg, oneReg, mask, MODE_ZEROING);
+    vcvt(dstReg, (RegTensor<int32_t>&)tmpReg, preg_b32, ROUND_R);
+}
+
+template <typename RoundMode, int32_t iterationNum>
+PTO_INTERNAL void SolveScale(
+    RegTensor<float>& dstReg, RegTensor<float>& srcReg, const float scale1, const float scale2, MaskReg& mask)
+{
+    constexpr float maxValue = 3.4028235e38;
+    constexpr float subNormal = 1.1754944e-38;
+
+    MaskReg subNormalMask;
+    RegTensor<float> bTmpReg, tmpReg, kReg, signReg;
+
+    if constexpr (iterationNum == 1) { // iter 1 (last iteration) handles subnormal case
+        vcmps_le(subNormalMask, srcReg, subNormal, mask);
+        vmuls(tmpReg, srcReg, scale1, subNormalMask, MODE_ZEROING);
+        vsel(bTmpReg, tmpReg, srcReg, subNormalMask);
+        vmuls(tmpReg, dstReg, scale1, subNormalMask, MODE_ZEROING);
+        vsel(dstReg, tmpReg, dstReg, subNormalMask);
+        vdiv(kReg, dstReg, bTmpReg, mask, MODE_ZEROING);
+        vtrc(kReg, kReg, RoundMode(), mask);
+    } else {
+        vmuls(bTmpReg, srcReg, scale1, mask, MODE_ZEROING);
+        if constexpr (iterationNum > 5) { // last 5 iterations do not need extra scaling
+            vmuls(bTmpReg, bTmpReg, scale2, mask, MODE_ZEROING);
+        }
+        vdiv(kReg, dstReg, bTmpReg, mask, MODE_ZEROING);
+        vtrc(kReg, kReg, RoundMode(), mask);
+    }
+
+    // not necessary to check for inf in the final iteration
+    if constexpr (iterationNum != 1) {
+        vmins(bTmpReg, bTmpReg, maxValue, mask, MODE_ZEROING);
+    }
+    vneg(kReg, kReg, mask, MODE_ZEROING);
+    // res = -k * bTmp + y
+    vmula(dstReg, kReg, bTmpReg, mask, MODE_ZEROING);
+
+    if constexpr (iterationNum == 1) { // iter 1 handles subnormal case
+        // r = r + np.float32(np.signbit(r)) * bTmp
+        GetSignBit(signReg, dstReg, mask);
+        vmul(signReg, signReg, bTmpReg, mask, MODE_ZEROING);
+        vadd(dstReg, dstReg, signReg, mask, MODE_ZEROING);
+    }
+}
+
+// recurse from itermax to 1
+template <typename RoundMode, int32_t iterationNum>
+PTO_INTERNAL void SolveScaleIter(RegTensor<float>& dstReg, RegTensor<float>& srcReg, MaskReg& mask)
+{
+    SolveScale<RoundMode, iterationNum>(
+        dstReg, srcReg, scaleList1[iterationNum - 1].f, scaleList2[iterationNum - 1].f, mask);
+
+    if constexpr (iterationNum > 1) {
+        SolveScaleIter<RoundMode, iterationNum - 1>(dstReg, srcReg, mask);
+    }
+}
+
+PTO_INTERNAL void SolveExceptionScenarios(
+    RegTensor<float>& dstReg, RegTensor<float>& src0Reg, RegTensor<float>& src1Reg, RegTensor<float>& nanReg,
+    MaskReg& mask)
+{
+    MaskReg src0Is0CmpReg, src0IsNeg0CmpReg, src0InfCmpReg, src0NegInfCmpReg;
+    MaskReg src1Not0CmpReg, src1NotNeg0CmpReg, src1NotNanCmpReg, src1InfCmpReg, src1NegInfCmpReg;
+    MaskReg srcBothInfCmpReg;
+
+    vcmps_eq(src1InfCmpReg, src1Reg, inf.f, mask);
+    vsel(dstReg, src0Reg, dstReg, src1InfCmpReg);
+    vcmps_eq(src1NegInfCmpReg, src1Reg, negInf.f, mask);
+    vsel(dstReg, src0Reg, dstReg, src1NegInfCmpReg);
+    vcmps_eq(src0InfCmpReg, src0Reg, inf.f, mask);
+    vcmps_eq(src0NegInfCmpReg, src0Reg, negInf.f, mask);
+    por(src0InfCmpReg, src0InfCmpReg, src0NegInfCmpReg, mask);
+    por(src1InfCmpReg, src1InfCmpReg, src1NegInfCmpReg, mask);
+    pand(srcBothInfCmpReg, src0InfCmpReg, src1InfCmpReg, mask);
+    vsel(dstReg, nanReg, dstReg, srcBothInfCmpReg);
+    vcmps_eq(src0Is0CmpReg, src0Reg, static_cast<float>(0), mask);
+    vcmps_eq(src0IsNeg0CmpReg, src0Reg, static_cast<float>(-0), mask);
+    por(src0Is0CmpReg, src0Is0CmpReg, src0IsNeg0CmpReg, mask);
+
+    vcmps_ne(src1Not0CmpReg, src1Reg, static_cast<float>(0), mask);
+    vcmps_ne(src1NotNeg0CmpReg, src1Reg, static_cast<float>(-0), mask);
+    vcmp_ne(src1NotNanCmpReg, src1Reg, src1Reg, mask);
+    pnot(src1NotNanCmpReg, src1NotNanCmpReg, mask);
+
+    por(src1Not0CmpReg, src1Not0CmpReg, src1NotNeg0CmpReg, mask);
+    pand(src1Not0CmpReg, src1Not0CmpReg, src1NotNanCmpReg, mask);
+
+    pand(src0Is0CmpReg, src0Is0CmpReg, src1Not0CmpReg, mask);
+    vsel(dstReg, src0Reg, dstReg, src0Is0CmpReg);
+}
+
+// Post-SolveScale fixups shared by the register and staged kernels:
+// dividend sign restore, subnormal rescale, exceptions, rem sign correction.
+template <bool isFmod>
+PTO_INTERNAL void TFmodRemHPPost(
+    RegTensor<float>& dstReg, RegTensor<float>& src0Reg, RegTensor<float>& src1Reg, RegTensor<float>& nanReg,
+    MaskReg& mask)
+{
+    constexpr FloatUnion scale2(0x33800000); // 2**-24
+    constexpr float subNormal = 1.1754944e-38;
+    RegTensor<float> srcReg;
+    RegTensor<float> src0SignBitReg, src0SignBitTmpReg;
+    RegTensor<float> tmpReg;
+    MaskReg subNormalMask, signDiffMask;
+
+    GetSignBit(src0SignBitReg, src0Reg, mask);
+    vmuls(src0SignBitTmpReg, src0SignBitReg, -2.0f, mask, MODE_ZEROING);
+    vadds(src0SignBitTmpReg, src0SignBitTmpReg, 1.0f, mask, MODE_ZEROING);
+    vmul(dstReg, dstReg, src0SignBitTmpReg, mask, MODE_ZEROING);
+
+    vabs(srcReg, src1Reg, mask, MODE_ZEROING);
+    vcmps_le(subNormalMask, srcReg, subNormal, mask);
+    vmuls(tmpReg, dstReg, scale2.f, subNormalMask, MODE_ZEROING);
+    vsel(dstReg, tmpReg, dstReg, subNormalMask);
+
+    SolveExceptionScenarios(dstReg, src0Reg, src1Reg, nanReg, mask);
+
+    if constexpr (!isFmod) {
+        vmul(tmpReg, src1Reg, dstReg, mask, MODE_ZEROING);
+        vcmps_lt(signDiffMask, tmpReg, 0.0f, mask);
+        vadd(tmpReg, dstReg, src1Reg, signDiffMask, MODE_ZEROING);
+        vsel(dstReg, tmpReg, dstReg, signDiffMask);
+    }
+}
+
+template <bool isFmod>
+PTO_INTERNAL void TFmodRemHP(
+    RegTensor<float>& dstReg, RegTensor<float>& src0Reg, RegTensor<float>& src1Reg, MaskReg& mask)
+{
+    using RoundMode = std::conditional_t<isFmod, decltype(ROUND_Z), decltype(ROUND_F)>;
+    constexpr FloatUnion nanLocal(0x7fc00000);
+    RegTensor<float> srcReg;
+    RegTensor<float> nanReg;
+
+    vdup(nanReg, nanLocal.f, mask, MODE_ZEROING);
+    vabs(dstReg, src0Reg, mask, MODE_ZEROING);
+    vabs(srcReg, src1Reg, mask, MODE_ZEROING);
+    SolveScaleIter<RoundMode, FMOD_ITERATION_NUM_MAX>(dstReg, srcReg, mask);
+
+    TFmodRemHPPost<isFmod>(dstReg, src0Reg, src1Reg, nanReg, mask);
+}
+
+// ---- Staged loop inversion (issue #2), shared scaffolding + vector-divisor (TREM) drivers ----
+// TRemS.hpp includes this header and adds the scalar-divisor (TREMS) staged drivers.
+// Loop-inverted high precision remainder: every full vector advances one
+// SolveScale iteration per pass, with the per-vector state staged in dst.
+// Measured break-even on Ascend950PR sim: 48 full vectors (issue #2).
+constexpr uint32_t TREM_HP_STAGED_MIN_VECS = 48;
+
+template <typename T>
+PTO_INTERNAL bool TRemHpStagedDisjoint(const __ubuf__ T* a, uint32_t aElems, const __ubuf__ T* b, uint32_t bElems)
+{
+    return a + aElems <= b || b + bElems <= a;
+}
+
+// Staging reuses dst as scratch, so it needs enough full vectors to pay for
+// the extra UB round trips and must not alias either input.
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
+PTO_INTERNAL bool TRemHpStagedEligible(
+    const __ubuf__ float* dst, const __ubuf__ float* src0, const __ubuf__ float* src1, uint32_t validRows,
+    uint32_t validCols)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(float);
+    if (validRows * (validCols / elemsPerRepeat) < TREM_HP_STAGED_MIN_VECS) {
+        return false;
+    }
+    constexpr uint32_t dstElems = TileDataDst::Rows * TileDataDst::Cols;
+    constexpr uint32_t src0Elems = TileDataSrc0::Rows * TileDataSrc0::Cols;
+    constexpr uint32_t src1Elems = TileDataSrc1::Rows * TileDataSrc1::Cols;
+    return TRemHpStagedDisjoint<float>(dst, dstElems, src0, src0Elems) &&
+           TRemHpStagedDisjoint<float>(dst, dstElems, src1, src1Elems);
+}
+
+template <typename T>
+PTO_INTERNAL void TRemHpStagedVecs(uint32_t validRows, uint32_t validCols, uint32_t& fullPerRow, uint32_t& tailCount)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(T);
+    fullPerRow = validCols / elemsPerRepeat;
+    tailCount = validCols - fullPerRow * elemsPerRepeat;
+}
+
+// One SolveScale iteration over every full vector; iteration == FMOD_ITERATION_NUM_MAX
+// also seeds the state from the original dividend. The divisor is reloaded from
+// the original src1 each pass because a scaled divisor must not feed the next pass.
+template <typename RoundMode, int32_t iterationNum, unsigned DstStride, unsigned Src0Stride, unsigned Src1Stride>
+PTO_INTERNAL void TRemHpStagePass(
+    __ubuf__ float* dst, __ubuf__ float* src0, __ubuf__ float* src1, uint32_t validRows, uint32_t fullPerRow)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(float);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
+    RegTensor<float> stateReg, divReg, src0Reg;
+    MaskReg preg = PSetWithType<float>(PAT_ALL);
+    for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
+        for (uint16_t j = 0; j < (uint16_t)fullPerRow; ++j) {
+            uint32_t col = j * elemsPerRepeat;
+            if constexpr (iterationNum == FMOD_ITERATION_NUM_MAX) {
+                vlds(src0Reg, src0, row * Src0Stride + col, NORM);
+                vabs(stateReg, src0Reg, preg, MODE_ZEROING);
+            } else {
+                vlds(stateReg, dst, row * DstStride + col, NORM);
+            }
+            vlds(divReg, src1, row * Src1Stride + col, NORM);
+            vabs(divReg, divReg, preg, MODE_ZEROING);
+            SolveScale<RoundMode, iterationNum>(
+                stateReg, divReg, scaleList1[iterationNum - 1].f, scaleList2[iterationNum - 1].f, preg);
+            vsts(stateReg, dst, row * DstStride + col, distValue, preg);
+        }
+    }
+    mem_bar(VST_VLD);
+}
+
+// Runs passes [first, first+count) as plain loop bodies (no scopes); the
+// caller groups them into a scoped chunk.
+template <
+    typename RoundMode, int32_t first, int32_t count, unsigned DstStride, unsigned Src0Stride, unsigned Src1Stride>
+PTO_INTERNAL void TRemHpStageSeq(
+    __ubuf__ float* dst, __ubuf__ float* src0, __ubuf__ float* src1, uint32_t validRows, uint32_t fullPerRow)
+{
+    TRemHpStagePass<RoundMode, first, DstStride, Src0Stride, Src1Stride>(dst, src0, src1, validRows, fullPerRow);
+    if constexpr (count > 1) {
+        TRemHpStageSeq<RoundMode, first - 1, count - 1, DstStride, Src0Stride, Src1Stride>(
+            dst, src0, src1, validRows, fullPerRow);
+    }
+}
+
+// Sign restore, subnormal rescale, exceptions and rem sign correction over the
+// staged state; reloads the original src0/src1 needed by the fixups.
+template <bool isFmod, unsigned DstStride, unsigned Src0Stride, unsigned Src1Stride>
+PTO_INTERNAL void TRemHpPostPass(
+    __ubuf__ float* dst, __ubuf__ float* src0, __ubuf__ float* src1, uint32_t validRows, uint32_t fullPerRow)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(float);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
+    RegTensor<float> stateReg, src0Reg, src1Reg, nanReg;
+    MaskReg preg = PSetWithType<float>(PAT_ALL);
+    vdup(nanReg, nan.f, preg, MODE_ZEROING);
+    for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
+        for (uint16_t j = 0; j < (uint16_t)fullPerRow; ++j) {
+            uint32_t col = j * elemsPerRepeat;
+            vlds(stateReg, dst, row * DstStride + col, NORM);
+            vlds(src0Reg, src0, row * Src0Stride + col, NORM);
+            vlds(src1Reg, src1, row * Src1Stride + col, NORM);
+            TFmodRemHPPost<isFmod>(stateReg, src0Reg, src1Reg, nanReg, preg);
+            vsts(stateReg, dst, row * DstStride + col, distValue, preg);
+        }
+    }
+}
+
+// Tail vectors keep the original register path: 11 chained iterations in
+// registers with predicated loads/stores.
+template <bool isFmod, unsigned DstStride, unsigned Src0Stride, unsigned Src1Stride>
+PTO_INTERNAL void TRemHpTailPass(
+    __ubuf__ float* dst, __ubuf__ float* src0, __ubuf__ float* src1, uint32_t validRows, uint32_t validCols)
+{
+    constexpr uint32_t elemsPerRepeat = CCE_VL / sizeof(float);
+    uint32_t fullPerRow, tailCount;
+    TRemHpStagedVecs<float>(validRows, validCols, fullPerRow, tailCount);
+    constexpr auto distValue =
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<float, DistVST::DIST_NORM>())>();
+    RegTensor<float> vDst, vSrc0, vSrc1;
+    MaskReg preg = CreatePredicate<float>(tailCount);
+    uint32_t col = fullPerRow * elemsPerRepeat;
+    for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
+        vlds(vSrc0, src0, row * Src0Stride + col, NORM);
+        vlds(vSrc1, src1, row * Src1Stride + col, NORM);
+        TFmodRemHP<isFmod>(vDst, vSrc0, vSrc1, preg);
+        vsts(vDst, dst, row * DstStride + col, distValue, preg);
+    }
+}
+
+template <bool isFmod, unsigned DstStride, unsigned Src0Stride, unsigned Src1Stride>
+PTO_INTERNAL void TRemHpStaged(
+    __ubuf__ float* dst, __ubuf__ float* src0, __ubuf__ float* src1, uint32_t validRows, uint32_t validCols)
+{
+    using RoundMode = std::conditional_t<isFmod, decltype(ROUND_Z), decltype(ROUND_F)>;
+    uint32_t fullPerRow, tailCount;
+    TRemHpStagedVecs<float>(validRows, validCols, fullPerRow, tailCount);
+    // Passes are VF-fused in small chunks: mem_bar(VST_VLD) between passes
+    // inside a chunk, a full barrier between chunks. One VF for everything
+    // regresses 2D shapes (queue/register pressure); 13 separate VFs pay
+    // too much launch overhead (npu_skills vf-fusion stop-conditions). TREMS
+    // keeps one VF per pass (see the S variants below).
+    __VEC_SCOPE__
+    {
+        TRemHpStageSeq<RoundMode, FMOD_ITERATION_NUM_MAX, 3, DstStride, Src0Stride, Src1Stride>(
+            dst, src0, src1, validRows, fullPerRow);
+    }
+    pipe_barrier(PIPE_ALL);
+    __VEC_SCOPE__
+    {
+        TRemHpStageSeq<RoundMode, FMOD_ITERATION_NUM_MAX - 3, 3, DstStride, Src0Stride, Src1Stride>(
+            dst, src0, src1, validRows, fullPerRow);
+    }
+    pipe_barrier(PIPE_ALL);
+    __VEC_SCOPE__
+    {
+        TRemHpStageSeq<RoundMode, FMOD_ITERATION_NUM_MAX - 6, 3, DstStride, Src0Stride, Src1Stride>(
+            dst, src0, src1, validRows, fullPerRow);
+    }
+    pipe_barrier(PIPE_ALL);
+    __VEC_SCOPE__
+    {
+        TRemHpStageSeq<RoundMode, 2, 2, DstStride, Src0Stride, Src1Stride>(dst, src0, src1, validRows, fullPerRow);
+        TRemHpPostPass<isFmod, DstStride, Src0Stride, Src1Stride>(dst, src0, src1, validRows, fullPerRow);
+    }
+    if (tailCount > 0) {
+        __VEC_SCOPE__
+        {
+            TRemHpTailPass<isFmod, DstStride, Src0Stride, Src1Stride>(dst, src0, src1, validRows, validCols);
+        }
+    }
+}
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
 template <typename T>

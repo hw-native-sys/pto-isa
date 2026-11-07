@@ -58,19 +58,18 @@ constexpr auto ConvertTypes(Ts&... args)
     return std::make_tuple(ConvertType(args)...);
 }
 
-#define EXEC_KERNEL_CMD(kernel_name, blockdim, ...)                         \
-    do {                                                                    \
-        auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);     \
-        auto converted_params = ConvertTypes(__VA_ARGS__);                  \
-        auto acl_call = [acl_stream, blockdim, converted_params]() -> int { \
-            std::apply(                                                     \
-                [&](auto&&... params) {                                     \
-                    ACLRT_LAUNCH_KERNEL(kernel_name)                        \
-                    (blockdim, acl_stream, params...);                      \
-                },                                                          \
-                converted_params);                                          \
-        };                                                                  \
-        at_npu::native::OpCommand::RunOpApi(#kernel_name, acl_call);        \
+#define EXEC_KERNEL_CMD(kernel_name, blockdim, ...)                                                                   \
+    do {                                                                                                              \
+        auto acl_stream = c10_npu::getCurrentNPUStream().stream(false);                                               \
+        auto converted_params = ConvertTypes(__VA_ARGS__);                                                            \
+        auto acl_call = [acl_stream, blockdim, converted_params]() -> int {                                           \
+            uint32_t aclRc = 0;                                                                                       \
+            std::apply(                                                                                               \
+                [&](auto&&... params) { aclRc = ACLRT_LAUNCH_KERNEL(kernel_name)(blockdim, acl_stream, params...); }, \
+                converted_params);                                                                                    \
+            return static_cast<int>(aclRc);                                                                           \
+        };                                                                                                            \
+        at_npu::native::OpCommand::RunOpApi(#kernel_name, acl_call);                                                  \
     } while (false)
 } // namespace ascendc_path
 #endif
