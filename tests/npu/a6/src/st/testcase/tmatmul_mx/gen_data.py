@@ -309,6 +309,32 @@ def exp_layout_for_cube(ea_flat, eb_flat, ec_flat, total_elem):
     return bytes(exp_dst)
 
 
+def _pack_hif4_scale_b32(ea, eb, ec):
+    """Pack one HiF4 scale group into a little-endian b32 word.
+
+    Bit layout: [e1_16:e1_16:e6m2:e1_8], i.e. e6m2 occupies bits [7:0], e1_8
+    occupies bits [15:8], and the two e1_16 bytes occupy bits [31:16].
+    """
+    return ((int(ec[1]) & 0xFF) << 24) | ((int(ec[0]) & 0xFF) << 16) | ((int(eb) & 0xFF) << 8) | (int(ea) & 0xFF)
+
+
+def _build_hif4_scale_nd(ea, eb, ec, rows, cols):
+    """Build an [rows, cols] HIF4_SCALE_ND GM tensor of packed b32 scale words."""
+    k_groups = cols // 64
+    expected = rows * k_groups
+    if len(ea) < expected:
+        raise ValueError(f"expected {expected} HiF4 scale groups, got {len(ea)}")
+    out = np.empty((rows, k_groups), dtype="<u4")
+    for idx in range(expected):
+        out.flat[idx] = _pack_hif4_scale_b32(ea[idx], eb[idx], ec[idx * 2 : idx * 2 + 2])
+    return out
+
+
+def _build_hif4_scale_dn(ea, eb, ec, rows, cols):
+    """Build a [cols, rows] row-major buffer, which is the DN view of [rows, cols]."""
+    return _build_hif4_scale_nd(ea, eb, ec, cols, rows)
+
+
 def _build_hif4_scale_patch_layout(ea, eb, ec, rows, cols):
     row_fractals = rows // 16
     k_groups = cols // 64
@@ -342,6 +368,23 @@ def build_hif4_scale_b_nn(b_bf16):
     return _build_hif4_scale_patch_layout(res["ea"], eb_packed, ec_packed, valid_n, valid_k)
 
 
+def build_hif4_scale_a_nd(a_bf16):
+    valid_m, valid_k = a_bf16.shape
+    res = hif4_quantize(a_bf16)
+    eb_packed = pack_bits_lsb(res["eb"])
+    ec_packed = pack_bits_lsb(res["ec"])
+    return _build_hif4_scale_nd(res["ea"], eb_packed, ec_packed, valid_m, valid_k)
+
+
+def build_hif4_scale_b_dn(b_bf16):
+    valid_k, valid_n = b_bf16.shape
+    b_t = b_bf16.T.copy()
+    res = hif4_quantize(b_t)
+    eb_packed = pack_bits_lsb(res["eb"])
+    ec_packed = pack_bits_lsb(res["ec"])
+    return _build_hif4_scale_dn(res["ea"], eb_packed, ec_packed, valid_n, valid_k)
+
+
 def quantize_to_hif4_a(a_bf16):
     res = hif4_quantize(a_bf16)
     fp4_data = pack_fp4_nd(res["fp4_codes"])
@@ -356,6 +399,22 @@ def quantize_to_hif4_b(b_bf16):
     fp4_data = pack_fp4_nd(fp4_codes.ravel())
     scale_bytes = build_hif4_scale_b_nn(b_bf16)
     return fp4_data, scale_bytes
+
+
+def quantize_to_hif4_a_nd(a_bf16):
+    res = hif4_quantize(a_bf16)
+    fp4_data = pack_fp4_nd(res["fp4_codes"])
+    scale_data = build_hif4_scale_a_nd(a_bf16)
+    return fp4_data, scale_data
+
+
+def quantize_to_hif4_b_dn(b_bf16):
+    b_t = b_bf16.T.copy()
+    res = hif4_quantize(b_t)
+    fp4_codes = res["fp4_codes"].reshape(b_t.shape).T.copy()
+    fp4_data = pack_fp4_nd(fp4_codes.ravel())
+    scale_data = build_hif4_scale_b_dn(b_bf16)
+    return fp4_data, scale_data
 
 
 # ============================================================
@@ -418,6 +477,10 @@ CASES = [
     ("TMATMUL_MX_A6_TEST.case_mmad_mx_e4m3e2m1_128x256x128", 33, "e4m3", "e2m1", 128, 256, 128),
     ("TMATMUL_MX_A6_TEST.case_mmad_mx_fp16hi4_128x256x128", 34, "f16", "hif4", 128, 256, 128),
     ("TMATMUL_MX_A6_TEST.case_mmad_mx_e4m3hi4_128x128x256", 35, "e4m3", "hif4", 128, 128, 256),
+    ("TMATMUL_MX_A6_TEST.case_mmad_mx_hif4hif4_nd2zz_dn2nn_128x128x128", 36, "hif4_nd", "hif4_dn", 128, 128, 128),
+    ("TMATMUL_MX_A6_TEST.case_mmad_mx_hif4hif4_nd2zz_dn2nn_128x256x128", 37, "hif4_nd", "hif4_dn", 128, 256, 128),
+    ("TMATMUL_MX_A6_TEST.case_mmad_mx_hif4hif4_nd2zz_dn2nn_256x128x128", 38, "hif4_nd", "hif4_dn", 256, 128, 128),
+    ("TMATMUL_MX_A6_TEST.case_mmad_mx_hif4hif4_nd2zz_dn2nn_128x128x256", 39, "hif4_nd", "hif4_dn", 128, 128, 256),
 ]
 
 
@@ -468,6 +531,11 @@ def _gen_left(a_kind, rng, m, k):
         a_data, a_scale_bytes = quantize_to_hif4_a(a_bf16)
         a_deq = dequantize_for_matmul(a_bf16).astype(np.float32)
         return a_data, a_deq, a_scale_bytes
+    if a_kind == "hif4_nd":
+        a_bf16 = make_bf16_matrix(m, k, group_axis="row")
+        a_data, a_scale_data = quantize_to_hif4_a_nd(a_bf16)
+        a_deq = dequantize_for_matmul(a_bf16).astype(np.float32)
+        return a_data, a_deq, a_scale_data
     raise ValueError(f"unknown a_kind {a_kind}")
 
 
@@ -489,6 +557,11 @@ def _gen_right(b_kind, k, n):
         b_data, b_scale_bytes = quantize_to_hif4_b(b_bf16)
         b_deq = dequantize_for_matmul(b_bf16.T.copy()).T.astype(np.float32)
         return b_data, b_deq, b_scale_bytes
+    if b_kind == "hif4_dn":
+        b_bf16 = make_bf16_matrix(k, n, group_axis="col")
+        b_data, b_scale_data = quantize_to_hif4_b_dn(b_bf16)
+        b_deq = dequantize_for_matmul(b_bf16.T.copy()).T.astype(np.float32)
+        return b_data, b_deq, b_scale_data
     raise ValueError(f"unknown b_kind {b_kind}")
 
 
@@ -500,27 +573,29 @@ def gen_case(case_id, out_dir):
     os.makedirs(out_dir, exist_ok=True)
     rng = np.random.default_rng(100 + case_id)
 
-    a_data, a_deq, a_scale_bytes = _gen_left(a_kind, rng, m, k)
-    b_data, b_deq, b_scale_bytes = _gen_right(b_kind, k, n)
+    a_data, a_deq, a_scale = _gen_left(a_kind, rng, m, k)
+    b_data, b_deq, b_scale = _gen_right(b_kind, k, n)
 
     golden = (a_deq.astype(np.float32) @ b_deq.astype(np.float32)).astype(np.float32).astype(bfloat16)
 
     with open(os.path.join(out_dir, "a_data.bin"), "wb") as f:
         f.write(a_data)
     with open(os.path.join(out_dir, "a_scale.bin"), "wb") as f:
-        f.write(a_scale_bytes)
+        f.write(a_scale.tobytes() if hasattr(a_scale, "tobytes") else a_scale)
     with open(os.path.join(out_dir, "b_data.bin"), "wb") as f:
         f.write(b_data)
     with open(os.path.join(out_dir, "b_scale.bin"), "wb") as f:
-        f.write(b_scale_bytes)
+        f.write(b_scale.tobytes() if hasattr(b_scale, "tobytes") else b_scale)
     with open(os.path.join(out_dir, "golden_out.bin"), "wb") as f:
         f.write(golden.tobytes())
     with open(os.path.join(out_dir, "golden.bin"), "wb") as f:
         f.write(golden.tobytes())
 
+    a_scale_bytes = a_scale.nbytes if hasattr(a_scale, "nbytes") else len(a_scale)
+    b_scale_bytes = b_scale.nbytes if hasattr(b_scale, "nbytes") else len(b_scale)
     print(
-        f"[{cid:>2} {a_kind}x{b_kind} {m}x{k}x{n}] a_data={len(a_data)}B a_scale={len(a_scale_bytes)}B "
-        f"b_data={len(b_data)}B b_scale={len(b_scale_bytes)}B golden={golden.nbytes}B"
+        f"[{cid:>2} {a_kind}x{b_kind} {m}x{k}x{n}] a_data={len(a_data)}B a_scale={a_scale_bytes}B "
+        f"b_data={len(b_data)}B b_scale={b_scale_bytes}B golden={golden.nbytes}B"
     )
 
 

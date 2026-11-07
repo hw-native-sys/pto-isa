@@ -341,30 +341,83 @@ PTO_INTERNAL void TLoadMxCubeCheckHif4TileShape()
 }
 
 template <typename TileData, typename GlobalData>
+PTO_INTERNAL void TLoadHif4ScaleCheck()
+{
+    constexpr bool isNd = GlobalData::layout == pto::Layout::HIF4_SCALE_ND;
+    constexpr bool isDn = GlobalData::layout == pto::Layout::HIF4_SCALE_DN;
+    static_assert(isNd || isDn, "Only HIF4_SCALE_ND and HIF4_SCALE_DN are supported here");
+    static_assert(std::is_same_v<typename GlobalData::RawDType, hif4_scale>, "GM dtype must be hif4_scale");
+    static_assert(std::is_same_v<typename TileData::DType, uint8_t>, "L1 HIF4 scale dtype must be uint8_t");
+    static_assert(sizeof(hif4_scale) == HIF4_COL_LEN, "One hif4_scale must expand to four uint8_t elements");
+    static_assert(
+        isNd == (TileData::isRowMajor && TileData::SFractal == SLayout::RowMajor),
+        "HIF4_SCALE_ND destination must be uint8_t HIF4_A_ZZ layout");
+    static_assert(
+        isDn == (!TileData::isRowMajor && TileData::SFractal == SLayout::ColMajor),
+        "HIF4_SCALE_DN destination must be uint8_t HIF4_B_NN layout");
+    static_assert(
+        GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1, "HIF4_SCALE ND/DN expects a 2D tensor");
+    static_assert(
+        GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1, "HIF4_SCALE ND/DN expects a 2D tensor");
+    static_assert(
+        GlobalData::staticShape[2] == 1 || GlobalData::staticShape[2] == -1, "HIF4_SCALE ND/DN expects a 2D tensor");
+    static_assert(TileData::SFractalSize == 32, "L1 HIF4 scale SFractalSize must be 32");
+    static_assert(TileData::Rows * TileData::Cols <= 512 * 1024, "HIF4 scale tile exceeds the 512KB L1 limit");
+
+    constexpr int64_t gmRows = GlobalData::staticShape[3];
+    constexpr int64_t gmCols = GlobalData::staticShape[4];
+    if constexpr (isNd) {
+        static_assert(gmRows == -1 || gmRows % HIF4_ROW_LEN == 0, "HIF4_SCALE_ND rows must be 16-aligned");
+        if constexpr (gmRows > 0 && TileData::ValidRow > 0) {
+            static_assert(TileData::ValidRow == gmRows, "HIF4 A scale tile rows must match GM rows");
+        }
+        if constexpr (gmCols > 0 && TileData::ValidCol > 0) {
+            static_assert(
+                TileData::ValidCol == gmCols * HIF4_COL_LEN, "HIF4 A scale tile cols must be GM hif4_scale cols * 4");
+        }
+    } else {
+        static_assert(gmCols == -1 || gmCols % HIF4_ROW_LEN == 0, "HIF4_SCALE_DN cols must be 16-aligned");
+        if constexpr (gmCols > 0 && TileData::ValidCol > 0) {
+            static_assert(TileData::ValidCol == gmCols, "HIF4 B scale tile cols must match GM cols");
+        }
+        if constexpr (gmRows > 0 && TileData::ValidRow > 0) {
+            static_assert(
+                TileData::ValidRow == gmRows * HIF4_COL_LEN, "HIF4 B scale tile rows must be GM hif4_scale rows * 4");
+        }
+    }
+}
+
+template <typename TileData, typename GlobalData>
 PTO_INTERNAL void TLoadMxCubeCheck()
 {
-    // support ZZ2ZZ NN2NN
-    static_assert(
-        ((GlobalData::layout == pto::Layout::MX_A_ZZ || GlobalData::layout == pto::Layout::MX_A_ND ||
-          GlobalData::layout == pto::Layout::MX_A_DN || GlobalData::layout == pto::Layout::HIF4_A_ZZ ||
-          GlobalData::layout == pto::Layout::ND) &&
-         (TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) ||
-            ((GlobalData::layout == pto::Layout::MX_B_NN || GlobalData::layout == pto::Layout::MX_B_ND ||
-              GlobalData::layout == pto::Layout::MX_B_DN || GlobalData::layout == pto::Layout::HIF4_B_NN) &&
-             (!TileData::isRowMajor && (TileData::SFractal == SLayout::ColMajor))),
-        "Fix: now only support MX_A_ZZ2ZZ/MX_A_ND2ZZ/MX_A_DN2ZZ or MX_B_NN2NN/MX_B_ND2NN/MX_B_DN2NN or "
-        "HIF4_A_ZZ/HIF4_B_NN in current platform");
-    static_assert(
-        (caps::IsFP8E8M0<typename TileData::DType>() || std::is_same_v<typename TileData::DType, uint8_t>) &&
-            (caps::IsFP8E8M0<typename GlobalData::RawDType>() ||
-             std::is_same_v<typename GlobalData::RawDType, uint8_t>),
-        "Fix: DType only support float8_e8m0_t or uint8_t in MX/HIF4 scale");
-    static_assert(TileData::SFractalSize == 32, "Fix: TileData SFractalSize must be 32 of Zz or Nn format in L1");
-    static_assert(
-        TileData::Rows * TileData::Cols <= 512 * 1024, "Fix: TileData static shape must less than 512KB in L1");
-    TLoadMxCubeCheckSFractalShape<TileData, GlobalData>();
-    TLoadMxCubeCheckMxTileShape<TileData, GlobalData>();
-    TLoadMxCubeCheckHif4TileShape<TileData, GlobalData>();
+    if constexpr (
+        GlobalData::layout == pto::Layout::HIF4_SCALE_ND || GlobalData::layout == pto::Layout::HIF4_SCALE_DN) {
+        TLoadHif4ScaleCheck<TileData, GlobalData>();
+    } else {
+        // support ZZ2ZZ NN2NN
+        static_assert(
+            ((GlobalData::layout == pto::Layout::MX_A_ZZ || GlobalData::layout == pto::Layout::MX_A_ND ||
+              GlobalData::layout == pto::Layout::MX_A_DN || GlobalData::layout == pto::Layout::HIF4_A_ZZ ||
+              GlobalData::layout == pto::Layout::ND) &&
+             (TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) ||
+                ((GlobalData::layout == pto::Layout::MX_B_NN || GlobalData::layout == pto::Layout::MX_B_ND ||
+                  GlobalData::layout == pto::Layout::MX_B_DN || GlobalData::layout == pto::Layout::HIF4_B_NN) &&
+                 (!TileData::isRowMajor && (TileData::SFractal == SLayout::ColMajor))),
+            "Fix: now only support MX_A_ZZ2ZZ/MX_A_ND2ZZ/MX_A_DN2ZZ or MX_B_NN2NN/MX_B_ND2NN/MX_B_DN2NN or "
+            "HIF4_A_ZZ/HIF4_B_NN in current platform");
+        static_assert(
+            (caps::IsFP8E8M0<typename TileData::DType>() || std::is_same_v<typename TileData::DType, uint8_t>) &&
+                (caps::IsFP8E8M0<typename GlobalData::RawDType>() ||
+                 std::is_same_v<typename GlobalData::RawDType, uint8_t> ||
+                 std::is_same_v<typename GlobalData::RawDType, hif4_scale>),
+            "Fix: DType only support float8_e8m0_t or uint8_t in MX/HIF4 scale");
+        static_assert(TileData::SFractalSize == 32, "Fix: TileData SFractalSize must be 32 of Zz or Nn format in L1");
+        static_assert(
+            TileData::Rows * TileData::Cols <= 512 * 1024, "Fix: TileData static shape must less than 512KB in L1");
+        TLoadMxCubeCheckSFractalShape<TileData, GlobalData>();
+        TLoadMxCubeCheckMxTileShape<TileData, GlobalData>();
+        TLoadMxCubeCheckHif4TileShape<TileData, GlobalData>();
+    }
 }
 
 template <typename Op, typename TileData, typename GlobalData>
@@ -425,8 +478,8 @@ PTO_INTERNAL void TLoadMxCubeAND2ZZ(
     uint16_t nValue = validCol >> 1;
     uint32_t dValue = validRow;
 
-    constexpr uint16_t loop3DstStride = TileData::Cols >> 1; // unit is 32B
-    uint64_t loop1SrcStride = GetByteSize<typename TileData::DType>(gStride3);
+    constexpr uint16_t loop3DstStride = TileData::Cols >> 1;                     // unit is 32B
+    uint64_t loop1SrcStride = GetByteSize<typename GlobalData::DType>(gStride3); // unit is byte
 
     // MTE2_NZ_PARA[63:48]  loop4DstStride,  MTE2_NZ_PARA[47:32]  loop3DstStride
     // MTE2_NZ_PARA[31:16]  loop2DstStride   MTE2_NZ_PARA[15:0]   ndNum
@@ -522,7 +575,7 @@ PTO_INTERNAL void TLoadMxCubeBDN2NN(
     uint16_t nValue = validRow >> 1;
     uint32_t dValue = validCol;
 
-    uint64_t loop1SrcStride = GetByteSize<typename TileData::DType>(gStride4);
+    uint64_t loop1SrcStride = GetByteSize<typename GlobalData::DType>(gStride4);
     constexpr uint16_t loop3DstStride = TileData::Rows >> 1; // unit is 32B
 
     // MTE2_NZ_PARA[63:48]  loop4DstStride,  MTE2_NZ_PARA[47:32]  loop3DstStride
@@ -550,6 +603,13 @@ PTO_INTERNAL void TLoadMxCubeNdDn(
             dstAddr, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride2, gStride4,
             validRow, validCol);
     } else if constexpr (
+        GlobalData::layout == pto::Layout::HIF4_SCALE_ND &&
+        (TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) {
+        // HIF4 scale GM is already 2D [M, scaleK]; DIM_3 stride is used directly.
+        TLoadMxCubeAND2ZZ<Op, TileData, GlobalData>(
+            dstAddr, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
+            validRow, validCol);
+    } else if constexpr (
         GlobalData::layout == pto::Layout::MX_A_DN &&
         (TileData::isRowMajor && (TileData::SFractal == SLayout::RowMajor))) {
         // newgStride4 -> gStride2 / gStride3;
@@ -569,6 +629,13 @@ PTO_INTERNAL void TLoadMxCubeNdDn(
         // newgStride4 -> gStride2;
         TLoadMxCubeBDN2NN<Op, TileData, GlobalData>(
             dstAddr, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride2,
+            validRow, validCol);
+    } else if constexpr (
+        GlobalData::layout == pto::Layout::HIF4_SCALE_DN &&
+        (!TileData::isRowMajor && (TileData::SFractal == SLayout::ColMajor))) {
+        // HIF4 scale GM is already 2D [scaleK, N]; DIM_4 stride is used directly.
+        TLoadMxCubeBDN2NN<Op, TileData, GlobalData>(
+            dstAddr, src, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride1, gStride2, gStride3, gStride4,
             validRow, validCol);
     }
 }

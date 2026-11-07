@@ -116,6 +116,9 @@ struct int4b_t {
         return (storage & 0x08) ? static_cast<int8_t>(storage | 0xF0) : static_cast<int8_t>(storage & 0x0F);
     }
 };
+struct hif4_scale {
+    uint32_t value = 0;
+};
 } // namespace pto
 
 namespace pto {
@@ -174,6 +177,8 @@ enum class Layout {
     MX_B_NN,
     HIF4_A_ZZ,
     HIF4_B_NN,
+    HIF4_SCALE_ND,
+    HIF4_SCALE_DN,
     NC1HWC0,
     GNC1HWC0,
     NCHW,
