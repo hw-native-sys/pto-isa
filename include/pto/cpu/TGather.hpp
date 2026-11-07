@@ -121,6 +121,9 @@ template <typename TileDataD, typename TileDataS0, typename TileDataS1, typename
 PTO_INTERNAL void TGATHER_IMPL(TileDataD& dst, TileDataS0& src0, TileDataS1& src1, TileDataTmp& tmp)
 {
     CheckValid<TileDataD, TileDataS0, TileDataS1>();
+    static_assert(
+        !TileDataD::kRowPlusOneNZ && !TileDataS0::kRowPlusOneNZ && !TileDataS1::kRowPlusOneNZ,
+        "RowPlusOne mode for TGATHER Op is not supported in CPU-SIM currently.");
 
     unsigned validCol = dst.GetValidCol();
     unsigned validRow = dst.GetValidRow();
@@ -170,6 +173,9 @@ PTO_INTERNAL void TGATHER_IMPL(DstTileData& dst, SrcTileData& src)
         (DstTileData::Loc == TileType::Vec) && (SrcTileData::Loc == TileType::Vec), "TGATHER: expect vec TileType");
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "TGATHER: expect row major");
     static_assert((sizeof(typename DstTileData::DType) == sizeof(T)), "TGATHER: expect same type size for dst and src");
+    static_assert(
+        !DstTileData::kRowPlusOneNZ && !SrcTileData::kRowPlusOneNZ,
+        "RowPlusOne mode for TGATHER Op is not supported in CPU-SIM currently.");
     if constexpr (gatherType == GatherAxis::GATHER_ROW) {
         assert(dst.GetValidCol() == DstTileData::Cols);
         TGather<DstTileData, SrcTileData, maskPattern>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());

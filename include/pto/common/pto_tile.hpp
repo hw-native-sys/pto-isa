@@ -1856,18 +1856,19 @@ public:
 
     DType GetElement(int64_t r, int64_t c)
     {
-        return GetProperDataPart(data(), GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c));
+        return GetProperDataPart(
+            data(), GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c, GetValidRow()));
     }
 
     void SetElement(int64_t r, int64_t c, const DType& val)
     {
-        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c);
+        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c, GetValidRow());
         SetProperDataPart(data(), offset, val);
     }
 
     void AddToElement(int64_t r, int64_t c, const DType& summand)
     {
-        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c);
+        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c, GetValidRow());
         std::lock_guard<std::mutex> lock(cpu::AtomicAddMutex());
         if constexpr (IsTwinType<DType>()) {
             const auto val = GetProperDataPart(data(), offset);

@@ -39,18 +39,18 @@ void BinaryElementTileOp_Impl(TileDataDst& dstTile, TileDataSrc0& src0Tile, Tile
     if constexpr (TileDataDst::isRowMajor) {
         cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
             for (std::size_t c = 0; c < validCol; ++c) {
-                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c);
-                const std::size_t idxSrc0 = GetTileElementOffset<TileDataSrc0>(r, c);
-                const std::size_t idxSrc1 = GetTileElementOffset<TileDataSrc1>(r, c);
+                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c, validRow);
+                const std::size_t idxSrc0 = GetTileElementOffset<TileDataSrc0>(r, c, validRow);
+                const std::size_t idxSrc1 = GetTileElementOffset<TileDataSrc1>(r, c, validRow);
                 ElementOpCal<DType, op>::apply(dst[idxDst], src0[idxSrc0], src1[idxSrc1], extra);
             }
         });
     } else {
         cpu::parallel_for_rows(validCol, validRow, [&](std::size_t c) {
             for (std::size_t r = 0; r < validRow; ++r) {
-                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c);
-                const std::size_t idxSrc0 = GetTileElementOffset<TileDataSrc0>(r, c);
-                const std::size_t idxSrc1 = GetTileElementOffset<TileDataSrc1>(r, c);
+                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c, validRow);
+                const std::size_t idxSrc0 = GetTileElementOffset<TileDataSrc0>(r, c, validRow);
+                const std::size_t idxSrc1 = GetTileElementOffset<TileDataSrc1>(r, c, validRow);
                 ElementOpCal<DType, op>::apply(dst[idxDst], src0[idxSrc0], src1[idxSrc1], extra);
             }
         });
@@ -78,16 +78,16 @@ void UnaryElementTileOp_Impl(TileDataDst& dstTile, TileDataSrc& srcTile)
     if constexpr (TileDataDst::isRowMajor) {
         cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
             for (std::size_t c = 0; c < validCol; ++c) {
-                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c);
-                const std::size_t idxSrc = GetTileElementOffset<TileDataSrc>(r, c);
+                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c, validRow);
+                const std::size_t idxSrc = GetTileElementOffset<TileDataSrc>(r, c, validRow);
                 ElementOpCal<DType, op>::apply(dst[idxDst], src[idxSrc]);
             }
         });
     } else {
         cpu::parallel_for_rows(validCol, validRow, [&](std::size_t c) {
             for (std::size_t r = 0; r < validRow; ++r) {
-                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c);
-                const std::size_t idxSrc = GetTileElementOffset<TileDataSrc>(r, c);
+                const std::size_t idxDst = GetTileElementOffset<TileDataDst>(r, c, validRow);
+                const std::size_t idxSrc = GetTileElementOffset<TileDataSrc>(r, c, validRow);
                 ElementOpCal<DType, op>::apply(dst[idxDst], src[idxSrc]);
             }
         });

@@ -22,7 +22,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/constants.hpp>
 #include <pto/cpu/NPUMemoryModel.hpp>
 #include "pto/cpu/parallel.hpp"
-#include "nz_utils.hpp"
 
 namespace pto {
 PTO_CPU_TARGET_NAMESPACE_BEGIN

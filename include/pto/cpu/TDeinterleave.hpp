@@ -56,6 +56,9 @@ PTO_INST void TDEINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileDataS
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
         "[TDEINTERLEAVE] Invalid tile data layout! Tile should be row major!");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TDEINTERLEAVE Op is not supported in CPU-SIM currently.");
     size_t validRow = dst0.GetValidRow();
     size_t validCol = dst0.GetValidCol();
     assert(validCol % 2 == 0);
@@ -72,6 +75,9 @@ PTO_INST void TDEINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileDataS
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
         "[TDEINTERLEAVE] Invalid tile data layout! Tile should be row major!");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TDEINTERLEAVE Op is not supported in CPU-SIM currently.");
     size_t validRow = dst0.GetValidRow();
     size_t validCol = dst0.GetValidCol();
     assert(validCol % 2 == 0);

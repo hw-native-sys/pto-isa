@@ -60,6 +60,9 @@ template <typename TileDst, typename TileSrc>
 PTO_INTERNAL void TCOLMAX_IMPL(TileDst& dstTile, TileSrc& srcTile)
 {
     CheckCMValid<TileDst, TileSrc>();
+    static_assert(
+        !TileDst::kRowPlusOneNZ && !TileSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TCOLMAX Op is not supported in CPU-SIM currently.");
 
     unsigned m = srcTile.GetValidRow();
     unsigned n = srcTile.GetValidCol();

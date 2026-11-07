@@ -18,6 +18,9 @@ namespace pto {
 template <typename TileDataDst, typename TileDataSrc, typename TileDataPara>
 PTO_INTERNAL void TDEQUANT_IMPL(TileDataDst& dst, TileDataSrc& src, TileDataPara& scale, TileDataPara& offset)
 {
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ && !TileDataPara::kRowPlusOneNZ,
+        "RowPlusOne mode for TDEQUANT Op is not supported in CPU-SIM currently.");
     const unsigned rows = dst.GetValidRow();
     const unsigned cols = dst.GetValidCol();
     const unsigned paraCols = std::max(1u, static_cast<unsigned>(scale.GetValidCol()));

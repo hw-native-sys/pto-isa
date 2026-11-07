@@ -39,6 +39,9 @@ PTO_INTERNAL void CheckRowExtendTiles()
                                        "`half`, `float`, and selected integer types.");
 
     static_assert(TileDst::isRowMajor, "TRowExpandOp: TileType of dst tile must be Row Major.");
+    static_assert(
+        !TileDst::kRowPlusOneNZ && !TileSrc0::kRowPlusOneNZ && !TileSrc1::kRowPlusOneNZ,
+        "RowPlusOne mode for TROWEXPAND Op is not supported in CPU-SIM currently.");
 }
 
 template <typename TileDst, typename TileSrc0, typename TileSrc1, ElementOp TileOperation>

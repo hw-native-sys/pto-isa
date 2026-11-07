@@ -40,6 +40,9 @@ PTO_INTERNAL void TColmin_Impl(
 template <typename TileDataOut, typename TileDataIn>
 PTO_INTERNAL void TCOLMIN_IMPL(TileDataOut& dst, TileDataIn& src)
 {
+    static_assert(
+        !TileDataOut::kRowPlusOneNZ && !TileDataIn::kRowPlusOneNZ,
+        "RowPlusOne mode for TCOLMIN Op is not supported in CPU-SIM currently.");
     TColmin_Impl<TileDataOut, TileDataIn>(dst.data(), src.data(), src.GetValidRow(), src.GetValidCol());
 }
 

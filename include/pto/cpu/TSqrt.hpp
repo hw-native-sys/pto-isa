@@ -42,6 +42,9 @@ PTO_INTERNAL void TSQRT_IMPL(TileDataDst& dst, TileDataSrc& src)
     static_assert(
         TileDataSrc::ValidRow == TileDataDst::ValidRow && TileDataSrc::ValidCol == TileDataDst::ValidCol,
         "TSQRT: Src valid row/col != Dst valid row/col");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TSQRT Op is not supported in CPU-SIM currently.");
     TSqrt_Impl<TileDataDst, TileDataSrc>(dst, src, dst.GetValidRow(), dst.GetValidCol());
 }
 } // namespace pto

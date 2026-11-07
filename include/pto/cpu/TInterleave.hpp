@@ -42,6 +42,9 @@ PTO_INST void TINTERLEAVE_IMPL(TileDataDst& dst1, TileDataDst& dst0, TileDataSrc
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc::isRowMajor,
         "[TINTERLEAVE] Invalid tile data layout! Tile should be row major!");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TINTERLEAVE Op is not supported in CPU-SIM currently.");
     size_t validRow = dst0.GetValidRow();
     size_t validCol = dst0.GetValidCol();
     assert(validCol % 2 == 0);

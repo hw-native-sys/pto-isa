@@ -31,6 +31,9 @@ PTO_INTERNAL void MSCATTER_IMPL(GlobalData& dst, TileSrc& src, TileInd& indexes)
     static_assert(
         Atomic == ScatterAtomicOp::None || Conflict != ScatterConflict::Last,
         "Conflict::Last cannot be used together with Atomic operations");
+    static_assert(
+        !TileSrc::kRowPlusOneNZ && !TileInd::kRowPlusOneNZ,
+        "RowPlusOne mode for MSCATTER Op is not supported in CPU-SIM currently.");
 
     const unsigned validRow = src.GetValidRow();
     const unsigned validCol = src.GetValidCol();

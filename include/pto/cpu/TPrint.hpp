@@ -67,7 +67,7 @@ PTO_INTERNAL void TPRINT_IMPL(T& src)
                 std::cout << ' ';
             }
             using DataType = typename T::DType;
-            PrintValue<Format, DataType>(src.data()[GetTileElementOffset<T>(r, c)]);
+            PrintValue<Format, DataType>(src.data()[GetTileElementOffset<T>(r, c, src.GetValidRow())]);
         }
         std::cout << '\n';
     }

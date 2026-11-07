@@ -23,6 +23,9 @@ __aicore__ PTO_INLINE void TSELS_IMPL(
     TileDataDst& dst, TileDataMask& mask, TileDataSrc& src, TileDataTmp& tmp, typename TileDataSrc::DType scalar)
 {
     static_assert(std::is_same_v<typename TileDataDst::DType, typename TileDataSrc::DType>);
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataMask::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TSELS Op is not supported in CPU-SIM currently.");
     unsigned validRow = dst.GetValidRow();
     unsigned validCol = dst.GetValidCol();
     assert(validRow == src.GetValidRow() && validCol == src.GetValidCol());

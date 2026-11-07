@@ -29,6 +29,9 @@ PTO_INTERNAL void TRSQRT_IMPL(TileDataDst& dst, TileDataSrc& src)
     static_assert(
         TileDataSrc::ValidRow == TileDataDst::ValidRow && TileDataSrc::ValidCol == TileDataDst::ValidCol,
         "TRSQRT: Src valid row/col != Dst valid row/col");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TRSQRT Op is not supported in CPU-SIM currently.");
     const std::size_t rows = static_cast<std::size_t>(dst.GetValidRow());
     const std::size_t cols = static_cast<std::size_t>(dst.GetValidCol());
     if (rows == 0 || cols == 0) {

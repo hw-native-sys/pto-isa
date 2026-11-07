@@ -24,6 +24,9 @@ PTO_INTERNAL void TSCATTER_IMPL(TileDataDst& dst, TileDataSrc& src, TileInd& ind
 {
     using IndexT = typename TileInd::DType;
     static_assert(std::is_integral_v<IndexT>, "TSCATTER: indexes must be an integral type");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ && !TileInd::kRowPlusOneNZ,
+        "RowPlusOne mode for TSCATTER Op is not supported in CPU-SIM currently.");
 
     const unsigned validRow = indexes.GetValidRow();
     const unsigned validCol = indexes.GetValidCol();
@@ -102,6 +105,9 @@ PTO_INTERNAL void TSCATTER_IMPL(DstTileData& dst, SrcTileData& src)
     static_assert((DstTileData::isRowMajor && SrcTileData::isRowMajor), "TSCATTER: expect row major");
     static_assert(
         (sizeof(typename DstTileData::DType) == sizeof(T)), "TSCATTER: expect same type size for dst and src");
+    static_assert(
+        !DstTileData::kRowPlusOneNZ && !SrcTileData::kRowPlusOneNZ,
+        "RowPlusOne mode for TSCATTER Op is not supported in CPU-SIM currently.");
 
     if constexpr (ScatterType == ScatterAxis::SCATTER_ROW) {
         const unsigned expectedSrcCols = CountSelected(maskPattern, dst.GetValidCol());

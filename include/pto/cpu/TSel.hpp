@@ -23,6 +23,9 @@ PTO_INTERNAL void TSel_Impl(
     typename tile_shape::TileDType dst, typename tile_shape::TileDType src0, typename tile_shape::TileDType src1,
     typename mask_tile_shape::TileDType selMask, unsigned validRow, unsigned validCol, unsigned validMaskCol)
 {
+    static_assert(
+        !tile_shape::kRowPlusOneNZ && !mask_tile_shape::kRowPlusOneNZ,
+        "RowPlusOne mode for TSEL Op is not supported in CPU-SIM currently.");
     constexpr uint8_t maskSize = 8;
     size_t maskRowIdx = 0;
     size_t maskColIdx = 0;

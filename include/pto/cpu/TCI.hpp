@@ -17,6 +17,7 @@ namespace pto {
 template <typename TileData, typename T, int descending>
 PTO_INTERNAL void Tci_IMPL(typename TileData::TileDType dst, T start, unsigned validCol)
 {
+    static_assert(!TileData::kRowPlusOneNZ, "RowPlusOne mode for TCI Op is not supported in CPU-SIM currently.");
     for (int j = 0; j < validCol; j++) {
         int idx = GetTileElementOffset<TileData>(0, j);
         if constexpr (descending == 1)

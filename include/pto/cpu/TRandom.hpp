@@ -72,6 +72,7 @@ PTO_INTERNAL void TRANDOM_IMPL(DstTile& dst, TRandomKey& key, TRandomCounter& co
         std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>, "Fix: TRANDOM only support int32_t and uint32_t.");
     static_assert(Rounds == 7 || Rounds == 10, "Fix: TRANDOM Rounds can only  be configured to 7 or 10.");
     static_assert(DstTile::isRowMajor, "Fix: TRANDOM only support row major layout.");
+    static_assert(!DstTile::kRowPlusOneNZ, "RowPlusOne mode for TRANDOM Op is not supported in CPU-SIM currently.");
 
     PTO_CPU_ASSERT(key != nullptr && counter != nullptr, "Fix: TRANDOM key and counter must be provided.");
 
