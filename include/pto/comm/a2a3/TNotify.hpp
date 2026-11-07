@@ -42,21 +42,12 @@ PTO_INTERNAL void TNOTIFY_IMPL(GlobalSignalData& dstSignalData, int32_t value, N
     volatile __gm__ int32_t* sigPtr = (volatile __gm__ int32_t*)dstSignalData.data();
 
     if (op == NotifyOp::AtomicAdd) {
-        // Atomic add using hardware atomic instruction. A6 exposes the scalar
-        // atomicAdd intrinsic (same generation as A5's syncall path); the
-        // set_st_atomic_cfg / st_atomic pair is an A2/A3-only spelling.
-#if defined(PTO_NPU_ARCH_A6)
-        detail::DcciSignal((__gm__ int32_t*)sigPtr);
-        atomicAdd((__gm__ int32_t*)sigPtr, value);
-        detail::DcciSignal((__gm__ int32_t*)sigPtr);
-        dsb(DSB_DDR);
-#else
+        // Atomic add using hardware atomic instruction
         set_st_atomic_cfg(ATOMIC_S32, ATOMIC_SUM);
         detail::DcciSignal((__gm__ int32_t*)sigPtr);
         st_atomic<int32_t>(value, (__gm__ int32_t*)sigPtr);
         detail::DcciSignal((__gm__ int32_t*)sigPtr);
         dsb(DSB_DDR);
-#endif
     } else {
         // Set operation - direct store to remote memory
         // Invalidate cache first to prevent stale cached data from overwriting the new value

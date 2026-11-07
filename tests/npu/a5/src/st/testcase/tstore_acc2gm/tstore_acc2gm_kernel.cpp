@@ -695,26 +695,6 @@ void LaunchTStoreAcc2gmNz2nd(uint8_t* out, uint8_t* src0, uint8_t* src1, void* s
             <<<1, nullptr, stream>>>(
                 reinterpret_cast<float*>(out), reinterpret_cast<bfloat16_t*>(src0),
                 reinterpret_cast<bfloat16_t*>(src1));
-    } else if constexpr (tilingKey == 55) {
-        // NCHW W split: H=16 of 16, W_box=8 of 64, C=128, no offset.
-        TStoreAcc2gmNz2nd<0, float, float, float, 1, 1, 128, 16, 8, 1, 1, 128, 16, 64, 128, 128, 16, 0, 2>
-            <<<1, nullptr, stream>>>(
-                reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
-    } else if constexpr (tilingKey == 56) {
-        // NCHW W split with H/W offset: H=8 of 16, W_box=16 of 48, C=64, float -> half.
-        TStoreAcc2gmNz2nd<0, float, half, float, 1, 1, 64, 8, 16, 1, 1, 64, 16, 48, 128, 64, 32, 0, 2>
-            <<<1, nullptr, stream>>>(
-                reinterpret_cast<half*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
-    } else if constexpr (tilingKey == 57) {
-        // NCDHW W split: C=128, D=2 (store the D=1 slice), H=16 of 16, W_box=8 of 64.
-        TStoreAcc2gmNz2nd<0, float, float, float, 1, 128, 1, 16, 8, 1, 128, 2, 16, 64, 128, 128, 16, 0, 3>
-            <<<1, nullptr, stream>>>(
-                reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
-    } else if constexpr (tilingKey == 58) {
-        // NCHW W split with H=32: C=128, H=32 of 32, W_box=8 of 64, 32 dn blocks.
-        TStoreAcc2gmNz2nd<0, float, float, float, 1, 1, 128, 32, 8, 1, 1, 128, 32, 64, 256, 128, 16, 0, 2>
-            <<<1, nullptr, stream>>>(
-                reinterpret_cast<float*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1));
     }
 }
 
@@ -830,12 +810,6 @@ void LaunchTStoreAcc2gmScalarNz2nd(uint8_t* out, uint8_t* src0, uint8_t* src1, v
             <<<1, nullptr, stream>>>(
                 reinterpret_cast<int8_t*>(out), reinterpret_cast<hifloat8_t*>(src0),
                 reinterpret_cast<hifloat8_t*>(src1), scalarQuant);
-    } else if constexpr (tilingKey == 55) {
-        // NCHW W split with H/W offset, scalar quant float -> int8: H=8 of 16, W_box=16 of 48, C=64.
-        TStoreAcc2gmScalarNz2nd<0, float, int8_t, float, 1, 1, 64, 8, 16, 1, 1, 64, 16, 48, 128, 64, 32, 0, 2>
-            <<<1, nullptr, stream>>>(
-                reinterpret_cast<int8_t*>(out), reinterpret_cast<float*>(src0), reinterpret_cast<float*>(src1),
-                scalarQuant);
     }
 }
 
@@ -1190,10 +1164,3 @@ template void LaunchTStoreAcc2gmNz2nd<51>(uint8_t* out, uint8_t* src0, uint8_t* 
 template void LaunchTStoreAcc2gmNz2nd<52>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nd<53>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTStoreAcc2gmNz2nd<54>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-
-template void LaunchTStoreAcc2gmNz2nd<55>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void LaunchTStoreAcc2gmNz2nd<56>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void LaunchTStoreAcc2gmNz2nd<57>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void LaunchTStoreAcc2gmNz2nd<58>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
-template void LaunchTStoreAcc2gmScalarNz2nd<55>(
-    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream, float scalarQuant);

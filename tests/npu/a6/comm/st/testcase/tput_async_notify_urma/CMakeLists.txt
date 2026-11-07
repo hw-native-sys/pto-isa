@@ -1,1 +1,0 @@
-pto_comm_st(tput_async_notify_urma)

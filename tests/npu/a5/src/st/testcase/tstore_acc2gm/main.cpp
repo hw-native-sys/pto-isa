@@ -48,23 +48,12 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
-// Byte pattern used to pre-fill W-split destination tensors; the golden keeps the same pattern
-// outside the stored box, so any out-of-box write (including zeros) fails the comparison.
-constexpr int kDstSentinel = 0xa5;
-
-// The kernel writes the validM x validN result into the dst tensor. By default the tensor is
-// exactly the stored tile, so cFileSize == validM * validN elements. A W-split store passes
-// dstOffset (box origin in elements: h0 * W_full + w0, plus d0 * H * W for NCDHW) and dstWholeSize
-// (the whole tensor element count). The W-split path pre-fills the tensor with a sentinel byte
-// pattern that the golden also keeps outside the box, so any out-of-box write is detected.
-template <
-    int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstOffset = 0,
-    int dstWholeSize = validM * validN>
+template <int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK>
 void test_tstore_acc2gm_nz2nd()
 {
     size_t aFileSize = validM * validK * sizeof(srcDataType);
     size_t bFileSize = validK * validN * sizeof(srcDataType);
-    size_t cFileSize = static_cast<size_t>(dstWholeSize) * sizeof(dstDataType);
+    size_t cFileSize = validM * validN * sizeof(dstDataType);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -85,17 +74,11 @@ void test_tstore_acc2gm_nz2nd()
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-    if constexpr (dstOffset != 0 || dstWholeSize != validM * validN) {
-        std::vector<uint8_t> sentinel(cFileSize, static_cast<uint8_t>(kDstSentinel));
-        aclrtMemcpy(dstDevice, cFileSize, sentinel.data(), cFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    } else {
-        aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
-    }
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
 
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTStoreAcc2gmNz2nd<tilingKey>(
-        dstDevice + static_cast<size_t>(dstOffset) * sizeof(dstDataType), src0Device, src1Device, stream);
+    LaunchTStoreAcc2gmNz2nd<tilingKey>(dstDevice, src0Device, src1Device, stream);
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -180,14 +163,12 @@ void test_tstore_acc2gm_nz2nz()
     EXPECT_TRUE(ret);
 }
 
-template <
-    int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK, int dstOffset = 0,
-    int dstWholeSize = validM * validN>
+template <int tilingKey, typename dstDataType, typename srcDataType, int validM, int validN, int validK>
 void test_tstore_acc2gm_scalar_nz2nd(float scalarQuant)
 {
     size_t aFileSize = validM * validK * sizeof(srcDataType);
     size_t bFileSize = validK * validN * sizeof(srcDataType);
-    size_t cFileSize = static_cast<size_t>(dstWholeSize) * sizeof(dstDataType);
+    size_t cFileSize = validM * validN * sizeof(dstDataType);
 
     aclInit(nullptr);
     aclrtSetDevice(0);
@@ -208,17 +189,11 @@ void test_tstore_acc2gm_scalar_nz2nd(float scalarQuant)
 
     ReadFile(GetGoldenDir() + "/x1_gm.bin", aFileSize, src0Host, aFileSize);
     ReadFile(GetGoldenDir() + "/x2_gm.bin", bFileSize, src1Host, bFileSize);
-    if constexpr (dstOffset != 0 || dstWholeSize != validM * validN) {
-        std::vector<uint8_t> sentinel(cFileSize, static_cast<uint8_t>(kDstSentinel));
-        aclrtMemcpy(dstDevice, cFileSize, sentinel.data(), cFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    } else {
-        aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
-    }
+    aclrtMemset(dstDevice, cFileSize, 0, cFileSize);
 
     aclrtMemcpy(src0Device, aFileSize, src0Host, aFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, bFileSize, src1Host, bFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTStoreAcc2gmScalarNz2nd<tilingKey>(
-        dstDevice + static_cast<size_t>(dstOffset) * sizeof(dstDataType), src0Device, src1Device, stream, scalarQuant);
+    LaunchTStoreAcc2gmScalarNz2nd<tilingKey>(dstDevice, src0Device, src1Device, stream, scalarQuant);
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, cFileSize, dstDevice, cFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
 
@@ -610,24 +585,3 @@ TEST_F(TStoreAcc2gmTest, case_ncdhw_5) { test_tstore_acc2gm_scalar_nz2nd<51, uin
 TEST_F(TStoreAcc2gmTest, case_ncdhw_6) { test_tstore_acc2gm_vector_nz2nd<51, uint16_t, uint8_t, 1056, 64, 32>(); }
 
 TEST_F(TStoreAcc2gmTest, case_ncdhw_7) { test_tstore_acc2gm_vector_nz2nd<52, float, uint16_t, 1024, 128, 32>(); }
-
-// W-split: the stored box width is smaller than the W stride of the whole NCHW/NCDHW tensor.
-TEST_F(TStoreAcc2gmTest, case_nchw_wsplit_1) { test_tstore_acc2gm_nz2nd<55, float, float, 128, 128, 16, 0, 131072>(); }
-
-TEST_F(TStoreAcc2gmTest, case_nchw_wsplit_2)
-{
-    test_tstore_acc2gm_nz2nd<56, uint16_t, float, 128, 64, 32, 208, 49152>();
-}
-
-TEST_F(TStoreAcc2gmTest, case_nchw_wsplit_3)
-{
-    test_tstore_acc2gm_scalar_nz2nd<55, int8_t, float, 128, 64, 32, 208, 49152>(2);
-}
-
-TEST_F(TStoreAcc2gmTest, case_ncdhw_wsplit_1)
-{
-    test_tstore_acc2gm_nz2nd<57, float, float, 128, 128, 16, 1024, 262144>();
-}
-
-// Same as case_nchw_wsplit_1 but with H=32, i.e. 32 dn blocks per instruction.
-TEST_F(TStoreAcc2gmTest, case_nchw_wsplit_4) { test_tstore_acc2gm_nz2nd<58, float, float, 256, 128, 16, 0, 262144>(); }

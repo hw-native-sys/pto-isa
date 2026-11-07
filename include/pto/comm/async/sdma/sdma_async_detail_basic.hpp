@@ -119,7 +119,7 @@ PTO_INTERNAL void SetValue(__gm__ uint8_t* addr, UbTmpBuf& tmpBuf, uint32_t sync
     *ubPtr = x;
     pipe_barrier(PIPE_ALL);
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#ifdef PTO_NPU_ARCH_A5
     copy_ubuf_to_gm_align_v2(
         reinterpret_cast<__gm__ uint32_t*>(addr), reinterpret_cast<__ubuf__ uint32_t*>(ubPtr), 0, 1,
         static_cast<uint32_t>(sizeof(T)), 0, 0, 0);
@@ -136,7 +136,7 @@ PTO_INTERNAL T GetValue(__gm__ uint8_t* addr, UbTmpBuf& tmpBuf)
 {
     __ubuf__ T* ubPtr = reinterpret_cast<__ubuf__ T*>(tmpBuf.addr);
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#ifdef PTO_NPU_ARCH_A5
     copy_gm_to_ubuf_align_v2(
         reinterpret_cast<__ubuf__ uint32_t*>(ubPtr), reinterpret_cast<__gm__ uint32_t*>(addr), 0, 1,
         static_cast<uint32_t>(sizeof(T)), 0, 0, 0, 0, 0, 0);
@@ -156,7 +156,7 @@ PTO_INTERNAL void AddOneMemcpySqe(
     __gm__ BatchWriteItem* sqe = (__gm__ BatchWriteItem*)(channelInfo->sq_base);
     sqe += (sqTail % channelInfo->sq_depth);
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#ifdef PTO_NPU_ARCH_A5
     sqe->type = RT_STARS_SQE_TYPE_SDMA;
     sqe->wrCqe = 1;
     sqe->numBlocks = 0;

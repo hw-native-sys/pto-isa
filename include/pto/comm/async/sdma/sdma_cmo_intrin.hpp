@@ -38,7 +38,7 @@ PTO_INTERNAL void AddOneCmoSqe(
     __gm__ BatchWriteItem* sqe = (__gm__ BatchWriteItem*)(channelInfo->sq_base);
     sqe += (sqTail % channelInfo->sq_depth);
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#ifdef PTO_NPU_ARCH_A5
     sqe->type = RT_STARS_SQE_TYPE_SDMA;
     sqe->wrCqe = 1;
     sqe->numBlocks = 0;

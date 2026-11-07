@@ -102,8 +102,6 @@ or
 python3 -m pip install -r requirements.txt
 ```
 
-> **Version compatibility note:** the `torch==2.8.0` / `torch-npu==2.8.0.post2` versions pinned in this directory's `requirements.txt` correspond to CANN 8.x, while the repository master development line is paired with CANN 9.x. If your environment uses CANN 9.x, select a torch/torch-npu combination that matches your CANN version (see the official `torch_npu` installation guide above) before installing; otherwise the kernel execution stage may crash (e.g. `Trace/breakpoint trap (core dumped)`) with no useful error message.
-
 ### 3.1 Set the target SoC
 
 Edit `auto_mode/demos/baseline/add/CMakeLists.txt` and set `SOC_VERSION` to your target (example: A2A3 uses `Ascend910B1`):

@@ -313,8 +313,6 @@ def main():
 
         if is_comm and args.soc_version == "a5":
             target_dir = target_dir + "/npu/a5/comm/st"
-        elif is_comm and args.soc_version == "a6":
-            target_dir = target_dir + "/npu/a6/comm/st"
         elif is_comm:
             target_dir = target_dir + "/npu/a2a3/comm/st"
         elif args.soc_version == "a3":

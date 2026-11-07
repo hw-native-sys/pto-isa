@@ -42,10 +42,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_COMM_NOT_SUPPORTED
 #define PTO_NPU_ARCH_KIRIN9050
 #elif __NPU_ARCH__ == 9201
+#define PTO_COMM_NOT_SUPPORTED
 #define PTO_NPU_ARCH_A6
-// A6 reuses the A5 communication backend (SDMA MTE fallback + URMA). RDMA is
-// intentionally left out for now. The CCU collective path also follows A5.
-#define PTO_URMA_SUPPORTED
 #endif
 
 #endif // ARCH_MACRO_HPP

@@ -214,7 +214,7 @@ template <
     TStoreL2Hint l2Control = TStoreL2Hint::NormalFirstVictim>
 PTO_INTERNAL void TStoreAccNCHW(
     typename GlobalData::DType* dstAddr, __cc__ typename TileData::DType* srcAddr, int gShape0, int gShape1,
-    int gShape2, int gShape3, int gShape4, int gStride1, int gStride2, int gStride3, int validRow, int validCol)
+    int gShape2, int gShape3, int gShape4, int gStride1, int gStride2, int validRow, int validCol)
 {
     if constexpr (GlobalData::layout == pto::Layout::NCHW) {
         PTO_ASSERT(
@@ -237,28 +237,7 @@ PTO_INTERNAL void TStoreAccNCHW(
     uint32_t dstStride = (GlobalData::layout == pto::Layout::NCDHW) ? gStride1 : gStride2;
     uint16_t loop3Num = 1;
     uint16_t loop3SrcStirde = 0;
-    uint32_t loop3DstStirde = 0;
-    // With a W-split view (Shape4 narrower than the W stride of the whole tensor) a matrix row
-    // only occupies gShape4 contiguous elements in each destination channel and consecutive rows
-    // are gStride3 elements apart. Storing one row per instruction is avoided by letting the
-    // fixpipe nz2dn loop move Shape3 (H) rows: each dn block advances the source by gShape4
-    // accumulator rows (unit of C0_SIZE = 16 elements) and the destination by gStride3 elements.
-    if (gShape4 > 0 && gShape4 < gStride3) {
-        PTO_ASSERT(
-            validRow % gShape4 == 0,
-            "The validRow of TileData must be divisible by Shape4 when the destination W is split!");
-        PTO_ASSERT(gShape4 <= 0xffff, "Shape4 must be within [1, 65535] when the destination W is split!");
-        PTO_ASSERT(
-            validRow / gShape4 <= 0xffff,
-            "The number of dn blocks must be within [1, 65535] when the destination W is split!");
-        PTO_ASSERT(
-            (GlobalData::layout == pto::Layout::NCDHW ? gShape0 : gShape1) == 1,
-            "TSTORE(NZ2NCHW/NZ2NCDHW) W split supports one batch (NCHW) or one depth slice (NCDHW) per call!");
-        mSize = static_cast<uint16_t>(gShape4);
-        loop3Num = static_cast<uint16_t>(validRow / gShape4);
-        loop3SrcStirde = static_cast<uint16_t>(gShape4);
-        loop3DstStirde = static_cast<uint32_t>(gStride3);
-    }
+    uint16_t loop3DstStirde = 0;
 
     constexpr uint8_t unitFlagCtrl = static_cast<uint8_t>(Phase);
     constexpr uint8_t nz2dnEn = 1;
@@ -315,8 +294,7 @@ __tf__ AICORE void TStoreAccFp(
             dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride3, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NCHW || GlobalData::layout == pto::Layout::NCDHW) {
         TStoreAccNCHW<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
-            dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride2, gStride3, validRow,
-            validCol);
+            dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride2, validRow, validCol);
     }
 }
 
@@ -345,8 +323,7 @@ __tf__ AICORE void TStoreAcc(
             dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride0, gStride3, validRow, validCol);
     } else if constexpr (GlobalData::layout == pto::Layout::NCHW || GlobalData::layout == pto::Layout::NCDHW) {
         TStoreAccNCHW<GlobalData, TileData, quantPre, reluPreMode, Phase, l2Control>(
-            dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride2, gStride3, validRow,
-            validCol);
+            dstAddr, srcAddr, gShape0, gShape1, gShape2, gShape3, gShape4, gStride1, gStride2, validRow, validCol);
     }
 }
 

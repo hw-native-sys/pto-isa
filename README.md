@@ -41,7 +41,7 @@ At present, PTO instructions have been integrated into the following frameworks:
 
 - **Unified Tile ISA abstraction**: uses standard PTO instructions to describe tile-level computation and dataflow.
 - **Balances cross-generation migration and performance tuning**: improves portability while retaining sufficient low-level control.
-- **Auto / Manual dual-mode workflow**: validate logic quickly first, then refine the implementation step by step. Auto Mode targets Ascend NPU device code through the BiSheng compiler; CPU simulation currently supports the manual mode only.
+- **Auto / Manual dual-mode workflow**: validate logic quickly first, then refine the implementation step by step. Auto Mode is currently available in CPU simulation.
 - **CPU Simulator support**: enables functional verification and development debugging on CPU.
 - **Covers key programming elements**: supports tile shape, tile mask, event synchronization, fixed-function units, and pipeline modeling.
 - **Complete docs, tests, and examples**: includes ISA docs, developer docs, test scripts, and performance case studies.

@@ -57,7 +57,6 @@ comm/
  pto_comm_instr_impl.hpp        ← compile-time dispatch
     │
     ├── PTO_NPU_ARCH_A5    →  a5/T*.hpp / a5/async/T*Async.hpp
-    ├── PTO_NPU_ARCH_A6    →  a6/T*.hpp  (forwards to a5; reuses SDMA/URMA backend)
     ├── __CCE_AICORE__     →  a2a3/T*.hpp / a2a3/async/T*Async.hpp
     └── __CPU_SIM          →  pto/cpu/comm/T*.hpp  (CPU simulation stubs)
 ```
