@@ -13,6 +13,16 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/cpu/target_config.hpp>
 
+#if defined(PTO_NPU_ARCH_LINX)
+
+#if defined(PTO_LINX_CPU_SIM)
+#include <pto/cpu/linx/pto_instr.hpp>
+#else
+#include <pto/npu/linx/pto_instr.hpp>
+#endif
+
+#else
+
 #include <pto/common/type.hpp>
 #include <pto/common/kernel_meta.hpp>
 #if defined(__CPU_SIM)
@@ -31,5 +41,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #else
 #include "pto/common/pto_instr.hpp"
 #endif
-#endif
+
+#endif // CPU/CANN instruction selection
+#endif // PTO_NPU_ARCH_LINX
 #endif

@@ -23,6 +23,7 @@
 - `npu/`：NPU 侧实现（按 SoC 版本拆分）
   - `npu/a2a3/`：Ascend A2/A3 系列
   - `npu/a5/`：Ascend A5 系列
+  - `npu/linx/`：Linx target（Linx 编译器和 TileOP 实现）
 - `comm/`：通信指令库
   - `pto_comm_inst.hpp`：通信指令统一入口头文件
   - `comm_types.hpp`：通信指令的核心类型定义
