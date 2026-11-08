@@ -18,6 +18,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define AICORE
 #endif
 
+#ifndef __in__
+#define __in__
+#endif
+#ifndef __out__
+#define __out__
+#endif
+
 #ifndef __gm__
 #define __gm__
 #endif
@@ -63,15 +70,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_STATIC_ASSERT(...) static_assert(__VA_ARGS__)
 #endif
 #ifndef PTO_CPU_ASSERT
-#define PTO_CPU_ASSERT(...) ((void)0)
+#define PTO_CPU_ASSERT(condition, ...) \
+    do {                               \
+        if (!(condition))              \
+            __builtin_trap();          \
+    } while (0)
 #endif
 
-namespace pto {
-// Linx block ordering provides the target-side synchronization. Keep the
-// public event return type available for shared call sites; Linx operations
-// do not create CANN pipe events.
-struct RecordEvent {};
-} // namespace pto
+#include <pto/common/record_event.hpp>
+#include <pto/common/math_algorithm.hpp>
 
 #define PTO_LINX_TARGET 1
 

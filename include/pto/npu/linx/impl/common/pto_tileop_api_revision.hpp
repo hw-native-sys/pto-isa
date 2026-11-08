@@ -1,13 +1,24 @@
-#ifndef PTO_TILEOP_API_REVISION_HPP
-#define PTO_TILEOP_API_REVISION_HPP
+/**
+Copyright (c) 2025 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+// Integrated from LinxISA/Linx-TileOP-API; see ../../README.md for provenance.
+
+#ifndef PTO_LINX_VENDOR_PTO_TILEOP_API_REVISION_HPP
+#define PTO_LINX_VENDOR_PTO_TILEOP_API_REVISION_HPP
 
 #define PTO_TILEOP_API_VERSION "0.58.7"
 #define PTO_TILEOP_API_SPEC_VERSION "0.58.7"
 
-// Source-tree consumers do not necessarily build from a Git checkout. The
-// install target replaces these two macros with the exact checked-out commit.
-#define PTO_TILEOP_API_REVISION "source-tree"
-#define PTO_TILEOP_API_REVISION_IS_EXACT 0
+// Pinned upstream snapshot; integration changes are recorded in the backend README.
+#define PTO_TILEOP_API_REVISION "ad5a2310664041be1f2fad5be1dd8e9d682f23df"
+#define PTO_TILEOP_API_REVISION_IS_EXACT 1
 
 #define PTO_TILEOP_API_HAS_INDEXED_TLSU_RANGE 1
 

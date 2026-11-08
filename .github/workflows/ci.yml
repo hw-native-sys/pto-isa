@@ -114,6 +114,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install numpy ml-dtypes en-dtypes
 
+      - name: Run Linx CPU simulator and target contract tests
+        run: python3 tests/compile/test_linx_target.py --output-dir build/linx_cpu_sim
+
       - name: Run CPU SIM smoke testcase
         run: |
           python3 tests/run_cpu.py \

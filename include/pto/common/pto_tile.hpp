@@ -12,6 +12,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_TILE_HPP
 
 #include <pto/cpu/target_config.hpp>
+#if defined(PTO_NPU_ARCH_LINX)
+#include <pto/npu/linx/target.hpp>
+#include <pto/npu/linx/impl/common/pto_tile.hpp>
+#else
+
+#include <pto/cpu/target_config.hpp>
 
 #include <type_traits>
 
@@ -274,7 +280,7 @@ struct remove_gm<__gm__ T> {
 };
 #endif
 template <typename T>
-using remove_gm_t = typename remove_gm<std::remove_cv_t<T>>::type;
+using remove_gm_t = typename remove_gm<std::remove_cv_t<T> >::type;
 
 template <typename Element_, typename Shape_, typename Stride_, Layout Layout_ = Layout::ND>
 struct GlobalTensor {
@@ -1962,14 +1968,14 @@ struct is_tile : std::false_type {
 };
 
 template <typename Element_, typename Shape_, typename Stride_, Layout Layout_>
-struct is_global<GlobalTensor<Element_, Shape_, Stride_, Layout_>> : std::true_type {};
+struct is_global<GlobalTensor<Element_, Shape_, Stride_, Layout_> > : std::true_type {};
 
 template <
     TileType Loc_, typename Element_, const int Rows_, const int Cols_, const BLayout BFractal_, const int RowValid_,
     const int ColValid_, const SLayout SFractal_, const int SFractalSize_, const PadValue PadVal_,
     const CompactMode Compact_>
 struct is_tile<
-    Tile<Loc_, Element_, Rows_, Cols_, BFractal_, RowValid_, ColValid_, SFractal_, SFractalSize_, PadVal_, Compact_>>
+    Tile<Loc_, Element_, Rows_, Cols_, BFractal_, RowValid_, ColValid_, SFractal_, SFractalSize_, PadVal_, Compact_> >
     : std::true_type {
     static constexpr SLayout layout_enum = SFractal_;
 };
@@ -1981,7 +1987,7 @@ template <typename T>
 struct is_conv_tile : std::false_type {};
 template <
     TileType Loc_, typename Element_, const int BufferSize_, Layout Layout_, typename Shape_, typename ValidShape_>
-struct is_conv_tile<ConvTile<Loc_, Element_, BufferSize_, Layout_, Shape_, ValidShape_>> : std::true_type {};
+struct is_conv_tile<ConvTile<Loc_, Element_, BufferSize_, Layout_, Shape_, ValidShape_> > : std::true_type {};
 
 template <typename tile_shape>
 struct is_Nz_layout {
@@ -2040,4 +2046,5 @@ PTO_INTERNAL size_t GetTileOffset(int row, int col)
 PTO_CPU_TARGET_NAMESPACE_END
 } // namespace pto
 
+#endif // PTO_NPU_ARCH_LINX
 #endif

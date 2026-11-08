@@ -1,50 +1,20 @@
-#ifndef TILEOP_API_IMPL_HPP
-#define TILEOP_API_IMPL_HPP
+/**
+Copyright (c) 2025 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+// Integrated from LinxISA/Linx-TileOP-API; see ../../README.md for provenance.
+
+#ifndef PTO_LINX_VENDOR_TILEOP_API_IMPL_HPP
+#define PTO_LINX_VENDOR_TILEOP_API_IMPL_HPP
 
 #ifdef __linx
 #include "pto/npu/linx/impl/jcore/template_asm.hpp"
-
-#elif defined(__ARM_FEATURE_SME)
-#include "pto/npu/linx/impl/aarch64/MatMacc.hpp"
-#include "pto/npu/linx/impl/aarch64/MatMul.hpp"
-#include "pto/npu/linx/impl/aarch64/TAbs.hpp"
-#include "pto/npu/linx/impl/aarch64/TAdd.hpp"
-#include "pto/npu/linx/impl/aarch64/TAdds.hpp"
-#include "pto/npu/linx/impl/aarch64/TAnd.hpp"
-#include "pto/npu/linx/impl/aarch64/TAssemble.hpp"
-#include "pto/npu/linx/impl/aarch64/TCast.hpp"
-#include "pto/npu/linx/impl/aarch64/TCI.hpp"
-#include "pto/npu/linx/impl/aarch64/TCmp.hpp"
-#include "pto/npu/linx/impl/aarch64/TCopy.hpp"
-#include "pto/npu/linx/impl/aarch64/TLoadBackend.hpp"
-#include "pto/npu/linx/impl/aarch64/TStoreBackend.hpp"
-#include "pto/npu/linx/impl/aarch64/TDiv.hpp"
-#include "pto/npu/linx/impl/aarch64/TDivs.hpp"
-#include "pto/npu/linx/impl/aarch64/TExp.hpp"
-#include "pto/npu/linx/impl/aarch64/TExpdif.hpp"
-#include "pto/npu/linx/impl/aarch64/TExpandRow.hpp"
-#include "pto/npu/linx/impl/aarch64/TExtract.hpp"
-#include "pto/npu/linx/impl/aarch64/TMax.hpp"
-#include "pto/npu/linx/impl/aarch64/TMaxs.hpp"
-#include "pto/npu/linx/impl/aarch64/TMin.hpp"
-#include "pto/npu/linx/impl/aarch64/TMins.hpp"
-#include "pto/npu/linx/impl/aarch64/TMul.hpp"
-#include "pto/npu/linx/impl/aarch64/TMuls.hpp"
-#include "pto/npu/linx/impl/aarch64/TOr.hpp"
-#include "pto/npu/linx/impl/aarch64/TPad.hpp"
-#include "pto/npu/linx/impl/aarch64/TRSqrt.hpp"
-#include "pto/npu/linx/impl/aarch64/TRecip.hpp"
-#include "pto/npu/linx/impl/aarch64/TRem.hpp"
-#include "pto/npu/linx/impl/aarch64/TReshape.hpp"
-#include "pto/npu/linx/impl/aarch64/TRowMax.hpp"
-#include "pto/npu/linx/impl/aarch64/TRowMaxExpand.hpp"
-#include "pto/npu/linx/impl/aarch64/TRowSum.hpp"
-#include "pto/npu/linx/impl/aarch64/TRowSumExpand.hpp"
-#include "pto/npu/linx/impl/aarch64/TSelect.hpp"
-#include "pto/npu/linx/impl/aarch64/TSqrt.hpp"
-#include "pto/npu/linx/impl/aarch64/TSub.hpp"
-#include "pto/npu/linx/impl/aarch64/TSubs.hpp"
-#include "pto/npu/linx/impl/aarch64/TTrans.hpp"
 
 #elif defined(__cpu_sim__)
 #include "pto/npu/linx/impl/cpu_sim/MatMacc.hpp"
@@ -96,7 +66,7 @@
 #include "pto/npu/linx/impl/cpu_sim/TTrans.hpp"
 
 #else
-#error "__linx, __ARM_FEATURE_SME, or __cpu_sim__ must be defined"
+#error "__linx or __cpu_sim__ must be defined"
 
 #endif
 #endif

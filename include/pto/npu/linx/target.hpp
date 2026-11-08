@@ -21,4 +21,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #error "The Linx backend cannot be combined with CANN or PTO CPU-sim macros"
 #endif
 
+#if defined(__linx) && (defined(PTO_LINX_CPU_SIM) || defined(__cpu_sim__))
+#error "Linx device and CPU simulator targets are mutually exclusive"
+#endif
+#if defined(__NPU_ARCH__) || defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
+    defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90) || defined(PTO_NPU_ARCH_KIRIN9050)
+#error "Select exactly one NPU target family for Linx"
+#endif
+
 #endif // PTO_NPU_LINX_TARGET_HPP

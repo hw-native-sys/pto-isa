@@ -1,5 +1,17 @@
-#ifndef PTO_JCORE_LINX_COMPAT_TYPES_HPP
-#define PTO_JCORE_LINX_COMPAT_TYPES_HPP
+/**
+Copyright (c) 2025 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+// Integrated from LinxISA/Linx-TileOP-API; see ../../README.md for provenance.
+
+#ifndef PTO_LINX_VENDOR_PTO_JCORE_LINX_COMPAT_TYPES_HPP
+#define PTO_LINX_VENDOR_PTO_JCORE_LINX_COMPAT_TYPES_HPP
 
 #include <stdint.h>
 
@@ -18,7 +30,9 @@
 // needed.  The scalar type's builtin declaration also publishes its usual
 // `*_TYPE` marker; use that marker to keep the fallback out of newer headers.
 #if !defined(__fp8_rcpe6m2_TYPE) && !defined(PTO_LINX_HOST_CXX)
-struct __fp8_rcpe6m2 { uint8_t data; };
+struct __fp8_rcpe6m2 {
+    uint8_t data;
+};
 #endif
 #elif !defined(PTO_LINX_COMPAT_TYPES_PROVIDED)
 
@@ -28,8 +42,10 @@ struct __fp8_rcpe6m2 { uint8_t data; };
 using __fp32 = float;
 using __half = _Float16;
 
-#define PTO_LINX_STORAGE_TYPE(NAME, STORAGE)                                  \
-  struct NAME { STORAGE data; }
+#define PTO_LINX_STORAGE_TYPE(NAME, STORAGE) \
+    struct NAME {                            \
+        STORAGE data;                        \
+    }
 
 PTO_LINX_STORAGE_TYPE(__tf32, uint32_t);
 PTO_LINX_STORAGE_TYPE(__hf32, uint32_t);

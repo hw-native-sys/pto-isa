@@ -33,7 +33,7 @@
 #error "PTO CPU simulator target flags require __CPU_SIM"
 #endif
 #if defined(__NPU_ARCH__) || defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
-    defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90) || defined(PTO_NPU_ARCH_KIRIN9050) || \
+    defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90) || defined(PTO_NPU_ARCH_KIRIN9050) ||        \
     defined(PTO_NPU_ARCH_LINX)
 #error "PTO CPU simulator target flags cannot be combined with NPU target flags"
 #endif
@@ -46,9 +46,6 @@
 #elif defined(PTO_CPU_SIM_TARGET_A2A3)
 #define PTO_CPU_TARGET_NAMESPACE_BEGIN inline namespace cpu_target_a2a3 {
 #define PTO_CPU_TARGET_NAMESPACE_END }
-#elif defined(PTO_LINX_CPU_SIM)
-#define PTO_CPU_TARGET_NAMESPACE_BEGIN inline namespace cpu_target_linx {
-#define PTO_CPU_TARGET_NAMESPACE_END }
 #else
 #define PTO_CPU_TARGET_NAMESPACE_BEGIN
 #define PTO_CPU_TARGET_NAMESPACE_END
@@ -56,11 +53,13 @@
 
 namespace pto {
 enum class NPUArch { A2A3, A5 };
-enum class CpuSimTarget { Legacy, A2A3, A5 };
+enum class CpuSimTarget { Legacy, A2A3, A5, Linx };
 #if defined(PTO_CPU_SIM_TARGET_A5)
 static constexpr CpuSimTarget CPU_SIM_TARGET = CpuSimTarget::A5;
 #elif defined(PTO_CPU_SIM_TARGET_A2A3)
 static constexpr CpuSimTarget CPU_SIM_TARGET = CpuSimTarget::A2A3;
+#elif defined(PTO_LINX_CPU_SIM)
+static constexpr CpuSimTarget CPU_SIM_TARGET = CpuSimTarget::Linx;
 #else
 static constexpr CpuSimTarget CPU_SIM_TARGET = CpuSimTarget::Legacy;
 #endif
