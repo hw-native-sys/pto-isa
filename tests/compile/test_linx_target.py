@@ -39,14 +39,18 @@ def main() -> int:
         command.extend(["--target=linx64v5-unknown-linux-musl", "-mlxbc", "-fenable-matrix", "-D__linx"])
         sysroot = args.sysroot or os.environ.get("LINX_SYSROOT")
         if sysroot:
-            command.extend(["--sysroot=" + str(sysroot), "-nostdinc++", "-isystem", str(Path(sysroot) / "usr/include/c++/v1")])
+            command.extend(
+                ["--sysroot=" + str(sysroot), "-nostdinc++", "-isystem", str(Path(sysroot) / "usr/include/c++/v1")]
+            )
         output = args.output_dir / "linx_device.o"
         run(command + ["-c", str(root / "tests/compile/linx_device.cpp"), "-o", str(output)])
         if not output.is_file() or not output.stat().st_size:
             raise RuntimeError("Linx compiler did not emit an object")
         rejection = subprocess.run(
-            command + ["-DPTO_LINX_TEST_REJECT_TRANSPOSE", "-fsyntax-only", str(root / "tests/compile/linx_device.cpp")],
-            capture_output=True, text=True,
+            command
+            + ["-DPTO_LINX_TEST_REJECT_TRANSPOSE", "-fsyntax-only", str(root / "tests/compile/linx_device.cpp")],
+            capture_output=True,
+            text=True,
         )
         if rejection.returncode == 0 or "TTRANS is retired" not in rejection.stderr:
             print(rejection.stderr)
@@ -81,7 +85,9 @@ def main() -> int:
             raise RuntimeError(f"{name}: expected diagnostic {diagnostic!r}")
     # Reverse public-header include order is also supported.
     source = args.output_dir / "include_order.cpp"
-    source.write_text("#include <pto/pto-inst.hpp>\n#include <pto/common/type.hpp>\n#include <pto/common/pto_tile.hpp>\n")
+    source.write_text(
+        "#include <pto/pto-inst.hpp>\n#include <pto/common/type.hpp>\n#include <pto/common/pto_tile.hpp>\n"
+    )
     run(command + ["-fsyntax-only", str(source)])
     print(f"Linx CPU-sim: numerical tests, {len(cases)} rejection tests and include-order check passed")
     return 0
