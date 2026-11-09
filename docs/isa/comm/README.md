@@ -78,7 +78,7 @@ Atomic operation type for `TPUT` (defined in `include/pto/common/constants.hpp`)
 
 ### DmaEngine
 
-DMA backend selection for `TPUT_ASYNC` and `TGET_ASYNC`:
+DMA backend selection for `TPUT_ASYNC`, `TPUT_ASYNC_NOTIFY`, and `TGET_ASYNC`:
 
 | Value | Description |
 |-------|-------------|
@@ -86,18 +86,56 @@ DMA backend selection for `TPUT_ASYNC` and `TGET_ASYNC`:
 | `DmaEngine::URMA` | URMA engine (supports 1D transfer, Ascend950 / NPU_ARCH 3510 only; requires CANN >= 9.1.0) |
 | `DmaEngine::RDMA` | RDMA engine (supports 1D transfer, Ascend950 / NPU_ARCH 3510 only; currently supports only the HNS1825 NIC platform) |
 
+### AsyncSubmitMode
+
+Value of `AsyncSession::submitMode`, controlling whether `TPUT_ASYNC` submits immediately or stages operations into a batch:
+
+| Value | Description |
+|-------|-------------|
+| `AsyncSubmitMode::IMMEDIATE` | Submit immediately (default). A staged batch, if any, is submitted first |
+| `AsyncSubmitMode::DEFER` | Stage this operation; submit automatically once the staged count reaches `batchSize` |
+| `AsyncSubmitMode::DEFER_AND_SUBMIT` | Stage this operation and submit the whole batch immediately |
+
+Batching is supported only by `TPUT_ASYNC<SDMA>` on A2/A3 and `TPUT_ASYNC<URMA>` on Ascend 950. See [TPUT_ASYNC Batch Submission](TPUT_ASYNC.md#batch-submission).
+
 ### AsyncEvent
 
-Returned by `TPUT_ASYNC` / `TGET_ASYNC`. Use to synchronize completion:
+Returned by `TPUT_ASYNC` / `TPUT_ASYNC_NOTIFY` / `TGET_ASYNC`. Use to synchronize completion:
 
 ```cpp
 struct AsyncEvent {
     uint64_t handle;
     DmaEngine engine;
 
-    bool valid() const;                        // true if handle != 0
+    bool valid() const;                           // only means handle != 0
     bool Wait(const AsyncSession &session) const; // block until transfer completes
     bool Test(const AsyncSession &session) const; // non-blocking completion check
+
+    // Completion records for consumers that cannot run device-side polling intrinsics
+    uint32_t CompletionRecordCount(const AsyncSession &session) const;
+    AsyncCompletionRecord CompletionRecordAt(const AsyncSession &session, uint32_t idx) const;
+};
+```
+
+The return values of `Wait` and `Test` are the only way to judge the outcome: `true` means the operation completed, `false` means submission failed. `handle == 0` means there is nothing to wait for (an empty transfer, or the synchronous SDMA path on Ascend 950); `Wait` and `Test` then return `true` immediately. `valid()` only reflects `handle != 0` and must not be used to judge success.
+
+`CompletionRecordCount` returns 0 when `handle == 0`. For a non-zero handle that cannot be resolved it returns `kCompletionRecordCountError` (`UINT32_MAX`), which must be treated as an error. `CompletionRecordAt` returns an empty record (`addr == nullptr`) when the record cannot be resolved.
+
+### AsyncCompletionRecord
+
+A completion record describes the completion predicate of one transfer, for consumers that cannot run device-side polling intrinsics. The consumer compares the value at `addr` against `expected` according to `kind`, without knowing the backend queue layout:
+
+```cpp
+enum class CompletionKind : uint32_t {
+    SDMA_POST_DONE = 1,
+    URMA_CQE_DW0 = 2,
+    RDMA_HNS1825_CQE = 3,
+};
+
+struct AsyncCompletionRecord {
+    __gm__ uint8_t *addr;
+    uint64_t expected;
+    CompletionKind kind;
 };
 ```
 
@@ -108,9 +146,11 @@ Engine-agnostic session for async DMA operations. Build once, pass to all async 
 ```cpp
 comm::AsyncSession session;
 comm::BuildAsyncSession<comm::DmaEngine::SDMA>(scratchTile, workspace, session);
+session.submitMode = comm::AsyncSubmitMode::DEFER;  // optional; defaults to IMMEDIATE, one op per submit
+session.batchSize = 8U;                             // optional; batch submission threshold
 ```
 
-Defined in `include/pto/comm/async_common/async_types.hpp`. See [TPUT_ASYNC](TPUT_ASYNC.md) for construction details and parameters.
+Defined in `include/pto/comm/async_common/async_types.hpp`. See [TPUT_ASYNC](TPUT_ASYNC.md) for construction parameters and batch submission.
 
 ### ParallelGroup
 
