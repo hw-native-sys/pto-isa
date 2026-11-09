@@ -23,8 +23,11 @@ namespace pto {
 PTO_INTERNAL unsigned HpScratchRequiredCols(unsigned capVecs)
 {
     // the extra 64 floats of per-vector state keep the fallback's footprint
-    // negligible instead of scaling with the staged capacity
-    return 128 * capVecs + HpScratchMaskFloats(capVecs) + 8 + (capVecs == 1 ? 64 : 0);
+    // negligible instead of scaling with the staged capacity; the final term
+    // is the compensation window of the final-iteration HpFusedSub (eight
+    // vectors per batched chunk, clamped to the row's vector count)
+    unsigned chunk = capVecs < TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : TREM_HP_FUSED_CHUNK_A2A3;
+    return 128 * capVecs + HpScratchMaskFloats(capVecs) + 8 + (capVecs == 1 ? 64 : 0) + 8 * 64 * chunk;
 }
 
 PTO_INTERNAL void HpScratchInit(HpScratchA2A3& s, __ubuf__ float* tmp, unsigned capVecs)
@@ -36,6 +39,7 @@ PTO_INTERNAL void HpScratchInit(HpScratchA2A3& s, __ubuf__ float* tmp, unsigned 
     s.addrBuf = reinterpret_cast<__ubuf__ uint32_t*>(tmp + 2 * v + HpScratchMaskFloats(capVecs));
     s.state = reinterpret_cast<__ubuf__ float*>(s.addrBuf + BIT_TO_BYTE);
     s.div = nullptr; // TREMS: the divisor is dup'd per iteration from scalars
+    s.comp = s.state + (capVecs == 1 ? 64 : 0);
 }
 
 // One SolveScale iteration over `rep` batched vectors with a scalar divisor.
@@ -52,16 +56,22 @@ PTO_INTERNAL void HpSolveScaleS(__ubuf__ float* state, float scalarAbs, bool div
     unsigned lanes = rep * REPEAT_BYTE / sizeof(float);
 
     if constexpr (iterationNum == 1) {
+        float one = 1.0f;
         if (divIsSub) {
             // subnormal-divisor regime: lift divisor and state by 2^24 (the
             // post pass rescales by 2^-24)
             float lift = FMOD_HP_SCALE1[0];
             vmuls(state, state, lift, rep, 1, 1, 8, 8);
             pipe_barrier(PIPE_V);
-            vector_dup(s.bTmp, scalarAbs * lift, rep, 1, 1, 8, 8);
+            vector_dup(s.bTmp, one, rep, 1, 1, 8, 8);
+            pipe_barrier(PIPE_V);
+            vmuls(s.bTmp, s.bTmp, scalarAbs * lift, rep, 1, 1, 8, 8);
             pipe_barrier(PIPE_V);
         } else {
-            vector_dup(s.bTmp, scalarAbs, rep, 1, 1, 8, 8);
+            // dup(1) + vmuls: vector_dup of an +-inf scalar poisons to NaN
+            vector_dup(s.bTmp, one, rep, 1, 1, 8, 8);
+            pipe_barrier(PIPE_V);
+            vmuls(s.bTmp, s.bTmp, scalarAbs, rep, 1, 1, 8, 8);
             pipe_barrier(PIPE_V);
         }
     } else {
@@ -69,7 +79,10 @@ PTO_INTERNAL void HpSolveScaleS(__ubuf__ float* state, float scalarAbs, bool div
         if constexpr (iterationNum > 5) {
             bScale = bScale * FMOD_HP_SCALE2[iterationNum - 1];
         }
-        vector_dup(s.bTmp, bScale, rep, 1, 1, 8, 8);
+        float one = 1.0f;
+        vector_dup(s.bTmp, one, rep, 1, 1, 8, 8);
+        pipe_barrier(PIPE_V);
+        vmuls(s.bTmp, s.bTmp, bScale, rep, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
     }
 
@@ -82,12 +95,20 @@ PTO_INTERNAL void HpSolveScaleS(__ubuf__ float* state, float scalarAbs, bool div
         pipe_barrier(PIPE_V);
     }
 
-    // state -= k * bTmp. A5 spells this vneg(k) + vmula(state += -k*bTmp);
-    // the manual decomposition keeps k positive and subtracts directly.
-    vmul(s.k, s.k, s.bTmp, rep, 1, 1, 1, 8, 8, 8);
-    pipe_barrier(PIPE_V);
-    vsub(state, state, s.k, rep, 1, 1, 1, 8, 8, 8);
-    pipe_barrier(PIPE_V);
+    if constexpr (iterationNum == 1) {
+        // final iteration: compensated single-rounding subtract. A5 computes
+        // state -= k * bTmp as one fused vmula; a2a3 has no fused op, so the
+        // plain vmul+vsub pair loses the product's low bits whenever k*bTmp
+        // needs more than 24 significand bits (see HpFusedSub in TRem.hpp).
+        HpFusedSub(state, s.k, s.bTmp, s, rep);
+    } else {
+        // state -= k * bTmp. A5 spells this vneg(k) + vmula(state += -k*bTmp);
+        // the manual decomposition keeps k positive and subtracts directly.
+        vmul(s.k, s.k, s.bTmp, rep, 1, 1, 1, 8, 8, 8);
+        pipe_barrier(PIPE_V);
+        vsub(state, state, s.k, rep, 1, 1, 1, 8, 8, 8);
+        pipe_barrier(PIPE_V);
+    }
 
     if constexpr (iterationNum == 1) {
         // r = r + (r < 0) * bTmp, without dedicated one/zero/sign buffers:
@@ -170,16 +191,58 @@ PTO_INTERNAL void HpPostS(
 
     // remainder sign correction: if state * scalar < 0, state += scalar.
     // t holds the probe only until vcmp consumes it, then becomes the
-    // candidate - no second temp buffer needed.
-    vmuls(s.k, state, scalar, rep, 1, 1, 8, 8);
-    pipe_barrier(PIPE_V);
+    // candidate - no second temp buffer needed. Skipped for an inf scalar:
+    // x % +-inf = x (the exception chain above already fixed those lanes),
+    // and the probe r*(+-inf) overflows to +-inf and would corrupt the pick.
+    if (!HpScalarIsInf(scalar)) {
+        vmuls(s.k, state, scalar, rep, 1, 1, 8, 8);
+        pipe_barrier(PIPE_V);
+        set_mask_norm();
+        set_vector_mask(-1, -1);
+        vcmpvs_lt(s.cmpMask, s.k, 0.0f, rep, 1, 1, 8, 8);
+        pipe_barrier(PIPE_V);
+        vadds(s.k, state, scalar, rep, 1, 1, 8, 8);
+        pipe_barrier(PIPE_V);
+        HpSelect(state, s.k, state, s, rep, lanes);
+    }
     set_mask_norm();
     set_vector_mask(-1, -1);
-    vcmpvs_lt(s.cmpMask, s.k, 0.0f, rep, 1, 1, 8, 8);
-    pipe_barrier(PIPE_V);
-    vadds(s.k, state, scalar, rep, 1, 1, 8, 8);
-    pipe_barrier(PIPE_V);
-    HpSelect(state, s.k, state, s, rep, lanes);
+}
+
+// x % +-inf short-circuit: dst = |src| inf ? NaN : src (fmod semantics).
+// The per-iteration divisor dups and the sign-correction probe both
+// misbehave when the scalar itself is +-inf, so an inf scalar never enters
+// the iteration chain.
+template <unsigned dstRowStride, unsigned srcRowStride>
+PTO_INTERNAL void TRemSInfScalar(
+    __ubuf__ float* dst, __ubuf__ float* src, __ubuf__ float* tmp, unsigned validRows, unsigned validCols)
+{
+    constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(float);
+    unsigned fullPerRow = validCols / elementsPerRepeat;
+    unsigned tailCount = validCols - fullPerRow * elementsPerRepeat;
+    HpScratchA2A3 s;
+    HpScratchInit(s, tmp, 1);
+    for (unsigned row = 0; row < validRows; ++row) {
+        __ubuf__ float* dstRow = dst + row * dstRowStride;
+        __ubuf__ float* srcRow = src + row * srcRowStride;
+        for (unsigned j = 0; j <= fullPerRow; ++j) {
+            unsigned count = (j < fullPerRow) ? elementsPerRepeat : tailCount;
+            if (count == 0) {
+                break;
+            }
+            __ubuf__ float* d = dstRow + j * elementsPerRepeat;
+            __ubuf__ float* x = srcRow + j * elementsPerRepeat;
+            set_mask_norm();
+            set_vector_mask(-1, -1);
+            vabs(s.k, x, 1, 1, 1, 8, 8);
+            pipe_barrier(PIPE_V);
+            vcmpvs_eq(s.cmpMask, s.k, HpInf(), 1, 1, 1, 8, 8);
+            pipe_barrier(PIPE_V);
+            vector_dup(s.k, HpNan(), 1, 1, 1, 8, 8);
+            pipe_barrier(PIPE_V);
+            HpSelect(d, s.k, x, s, 1, count);
+        }
+    }
     set_mask_norm();
     set_vector_mask(-1, -1);
 }
@@ -259,10 +322,28 @@ template <bool isFmod, int32_t iterationNum, unsigned dstRowStride, unsigned src
 PTO_INTERNAL void TRemSStageSeqS(
     __ubuf__ float* dst, float scalarAbs, bool divIsSub, HpScratchA2A3& s, unsigned validRows, unsigned fullPerRow)
 {
-    for (unsigned row = 0; row < validRows; ++row) {
-        HpSolveScaleS<isFmod, iterationNum>(dst + row * dstRowStride, scalarAbs, divIsSub, s, fullPerRow);
-    }
-    if constexpr (iterationNum > 1) {
+    constexpr unsigned elemsPerRepeat = REPEAT_BYTE / sizeof(float);
+    if constexpr (iterationNum == 1) {
+        // final iteration: the compensated subtract runs in chunks of
+        // TREM_HP_FUSED_CHUNK_A2A3 vectors (its scratch window scales with
+        // the chunk; see HpFusedSub)
+        for (unsigned row = 0; row < validRows; ++row) {
+            for (unsigned j = 0; j < fullPerRow; j += TREM_HP_FUSED_CHUNK_A2A3) {
+                unsigned rep = fullPerRow - j;
+                if (rep > TREM_HP_FUSED_CHUNK_A2A3) {
+                    rep = TREM_HP_FUSED_CHUNK_A2A3;
+                }
+                // the previous chunk's selects leave a count mask behind;
+                // dup/vmuls would be clipped to it, so restore the full mask
+                set_mask_norm();
+                set_vector_mask(-1, -1);
+                HpSolveScaleS<isFmod, 1>(dst + row * dstRowStride + j * elemsPerRepeat, scalarAbs, divIsSub, s, rep);
+            }
+        }
+    } else {
+        for (unsigned row = 0; row < validRows; ++row) {
+            HpSolveScaleS<isFmod, iterationNum>(dst + row * dstRowStride, scalarAbs, divIsSub, s, fullPerRow);
+        }
         TRemSStageSeqS<isFmod, iterationNum - 1, dstRowStride, srcRowStride>(
             dst, scalarAbs, divIsSub, s, validRows, fullPerRow);
     }
@@ -482,7 +563,17 @@ __tf__ PTO_INTERNAL void TRemS(
         PrecisionType == RemSAlgorithm::HIGH_PRECISION && (std::is_same_v<T, float> || std::is_same_v<T, float32_t>)) {
         // High precision remainder (issue #2): staged loop inversion when the
         // tile has enough full vectors and dst does not alias src, per-vector
-        // iterations otherwise (see the staged drivers above).
+        // iterations otherwise (see the staged drivers above). An inf scalar
+        // short-circuits: x % +-inf = x (NaN where |x| = inf) - the iteration
+        // chain's divisor dups and sign-correction probe misbehave with it.
+        if (HpScalarIsInf((float)x)) {
+            TRemSInfScalar<dstRowStride, srcRowStride>(
+                reinterpret_cast<__ubuf__ float*>(dstPtr), reinterpret_cast<__ubuf__ float*>(srcPtr),
+                reinterpret_cast<__ubuf__ float*>(tmpPtr), validRows, validCols);
+            set_mask_norm();
+            set_vector_mask(-1, -1);
+            return;
+        }
         unsigned capVecs = validCols / elementsPerRepeat;
         if (capVecs == 0) {
             capVecs = 1; // per-vector path scratch

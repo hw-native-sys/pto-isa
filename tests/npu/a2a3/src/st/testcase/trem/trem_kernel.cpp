@@ -88,7 +88,9 @@ __global__ AICORE void runTRemHP(
     using TileDataSrc1 = Tile<TileType::Vec, T, src1TileH, src1TileW, BLayout::RowMajor, -1, -1>;
     constexpr unsigned capVecs = dstTileW / 64 > 0 ? dstTileW / 64 : 1;
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
-    constexpr unsigned tmpTileW = 192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0);
+    constexpr unsigned tmpTileW =
+        192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
+        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     using TileDataTmp = Tile<TileType::Vec, T, 1, tmpTileW, BLayout::RowMajor, -1, -1>;
     TileDataDst dstTile(vRows, vCols);
     TileDataSrc0 src0Tile(vRows, vCols);
@@ -160,7 +162,9 @@ __global__ AICORE void runTRemInplace(__gm__ T* out, __gm__ T* src1)
     constexpr unsigned tmpWDef = dstTileW + maskFloatsDef + 8;
     constexpr unsigned capVecs = dstTileW / 64 > 0 ? dstTileW / 64 : 1;
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
-    constexpr unsigned tmpWHp = 192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0);
+    constexpr unsigned tmpWHp =
+        192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
+        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     constexpr unsigned tmpW = highPrecision ? tmpWHp : tmpWDef;
     using TileDataTmp = Tile<TileType::Vec, T, 1, tmpW, BLayout::RowMajor, -1, -1>;
     TileDataTmp tmpTile(1, tmpW);
@@ -212,7 +216,9 @@ __global__ AICORE void runTRemDisjoint(__gm__ T* out, __gm__ T* src0, __gm__ T* 
     constexpr unsigned tmpWDef = dstTileW + maskFloatsDef + 8;
     constexpr unsigned capVecs = dstTileW / 64 > 0 ? dstTileW / 64 : 1;
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
-    constexpr unsigned tmpWHp = 192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0);
+    constexpr unsigned tmpWHp =
+        192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
+        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     constexpr unsigned tmpW = highPrecision ? tmpWHp : tmpWDef;
     using TileDataTmp = Tile<TileType::Vec, T, 1, tmpW, BLayout::RowMajor, -1, -1>;
     TileDataTmp tmpTile(1, tmpW);
@@ -298,9 +304,32 @@ template void LaunchTREMHP<float, 2, 2048, 2, 2048, 2, 2048, 2, 2048>(
 template void LaunchTREMHP<float, 5, 320, 5, 320, 5, 320, 5, 320>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMHP<float, 8, 456, 8, 456, 8, 456, 8, 456>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMHP<float, 4, 136, 4, 136, 4, 136, 4, 136>(float* out, float* src0, float* src1, void* stream);
-template void LaunchTREMHP<float, 1, 8128, 1, 8128, 1, 8128, 1, 8128>(
+template void LaunchTREMHP<float, 1, 7424, 1, 7424, 1, 7424, 1, 7424>(
     float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMHP<float, 16, 64, 16, 64, 16, 64, 16, 63>(float* out, float* src0, float* src1, void* stream);
+// HP size matrix (compensated final iteration)
+template void LaunchTREMHP<float, 2, 448, 2, 448, 2, 448, 2, 448>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 26, 448, 26, 448, 26, 448, 26, 448>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 49, 64, 49, 64, 49, 64, 49, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 47, 64, 47, 64, 47, 64, 47, 64>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 100, 64, 100, 64, 100, 64, 100, 64>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 8, 464, 8, 464, 8, 464, 8, 457>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 8, 456, 8, 456, 8, 456, 8, 449>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 3, 72, 3, 72, 3, 72, 3, 65>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 1, 128, 1, 128, 1, 128, 1, 128>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 1, 192, 1, 192, 1, 192, 1, 192>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 1, 320, 1, 320, 1, 320, 1, 320>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 1, 576, 1, 576, 1, 576, 1, 576>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 1, 4096, 1, 4096, 1, 4096, 1, 4096>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 1, 6400, 1, 6400, 1, 6400, 1, 6400>(
+    float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 2, 256, 2, 256, 2, 256, 2, 192>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMHP<float, 4, 128, 4, 72, 4, 72, 4, 65>(float* out, float* src0, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 49, 64, 49, 64>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 100, 64, 100, 64>(float* out, float* src1, void* stream);
 
 // in-place aliasing probes: sub-repeat, row loop, multi-repeat compare, single
 // wide row; int32 both paths; HP fallback (staged gate rejects the alias)
@@ -317,7 +346,7 @@ template void LaunchTREMInplace<true, float, 2, 2048, 2, 2048>(float* out, float
 template void LaunchTREMInplace<true, float, 5, 320, 5, 320>(float* out, float* src1, void* stream);
 template void LaunchTREMInplace<true, float, 8, 456, 8, 456>(float* out, float* src1, void* stream);
 template void LaunchTREMInplace<true, float, 4, 136, 4, 136>(float* out, float* src1, void* stream);
-template void LaunchTREMInplace<true, float, 1, 8128, 1, 8128>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 1, 7424, 1, 7424>(float* out, float* src1, void* stream);
 // disjoint controls
 template void LaunchTREMDisjoint<false, float, 33, 64, 33, 64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMDisjoint<true, float, 8, 448, 8, 448>(float* out, float* src0, float* src1, void* stream);

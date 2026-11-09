@@ -56,7 +56,7 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 - **每遍重载除数**：每一遍从原始 tile 重新读取 `|src1|`（`vabs` 到暂存的 `div` 区域），因为缩放过的除数不能喂给下一遍。
 - **逐元素的次正规区间**：标量除数时“除数是否次正规”是宿主侧常量；此处第 1 次迭代逐元素判定 —— 在 `|src1| <= minNormal` 的通道上把除数与状态同乘 $2^{24}$（打包掩码比较 + 选择），后处理再精确地对这些通道乘回 $2^{-24}$。
 - **异常修正为逐元素选择**：`src1 = ±inf → src0`；随后（必须在其后）`src0 = ±inf ∧ src1 = ±inf → NaN`；然后除数在保证域内时 `src0 = ±0 → src0`。
-- **多一个暂存区域**：未缩放的 `|src1|` 行跨该遍的全部迭代存活，因此 TREM 的 tmp 基于 $192C$（$C=1$ 时 272 个 float），而 TREMS 为 $128C$ —— 见 [TREMS](TREMS_zh.md#tmp-占用) 的 `tmpCols` 分段方程。
+- **多一个暂存区域**：未缩放的 `|src1|` 行跨该遍的全部迭代存活，因此 TREM 的 tmp 基于 $192C$（$C=1$ 时 784 个 float，含 512 float 的补偿窗口；更宽的行按 $\min(C,8)$ 增长），而 TREMS 为 $128C$ —— 见 [TREMS](TREMS_zh.md#tmp-占用) 的 `tmpCols` 分段方程。
 
 **除数域**：`src1` 元素须非零且非 NaN。$\pm\infty$ 没问题（$x \bmod \pm\infty = x$）。保证域是 $|y| \ge 1$（或 $\pm\infty$）：余数符号修正探测 $r \cdot y$，当 $|r \cdot y| < 2^{-149}$ 时下溢为 $\pm 0$ 从而漏掉修正 —— 这是自 A5 实现继承的限制。更小的除数遵循 A5 迭代算术及该限制。
 
@@ -98,9 +98,9 @@ void example() {
   TREM(dst, src0, src1, tmp);
 
   // 高精度（仅 float）：tmp 按 TREMS 切分预算取宽，
-  // 例如 8x448 tile -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 = 1368
+  // 例如 8x448 tile -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 + 512*7 = 4952
   Tile<TileType::Vec, float, 8, 448> hpDst, hpSrc0, hpSrc1;
-  Tile<TileType::Vec, float, 1, 1368> hpTmp;
+  Tile<TileType::Vec, float, 1, 4952> hpTmp;
   TREM<RemAlgorithm::HIGH_PRECISION>(hpDst, hpSrc0, hpSrc1, hpTmp);
 }
 ```

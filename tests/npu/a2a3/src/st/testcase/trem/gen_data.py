@@ -247,8 +247,27 @@ if __name__ == "__main__":
         TremParams(np.float32, 5, 320, 5, 320, 5, 320, 5, 320, hp=True),
         TremParams(np.float32, 8, 456, 8, 456, 8, 456, 8, 456, hp=True),
         TremParams(np.float32, 4, 136, 4, 136, 4, 136, 4, 136, hp=True),
-        TremParams(np.float32, 1, 8128, 1, 8128, 1, 8128, 1, 8128, hp=True),
+        TremParams(np.float32, 1, 7424, 1, 7424, 1, 7424, 1, 7424, hp=True),
         TremParams(np.float32, 16, 64, 16, 64, 16, 64, 16, 63, hp=True),
+        # HP size matrix (compensated final iteration)
+        TremParams(np.float32, 2, 448, 2, 448, 2, 448, 2, 448, hp=True),
+        TremParams(np.float32, 26, 448, 26, 448, 26, 448, 26, 448, hp=True),
+        TremParams(np.float32, 49, 64, 49, 64, 49, 64, 49, 64, hp=True),
+        TremParams(np.float32, 47, 64, 47, 64, 47, 64, 47, 64, hp=True),
+        TremParams(np.float32, 100, 64, 100, 64, 100, 64, 100, 64, hp=True),
+        TremParams(np.float32, 8, 464, 8, 464, 8, 464, 8, 457, hp=True),
+        TremParams(np.float32, 8, 456, 8, 456, 8, 456, 8, 449, hp=True),
+        TremParams(np.float32, 3, 72, 3, 72, 3, 72, 3, 65, hp=True),
+        TremParams(np.float32, 1, 128, 1, 128, 1, 128, 1, 128, hp=True),
+        TremParams(np.float32, 1, 192, 1, 192, 1, 192, 1, 192, hp=True),
+        TremParams(np.float32, 1, 320, 1, 320, 1, 320, 1, 320, hp=True),
+        TremParams(np.float32, 1, 576, 1, 576, 1, 576, 1, 576, hp=True),
+        TremParams(np.float32, 1, 4096, 1, 4096, 1, 4096, 1, 4096, hp=True),
+        TremParams(np.float32, 1, 6400, 1, 6400, 1, 6400, 1, 6400, hp=True),
+        TremParams(np.float32, 2, 256, 2, 256, 2, 256, 2, 192, hp=True),  # strided dst
+        TremParams(np.float32, 4, 128, 4, 72, 4, 72, 4, 65, hp=True),   # strided dst
+        TremParams(np.float32, 49, 64, 49, 64, 49, 64, 49, 64, hp=True, mode="ip_hp_"),
+        TremParams(np.float32, 100, 64, 100, 64, 100, 64, 100, 64, hp=True, mode="ip_hp_"),
     ]
 
     # in-place aliasing probes (dst tile TASSIGN'd over src0) + disjoint
@@ -269,7 +288,7 @@ if __name__ == "__main__":
         TremParams(f, 5, 320, 5, 320, 5, 320, 5, 320, hp=True, mode="ip_hp_"),
         TremParams(f, 8, 456, 8, 456, 8, 456, 8, 456, hp=True, mode="ip_hp_"),
         TremParams(f, 4, 136, 4, 136, 4, 136, 4, 136, hp=True, mode="ip_hp_"),
-        TremParams(f, 1, 8128, 1, 8128, 1, 8128, 1, 8128, hp=True, mode="ip_hp_"),
+        TremParams(f, 1, 7424, 1, 7424, 1, 7424, 1, 7424, hp=True, mode="ip_hp_"),
         TremParams(f, 33, 64, 33, 64, 33, 64, 33, 64, mode="ctrl_disj_def_"),
         TremParams(f, 8, 448, 8, 448, 8, 448, 8, 448, hp=True, mode="ctrl_disj_hp_"),
     ]
