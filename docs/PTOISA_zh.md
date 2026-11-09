@@ -5,10 +5,10 @@
 ## 文档目录
 
 | 领域 | 页面 | 描述 |
-| --- | --- | --- |
+|---|---|---|
 | 概述 | [`docs/README_zh.md`](README_zh.md) | PTO ISA 指南入口与导航。 |
 | 概述 | [`docs/PTOISA_zh.md`](PTOISA_zh.md) | 本页（概述 + 全量指令索引）。 |
-| ISA 参考 | [`docs/isa/README_zh.md`](isa/scalar/ops/micro-instruction/README_zh.md) | 每条指令参考目录。 |
+| ISA 参考 | [`docs/isa/README_zh.md`](isa/README_zh.md) | 每条指令参考目录。 |
 | ISA 参考 | [`docs/isa/conventions_zh.md`](isa/conventions_zh.md) | 通用符号、操作数、事件与修饰符。 |
 | 通信 ISA | [`docs/isa/comm/README_zh.md`](isa/comm/README_zh.md) | 每条通信 ISA 指令参考。 |
 | 权威源 | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header_zh.md) | C++ intrinsic API（权威来源）。 |

@@ -2,9 +2,9 @@
   <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
-# PTO ISA Manual And Reference
+# PTO ISA Reference
 
-This directory is the canonical PTO ISA tree. It combines the architecture manual, the instruction set guides, the instruction set contracts, and the exact instruction-reference groupings in one place.
+This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 
 - Source of truth (C++ intrinsics): `include/pto/common/pto_instr.hpp`
 - Common conventions (operands, events, modifiers): `docs/isa/conventions.md`

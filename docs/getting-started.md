@@ -376,7 +376,7 @@ ulimit -n 65536
   ./build.sh --pkg
   ```
 
-  After the build completes, the `.run` installer package is generated under `scripts/package/output/`.
+  After the build completes, the `.run` installer package is generated under `build_out/`.
 
 **Installation:**
 

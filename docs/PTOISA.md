@@ -8,7 +8,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 |---|---|---|
 | Overview | [`docs/README.md`](README.md) | PTO ISA guide entry point and navigation. |
 | Overview | [`docs/PTOISA.md`](PTOISA.md) | This page (overview + full instruction index). |
-| ISA reference | [`docs/isa/README.md`](isa/scalar/ops/micro-instruction/README.md) | Per-instruction reference directory index. |
+| ISA reference | [`docs/isa/README.md`](isa/README.md) | Per-instruction reference directory index. |
 | ISA reference | [`docs/isa/conventions.md`](isa/conventions.md) | Shared notation, operands, events, and modifiers. |
 | Communication ISA | [`docs/isa/comm/README.md`](isa/comm/README.md) | Per-instruction communication ISA reference. |
 | Source of truth | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header.md) | C++ intrinsic API (authoritative). |

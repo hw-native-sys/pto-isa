@@ -2,9 +2,9 @@
   <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
-# PTO ISA 手册与参考
+# PTO ISA 参考
 
-本文档目录是 PTO ISA 的权威文档树。它将架构手册、指令集指南、家族契约和精确的指令参考分组整合在同一个位置。
+本目录是 PTO Tile Lib ISA 的指令参考（每条指令一页）。
 
 - 权威来源：`include/pto/common/pto_instr.hpp`
 - 通用约定（操作数、事件、修饰符）：`docs/isa/conventions_zh.md`

@@ -375,7 +375,7 @@ ulimit -n 65536
   ./build.sh --pkg
   ```
 
-  构建完成后，`.run` 安装包生成在 `scripts/package/output/` 目录下。
+  构建完成后，`.run` 安装包生成在 `build_out/` 目录下。
 
 **安装：**
 

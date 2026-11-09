@@ -31,9 +31,6 @@ PTO_INTERNAL void TSCATTER_IMPL(TileDataDst& dst, TileDataSrc& src, TileInd& ind
         return;
     }
 
-    constexpr std::size_t dstNumel =
-        static_cast<std::size_t>(TileDataDst::Rows) * static_cast<std::size_t>(TileDataDst::Cols);
-
     for (unsigned i = 0; i < validRow; ++i) {
         for (unsigned j = 0; j < validCol; ++j) {
             const size_t srcOff = GetTileElementOffset<TileDataSrc>(i, j);
