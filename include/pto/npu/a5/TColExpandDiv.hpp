@@ -72,6 +72,13 @@ template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileData, typenam
 PTO_INTERNAL void TCOLEXPANDDIV_IMPL(TileData& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileData::DType;
+    // bfloat16_t aliases half (_Float16) in __CPU_SIM__/__COSTMODEL__ builds (type.hpp); the
+    // placeholder carries fp16 semantics there and must stay legal, so only block a real,
+    // distinct bf16 type.
+    static_assert(
+        !std::is_same_v<T, uint8_t> && !std::is_same_v<T, int8_t> &&
+            (!std::is_same_v<T, bfloat16_t> || std::is_same_v<bfloat16_t, half>),
+        "Fix: TCOLEXPANDDIV does not support int8_t/uint8_t/bfloat16_t (issue #828: A5 has no b8/bf16 vdiv).");
     TCOLEXPANDOP_IMPL<
         ColExpandDivOp<PrecisionType, T>, ColExpandDivOp2<PrecisionType, T>, TileData, TileDataSrc0, TileDataSrc1>(
         dst, src0, src1);

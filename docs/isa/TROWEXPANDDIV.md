@@ -75,7 +75,7 @@ PTO_INST RecordEvent TROWEXPANDDIV(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## Constraints
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float` for A2, A3 and A5, `int16`, `int32`, `uint16`, `uint32`, `bfloat16_t`, `int8`, `uint8`, `int64`, `uint64` for A5.
+- `TileDataDst::DType`, `TileDataSrc0::DType`, `TileDataSrc1::DType` must be one of: `half`, `float` for A2, A3 and A5, `int16`, `int32`, `uint16`, `uint32`, `int64`, `uint64` for A5.
 - `TileDataDst` must be **RowMajor** (`TileDataDst::isRowMajor == true`).
 - At least one of `src0` or `src1` must have the same valid shape as `dst` (i.e., `validRow == dst.validRow` and `validCol == dst.validCol`). That operand is the full-sized operand. The other operand is the **expanded operand** (row-broadcast source).
 - In automatic mode (`__PTO_AUTO__`), the full-sized operand must have the same Tile type as `dst`.

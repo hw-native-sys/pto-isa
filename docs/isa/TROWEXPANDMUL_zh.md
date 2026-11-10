@@ -73,7 +73,7 @@ PTO_INST RecordEvent TROWEXPANDMUL(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 ## 约束
 
 - `TileDataDst::DType == TileDataSrc0::DType == TileDataSrc1::DType`
-- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32` 适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT，`uint16`、`uint32`、`bfloat16_t`、`int8`、`uint8`、`int64`、`uint64` 适用于Ascend 950PR/Ascend 950DT。
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32` 适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT，`uint16`、`uint32`、`bfloat16_t`、`int64`、`uint64` 适用于Ascend 950PR/Ascend 950DT。
 - `TileDataDst` 必须为 **RowMajor**（`TileDataDst::isRowMajor == true`）。
 - `src0` 或 `src1` 中必须至少一个与 `dst` 的有效形状相同（即 `validRow == dst.validRow` 且 `validCol == dst.validCol`），该操作数为全尺寸操作数。另一个操作数为**扩展操作数**（行广播源）。
 - 自动模式（`__PTO_AUTO__`）下，全尺寸操作数必须与 `dst` 具有相同的 Tile 类型。

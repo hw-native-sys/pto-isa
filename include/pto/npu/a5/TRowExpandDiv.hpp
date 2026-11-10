@@ -111,9 +111,15 @@ PTO_INTERNAL void TROWEXPANDDIV_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileD
     static_assert(
         std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
             std::is_same_v<T, uint32_t> || std::is_same_v<T, float> || std::is_same_v<T, int16_t> ||
-            std::is_same_v<T, uint16_t> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t> ||
-            std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+            std::is_same_v<T, uint16_t> || std::is_same_v<T, half>,
         "Fix: TROWEXPANDDIV invalid data type.");
+    // bfloat16_t aliases half (_Float16) in __CPU_SIM__/__COSTMODEL__ builds (type.hpp); the
+    // placeholder carries fp16 semantics there and must stay legal, so only block a real,
+    // distinct bf16 type.
+    static_assert(
+        !std::is_same_v<T, uint8_t> && !std::is_same_v<T, int8_t> &&
+            (!std::is_same_v<T, bfloat16_t> || std::is_same_v<bfloat16_t, half>),
+        "Fix: TROWEXPANDDIV does not support int8_t/uint8_t/bfloat16_t (issue #828: A5 has no b8/bf16 vdiv).");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDDIV Invalid tile shape.");
 
     unsigned validRow = dst.GetValidRow();
