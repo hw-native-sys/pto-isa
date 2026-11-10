@@ -12,19 +12,22 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define TCOLSUM_HPP
 
 #include <pto/common/pto_tile.hpp>
+#include "pto/cpu/tile_offsets.hpp"
 #include <cmath>
 
 namespace pto {
 template <typename TileDst, typename TileSrc>
 void TColSum(typename TileDst::TileDType dst, typename TileSrc::TileDType src, uint16_t M, uint16_t N)
 {
+    // 16-bit floating-point accumulations are widened to float and rounded back once.
+    using Acc = TypeSum<TileDst>;
     for (uint16_t j = 0; j < N; j++) {
-        typename TileDst::DType sum = 0;
+        Acc sum = 0;
 
         for (uint16_t i = 0; i < M; i++) {
-            sum += src[GetTileElementOffset<TileSrc>(i, j)];
+            sum += static_cast<Acc>(src[GetTileElementOffset<TileSrc>(i, j)]);
         }
-        dst[GetTileElementOffset<TileDst>(0, j)] = sum;
+        dst[GetTileElementOffset<TileDst>(0, j)] = static_cast<typename TileDst::DType>(sum);
     }
 }
 

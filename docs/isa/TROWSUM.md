@@ -88,10 +88,11 @@ come from host hardware. See
   region covering all output rows and column zero. The implementation does not check `dst.GetValidCol()`
   or provide general dynamic-shape bounds validation. Both paths write only column zero of each processed row,
   leaving other destination elements and valid-shape metadata unchanged.
-- **Numerical differences**: A5 floating-point reduction uses grouped binary trees, converting back to the
-  element type after every addition; integers wrap at the output width without saturation. A2A3 retains
-  the legacy accumulation loop: `half`/`bfloat16_t` outputs accumulate in `float` and then convert;
-  other outputs accumulate in their own type, without A5's unsigned modular-overflow handling.
+- **Numerical differences**: A5 floating-point reduction uses grouped binary trees; `half` input
+  accumulates in `float` (fp32) and is rounded back to `half` only once (the high-precision path), while
+  `float` input accumulates directly in `float`; integers wrap at the output width without saturation.
+  A2A3 retains the legacy accumulation loop: `half`/`bfloat16_t` outputs accumulate in `float` and then
+  convert; other outputs accumulate in their own type, without A5's unsigned modular-overflow handling.
   A2A3 row-major vectorization hints may reorder floating-point additions even without `-ffast-math`;
   strict left-to-right order and bit-identical results across compilers are not guaranteed.
 - Full bit-exact hardware equivalence is not guaranteed: A5 NaN payloads, subnormal/flush-to-zero behavior,

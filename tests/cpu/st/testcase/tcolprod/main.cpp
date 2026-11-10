@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/pto-inst.hpp>
 #include "cpu_tile_test_utils.h"
 
+#include <bit>
 #include <gtest/gtest.h>
 
 using namespace pto;
@@ -40,6 +41,36 @@ TEST(TColProdTest, ProducesProductPerColumn)
     const int expected[4] = {14, -6, 24, 0};
     for (int c = 0; c < dst.GetValidCol(); ++c) {
         ExpectValueEquals(GetValue(dst, 0, c), expected[c]);
+    }
+}
+
+TEST(TColProdTest, HalfAccumulatesInFp32)
+{
+    // a = b = 1 + 2^-10, c = 1.25. Stepwise half rounding gives 0x3d02
+    // (1.251953125); fp32 accumulation rounds the full product a*b*c once to
+    // 0x3d03 (1.2529296875).
+    using SrcTile = Tile<TileType::Vec, half, 3, 16, BLayout::RowMajor, 3, 16>;
+    using DstTile = Tile<TileType::Vec, half, 1, 16, BLayout::RowMajor, 1, 16>;
+
+    SrcTile src;
+    DstTile dst;
+    std::size_t addr = 0;
+    AssignTileStorage(addr, src, dst);
+
+    const half a = std::bit_cast<half>(static_cast<uint16_t>(0x3c01));
+    const half c = std::bit_cast<half>(static_cast<uint16_t>(0x3d00));
+    for (int r = 0; r < src.GetValidRow(); ++r) {
+        const half v = r < 2 ? a : c;
+        for (int cIdx = 0; cIdx < src.GetValidCol(); ++cIdx) {
+            SetValue(src, r, cIdx, v);
+        }
+    }
+
+    TCOLPROD(dst, src);
+
+    const half expected = std::bit_cast<half>(static_cast<uint16_t>(0x3d03));
+    for (int c = 0; c < dst.GetValidCol(); ++c) {
+        EXPECT_EQ(std::bit_cast<uint16_t>(GetValue(dst, 0, c)), std::bit_cast<uint16_t>(expected));
     }
 }
 

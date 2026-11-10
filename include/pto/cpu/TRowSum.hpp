@@ -20,30 +20,33 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 namespace cpu {
-template <typename TileSrc>
-PTO_INTERNAL typename TileSrc::DType rowSumTree(
-    typename TileSrc::TileDType src, std::size_t row, uint32_t cols, uint32_t validRow)
+// Tree reduction accumulating in Acc. For 16-bit floating-point input (half) Acc is float, so elements
+// are widened to float, every partial sum stays in float, and the result is rounded to the source type
+// only once. For float input Acc == float, making the casts no-ops and the behavior identical to
+// accumulating in the element type. This mirrors the A5 device TRowSum_Fp32Acc high-precision path.
+template <typename TileSrc, typename Acc>
+PTO_INTERNAL Acc rowSumTreeAcc(typename TileSrc::TileDType src, std::size_t row, uint32_t cols, uint32_t validRow)
 {
     using T = typename TileSrc::DType;
     constexpr std::size_t vectorBytes = 256;
     constexpr std::size_t elementsPerVector = vectorBytes / sizeof(T);
-    T total = 0;
+    Acc total = 0;
     for (std::size_t base = 0; base < cols; base += elementsPerVector) {
-        std::array<T, elementsPerVector> lanes{};
+        std::array<Acc, elementsPerVector> lanes{};
         const std::size_t groupCols = std::min<std::size_t>(elementsPerVector, cols - base);
         for (std::size_t col = 0; col < groupCols; ++col) {
             if constexpr (TileSrc::SFractal == SLayout::NoneBox && TileSrc::isRowMajor) {
-                lanes[col] = src[row * TileSrc::Cols + base + col];
+                lanes[col] = static_cast<Acc>(src[row * TileSrc::Cols + base + col]);
             } else {
-                lanes[col] = src[GetTileElementOffset<TileSrc>(row, base + col, validRow)];
+                lanes[col] = static_cast<Acc>(src[GetTileElementOffset<TileSrc>(row, base + col, validRow)]);
             }
         }
         for (std::size_t width = elementsPerVector; width > 1; width /= 2) {
             for (std::size_t col = 0; col < width / 2; ++col) {
-                lanes[col] = static_cast<T>(lanes[col * 2] + lanes[col * 2 + 1]);
+                lanes[col] = static_cast<Acc>(lanes[col * 2] + lanes[col * 2 + 1]);
             }
         }
-        total = static_cast<T>(total + lanes[0]);
+        total = static_cast<Acc>(total + lanes[0]);
     }
     return total;
 }
@@ -73,7 +76,8 @@ void TRowSumForArch(typename TileDst::TileDType dst, typename TileSrc::TileDType
         if constexpr (Arch == NPUArch::A5) {
             using T = typename TileSrc::DType;
             if constexpr (std::is_same_v<T, float> || std::is_same_v<T, half>) {
-                sum = cpu::rowSumTree<TileSrc>(src, i, N, M);
+                // High-precision path: accumulate in fp32, round back once.
+                sum = cpu::rowSumTreeAcc<TileSrc, float>(src, i, N, M);
             } else if constexpr (std::is_integral_v<T>) {
                 sum = cpu::rowSumModular<TileSrc>(src, i, N, M);
             }

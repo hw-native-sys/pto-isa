@@ -56,6 +56,11 @@ PTO_INST RecordEvent TCOLPROD(TileDataOut &dst, TileDataIn &src, WaitEvents &...
 
 - Supported element types: `half`, `float`, `bfloat16_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
 
+### CPU_SIM implementation checks
+
+- `half` / `bfloat16_t` products are widened to `float` (fp32) and rounded back to the output type only
+  once; other types accumulate in their own type.
+
 ## Examples
 
 ### Auto

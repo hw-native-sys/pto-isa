@@ -11,6 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
 #include <gtest/gtest.h>
+#include <array>
+#include <bit>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -21,7 +23,7 @@ void launchTROWPROD_demo(uint8_t* out, uint8_t* src, void* stream);
 class TROWPRODTest : public testing::Test {
 protected:
     void SetUp() override {}
-    void TearDown() override {}
+    void TearDown() override { pto::NPU_MEMORY_INIT(pto::NPUArch::A2A3); }
 };
 
 std::string GetGoldenDir()
@@ -96,3 +98,41 @@ void test_trowprod()
 
 TEST_F(TROWPRODTest, case_float_64x64_64x64_64x64) { test_trowprod<float, 64, 64, 64, 64>(); }
 TEST_F(TROWPRODTest, case_half_16x256_16x256_16x256) { test_trowprod<aclFloat16, 16, 256, 16, 256>(); }
+
+template <typename T, int Rows, int Cols>
+void ExpectRowProdFp32(const std::array<T, Cols>& rowValues, int validCols, T expected)
+{
+    using Src = pto::Tile<pto::TileType::Vec, T, Rows, Cols, pto::BLayout::RowMajor, Rows, -1>;
+    using Dst = pto::Tile<pto::TileType::Vec, T, Rows, Cols, pto::BLayout::RowMajor, Rows, -1>;
+    pto::NPU_MEMORY_INIT(pto::NPUArch::A5);
+    Src src(validCols);
+    Src tmp(validCols);
+    Dst dst(validCols);
+    pto::TASSIGN(src, 0);
+    for (int row = 0; row < Rows; ++row) {
+        std::copy(rowValues.begin(), rowValues.end(), src.data() + row * Cols);
+    }
+    const T sentinel = static_cast<T>(123);
+    pto::TASSIGN(dst, Src::GetSizeInBytes());
+    std::fill_n(dst.data(), Dst::Numel, sentinel);
+    pto::TROWPROD(dst, src, tmp);
+    for (int row = 0; row < Rows; ++row) {
+        ASSERT_EQ(std::bit_cast<uint16_t>(dst.data()[row * Cols]), std::bit_cast<uint16_t>(expected)) << "row=" << row;
+        for (int col = 1; col < Cols; ++col) {
+            EXPECT_EQ(dst.data()[row * Cols + col], sentinel);
+        }
+    }
+}
+
+TEST_F(TROWPRODTest, case_half_fp32_accumulation)
+{
+    // a = b = 1 + 2^-10, c = 1.25. Stepwise half rounding gives 0x3d02
+    // (1.251953125); fp32 accumulation rounds the full product a*b*c once to
+    // 0x3d03 (1.2529296875).
+    const half a = std::bit_cast<half>(static_cast<uint16_t>(0x3c01));
+    const half c = std::bit_cast<half>(static_cast<uint16_t>(0x3d00));
+    const half one = std::bit_cast<half>(static_cast<uint16_t>(0x3c00));
+    const half expected = std::bit_cast<half>(static_cast<uint16_t>(0x3d03));
+    const std::array<half, 16> rowValues = {a, a, c, one, one, one, one, one, one, one, one, one, one, one, one, one};
+    ExpectRowProdFp32<half, 4, 16>(rowValues, 16, expected);
+}

@@ -300,11 +300,11 @@ See [TROWSUM CPU_SIM implementation checks](../isa/TROWSUM.md#cpu_sim-implementa
 layout, and valid-region constraints. The following describes the
 [CPU implementation](../../include/pto/cpu/TRowSum.hpp), not additional NPU interface constraints.
 
-- The A5 floating-point path uses `rowSumTree` with consecutive 256-byte groups: 64 lanes for `float`,
-  128 for `half`. Each group uses an adjacent-pair binary tree; unused tail lanes are zero-filled
+- The A5 floating-point path uses `rowSumTreeAcc<TileSrc, float>` with consecutive 256-byte groups: 64 lanes
+  for `float`, 128 for `half`. Each group uses an adjacent-pair binary tree; unused tail lanes are zero-filled
   without reading source padding. Group sums are accumulated in increasing column order from positive zero.
-  Every tree addition and group accumulation is cast back to the element type, including `half` rounding
-  between groups.
+  Every partial sum is kept in `float` (fp32), so `half` input is rounded back to the element type only once
+  on store (upgrading its precision to fp32); for `float` input the casts are no-ops.
 - The A5 integer path uses `rowSumModular` with unsigned modular arithmetic to avoid signed-overflow
   undefined behavior. `int16_t` uses a 32-bit accumulator followed by low-16-bit truncation; other supported
   integers wrap at their own width. Signed outputs preserve the resulting bit pattern without saturation.
