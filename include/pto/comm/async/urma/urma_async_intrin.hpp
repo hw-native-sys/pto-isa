@@ -129,14 +129,6 @@ AICORE inline __gm__ UrmaCqCtx* GetCqContext(const AsyncSession& session, uint32
     return GetCqContextAt(session, peer, session.qpIdxBase);
 }
 
-AICORE inline uint32_t UrmaRailCycleSlot(__gm__ UrmaInfo* info, uint32_t cursor)
-{
-    if (info->railCycleLen == 0U) {
-        return 0U;
-    }
-    return info->railCycle[cursor % info->railCycleLen];
-}
-
 AICORE inline __gm__ UrmaMemInfo* GetRemoteMemInfo(__gm__ UrmaInfo* info, uint32_t peer, uint32_t jettyIdx)
 {
     return reinterpret_cast<__gm__ UrmaMemInfo*>(
@@ -176,7 +168,134 @@ AICORE inline bool ValidateUrmaSession(const AsyncSession& session, uint32_t pee
     return true;
 }
 
+AICORE inline bool GetUrmaGatherQueueStages(
+    const AsyncSession& session, __gm__ UrmaInfo*& info, __gm__ UrmaGatherQueueStage*& queueStages)
+{
+    if (!session.valid || session.engine != DmaEngine::URMA || session.contextGm == nullptr) {
+        return false;
+    }
+    info = reinterpret_cast<__gm__ UrmaInfo*>(session.contextGm);
+    if (info->gatherRuntimeBase == 0U || info->gatherRuntimeStride == 0U || info->gatherQueueStageCapacity == 0U) {
+        return false;
+    }
+    __gm__ uint8_t* runtime = reinterpret_cast<__gm__ uint8_t*>(
+        info->gatherRuntimeBase + static_cast<uint64_t>(get_block_idx()) * info->gatherRuntimeStride);
+    __gm__ UrmaGatherAivRuntimeHeader* header = reinterpret_cast<__gm__ UrmaGatherAivRuntimeHeader*>(runtime);
+    if (header->queueStageCapacity != info->gatherQueueStageCapacity) {
+        return false;
+    }
+    queueStages = reinterpret_cast<__gm__ UrmaGatherQueueStage*>(
+        runtime + sizeof(UrmaGatherAivRuntimeHeader) + sizeof(UrmaGatherCompletionPoolState));
+    return true;
+}
+
+AICORE inline bool ResolveUrmaGatherStageQueue(
+    const AsyncSession& session, __gm__ UrmaInfo* info, uint32_t stageIndex, __gm__ UrmaGatherQueueStage* stage,
+    uint32_t& peer, uint32_t& jettyIndex)
+{
+    if (info->layout == UrmaLayout::SHARED_POOL) {
+        peer = stage->lastPeer;
+        jettyIndex = session.qpIdxBase + stageIndex;
+    } else {
+        peer = stageIndex / session.cfg.urma.qpCount;
+        jettyIndex = session.qpIdxBase + stageIndex % session.cfg.urma.qpCount;
+    }
+    return ValidateUrmaSessionAt(session, peer, jettyIndex);
+}
+
+AICORE inline void RefreshUrmaBatchKind(const AsyncSession& session);
+
+AICORE inline bool PublishQueuedUrmaFinals(const AsyncSession& session)
+{
+    __gm__ UrmaInfo* info = nullptr;
+    __gm__ UrmaGatherQueueStage* queueStages = nullptr;
+    if (!GetUrmaGatherQueueStages(session, info, queueStages)) {
+        return false;
+    }
+    for (uint32_t stageIndex = 0U; stageIndex < info->gatherQueueStageCapacity; ++stageIndex) {
+        __gm__ UrmaGatherQueueStage* stage = queueStages + stageIndex;
+        if (stage->initialized == 0U || stage->state != UrmaGatherQueueState::FinalQueued) {
+            continue;
+        }
+        uint32_t peer = 0U;
+        uint32_t jettyIndex = 0U;
+        if (!ResolveUrmaGatherStageQueue(session, info, stageIndex, stage, peer, jettyIndex)) {
+            return false;
+        }
+        __gm__ UrmaWQCtx* workQueue = GetWqContextAt(session, peer, jettyIndex);
+        workQueue->submittedWqeCount = stage->nextCqeSequence;
+        DcciCachelines(
+            reinterpret_cast<__gm__ uint8_t*>(&workQueue->submittedWqeCount), sizeof(workQueue->submittedWqeCount));
+        dsb(DSB_DDR);
+        UrmaPostSendUpdateInfo(stage->nextBbSequence, workQueue);
+        pipe_barrier(PIPE_ALL);
+        stage->publishedBbSequence = stage->nextBbSequence;
+        stage->publishedCqeSequence = stage->nextCqeSequence;
+        stage->stagedOperationCount = 0U;
+        stage->noCqePrefixBbCount = 0U;
+        stage->state = UrmaGatherQueueState::Clean;
+        DcciCachelines(reinterpret_cast<__gm__ uint8_t*>(stage), sizeof(*stage));
+    }
+    RefreshUrmaBatchKind(session);
+    return true;
+}
+
+AICORE inline bool ValidateUrmaSubmissionTransition(
+    const AsyncSession& session, UrmaBatchKind requestedBatchKind, UrmaCqePolicy requestedCqePolicy)
+{
+    if (session.rt.urma.batchKind != UrmaBatchKind::None && session.rt.urma.batchKind != requestedBatchKind) {
+        return false;
+    }
+    __gm__ UrmaInfo* info = nullptr;
+    __gm__ UrmaGatherQueueStage* queueStages = nullptr;
+    if (!GetUrmaGatherQueueStages(session, info, queueStages)) {
+        return false;
+    }
+    for (uint32_t stageIndex = 0U; stageIndex < info->gatherQueueStageCapacity; ++stageIndex) {
+        __gm__ UrmaGatherQueueStage* stage = queueStages + stageIndex;
+        if (stage->initialized == 0U) {
+            continue;
+        }
+        if (stage->state == UrmaGatherQueueState::FinalQueued) {
+            return false;
+        }
+        if (requestedCqePolicy == UrmaCqePolicy::OneCqe && stage->state == UrmaGatherQueueState::OpenNoCqePrefix) {
+            return false;
+        }
+    }
+    return true;
+}
+
+AICORE inline void RefreshUrmaBatchKind(const AsyncSession& session)
+{
+    if (session.rt.urma.batchWqeCount != 0U) {
+        return;
+    }
+    __gm__ UrmaInfo* info = nullptr;
+    __gm__ UrmaGatherQueueStage* queueStages = nullptr;
+    if (!GetUrmaGatherQueueStages(session, info, queueStages)) {
+        return;
+    }
+    for (uint32_t stageIndex = 0U; stageIndex < info->gatherQueueStageCapacity; ++stageIndex) {
+        __gm__ UrmaGatherQueueStage* stage = queueStages + stageIndex;
+        if (stage->initialized != 0U && (stage->nextBbSequence != stage->publishedBbSequence ||
+                                         stage->state == UrmaGatherQueueState::FinalQueued)) {
+            return;
+        }
+    }
+    session.rt.urma.batchKind = UrmaBatchKind::None;
+}
+
 AICORE inline bool IsPowerOfTwo(uint32_t value) { return value != 0U && (value & (value - 1U)) == 0U; }
+
+AICORE inline uint32_t AdvanceUrmaCompletedBbSequence(
+    uint32_t completedBbSequence, uint32_t cqeEntryIndex, uint32_t workQueueDepth)
+{
+    const uint32_t completedBbIndex = completedBbSequence & (workQueueDepth - 1U);
+    const uint32_t completedBbCount =
+        ((cqeEntryIndex + workQueueDepth - completedBbIndex) & (workQueueDepth - 1U)) + 1U;
+    return completedBbSequence + completedBbCount;
+}
 
 // The CQE address and the owner value that marks it done, for one jetty's slice of a post. Split out
 // so the multi-jetty path below and the single-jetty path share one predicate: publishing the
@@ -290,9 +409,11 @@ AICORE inline bool WaitForUrmaCqe(__gm__ UrmaCqCtx* cq, uint32_t sequence, uint3
     return true;
 }
 
-AICORE inline bool RetireUrmaCqePrefix(__gm__ UrmaCqCtx* cq, uint32_t beginCqe, uint32_t targetCqe, uint32_t cqeSize)
+AICORE inline bool RetireUrmaCqePrefix(
+    __gm__ UrmaWQCtx* wq, __gm__ UrmaCqCtx* cq, uint32_t beginCqeSequence, uint32_t endCqeSequence, uint32_t cqeSize,
+    uint32_t& completedBbSequence)
 {
-    for (uint32_t sequence = beginCqe; sequence != targetCqe; ++sequence) {
+    for (uint32_t sequence = beginCqeSequence; sequence != endCqeSequence; ++sequence) {
         __gm__ UrmaJfcCqeCtx* cqe = nullptr;
         if (!WaitForUrmaCqe(cq, sequence, cqeSize, cqe)) {
             return false;
@@ -303,6 +424,8 @@ AICORE inline bool RetireUrmaCqePrefix(__gm__ UrmaCqCtx* cq, uint32_t beginCqe, 
         if (cqeError != 0U) {
             return false;
         }
+        completedBbSequence =
+            AdvanceUrmaCompletedBbSequence(completedBbSequence, static_cast<uint32_t>(cqe->entryIdx), wq->depth);
     }
     return true;
 }
@@ -327,16 +450,18 @@ AICORE inline bool UrmaPollCqAt(
     if (!blocking && !IsUrmaCqePrefixReady(cq, completedCqe, targetCqe, cqeSize)) {
         return true;
     }
-    if (!RetireUrmaCqePrefix(cq, completedCqe, targetCqe, cqeSize)) {
+    uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+    if (!RetireUrmaCqePrefix(wq, cq, completedCqe, targetCqe, cqeSize, completedBb)) {
         dsb(DSB_DDR);
         UrmaPostSendUpdateInfo(ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->headAddr), 0), wq);
         pipe_barrier(PIPE_ALL);
-        if (!RetireUrmaCqePrefix(cq, completedCqe, targetCqe, cqeSize)) {
+        completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+        if (!RetireUrmaCqePrefix(wq, cq, completedCqe, targetCqe, cqeSize, completedBb)) {
             return false;
         }
     }
-    PublishCqAndWqTails(targetBb, targetCqe, cq, wq);
-    completed = true;
+    PublishCqAndWqTails(completedBb, targetCqe, cq, wq);
+    completed = SequenceReached(completedBb, targetBb);
     return true;
 }
 
@@ -374,6 +499,48 @@ AICORE inline bool UrmaWaitEventMultiJetty(
 }
 
 } // namespace detail
+
+PTO_INTERNAL bool BuildSession(__gm__ uint8_t* workspace, AsyncSession& session)
+{
+    session = AsyncSession{};
+    // AsyncSession{} leaves cfg/rt on their SDMA alternative, so the URMA ones
+    // have to be activated explicitly rather than inherited from the defaults.
+    ::pto::comm::detail::ActivateEngineState<DmaEngine::URMA>(session);
+    session.contextGm = workspace;
+    // destRankId and qpIdxBase keep the zeros AsyncSession{} gave them; the shared-pool path below
+    // is the only one that moves qpIdxBase off its base.
+    session.cfg.urma.qpCount = 1;
+    session.cfg.urma.cqePolicy = UrmaCqePolicy::OneCqe;
+    if (workspace == nullptr) {
+        return false;
+    }
+    __gm__ UrmaInfo* info = reinterpret_cast<__gm__ UrmaInfo*>(workspace);
+    const uint32_t perCore = info->jettiesPerCore;
+    if (perCore == 0U || perCore > kUrmaMaxJettiesPerCore) {
+        return false;
+    }
+    session.qpIdxBase = 0;
+    session.cfg.urma.qpCount = perCore;
+    const uint32_t block = static_cast<uint32_t>(get_block_idx());
+    const uint32_t bound = detail::UrmaJettyIdxBound(info);
+    session.valid = (perCore <= bound) && (block <= (bound - perCore) / perCore);
+    if (session.valid) {
+        session.qpIdxBase = block * perCore;
+    }
+    return session.valid;
+}
+
+template <typename ScratchTile>
+PTO_INTERNAL void BindSessionScratch(ScratchTile& scratchTile, AsyncSession& session)
+{
+    static_assert(is_tile_data_v<ScratchTile>, "scratchTile must be a pto::Tile type");
+    static_assert(ScratchTile::Loc == TileType::Vec, "scratchTile must be in Vec(UB) memory");
+    constexpr uint32_t scratchBytes = static_cast<uint32_t>(ScratchTile::Numel * sizeof(typename ScratchTile::DType));
+    static_assert(
+        scratchBytes >= sizeof(UrmaGatherSimtScratch), "URMA gather scratchTile is smaller than UrmaGatherSimtScratch");
+    session.tmpBufAddr = reinterpret_cast<__ubuf__ uint8_t*>(scratchTile.data());
+    session.tmpBufSize = scratchBytes;
+}
 
 AICORE inline AsyncEvent MakeUrmaMultiJettyEvent(const detail::UrmaMultiPostResult& result)
 {

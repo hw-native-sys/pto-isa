@@ -22,9 +22,9 @@ namespace detail {
 
 PTO_INTERNAL void DiscardPendingUrmaBatch(const AsyncSession& session)
 {
-    const uint32_t railCycleCursor = session.rt.urma.railCycleCursor;
+    const uint32_t nextWqeSeq = session.rt.urma.nextWqeSeq - session.rt.urma.batchStagedWqeCount;
     session.rt.urma = {};
-    session.rt.urma.railCycleCursor = railCycleCursor;
+    session.rt.urma.nextWqeSeq = nextWqeSeq;
 }
 
 PTO_INTERNAL void DiscardPendingAsyncPutBatch(const AsyncSession& session)

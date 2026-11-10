@@ -35,6 +35,8 @@
 
 声明于 `include/pto/comm/pto_comm_inst.hpp`：
 
+### 连续Tensor重载
+
 ```cpp
 // 全架构可用。URMA/RDMA 使用 session 中绑定的目标rank。
 template <DmaEngine engine = DmaEngine::SDMA,
@@ -49,6 +51,21 @@ PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
                                const AsyncSession &session, uint32_t peer,
                                WaitEvents &... events);
 ```
+
+### URMA Gather重载
+
+```cpp
+template <DmaEngine engine = DmaEngine::URMA, typename... WaitEvents>
+PTO_INST AsyncEvent TPUT_ASYNC(
+    __gm__ const GatherDestination *destinations,
+    uint32_t destinationCount,
+    __gm__ const GatherSegment *sourceSegments,
+    uint32_t sourceSegmentCount,
+    const AsyncSession &session,
+    WaitEvents &... events);
+```
+
+该重载将多个非连续本地GM段聚合后写入一个或多个远端连续区间，仅支持 `DmaEngine::URMA`。每个目标描述符自带 `peer`，因此一次调用可写入多个rank，且只返回一个 `AsyncEvent`。参数校验或资源预留失败时返回失败Event，`Wait`/`Test` 前须先检查 `event.valid()`。
 
 `AsyncSession` 是引擎无关的会话对象。使用 `BuildAsyncSession<engine>()` 构建一次后，传递给所有异步调用和事件等待。模板参数 `engine` 在编译期选择DMA后端，使代码对未来引擎（CCU等）保持前向兼容。
 
@@ -86,9 +103,15 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
-// 不绑定目标rank，配合带 peer 的指令重载使用。
+// 不绑定目标rank，配合带 peer 的指令重载和Gather重载使用。
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    AsyncSession &session);
+
+// 同上，并传入Gather SIMT路径所需的UB scratch。
+template <DmaEngine engine, typename ScratchTile>
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    ScratchTile &scratchTile,
                                     AsyncSession &session);
 
 // 绑定目标rank，配合不带 peer 的指令重载使用。
@@ -101,11 +124,14 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 
 | 参数 | 说明 |
 |---|---|
+| `scratchTile` | 由kernel分配的UB scratch tile，仅Gather SIMT路径需要。|
 | `workspace` | 由调用方分配并传给主机侧 `UrmaWorkspaceManager` 初始化的GM指针。|
-| `destRankId` | 此会话绑定的远端PE rank id。对于 `TPUT_ASYNC`，这是数据写入的目标rank。|
+| `destRankId` | 连续Tensor重载使用的远端PE rank id。|
 | `session` | 输出的 `AsyncSession` 对象。|
 
-URMA不需要 `scratchTile`——轮询通过 `ld_dev`/`st_dev` 硬件原语直接操作。
+连续Tensor重载使用带 `destRankId` 的构建接口；Gather重载使用不绑定rank的构建接口，目标rank由每个 `GatherDestination::peer` 指定。
+
+连续Tensor传输不需要 `scratchTile`，轮询通过 `ld_dev`/`st_dev` 硬件原语直接操作；Gather SIMT路径要求容量不小于 `sizeof(urma::UrmaGatherSimtScratch)`，未提供时自动回退Scalar路径。
 
 构建时按当前AI Core划分该核可用的URMA队列。`workspace` 无效，或当前block数超出workspace配置的队列容量时，返回 `false`。
 
@@ -159,11 +185,63 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 }
 ```
 
+## URMA Gather描述符与数据映射
+
+描述符类型定义如下：
+
+```cpp
+struct GatherSegment {
+    __gm__ const uint8_t *addr;  // 本地GM段起始地址
+    uint32_t length;             // 字节数
+};
+
+struct GatherDestination {
+    __gm__ uint8_t *addr;        // 远端连续目标区间起始地址
+    uint32_t segCount;           // 此目标消费的源段数量
+    uint32_t peer;               // 目标rank
+};
+```
+
+`destinations` 按下标顺序连续消费 `sourceSegments`，并将每个目标消费的源段按顺序拼接到该目标的远端连续区间。例如 `segCount` 依次为2和1时：
+
+```text
+destinations[0] <- sourceSegments[0], sourceSegments[1]
+destinations[1] <- sourceSegments[2]
+```
+
+因此必须满足 `sum(destinations[i].segCount) == sourceSegmentCount`。
+
+## URMA Gather完成策略
+
+提交时机由 `submitMode` 和 `batchSize` 控制，语义同 [批量提交](#批量提交)，但Gather批次不受单一目标rank的限制。完成通知的粒度另由 `session.cfg.urma.cqePolicy` 控制，默认 `OneCqe`。
+
+| `UrmaCqePolicy` | 行为 |
+|---|---|
+| `OneCqe` | 为本次操作保留完整完成通知，返回的Event可 `Wait`/`Test`。默认值。|
+| `Final` | 减少完成通知开销，返回的Event可 `Wait`/`Test`，并覆盖此前尚未确认的 `NoCqe` 操作。|
+| `NoCqe` | 不请求完成通知。含负载调用返回的Event不可 `Wait`/`Test`，必须由后续 `Final` 确认。|
+
 ## 约束
+
+连续Tensor重载：
 
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
 - 源、目的tensor均须为**扁平连续的逻辑一维**，且目的容量不小于源元素数
+
+URMA Gather重载：
+
+- `destinations`、`sourceSegments` 位于GM；非零数量必须对应非空指针
+- 每个源段的 `addr` 非空且 `length > 0`
+- 所有本地源范围和远端目标范围必须位于Host初始化阶段注册的MR内
+- 每个 `peer` 必须小于Host配置的rank数量
+- `sum(destinations[i].segCount) == sourceSegmentCount`
+- 同一Session中未结束的连续Tensor batch和Gather batch不能混用
+- 同一个Session不能被多个执行流并发使用，多AIV须各自构建Session
+- 描述符数组必须在本次调用读取期间有效，源/目标数据必须存活到相关Event完成
+
+通用约束：
+
 - SDMA workspace必须是由调用方分配并传给主机侧 `SdmaWorkspaceManager` 初始化的有效GM指针
 - URMA workspace必须是由调用方分配并传给主机侧 `UrmaWorkspaceManager` 初始化的有效GM指针
 - Session和workspace的生命周期必须覆盖相关Event的完成阶段
@@ -228,7 +306,8 @@ auto event = comm::TPUT_ASYNC(dst1, src1, session);   // 暂存并提交整个�
 ## 完成语义（Quiet语义）
 
 - **SDMA**：每次`TPUT_ASYNC`都会提交数据传输SQE和用于标记本次操作完成的flag SQE。对其返回的Event调用`Wait`或`Test`时，通过轮询对应flag判断该次`TPUT_ASYNC`是否完成；完成后也能保证同一Session中此前提交的所有SDMA操作均已完成。
-- **URMA**：`TPUT_ASYNC` 立即提交RDMA WRITE WQE并敲门铃。`Wait` 通过轮询Completion Queue（CQ）等待所有预期的CQE被消费。
+- **URMA连续Tensor重载**：`TPUT_ASYNC` 立即提交RDMA WRITE WQE并敲门铃。`Wait` 通过轮询Completion Queue（CQ）等待所有预期的CQE被消费。
+- **URMA Gather重载**：提交时机由 `submitMode` 控制，完成语义由 `cqePolicy` 控制。`OneCqe`和`Final`返回的Event可等待；含负载的`NoCqe` Event不可等待，必须由后续`Final`完成确认。
 - **RDMA**：`TPUT_ASYNC` 向 `peer` 选择的队列提交RDMA WRITE WQE；不同peer/queue分别跟踪完成状态。
 
 - `event.Wait(session)` —阻塞，直到**自上次Wait以来所有已发出的异步操作**全部完成
@@ -236,6 +315,8 @@ auto event = comm::TPUT_ASYNC(dst1, src1, session);   // 暂存并提交整个�
 这意味着多次 `TPUT_ASYNC` 调用后，只需对最后一个返回的 `AsyncEvent` 调用一次 `Wait`，即可等待所有pending操作完成（类似shmem的quiet语义）。
 
 RDMA操作涉及不同peer时，必须分别等待每个peer的最后一个Event。
+
+Gather重载改按其CQE策略：不能等待含负载的 `NoCqe` Event，需由后续 `Final` 确认Session中此前的 `NoCqe` 操作。
 
 同一Session最多可有64个未完成操作，超过后提交可能产生背压。
 
@@ -348,3 +429,74 @@ __global__ AICORE void SimplePutUrma(__gm__ T *remoteDst, __gm__ T *localSrc,
     (void)event.Wait(session);
 }
 ```
+
+### URMA Gather示例（NPU_ARCH 3510）
+
+下面的示例将四个本地非连续段分别拼接到两个远端连续区间。两个目标可以属于不同rank：
+
+```cpp
+#include <pto/comm/pto_comm_inst.hpp>
+
+using namespace pto;
+
+__global__ AICORE void GatherPutUrma(
+    __gm__ uint8_t *remote0, __gm__ uint8_t *remote1,
+    __gm__ const uint8_t *local0, __gm__ const uint8_t *local1,
+    __gm__ const uint8_t *local2, __gm__ const uint8_t *local3,
+    __gm__ comm::GatherDestination *dsts, __gm__ comm::GatherSegment *segs,
+    __gm__ uint8_t *urmaWorkspace, uint32_t peer0, uint32_t peer1)
+{
+    dsts[0] = {remote0, 2, peer0};
+    dsts[1] = {remote1, 2, peer1};
+
+    segs[0] = {local0, 4096};
+    segs[1] = {local1, 1024};
+    segs[2] = {local2, 2048};
+    segs[3] = {local3, 3072};
+    comm::urma::DcciCachelines(
+        reinterpret_cast<__gm__ uint8_t *>(dsts), 2 * sizeof(comm::GatherDestination));
+    comm::urma::DcciCachelines(
+        reinterpret_cast<__gm__ uint8_t *>(segs), 4 * sizeof(comm::GatherSegment));
+    dsb(DSB_DDR);
+
+    using ScratchTile =
+        Tile<TileType::Vec, uint8_t, 1, sizeof(comm::urma::UrmaGatherSimtScratch)>;
+    ScratchTile scratchTile;
+    TASSIGN(scratchTile, 0x0);
+    comm::AsyncSession session;
+    if (!comm::BuildAsyncSession<comm::DmaEngine::URMA>(urmaWorkspace, scratchTile, session)) {
+        return;
+    }
+    session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
+
+    auto event = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(dsts, 2, segs, 4, session);
+    if (event.valid()) {
+        (void)event.Wait(session);
+    }
+}
+```
+
+完成后，`remote0` 依次包含 `local0` 和 `local1` 的内容，`remote1` 依次包含 `local2` 和 `local3` 的内容。描述符写入后必须由提交该Session的执行流执行cache clean和 `dsb(DSB_DDR)`，保证URMA读取前描述符已对设备可见。
+
+### URMA Gather延迟提交与NoCqe前缀
+
+需要减少提交开销时，可以先使用 `DEFER + NoCqe` 暂存多个调用，最后用一个无负载 `Final` 调用发布并等待整个前缀：
+
+```cpp
+session.submitMode = comm::AsyncSubmitMode::DEFER;
+session.batchSize = 4;
+session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::NoCqe;
+
+auto noCqeEvent = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(dsts, 2, segs, 4, session);
+// 含负载的NoCqe Event不可Wait/Test。
+
+session.submitMode = comm::AsyncSubmitMode::DEFER_AND_SUBMIT;
+session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
+auto finalEvent = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(
+    nullptr, 0, nullptr, 0, session);
+if (finalEvent.valid()) {
+    (void)finalEvent.Wait(session);
+}
+```
+
+`DEFER` 会根据 `batchSize` 自动提交已累积的操作；若需由调用方完全控制提交时机，可将 `batchSize` 设为 `UINT32_MAX`，再用 `DEFER_AND_SUBMIT` 提交。

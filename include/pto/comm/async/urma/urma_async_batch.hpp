@@ -53,7 +53,8 @@ AICORE inline bool ValidateUrmaBatchPeer(const AsyncSession& session, uint32_t p
         return false;
     }
     const UrmaRuntimeContext& runtimeCtx = session.rt.urma;
-    return runtimeCtx.batchLogicalWqeCount == 0U || runtimeCtx.batchPeer == peer;
+    return runtimeCtx.batchKind != UrmaBatchKind::Gather &&
+           (runtimeCtx.batchWqeCount == 0U || runtimeCtx.batchPeer == peer);
 }
 
 AICORE inline bool EnsureUrmaBatchCapacityOnJetty(
@@ -98,14 +99,14 @@ AICORE inline AsyncEvent MakeUrmaBatchCompletionEvent(const AsyncSession& sessio
     result.jettyBase = session.qpIdxBase;
     result.jettyCount = session.cfg.urma.qpCount;
     const UrmaRuntimeContext& runtimeCtx = session.rt.urma;
-    const uint32_t physicalBatchStart = runtimeCtx.batchLogicalWqeCount - runtimeCtx.batchStagedWqeCount;
+    const uint32_t stagedWqeBegin = runtimeCtx.nextWqeSeq - runtimeCtx.batchStagedWqeCount;
     for (uint32_t slot = 0U; slot < session.cfg.urma.qpCount; ++slot) {
         const uint32_t physicalJetty = session.qpIdxBase + slot;
         __gm__ UrmaWQCtx* wq = GetWqContextAt(session, peer, physicalJetty);
         const uint32_t stagedWqeCount =
-            includeStaged ? UrmaBatchWqesOnJetty(
-                                physicalBatchStart, runtimeCtx.batchStagedWqeCount, session.cfg.urma.qpCount, slot) :
-                            0U;
+            includeStaged ?
+                UrmaBatchWqesOnJetty(stagedWqeBegin, runtimeCtx.batchStagedWqeCount, session.cfg.urma.qpCount, slot) :
+                0U;
         result.targetBb[slot] = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->headAddr), 0) + stagedWqeCount;
         result.targetCqe[slot] = wq->submittedWqeCount + stagedWqeCount;
     }
@@ -123,12 +124,12 @@ AICORE inline bool PrepareUrmaBatchWqes(
     uint32_t* firstProducerPerJetty)
 {
     const UrmaRuntimeContext& runtimeCtx = session.rt.urma;
-    const uint32_t physicalBatchStart = runtimeCtx.batchLogicalWqeCount - runtimeCtx.batchStagedWqeCount;
+    const uint32_t stagedWqeBegin = runtimeCtx.nextWqeSeq - runtimeCtx.batchStagedWqeCount;
     for (uint32_t slot = 0U; slot < session.cfg.urma.qpCount; ++slot) {
         stagedPerJetty[slot] =
-            UrmaBatchWqesOnJetty(physicalBatchStart, runtimeCtx.batchStagedWqeCount, session.cfg.urma.qpCount, slot);
+            UrmaBatchWqesOnJetty(stagedWqeBegin, runtimeCtx.batchStagedWqeCount, session.cfg.urma.qpCount, slot);
         const uint32_t newOnJetty =
-            UrmaBatchWqesOnJetty(runtimeCtx.batchLogicalWqeCount, newWqeCount, session.cfg.urma.qpCount, slot);
+            UrmaBatchWqesOnJetty(runtimeCtx.nextWqeSeq, newWqeCount, session.cfg.urma.qpCount, slot);
         const uint32_t physicalJetty = session.qpIdxBase + slot;
         if (!ValidateUrmaSessionAt(session, peer, physicalJetty) ||
             !EnsureUrmaBatchCapacityOnJetty(session, peer, physicalJetty, stagedPerJetty[slot], newOnJetty)) {
@@ -149,7 +150,7 @@ AICORE inline void FillUrmaBatchWqes(
     uint32_t postedPerJetty[kUrmaMaxJettiesPerCore]{};
     uint64_t offset = 0U;
     for (uint32_t index = 0U; index < newWqeCount; ++index) {
-        const uint32_t slot = (session.rt.urma.batchLogicalWqeCount + index) % session.cfg.urma.qpCount;
+        const uint32_t slot = (session.rt.urma.nextWqeSeq + index) % session.cfg.urma.qpCount;
         const uint32_t physicalJetty = session.qpIdxBase + slot;
         __gm__ UrmaWQCtx* wq = GetWqContextAt(session, peer, physicalJetty);
         __gm__ UrmaMemInfo* remoteMem = GetRemoteMemInfo(info, peer, physicalJetty);
@@ -169,6 +170,11 @@ AICORE inline AsyncEvent UrmaDeferAsyncPut(
     uint32_t peer)
 {
     UrmaRuntimeContext& runtimeCtx = session.rt.urma;
+    if (!PublishQueuedUrmaFinals(session) ||
+        !ValidateUrmaSubmissionTransition(session, UrmaBatchKind::Continuous, UrmaCqePolicy::OneCqe)) {
+        PTO_ASSERT(false, "TPUT_ASYNC(DEFER) URMA: incompatible pending gather batch or NoCqe prefix.");
+        return AsyncEvent::Failed(DmaEngine::URMA);
+    }
     if (!ValidateUrmaBatchPeer(session, peer)) {
         ::pto::comm::detail::DiscardPendingAsyncPutBatch(session);
         PTO_ASSERT(false, "TPUT_ASYNC(DEFER) URMA: invalid session or peer changed within one logical batch.");
@@ -181,10 +187,10 @@ AICORE inline AsyncEvent UrmaDeferAsyncPut(
         PTO_ASSERT(false, "TPUT_ASYNC(DEFER) URMA: invalid transfer size or WQE count overflow.");
         return {};
     }
-    if (runtimeCtx.batchLogicalWqeCount > UINT32_MAX - newWqeCount ||
+    if (runtimeCtx.batchWqeCount > UINT32_MAX - newWqeCount ||
         runtimeCtx.batchStagedWqeCount > UINT32_MAX - newWqeCount) {
         ::pto::comm::detail::DiscardPendingAsyncPutBatch(session);
-        PTO_ASSERT(false, "TPUT_ASYNC(DEFER) URMA: logical WQE count overflow.");
+        PTO_ASSERT(false, "TPUT_ASYNC(DEFER) URMA: batch WQE count overflow.");
         return {};
     }
 
@@ -196,18 +202,24 @@ AICORE inline AsyncEvent UrmaDeferAsyncPut(
         return {};
     }
     FillUrmaBatchWqes(remoteAddr, localAddr, messageLen, session, peer, newWqeCount, firstProducerPerJetty);
-    if (runtimeCtx.batchLogicalWqeCount == 0U) {
+    if (runtimeCtx.batchWqeCount == 0U) {
         runtimeCtx.batchPeer = peer;
     }
     runtimeCtx.batchStagedWqeCount += newWqeCount;
     runtimeCtx.batchStagedOperationCount += 1U;
-    runtimeCtx.batchLogicalWqeCount += newWqeCount;
+    runtimeCtx.batchWqeCount += newWqeCount;
+    runtimeCtx.nextWqeSeq += newWqeCount;
+    runtimeCtx.batchKind = UrmaBatchKind::Continuous;
     return MakeUrmaBatchCompletionEvent(session, peer, true);
 }
 
 AICORE inline AsyncEvent UrmaFlushPendingAsyncPut(const AsyncSession& session, uint32_t peer)
 {
     UrmaRuntimeContext& runtimeCtx = session.rt.urma;
+    if (runtimeCtx.batchKind == UrmaBatchKind::Gather) {
+        PTO_ASSERT(false, "TPUT_ASYNC URMA: continuous flush cannot publish a pending gather batch.");
+        return AsyncEvent::Failed(DmaEngine::URMA);
+    }
     if (!ValidateUrmaBatchPeer(session, peer) || runtimeCtx.batchStagedWqeCount == 0U) {
         ::pto::comm::detail::DiscardPendingAsyncPutBatch(session);
         PTO_ASSERT(false, "TPUT_ASYNC URMA: cannot submit an empty or invalid deferred batch.");
@@ -219,10 +231,10 @@ AICORE inline AsyncEvent UrmaFlushPendingAsyncPut(const AsyncSession& session, u
         ::pto::comm::detail::DiscardPendingAsyncPutBatch(session);
         return {};
     }
-    const uint32_t physicalBatchStart = runtimeCtx.batchLogicalWqeCount - runtimeCtx.batchStagedWqeCount;
+    const uint32_t stagedWqeBegin = runtimeCtx.nextWqeSeq - runtimeCtx.batchStagedWqeCount;
     for (uint32_t slot = 0U; slot < session.cfg.urma.qpCount; ++slot) {
         const uint32_t stagedWqeCount =
-            UrmaBatchWqesOnJetty(physicalBatchStart, runtimeCtx.batchStagedWqeCount, session.cfg.urma.qpCount, slot);
+            UrmaBatchWqesOnJetty(stagedWqeBegin, runtimeCtx.batchStagedWqeCount, session.cfg.urma.qpCount, slot);
         if (stagedWqeCount == 0U) {
             continue;
         }
@@ -233,20 +245,25 @@ AICORE inline AsyncEvent UrmaFlushPendingAsyncPut(const AsyncSession& session, u
     }
     runtimeCtx.batchStagedWqeCount = 0U;
     runtimeCtx.batchStagedOperationCount = 0U;
+    RefreshUrmaBatchKind(session);
     return event;
 }
 
 AICORE inline AsyncEvent FinishUrmaAsyncPutBatch(const AsyncSession& session, uint32_t peer)
 {
+    if (session.rt.urma.batchKind == UrmaBatchKind::Gather) {
+        PTO_ASSERT(false, "TPUT_ASYNC URMA: continuous finish cannot publish a pending gather batch.");
+        return AsyncEvent::Failed(DmaEngine::URMA);
+    }
     AsyncEvent event;
     if (session.rt.urma.batchStagedWqeCount != 0U) {
         event = UrmaFlushPendingAsyncPut(session, peer);
-    } else if (session.rt.urma.batchLogicalWqeCount != 0U) {
+    } else if (session.rt.urma.batchWqeCount != 0U) {
         event = MakeUrmaBatchCompletionEvent(session, peer, false);
     }
-    const uint32_t railCycleCursor = session.rt.urma.railCycleCursor;
+    const uint32_t nextWqeSeq = session.rt.urma.nextWqeSeq;
     session.rt.urma = {};
-    session.rt.urma.railCycleCursor = railCycleCursor;
+    session.rt.urma.nextWqeSeq = nextWqeSeq;
     return event;
 }
 

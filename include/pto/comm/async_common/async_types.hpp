@@ -18,6 +18,36 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 namespace comm {
+
+namespace urma {
+
+// Controls completion generation for the URMA gather TPUT_ASYNC overloads.
+// Existing contiguous URMA operations do not read this field.
+enum class UrmaCqePolicy : uint8_t {
+    NoCqe = 0,
+    OneCqe = 1,
+    Final = 2,
+};
+
+enum class UrmaBatchKind : uint8_t {
+    None = 0,
+    Continuous = 1,
+    Gather = 2,
+};
+
+} // namespace urma
+
+struct GatherSegment {
+    __gm__ const uint8_t* addr;
+    uint32_t length;
+};
+
+struct GatherDestination {
+    __gm__ uint8_t* addr;
+    uint32_t segCount;
+    uint32_t peer;
+};
+
 namespace sdma {
 
 // ============================================================================
@@ -129,6 +159,8 @@ namespace urma {
 // Session configuration only the URMA backend reads.
 struct UrmaSessionConfig {
     uint32_t qpCount;
+    UrmaCqePolicy cqePolicy;
+    uint8_t reserved[3];
 };
 
 namespace detail {
@@ -136,11 +168,11 @@ namespace detail {
 struct UrmaRuntimeContext {
     uint32_t batchStagedWqeCount;
     uint32_t batchStagedOperationCount;
-    // WQE sequence within the logical batch. It is retained across automatic
-    // physical submissions so Jetty selection keeps rotating.
-    uint32_t batchLogicalWqeCount;
+    uint32_t batchWqeCount;
     uint32_t batchPeer;
-    uint32_t railCycleCursor;
+    uint32_t nextWqeSeq;
+    UrmaBatchKind batchKind;
+    uint8_t reserved[3];
 };
 
 } // namespace detail
@@ -208,7 +240,7 @@ struct AsyncSession {
 
     __gm__ uint8_t* contextGm{nullptr};
 
-    // SDMA and RDMA.
+    // Scratch storage supplied by the kernel for engines that need UB control data.
     __ubuf__ uint8_t* tmpBufAddr{nullptr};
     uint32_t tmpBufSize{0};
     uint32_t syncId{0};
