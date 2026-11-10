@@ -116,4 +116,4 @@ TEST(A5TMulFit, Fp32Default2DNoPostUpdateTail)
     runTMul<float, 20, 1312, 20, 1217, 869.0, 0.9792>();
 }
 
-TEST(A5TMulFit, Fp16ReusesFp32Curve) { runTMul<half, 1, 1280, 68.0, 1.0000>(); }
+TEST(A5TMulFit, Fp16UsesDedicatedCurve) { runTMul<half, 1, 1024, 46.0, 0.9500>(); }

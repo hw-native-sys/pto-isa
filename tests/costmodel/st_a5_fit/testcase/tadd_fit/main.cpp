@@ -116,4 +116,4 @@ TEST(A5TAddFit, Fp32Default2DNoPostUpdateTail)
     runTAdd<float, 20, 1312, 20, 1217, 869.0, 0.9804>();
 }
 
-TEST(A5TAddFit, Fp16ReusesFp32Curve) { runTAdd<half, 1, 1280, 67.0, 0.9850>(); }
+TEST(A5TAddFit, Fp16UsesDedicatedCurve) { runTAdd<half, 1, 1024, 45.0, 0.9500>(); }

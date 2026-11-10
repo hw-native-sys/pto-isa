@@ -35,8 +35,14 @@ struct DualReductionFitParams {
 };
 
 inline constexpr uint64_t kRowReductionElementsPerRepeatFp16 = 128;
-inline constexpr DualReductionFitParams kRowExtremaFit = {2.6345, 46.826, 3.0638, 2.5, 26.184};
 inline constexpr DualReductionFitParams kRowProdFit = {9.9344, 124.14, 17.277, 6.5745, 83.493};
+inline constexpr double kRowExtremaStartupCycles = 55.0;
+inline constexpr double kRowExtremaSingleRepeatCyclesPerRow = 35.0;
+inline constexpr double kRowExtremaDualAccumCyclesPerRow = 45.0;
+inline constexpr double kRowExtremaOddRepeatCyclesPerRow = 5.0;
+inline constexpr uint64_t kRowExtremaPairPipelineDepth = 3;
+inline constexpr double kRowExtremaCyclesPerExtraPair = 2.0;
+inline constexpr double kRowExtremaTailCyclesPerRow = 1.0;
 
 struct ColReductionFitParams {
     double flatRepeatSlope;
@@ -48,8 +54,15 @@ struct ColReductionFitParams {
 };
 
 inline constexpr uint64_t kColArithmeticElementsPerRepeatFp16 = 64;
-inline constexpr ColReductionFitParams kColSumFit = {4.5919, 43.277, 1.0, 1.2233, 2.2869, 35.158};
-inline constexpr ColReductionFitParams kColProdFit = {4.2774, 43.521, 2.5291, 2.0, -4.0839, 38.838};
+inline constexpr ColReductionFitParams kColSumFit = {23.25, 44.5, 0.0, 2.0, -38.5, 79.5};
+inline constexpr ColReductionFitParams kColProdFit = {23.5, 76.0, 0.0, 4.0, -105.0, 146.0};
+inline constexpr ColReductionFitParams kColSumHighRepeatSmallRowFit = {4.5919, 43.277, 1.0, 1.2233, 2.2869, 35.158};
+inline constexpr ColReductionFitParams kColProdHighRepeatSmallRowFit = {13.18966081, 33.17883043,  1.74494416,
+                                                                        2.5504652,   -31.06228086, 65.26532138};
+inline constexpr int64_t kColSmallRowLimit = 16;
+inline constexpr uint64_t kColHighRepeatStart = 5;
+inline constexpr double kColProdSingleRowRepeatSlope = 4.2774;
+inline constexpr double kColProdSingleRowBaseCycles = 43.521;
 inline constexpr double kColExtremaElementsPerRepeatFp16 = 128.0;
 inline constexpr double kColExtremaSingleRowBaseCycles = 33.0;
 inline constexpr double kColExtremaMultiRowBaseCycles = 37.0;
@@ -101,14 +114,30 @@ inline double EvalA5DualReduction(const DualReductionFitParams& params, double r
     return std::max(flatPath, rowPath);
 }
 
+inline double EvalA5RowExtrema(double rows, uint64_t repeats, bool hasTail)
+{
+    if (repeats == 1) {
+        return kRowExtremaStartupCycles +
+               rows * (kRowExtremaSingleRepeatCyclesPerRow + (hasTail ? kRowExtremaTailCyclesPerRow : 0.0));
+    }
+    const uint64_t repeatPairs = repeats / 2;
+    const uint64_t extraPairs =
+        repeatPairs > kRowExtremaPairPipelineDepth ? repeatPairs - kRowExtremaPairPipelineDepth : 0;
+    double cyclesPerRow = kRowExtremaDualAccumCyclesPerRow;
+    if (repeats % 2 != 0) {
+        cyclesPerRow += kRowExtremaOddRepeatCyclesPerRow;
+    }
+    cyclesPerRow += static_cast<double>(extraPairs) * kRowExtremaCyclesPerExtraPair;
+    if (hasTail) {
+        cyclesPerRow += kRowExtremaTailCyclesPerRow;
+    }
+    return kRowExtremaStartupCycles + rows * cyclesPerRow;
+}
+
 inline bool TryEstimateA5RowReductionCycles(const CostModelInput& input, uint64_t& cycles)
 {
-    const DualReductionFitParams* params = nullptr;
-    if (input.op == PtoOpcode::TROWMAX || input.op == PtoOpcode::TROWMIN) {
-        params = &kRowExtremaFit;
-    } else if (input.op == PtoOpcode::TROWPROD) {
-        params = &kRowProdFit;
-    } else {
+    const bool isRowExtrema = input.op == PtoOpcode::TROWMAX || input.op == PtoOpcode::TROWMIN;
+    if (!isRowExtrema && input.op != PtoOpcode::TROWPROD) {
         return false;
     }
     int64_t rows_i = 0;
@@ -117,9 +146,11 @@ inline bool TryEstimateA5RowReductionCycles(const CostModelInput& input, uint64_
         return false;
     }
     const double rows = static_cast<double>(rows_i);
-    const double repeats =
-        static_cast<double>(CeilDivU64(static_cast<uint64_t>(cols_i), kRowReductionElementsPerRepeatFp16));
-    cycles = RoundA5SpecialCycles(EvalA5DualReduction(*params, rows, repeats));
+    const uint64_t repeats = CeilDivU64(static_cast<uint64_t>(cols_i), kRowReductionElementsPerRepeatFp16);
+    const bool hasTail = static_cast<uint64_t>(cols_i) % kRowReductionElementsPerRepeatFp16 != 0;
+    const double value = isRowExtrema ? EvalA5RowExtrema(rows, repeats, hasTail) :
+                                        EvalA5DualReduction(kRowProdFit, rows, static_cast<double>(repeats));
+    cycles = RoundA5SpecialCycles(value);
     return true;
 }
 
@@ -147,16 +178,21 @@ inline bool TryEstimateA5ColReductionCycles(const CostModelInput& input, uint64_
         return true;
     }
 
+    const uint64_t repeatCount = CeilDivU64(static_cast<uint64_t>(cols_i), kColArithmeticElementsPerRepeatFp16);
+    const bool useHighRepeatSmallRowFit = rows_i < kColSmallRowLimit && repeatCount >= kColHighRepeatStart;
     const ColReductionFitParams* params = nullptr;
     if (input.op == PtoOpcode::TCOLSUM) {
-        params = &kColSumFit;
+        params = useHighRepeatSmallRowFit ? &kColSumHighRepeatSmallRowFit : &kColSumFit;
     } else if (input.op == PtoOpcode::TCOLPROD) {
-        params = &kColProdFit;
+        params = useHighRepeatSmallRowFit ? &kColProdHighRepeatSmallRowFit : &kColProdFit;
     } else {
         return false;
     }
-    const double repeats =
-        static_cast<double>(CeilDivU64(static_cast<uint64_t>(cols_i), kColArithmeticElementsPerRepeatFp16));
+    const double repeats = static_cast<double>(repeatCount);
+    if (input.op == PtoOpcode::TCOLPROD && rows_i == 1) {
+        cycles = RoundA5SpecialCycles(kColProdSingleRowRepeatSlope * repeats + kColProdSingleRowBaseCycles);
+        return true;
+    }
     cycles = RoundA5SpecialCycles(EvalA5ColArithmeticReduction(*params, rows, repeats));
     return true;
 }

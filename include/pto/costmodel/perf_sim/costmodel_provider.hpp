@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "latency.hpp"
 #include <pto/costmodel/lightweight_costmodel.hpp>
 #include <string>
+#include <string_view>
 
 namespace pto::perf_sim {
 
@@ -114,10 +115,33 @@ inline ::pto::mocker::lightweight::DType MapDType(const std::string& dtype)
 
 // ── LightweightFormula backend ──
 
+struct LightweightEstimateOptions {
+    int physical_rows = 0;
+    int physical_cols = 0;
+    int valid_rows = 0;
+    int valid_cols = 0;
+    ::pto::mocker::lightweight::A5ShapePathHint a5_shape_path = ::pto::mocker::lightweight::A5ShapePathHint::Auto;
+    ::pto::mocker::lightweight::DType dtype2 = ::pto::mocker::lightweight::DType::Float;
+    bool has_dtype2 = false;
+    ::pto::VFImplKind vf_impl_kind = ::pto::VFImplKind::VFIMPL_DEFAULT;
+    ::pto::RoundMode round_mode = ::pto::RoundMode::CAST_NONE;
+    ::pto::SaturationMode saturation_mode = ::pto::SaturationMode::ON;
+    std::string_view a5_op_params{};
+    bool has_mask_pattern = false;
+    ::pto::MaskPattern mask_pattern = ::pto::MaskPattern::P1111;
+    ::pto::GatherAxis gather_axis = ::pto::GatherAxis::GATHER_ROW;
+    ::pto::ScatterAxis scatter_axis = ::pto::ScatterAxis::SCATTER_ROW;
+    int dst_rows = 0;
+    int dst_cols = 0;
+    int dst_valid_rows = 0;
+    int dst_valid_cols = 0;
+};
+
 inline uint64_t EstimateLightweightCycles(
     const std::string& opcode, int rows, int cols, const std::string& src_dtype,
     const std::string& dst_dtype = "unknown", int64_t inner_dimension = 0,
-    ::pto::mocker::lightweight::TransferTileType tile_type = ::pto::mocker::lightweight::TransferTileType::Unknown)
+    ::pto::mocker::lightweight::TransferTileType tile_type = ::pto::mocker::lightweight::TransferTileType::Unknown,
+    const LightweightEstimateOptions& options = {})
 {
     using namespace ::pto::mocker::lightweight;
 
@@ -131,13 +155,33 @@ inline uint64_t EstimateLightweightCycles(
     input.arch =
         (npu_arch == kAscend950Arch || npu_arch == kAscend950UrmaArch) ? CostModelArch::A5 : CostModelArch::A2A3;
     input.dtype = MapDType(src_dtype);
-    input.dtype2 = input.dtype;
+    input.dtype2 = options.has_dtype2 ? options.dtype2 : input.dtype;
+    input.has_dtype2 = options.has_dtype2;
     if (dst_dtype != "unknown") {
         input.dst_dtype = MapDType(dst_dtype);
     }
-    input.rows = rows;
-    input.cols = cols;
-    input.data_size = static_cast<int64_t>(rows) * cols;
+    // A5 vector paths use physical strides to select their implementation.
+    // Legacy formulas and matrix M/N dimensions describe valid work instead.
+    const bool usePhysicalShape =
+        input.arch == CostModelArch::A5 && pto_op != PtoOpcode::TMATMUL && pto_op != PtoOpcode::TGEMV;
+    input.rows = usePhysicalShape && options.physical_rows > 0 ? options.physical_rows : rows;
+    input.cols = usePhysicalShape && options.physical_cols > 0 ? options.physical_cols : cols;
+    input.valid_rows = options.valid_rows > 0 ? options.valid_rows : rows;
+    input.valid_cols = options.valid_cols > 0 ? options.valid_cols : cols;
+    input.a5_shape_path = options.a5_shape_path;
+    input.vf_impl_kind = options.vf_impl_kind;
+    input.round_mode = options.round_mode;
+    input.saturation_mode = options.saturation_mode;
+    input.a5_op_params = options.a5_op_params;
+    input.has_mask_pattern = options.has_mask_pattern;
+    input.mask_pattern = options.mask_pattern;
+    input.gather_axis = options.gather_axis;
+    input.scatter_axis = options.scatter_axis;
+    input.dst_rows = options.dst_rows;
+    input.dst_cols = options.dst_cols;
+    input.dst_valid_rows = options.dst_valid_rows;
+    input.dst_valid_cols = options.dst_valid_cols;
+    input.data_size = static_cast<int64_t>(input.valid_rows) * input.valid_cols;
     input.tile_type = tile_type;
 
     if (pto_op == PtoOpcode::TMATMUL || pto_op == PtoOpcode::TGEMV) {
@@ -183,9 +227,16 @@ inline uint64_t FallbackCycles(const std::string& opcode, int rows, int cols)
 inline uint64_t EstimateInstrCycles(
     const std::string& opcode, int rows, int cols, const std::string& src_dtype,
     const std::string& dst_dtype = "unknown", int64_t inner_dimension = 0,
-    ::pto::mocker::lightweight::TransferTileType tile_type = ::pto::mocker::lightweight::TransferTileType::Unknown)
+    ::pto::mocker::lightweight::TransferTileType tile_type = ::pto::mocker::lightweight::TransferTileType::Unknown,
+    const LightweightEstimateOptions& options = {})
 {
-    uint64_t cycles = EstimateLightweightCycles(opcode, rows, cols, src_dtype, dst_dtype, inner_dimension, tile_type);
+    uint64_t cycles =
+        EstimateLightweightCycles(opcode, rows, cols, src_dtype, dst_dtype, inner_dimension, tile_type, options);
+    const auto arch = GetCostModelCtx().npu_arch;
+    if (arch == kAscend950Arch || arch == kAscend950UrmaArch) {
+        // An unsupported A5 fit key must not silently become a generic estimate.
+        return cycles;
+    }
     return cycles > 0 ? cycles : FallbackCycles(opcode, rows, cols);
 }
 

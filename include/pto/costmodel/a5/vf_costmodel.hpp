@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_MOCKER_A5_VF_COSTMODEL_HPP
 #define PTO_MOCKER_A5_VF_COSTMODEL_HPP
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string_view>
@@ -24,6 +25,36 @@ inline constexpr uint64_t kEvenModulo = 2;
 inline constexpr uint64_t kElementsPerRepeatB32 = 64;
 inline constexpr uint64_t kElementsPerRepeatB16 = 128;
 inline constexpr uint64_t kElementsPerRepeatB8 = 256;
+inline constexpr uint64_t kSort32ElementsPerRepeat = 32;
+
+struct ScatterIndexFitParams {
+    double baseCycles;
+    double loopLogSlope;
+    double tileSizeSlope;
+    double initRepeatSquareSlope;
+    double rowInitInteractionSlope;
+};
+
+struct ContinuousPiecewiseFitParams {
+    double initialSlope;
+    double bias;
+    double largeSlope;
+    double breakpoint;
+};
+
+// TSCATTER initializes the complete physical destination tile before executing
+// its row/repeat loop.  The benchmark initializes every index to zero, so the
+// fitted interaction term also represents the resulting write conflicts.
+inline constexpr ScatterIndexFitParams kScatterIndexB16Fp16Fit = {
+    42.73689546, 1.31912775, 1.2301575, 0.25136473, -0.11392576};
+inline constexpr ContinuousPiecewiseFitParams kScatterIndexB16Fp16Row1Fit = {
+    10.03889047, 64.35634627, 13.8580264, 16.0};
+
+inline double EvalContinuousPiecewise(double loopCount, const ContinuousPiecewiseFitParams& fit)
+{
+    return fit.initialSlope * std::min(loopCount, fit.breakpoint) + fit.bias +
+           fit.largeSlope * std::max(loopCount - fit.breakpoint, 0.0);
+}
 
 inline uint64_t CeilDivU64(uint64_t x, uint64_t y) { return y == 0 ? 0 : (x + y - 1) / y; }
 
@@ -237,6 +268,20 @@ inline std::string_view DefaultOpParams(PtoOpcode op)
     }
 }
 
+inline std::string_view IndexOpParams(DType index_dtype)
+{
+    switch (index_dtype) {
+        case DType::Int16:
+        case DType::Uint16:
+            return "index_b16";
+        case DType::Int32:
+        case DType::Uint32:
+            return "index_b32";
+        default:
+            return "";
+    }
+}
+
 inline std::string_view CvtOpParams(RoundMode round_mode, SaturationMode saturation_mode)
 {
     if (round_mode == RoundMode::CAST_NONE && saturation_mode == SaturationMode::ON) {
@@ -273,8 +318,33 @@ inline bool IsA5ScalarVfOp(PtoOpcode op)
     }
 }
 
-inline fit::ShapePath ResolveShapePath(PtoOpcode op, int64_t rows, int64_t cols, int64_t valid_cols)
+inline bool IsA5PathIndependentVfOp(PtoOpcode op)
 {
+    switch (op) {
+        case PtoOpcode::TCMPS:
+        case PtoOpcode::TCOLARGMAX:
+        case PtoOpcode::TCOLARGMIN:
+        case PtoOpcode::TGATHER:
+        case PtoOpcode::TMOV:
+        case PtoOpcode::TROWARGMAX:
+        case PtoOpcode::TSCATTER:
+        case PtoOpcode::TSORT32:
+        case PtoOpcode::TTRI:
+            return true;
+        default:
+            return false;
+    }
+}
+
+inline fit::ShapePath ResolveShapePath(
+    PtoOpcode op, int64_t rows, int64_t cols, int64_t valid_cols, A5ShapePathHint shape_path_hint)
+{
+    if (shape_path_hint == A5ShapePathHint::Path1D) {
+        return fit::ShapePath::Path1D;
+    }
+    if (shape_path_hint == A5ShapePathHint::Path2D) {
+        return fit::ShapePath::Path2D;
+    }
     if (op == PtoOpcode::TDEQUANT) {
         return rows == 1 ? fit::ShapePath::Path1D : fit::ShapePath::Path2D;
     }
@@ -341,14 +411,46 @@ inline bool TryInitVfCurveContext(const CostModelInput& input, VfCurveContext& c
     if (context.op_key.empty()) {
         return false;
     }
-    context.shape_path = ResolveShapePath(input.op, input.rows, input.cols, context.valid_cols_i);
+    context.shape_path = ResolveShapePath(input.op, input.rows, input.cols, context.valid_cols_i, input.a5_shape_path);
     context.src_dtype = DTypeToKey(input.dtype);
     context.op_params = input.a5_op_params;
     return !context.src_dtype.empty();
 }
 
+inline std::string_view PatternOpParams(MaskPattern pattern, bool columnAxis)
+{
+    switch (pattern) {
+        case MaskPattern::P0101:
+            return columnAxis ? "pattern_P0101_col" : "pattern_P0101_row";
+        case MaskPattern::P1010:
+            return columnAxis ? "pattern_P1010_col" : "pattern_P1010_row";
+        case MaskPattern::P0001:
+            return columnAxis ? "pattern_P0001_col" : "pattern_P0001_row";
+        case MaskPattern::P0010:
+            return columnAxis ? "pattern_P0010_col" : "pattern_P0010_row";
+        case MaskPattern::P0100:
+            return columnAxis ? "pattern_P0100_col" : "pattern_P0100_row";
+        case MaskPattern::P1000:
+            return columnAxis ? "pattern_P1000_col" : "pattern_P1000_row";
+        case MaskPattern::P1111:
+            return columnAxis ? "pattern_P1111_col" : "pattern_P1111_row";
+        default:
+            return {};
+    }
+}
+
 inline bool TryResolveVfOpParams(const CostModelInput& input, VfCurveContext& context)
 {
+    if ((input.op == PtoOpcode::TGATHER || input.op == PtoOpcode::TSCATTER) && input.has_mask_pattern) {
+        if (input.has_dtype2) {
+            return false;
+        }
+        const bool columnAxis = input.op == PtoOpcode::TGATHER ? input.gather_axis == GatherAxis::GATHER_COL :
+                                                                 input.scatter_axis == ScatterAxis::SCATTER_COL;
+        // Explicit semantic inputs take precedence over legacy free-form lookup keys.
+        context.op_params = PatternOpParams(input.mask_pattern, columnAxis);
+        return !context.op_params.empty();
+    }
     if (input.op == PtoOpcode::TCVT || input.op == PtoOpcode::TDEQUANT) {
         context.dst_dtype = DTypeToKey(input.dst_dtype);
         if (input.op == PtoOpcode::TCVT && context.op_params.empty()) {
@@ -357,6 +459,14 @@ inline bool TryResolveVfOpParams(const CostModelInput& input, VfCurveContext& co
                     std::string_view("CAST_RINT_SAT_ON_normal") :
                     CvtOpParams(input.round_mode, input.saturation_mode);
         }
+    } else if (
+        (input.op == PtoOpcode::TGATHER || input.op == PtoOpcode::TSCATTER) && input.has_dtype2 &&
+        context.op_params.empty()) {
+        context.op_params = IndexOpParams(input.dtype2);
+    } else if (
+        input.op == PtoOpcode::TSORT32 && context.valid_cols_i < static_cast<int64_t>(kSort32ElementsPerRepeat) &&
+        context.op_params.empty()) {
+        context.op_params = "no_tmp_subrepeat";
     } else if (context.op_params.empty()) {
         context.op_params = DefaultOpParams(input.op);
     }
@@ -365,6 +475,13 @@ inline bool TryResolveVfOpParams(const CostModelInput& input, VfCurveContext& co
 
 inline bool TryResolveElementsPerRepeat(const CostModelInput& input, VfCurveContext& context)
 {
+    if (input.op == PtoOpcode::TSORT32) {
+        context.elements_per_repeat = kSort32ElementsPerRepeat;
+        return true;
+    }
+    if ((input.op == PtoOpcode::TGATHER || input.op == PtoOpcode::TSCATTER) && input.has_dtype2) {
+        return TryGetA5ElementsPerRepeat(input.dtype2, context.elements_per_repeat);
+    }
     if (input.op == PtoOpcode::TCVT) {
         return TryGetA5CvtElementsPerRepeat(
             context.src_dtype, context.dst_dtype, context.shape_path, context.elements_per_repeat);
@@ -406,6 +523,46 @@ inline bool TryResolveTselOpParams(const CostModelInput& input, uint64_t inner_i
     return !context.op_params.empty();
 }
 
+inline void ResolveShapeSpecificOpParams(
+    const CostModelInput& input, uint64_t outer_iter, uint64_t inner_iter, VfCurveContext& context)
+{
+    constexpr uint64_t kSingleRow = 1;
+    constexpr uint64_t kSingleInnerIteration = 1;
+    const int64_t validRows = input.valid_rows > 0 ? input.valid_rows : input.rows;
+    const int64_t validCols = input.valid_cols > 0 ? input.valid_cols : input.cols;
+    if (context.shape_path == fit::ShapePath::Path1D && outer_iter == kSingleRow) {
+        if (context.src_dtype == "fp16" &&
+            (input.op == PtoOpcode::TADD || input.op == PtoOpcode::TMUL || input.op == PtoOpcode::TABS ||
+             input.op == PtoOpcode::TMAX || input.op == PtoOpcode::TMIN) &&
+            context.op_params.empty()) {
+            context.op_params = "row1";
+        } else if (input.op == PtoOpcode::TGATHER && context.op_params == "index_b32") {
+            context.op_params = "index_b32_row1";
+        } else if (
+            (input.op == PtoOpcode::TCOLARGMAX || input.op == PtoOpcode::TCOLARGMIN) &&
+            (context.src_dtype == "fp32" || context.src_dtype == "int32")) {
+            context.op_params = "row1";
+        }
+    }
+    if (context.src_dtype == "fp16" && context.shape_path == fit::ShapePath::Path2D && context.op_params.empty() &&
+        input.rows == validRows && input.cols == validCols &&
+        (input.op == PtoOpcode::TABS || input.op == PtoOpcode::TNEG)) {
+        context.op_params = "dense_2d";
+    }
+    if (input.op == PtoOpcode::TCMPS && validCols > static_cast<int64_t>(kElementsPerRepeatB16) &&
+        context.op_params.empty()) {
+        context.op_params = "multi_inner";
+    }
+    const bool hasSingleInnerTcvtFit =
+        (context.src_dtype == "bf16" && (context.dst_dtype == "fp4_e1m2" || context.dst_dtype == "fp4_e2m1")) ||
+        (context.src_dtype == "fp32" &&
+         (context.dst_dtype == "fp8_e4m3" || context.dst_dtype == "fp8_e5m2" || context.dst_dtype == "hif8"));
+    if (input.op == PtoOpcode::TCVT && hasSingleInnerTcvtFit && context.shape_path == fit::ShapePath::Path2D &&
+        inner_iter == kSingleInnerIteration && context.op_params == "CAST_RINT_SAT_ON_normal") {
+        context.op_params = "CAST_RINT_SAT_ON_inner1";
+    }
+}
+
 inline bool BuildVfCurveKeyAndLoopCount(
     const CostModelInput& input, fit::VfCurveKey& key, uint64_t& loop_count, uint64_t& outer_iter, uint64_t& inner_iter,
     uint64_t& tail_count, uint64_t& row_inner_iter)
@@ -417,6 +574,7 @@ inline bool BuildVfCurveKeyAndLoopCount(
     }
 
     ResolveLoopCounts(context, loop_count, outer_iter, inner_iter, tail_count, row_inner_iter);
+    ResolveShapeSpecificOpParams(input, outer_iter, inner_iter, context);
     const auto tail_kind = tail_count == 0 ? fit::TailKind::Full : fit::TailKind::Tail;
     if (!TryResolveTselOpParams(input, inner_iter, context)) {
         return false;
@@ -434,8 +592,101 @@ inline bool BuildVfCurveKeyAndLoopCount(
     return true;
 }
 
+inline bool TryEstimateA5ScatterPatternCycles(const CostModelInput& input, uint64_t& cycles)
+{
+    if (input.dtype != DType::Half || input.has_dtype2 || input.scatter_axis != ScatterAxis::SCATTER_ROW ||
+        (input.mask_pattern != MaskPattern::P0001 && input.mask_pattern != MaskPattern::P0101)) {
+        return false;
+    }
+    const int64_t validRows = input.valid_rows > 0 ? input.valid_rows : input.rows;
+    const int64_t validCols = input.valid_cols > 0 ? input.valid_cols : input.cols;
+    // Unlike the effective output shape, the destination allocation cannot be
+    // inferred from the mask: the implementation clears padding as well.
+    if (validRows <= 0 || validCols <= 0 || input.dst_rows <= 0 || input.dst_cols <= 0) {
+        return false;
+    }
+    constexpr int64_t kAlternatingExpansion = 2;
+    constexpr int64_t kQuarterExpansion = 4;
+    const int64_t expansion = input.mask_pattern == MaskPattern::P0001 ? kQuarterExpansion : kAlternatingExpansion;
+    if (validRows > input.rows || validCols > input.cols || input.dst_rows < validRows ||
+        input.dst_cols < validCols * expansion || (input.dst_valid_rows > 0 && input.dst_valid_rows != validRows) ||
+        (input.dst_valid_cols > 0 && input.dst_valid_cols != validCols * expansion)) {
+        return false;
+    }
+    fit::VfCurveKey key{
+        "TSCATTER",
+        "fp16",
+        "none",
+        fit::ShapePath::Path1D,
+        "POST_UPDATE",
+        validCols % kElementsPerRepeatB16 == 0 ? fit::TailKind::Full : fit::TailKind::Tail,
+        PatternOpParams(input.mask_pattern, false)};
+    const fit::VfFormulaParam* param = nullptr;
+    if (!fit::TryLookupVfFormulaParam(key, param)) {
+        return false;
+    }
+    const auto rows = static_cast<uint64_t>(validRows);
+    const auto rowRepeats = CeilDivU64(static_cast<uint64_t>(validCols), kElementsPerRepeatB16);
+    const auto initRepeats = CeilDivU64(
+        static_cast<uint64_t>(input.dst_rows) * static_cast<uint64_t>(input.dst_cols), kElementsPerRepeatB16);
+    cycles = fit::EvalVfFormula(*param, rows * rowRepeats, rows, rowRepeats, 0, rowRepeats, initRepeats);
+    if (input.mask_pattern == MaskPattern::P0101) {
+        // The two fitted throughput limits cover repeat-dominated and row-loop-
+        // dominated shapes without a shape-specific threshold or lookup table.
+        key.op_params = "pattern_P0101_row_loop";
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        cycles = std::max(
+            cycles, fit::EvalVfFormula(*param, rows * rowRepeats, rows, rowRepeats, 0, rowRepeats, initRepeats));
+    }
+    return cycles > 0;
+}
+
 inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles)
 {
+    if (input.op == PtoOpcode::TSCATTER && input.has_mask_pattern && input.mask_pattern == MaskPattern::P1111 &&
+        !input.has_dtype2) {
+        CostModelInput moveInput = input;
+        moveInput.op = PtoOpcode::TMOV;
+        moveInput.has_mask_pattern = false;
+        moveInput.a5_op_params = {};
+        return TryEstimateA5VfCycles(moveInput, cycles);
+    }
+    if (input.op == PtoOpcode::TSCATTER && input.has_mask_pattern) {
+        return TryEstimateA5ScatterPatternCycles(input, cycles);
+    }
+    if (input.op == PtoOpcode::TSCATTER && input.dtype == DType::Half && input.has_dtype2 &&
+        (input.dtype2 == DType::Int16 || input.dtype2 == DType::Uint16)) {
+        const int64_t validRows = input.valid_rows > 0 ? input.valid_rows : input.rows;
+        const int64_t validCols = input.valid_cols > 0 ? input.valid_cols : input.cols;
+        const int64_t physicalRows = input.rows > 0 ? input.rows : validRows;
+        const int64_t physicalCols = input.cols > 0 ? input.cols : validCols;
+        if (validRows <= 0 || validCols <= 0 || physicalRows <= 0 || physicalCols <= 0) {
+            return false;
+        }
+        constexpr int64_t kSingleRow = 1;
+        if (validRows == kSingleRow) {
+            const double loopCount =
+                static_cast<double>(CeilDivU64(static_cast<uint64_t>(validCols), kElementsPerRepeatB16));
+            cycles = fit::RoundToCycles(EvalContinuousPiecewise(loopCount, kScatterIndexB16Fp16Row1Fit));
+            return cycles > 0;
+        }
+        const double rows = static_cast<double>(validRows);
+        const double loopCount =
+            rows * static_cast<double>(CeilDivU64(static_cast<uint64_t>(validCols), kElementsPerRepeatB16));
+        const double physicalElements = static_cast<double>(physicalRows) * static_cast<double>(physicalCols);
+        const double initRepeats = static_cast<double>(CeilDivU64(
+            static_cast<uint64_t>(physicalRows) * static_cast<uint64_t>(physicalCols), kElementsPerRepeatB16));
+        const auto& fit = kScatterIndexB16Fp16Fit;
+        const double value = fit.baseCycles + fit.loopLogSlope * loopCount * std::log2(std::max(rows, 1.0)) +
+                             fit.tileSizeSlope * std::sqrt(physicalElements) +
+                             fit.initRepeatSquareSlope * initRepeats * initRepeats +
+                             fit.rowInitInteractionSlope * rows * initRepeats;
+        cycles = fit::RoundToCycles(value);
+        return cycles > 0;
+    }
+
     fit::VfCurveKey key{};
     uint64_t loop_count = 0;
     uint64_t outer_iter = 0;
@@ -448,7 +699,18 @@ inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles)
 
     const fit::VfFormulaParam* param = nullptr;
     if (!fit::TryLookupVfFormulaParam(key, param)) {
-        return false;
+        if (key.shape_path != fit::ShapePath::Path2D || !IsA5PathIndependentVfOp(input.op)) {
+            return false;
+        }
+        // These PTO implementations use their own row/repeat loops instead of
+        // selecting a different VF body for 1D and 2D tiles.  Keep the 2D loop
+        // features calculated above, but use the canonical formula key that
+        // was fitted before shape-path information reached the costmodel.
+        key.shape_path = fit::ShapePath::Path1D;
+        key.vf_impl_kind = "POST_UPDATE";
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
     }
 
     cycles = fit::EvalVfFormula(*param, loop_count, outer_iter, inner_iter, tail_count, row_inner_iter);

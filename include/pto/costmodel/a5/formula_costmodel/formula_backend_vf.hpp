@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_MOCKER_A5_FORMULA_BACKEND_VF_HPP
 #define PTO_MOCKER_A5_FORMULA_BACKEND_VF_HPP
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string_view>
@@ -20,6 +21,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto::mocker::lightweight::a5::fit {
 
 inline constexpr double kRowLoopStartupCycles = 18.0;
+inline constexpr uint64_t kFirstStartupLoop = 1;
+inline constexpr uint64_t kSecondStartupLoop = 2;
 
 struct VfCurveKey {
     std::string_view op;
@@ -54,13 +57,34 @@ inline bool TryLookupVfFormulaParam(const VfCurveKey& key, const VfFormulaParam*
 
 inline uint64_t EvalVfFormula(
     const VfFormulaParam& param, uint64_t loop_count, uint64_t outer_iter, uint64_t inner_iter, uint64_t tail_count,
-    uint64_t row_inner_iter)
+    uint64_t row_inner_iter, uint64_t init_repeats = 0)
 {
     double value = 0.0;
     switch (param.formula_kind) {
+        case FormulaKind::ScatterPatternRow:
+            // The destination clear and the source row/repeat expansion are separate VFs.
+            value = param.param0 + param.param1 * static_cast<double>(outer_iter) +
+                    param.param2 * static_cast<double>(loop_count) + param.param3 * static_cast<double>(init_repeats);
+            break;
         case FormulaKind::Linear:
             value = param.param0 * static_cast<double>(loop_count) + param.param1;
             break;
+        case FormulaKind::LinearSmallLoop:
+            value = loop_count <= static_cast<uint64_t>(param.param3) ?
+                        param.param2 :
+                        param.param0 * static_cast<double>(loop_count) + param.param1;
+            break;
+        case FormulaKind::LinearTwoStartup:
+            value = loop_count <= kFirstStartupLoop  ? param.param2 :
+                    loop_count <= kSecondStartupLoop ? param.param3 :
+                                                       param.param0 * static_cast<double>(loop_count) + param.param1;
+            break;
+        case FormulaKind::ContinuousPiecewiseLinear: {
+            const double loop = static_cast<double>(loop_count);
+            const double breakpoint = param.param3;
+            value = param.param0 * std::min(loop, breakpoint) + param.param1 +
+                    param.param2 * std::max(loop - breakpoint, 0.0);
+        } break;
         case FormulaKind::LinearRows:
             value = param.param0 * static_cast<double>(loop_count) + param.param1 * static_cast<double>(outer_iter) +
                     param.param2;

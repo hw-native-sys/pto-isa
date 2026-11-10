@@ -20,7 +20,7 @@ namespace pto::mocker::lightweight::a5 {
 inline constexpr double kMatmulMacsPerCycleFp16 = 4096.0;
 inline constexpr double kMatmulMinM = 48.0;
 inline constexpr double kMatmulMinK = 32.0;
-inline constexpr double kMatmulMinCycles = 3.7;
+inline constexpr double kMatmulMinCycles = 12.0;
 inline constexpr double kMatmulPipelineCycles = 0.4;
 
 inline constexpr uint64_t kLoadLargeTransferMinBytes = 1280;

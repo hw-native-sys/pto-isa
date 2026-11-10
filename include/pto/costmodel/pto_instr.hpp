@@ -75,7 +75,9 @@ inline constexpr const char* CostModelTileDTypeString()
     using TileType = std::remove_cvref_t<T>;
     if constexpr (requires { typename TileType::DType; }) {
         using TileDType = typename TileType::DType;
-        if constexpr (std::is_same_v<TileDType, bfloat16_t>) {
+        // Some host compilers alias bfloat16_t to half. In that configuration
+        // the alias cannot identify BF16 and must not relabel every FP16 tile.
+        if constexpr (std::is_same_v<TileDType, bfloat16_t> && !std::is_same_v<bfloat16_t, half>) {
             const uint32_t npuArch = perf_sim::GetCostModelCtx().npu_arch;
             if (npuArch == perf_sim::kAscend950Arch || npuArch == perf_sim::kAscend950UrmaArch) {
                 return "bf16";
@@ -107,6 +109,92 @@ inline bool TryTileInfo(int& rows, int& cols, std::string& dtype, T&& tile)
         return true;
     }
     return false;
+}
+
+struct CostModelTileInfo {
+    int physical_rows = 0;
+    int physical_cols = 0;
+    int valid_rows = 0;
+    int valid_cols = 0;
+    std::string dtype;
+    lightweight::A5ShapePathHint a5_shape_path = lightweight::A5ShapePathHint::Auto;
+};
+
+template <typename T>
+inline bool TryCostModelTileInfo(CostModelTileInfo& info, T&& tile)
+{
+    using Tile = std::remove_cvref_t<T>;
+    if constexpr (requires {
+                      typename Tile::DType;
+                      Tile::Rows;
+                      Tile::Cols;
+                      tile.GetValidRow();
+                      tile.GetValidCol();
+                  }) {
+        info.physical_rows = static_cast<int>(Tile::Rows);
+        info.physical_cols = static_cast<int>(Tile::Cols);
+        info.valid_rows = static_cast<int>(tile.GetValidRow());
+        info.valid_cols = static_cast<int>(tile.GetValidCol());
+        info.dtype = CostModelTileDTypeString<T>();
+        if constexpr (requires { Tile::ValidCol; }) {
+            constexpr bool kUsesOneDimensionalVfPath = Tile::Rows == 1 || Tile::ValidCol == Tile::Cols;
+            info.a5_shape_path =
+                kUsesOneDimensionalVfPath ? lightweight::A5ShapePathHint::Path1D : lightweight::A5ShapePathHint::Path2D;
+        }
+        return true;
+    }
+    return false;
+}
+
+template <typename T>
+inline void ExtractFirstCostModelTileInfo(CostModelTileInfo& info, T&& tile)
+{
+    TryCostModelTileInfo(info, std::forward<T>(tile));
+}
+
+template <typename T, typename T2, typename... Rest>
+inline void ExtractFirstCostModelTileInfo(CostModelTileInfo& info, T&& first, T2&& second, Rest&&... rest)
+{
+    if (!TryCostModelTileInfo(info, std::forward<T>(first))) {
+        ExtractFirstCostModelTileInfo(info, std::forward<T2>(second), std::forward<Rest>(rest)...);
+    }
+}
+
+inline bool UsesSourceWorkShape(std::string_view opcode)
+{
+    return opcode == "TROWSUM" || opcode == "TROWMAX" || opcode == "TROWMIN" || opcode == "TROWPROD" ||
+           opcode == "TROWARGMAX" || opcode == "TROWARGMIN" || opcode == "TCOLSUM" || opcode == "TCOLMAX" ||
+           opcode == "TCOLMIN" || opcode == "TCOLPROD" || opcode == "TCOLARGMAX" || opcode == "TCOLARGMIN";
+}
+
+inline bool IsIndexReductionOpcode(std::string_view opcode)
+{
+    return opcode == "TROWARGMAX" || opcode == "TROWARGMIN" || opcode == "TCOLARGMAX" || opcode == "TCOLARGMIN";
+}
+
+template <typename T>
+inline void UpdateLightweightEstimateOptions(perf_sim::LightweightEstimateOptions& options, T&& value)
+{
+    using Value = std::remove_cvref_t<T>;
+    if constexpr (std::is_same_v<Value, RoundMode>) {
+        options.round_mode = value;
+    } else if constexpr (std::is_same_v<Value, MaskPattern>) {
+        options.has_mask_pattern = true;
+        options.mask_pattern = value;
+    } else if constexpr (std::is_same_v<Value, GatherAxis>) {
+        options.gather_axis = value;
+    } else if constexpr (std::is_same_v<Value, ScatterAxis>) {
+        options.scatter_axis = value;
+    } else if constexpr (std::is_same_v<Value, SaturationMode>) {
+        options.saturation_mode = value;
+    } else if constexpr (std::is_same_v<Value, VFImplKind>) {
+        options.vf_impl_kind = value;
+        if (value == VFImplKind::VFIMPL_1D_NO_POST_UPDATE || value == VFImplKind::VFIMPL_1D_POST_UPDATE) {
+            options.a5_shape_path = lightweight::A5ShapePathHint::Path1D;
+        } else if (value == VFImplKind::VFIMPL_2D_NO_POST_UPDATE || value == VFImplKind::VFIMPL_2D_POST_UPDATE) {
+            options.a5_shape_path = lightweight::A5ShapePathHint::Path2D;
+        }
+    }
 }
 
 // Recursive: try tiles in order, extract dims+dtype from first one that has them.
@@ -192,9 +280,17 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
     // rows x cols, so select the first source tile rather than the destination.
     // This is also the shape contract used by the reduce costmodels.
     if constexpr (sizeof...(rest_tiles) > 0) {
-        if (hybrid::IsColumnReduceOpcode(opcode) || std::string_view(opcode) == "TCOLARGMAX" ||
-            std::string_view(opcode) == "TCOLARGMIN") {
-            ExtractFirstTileInfo(r.rows, r.cols, r.dtype, rest_tiles...);
+        if (UsesSourceWorkShape(opcode)) {
+            if constexpr (sizeof...(rest_tiles) >= 3) {
+                if (IsIndexReductionOpcode(opcode)) {
+                    auto restTuple = std::forward_as_tuple(rest_tiles...);
+                    TryTileInfo(r.rows, r.cols, r.dtype, std::get<1>(restTuple));
+                } else {
+                    ExtractFirstTileInfo(r.rows, r.cols, r.dtype, rest_tiles...);
+                }
+            } else {
+                ExtractFirstTileInfo(r.rows, r.cols, r.dtype, rest_tiles...);
+            }
         } else {
             ExtractFirstTileInfo(r.rows, r.cols, r.dtype, first_tile, rest_tiles...);
         }
@@ -210,32 +306,104 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
     int srcCols = 0;
     std::string srcDtype;
     if constexpr (sizeof...(rest_tiles) > 0) {
-        ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
+        if constexpr (sizeof...(rest_tiles) >= 3) {
+            if (IsIndexReductionOpcode(opcode)) {
+                auto restTuple = std::forward_as_tuple(rest_tiles...);
+                TryTileInfo(srcRows, srcCols, srcDtype, std::get<1>(restTuple));
+            } else {
+                ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
+            }
+        } else {
+            ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
+        }
     }
     const auto transferTileType =
         ResolveCostModelTransferTileType<decltype(first_tile), decltype(rest_tiles)...>(opcode);
     const int64_t innerDimension = std::string_view(opcode) == "TMATMUL" ? srcCols : 0;
 
+    CostModelTileInfo modelTileInfo;
+    if constexpr (sizeof...(rest_tiles) > 0) {
+        if (UsesSourceWorkShape(opcode)) {
+            if constexpr (sizeof...(rest_tiles) >= 3) {
+                if (IsIndexReductionOpcode(opcode)) {
+                    auto restTuple = std::forward_as_tuple(rest_tiles...);
+                    TryCostModelTileInfo(modelTileInfo, std::get<1>(restTuple));
+                } else {
+                    ExtractFirstCostModelTileInfo(modelTileInfo, rest_tiles...);
+                }
+            } else {
+                ExtractFirstCostModelTileInfo(modelTileInfo, rest_tiles...);
+            }
+        } else {
+            ExtractFirstCostModelTileInfo(modelTileInfo, first_tile, rest_tiles...);
+        }
+    } else {
+        ExtractFirstCostModelTileInfo(modelTileInfo, first_tile);
+    }
+    perf_sim::LightweightEstimateOptions estimateOptions{
+        .physical_rows = modelTileInfo.physical_rows,
+        .physical_cols = modelTileInfo.physical_cols,
+        .valid_rows = modelTileInfo.valid_rows,
+        .valid_cols = modelTileInfo.valid_cols,
+        .a5_shape_path = modelTileInfo.a5_shape_path,
+    };
+    if constexpr (sizeof...(rest_tiles) >= 2) {
+        if (std::string_view(opcode) == "TGATHER" || std::string_view(opcode) == "TSCATTER") {
+            auto restTuple = std::forward_as_tuple(rest_tiles...);
+            CostModelTileInfo indexTileInfo;
+            if (TryCostModelTileInfo(indexTileInfo, std::get<1>(restTuple))) {
+                estimateOptions.dtype2 = perf_sim::MapDType(indexTileInfo.dtype);
+                estimateOptions.has_dtype2 = true;
+            }
+        }
+        if (std::string_view(opcode) == "TSORT32") {
+            estimateOptions.a5_op_params = sizeof...(rest_tiles) >= 3 ? "with_tmp" : "no_tmp_subrepeat";
+        }
+    }
+    (UpdateLightweightEstimateOptions(estimateOptions, rest_tiles), ...);
+    if (estimateOptions.has_mask_pattern) {
+        CostModelTileInfo sourceInfo;
+        CostModelTileInfo destinationInfo;
+        if constexpr (sizeof...(rest_tiles) > 0) {
+            ExtractFirstCostModelTileInfo(sourceInfo, rest_tiles...);
+        }
+        TryCostModelTileInfo(destinationInfo, first_tile);
+        estimateOptions.physical_rows = sourceInfo.physical_rows;
+        estimateOptions.physical_cols = sourceInfo.physical_cols;
+        estimateOptions.valid_rows = sourceInfo.valid_rows;
+        estimateOptions.valid_cols = sourceInfo.valid_cols;
+        estimateOptions.a5_shape_path = sourceInfo.a5_shape_path;
+        estimateOptions.dst_rows = destinationInfo.physical_rows;
+        estimateOptions.dst_cols = destinationInfo.physical_cols;
+        estimateOptions.dst_valid_rows = destinationInfo.valid_rows;
+        estimateOptions.dst_valid_cols = destinationInfo.valid_cols;
+    }
+
     const uint64_t measured_cycles = GetLastPtoInstrCycles();
     uint64_t cycles = measured_cycles;
     const auto& trace = GetTrace();
     const PtoInstrRecord* currentTrace = trace.executed_pto.empty() ? nullptr : &trace.executed_pto.back();
-    const auto hybridEstimate = hybrid::EstimatePtoCycles({
-        opcode,
-        r.rows,
-        r.cols,
-        dstDtype,
-        srcDtype.empty() ? r.dtype : srcDtype,
-        measured_cycles,
-        currentTrace,
-    });
+    const uint32_t npuArch = perf_sim::GetCostModelCtx().npu_arch;
+    const bool useA5Fit = npuArch == perf_sim::kAscend950Arch || npuArch == perf_sim::kAscend950UrmaArch;
+    const auto hybridEstimate = useA5Fit ? hybrid::CycleEstimate{} :
+                                           hybrid::EstimatePtoCycles({
+                                               opcode,
+                                               r.rows,
+                                               r.cols,
+                                               dstDtype,
+                                               srcDtype.empty() ? r.dtype : srcDtype,
+                                               measured_cycles,
+                                               currentTrace,
+                                           });
     const uint64_t estimated_cycles =
         hybridEstimate ?
             0 :
             perf_sim::EstimateInstrCycles(
                 opcode, r.rows, r.cols, srcDtype.empty() ? (r.dtype.empty() ? "unknown" : r.dtype.c_str()) : srcDtype,
-                dstDtype.empty() ? "unknown" : dstDtype, innerDimension, transferTileType);
-    const bool useEstimatedCycles = hybridEstimate || cycles == 0 ||
+                dstDtype.empty() ? "unknown" : dstDtype, innerDimension, transferTileType, estimateOptions);
+    // A5 uses calibrated fits only: the mock trace follows the A2/A3 implementation
+    // and is not an A5 hardware measurement, even when it reports nonzero cycles.
+    const bool useEstimatedCycles = hybridEstimate || useA5Fit || cycles == 0 ||
                                     (std::string_view(opcode) == "TROWEXPAND" && estimated_cycles > cycles) ||
                                     (std::string_view(opcode) == "TDIVS" && (r.dtype == "int16" || r.dtype == "int32"));
     if (useEstimatedCycles) {
@@ -1073,7 +1241,10 @@ template <
 PTO_INST RecordEvent TSCATTER(DstTileData& dst, SrcTileData& src, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TSCATTER, PTO_TEMPLATE_ARGS(maskPattern, ScatterType), dst, src);
+    ::pto::mocker::PtoInstrScope scope("TSCATTER");
+    TSCATTER_IMPL<maskPattern, ScatterType>(dst, src);
+    scope.Finish();
+    ::RecordInstrFromFirst("TSCATTER", dst, src, maskPattern, ScatterType);
     return RecordEvent{};
 }
 
@@ -2134,11 +2305,16 @@ PTO_INST RecordEvent TTRI(TileData& dst, int diagonal, WaitEvents&... events)
     return RecordEvent{};
 }
 
-template <typename DstTileData, typename SrcTileData, MaskPattern maskPattern, typename... WaitEvents>
+template <
+    typename DstTileData, typename SrcTileData, MaskPattern maskPattern = MaskPattern::P1111,
+    auto gatherType = GatherAxis::GATHER_ROW, typename... WaitEvents>
 PTO_INST RecordEvent TGATHER(DstTileData& dst, SrcTileData& src, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TGATHER, PTO_TEMPLATE_ARGS(DstTileData, SrcTileData, maskPattern), dst, src);
+    ::pto::mocker::PtoInstrScope scope("TGATHER");
+    TGATHER_IMPL<DstTileData, SrcTileData, maskPattern, gatherType>(dst, src);
+    scope.Finish();
+    ::RecordInstrFromFirst("TGATHER", dst, src, maskPattern, gatherType);
     return RecordEvent{};
 }
 
