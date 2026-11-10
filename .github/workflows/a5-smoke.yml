@@ -232,14 +232,52 @@ jobs:
           A5_TOOLCHAIN_PATH_PREFIX=${A5_TOOLCHAIN_PATH_PREFIX}
           EOF
 
-          task_args=(--env-file ./a5_smoke.env --timeout 0 --max-time 0)
+          # Server-side watchdog hard cap (issue #415): the queue kills the
+          # task after A5_TASK_MAX_TIME seconds even if this client/job dies,
+          # so a wedged task can never hold the device forever.
+          task_args=(--env-file ./a5_smoke.env --timeout 0 --max-time "${A5_TASK_MAX_TIME:-5400}")
           if [[ "${DEVICE_ID}" =~ ^[0-9]+$ ]]; then
             task_args+=(--device "${DEVICE_ID}")
           fi
 
+          # Every 5 minutes print a queue snapshot into the job log so a long
+          # wait clearly shows "pending behind device usage" instead of silence.
+          (
+            while true; do
+              sleep 300
+              echo "===== [taskqueue snapshot] $(date -u '+%Y-%m-%d %H:%M:%SZ') ====="
+              task-submit --list 2>/dev/null | head -30 || true
+            done
+          ) &
+          queue_status_pid=$!
+          trap 'kill "${queue_status_pid}" 2>/dev/null || true' EXIT
+
           task-submit "${task_args[@]}" \
             --run "bash '${GITHUB_WORKSPACE}/.github/scripts/a5/run_smoke.sh'" \
             2>&1 | tee "./${log_file}"
+
+      # Issue #415: a cancelled or timed-out job must also stop the server-side
+      # root task; otherwise the device stays occupied and every later run
+      # queues behind a zombie task until it is killed by hand.
+      - name: Kill server-side A5 task on cancel
+        if: cancelled()
+        shell: bash
+        run: |
+          set -uo pipefail
+          log_file="${A5_SMOKE_LOG_FILE:-}"
+          task_id=""
+          if [[ -n "${log_file}" && -f "./${log_file}" ]]; then
+            task_id=$(grep -aoE 'task_[0-9]{8}_[0-9]{6}_[0-9]+' "./${log_file}" | tail -1 || true)
+          fi
+          if [[ -z "${task_id}" ]]; then
+            echo "No submitted task id found in ${log_file}; nothing to kill server-side."
+            exit 0
+          fi
+          echo "Job cancelled; killing server-side task ${task_id}"
+          task-submit --kill "${task_id}" || true
+          sleep 5
+          echo "Post-kill status:"
+          task-submit --status "${task_id}" || true
 
       # Only the log produced by this attempt is printed. If no log exists,
       # the tests never started, and an old success summary must not be shown.
