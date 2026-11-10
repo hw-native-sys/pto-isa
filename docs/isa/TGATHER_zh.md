@@ -103,6 +103,8 @@ PTO_INST RecordEvent TGATHER(TileDataD &dst, TileDataS &src0, TileDataS1 &k_valu
     - `Src1TileData::DType` 必须是 `int16_t`、`uint16_t`、`int32_t`、`uint32_t` 之一。
     - `DstTileData::DType` 必须与 `Src0TileData::DType` 类型相同。
     - 64 位数据要求 32 位索引（`int32_t` 或 `uint32_t`）。
+    - 8 位数据（`int8_t`、`uint8_t`）要求 16 位索引（`int16_t` 或 `uint16_t`）。
+    - `int8_t`/`uint8_t` 目标要求 `Cols` 为偶数（打包的 16 位存储以 2 字节为单位寻址目标行）。
     - 64 位索引 gather 支持 RowMajor/ColMajor 的目标和索引 Tile，并按各自物理行列步长访问；有效列数可以小于物理列数。索引 Tile 的有效区域须覆盖目标有效区域。
 - **基于掩码模式的gather：实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
     - 源元素大小必须是`2`或`4`字节。

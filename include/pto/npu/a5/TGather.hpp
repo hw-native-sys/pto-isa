@@ -134,6 +134,9 @@ PTO_INTERNAL void CheckValid()
         sizeof(typename DstTileData::DType) != 8 || sizeof(typename Src1TileData::DType) == 4,
         "Fix: TGATHER expects b32 indices for b64 data");
     static_assert(
+        sizeof(typename DstTileData::DType) != 1 || sizeof(typename Src1TileData::DType) == 2,
+        "Fix: TGATHER expects b16 indices for b8 data");
+    static_assert(
         (std::is_same<typename DstTileData::DType, typename Src0TileData::DType>::value),
         "Fix: TGATHER expect same datatype for src and dst");
 }
@@ -227,12 +230,27 @@ __tf__ AICORE void TGather_b8(
     __ubuf__ typename TileDataS0::DType* src0Ptr = (__ubuf__ typename TileDataS0::DType*)__cce_get_tile_ptr(src0);
     __ubuf__ typename TileDataS1::DType* src1Ptr = (__ubuf__ typename TileDataS1::DType*)__cce_get_tile_ptr(src1);
     __ubuf__ typename TileDataD::DType* dstPtr = (__ubuf__ typename TileDataD::DType*)__cce_get_tile_ptr(dst);
+    // vgather2 for int8_t/uint8_t bases zero-extends gathered bytes into 16-bit lanes, so the
+    // result register must be 16-bit; the PK_B16 store packs it back to b8 (issue #829). f8
+    // bases keep their native f8 destination overloads and are unaffected.
+    using GatherT = std::conditional_t<
+        std::is_same_v<typename TileDataS0::DType, int8_t>, int16_t,
+        std::conditional_t<std::is_same_v<typename TileDataS0::DType, uint8_t>, uint16_t, typename TileDataS0::DType>>;
+    // The packed store addresses the destination through GatherT* (2-byte units; the vsts builtin
+    // scales the offset by sizeof(GatherT)), so every row start i * Cols must be even, and j *
+    // elementsPerRepeat is always even (elementsPerRepeat = CCE_VL / 2 for b16 indices). RowMajor
+    // Vec tiles already guarantee Cols * sizeof(DType) is 32-byte aligned (pto_tile.hpp), so this
+    // holds for every instantiable tile; the assert documents the requirement and keeps the
+    // offset division above exact if the tile alignment rules ever change.
+    static_assert(
+        sizeof(GatherT) != 2 || TileDataD::Cols % 2 == 0,
+        "Fix: TGATHER b8 gather requires an even dst Cols (PK_B16-packed rows are addressed in 2-byte units)");
     uint16_t elementsPerRepeat = CCE_VL / sizeof(typename TileDataS1::DType);
     uint16_t LoopNum = CeilDivision(validCol, elementsPerRepeat);
     __VEC_SCOPE__
     {
         MaskReg preg;
-        RegTensor<typename TileDataD::DType> v_output;
+        RegTensor<GatherT> v_output;
         RegTensor<typename TileDataS1::DType> index;
         for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
             uint32_t sreg = (uint32_t)(validCol);
@@ -240,7 +258,10 @@ __tf__ AICORE void TGather_b8(
                 preg = CreatePredicate<typename TileDataS1::DType>(sreg);
                 vlds(index, src1Ptr, (i * TileDataS1::Cols + j * elementsPerRepeat), NORM);
                 vgather2(v_output, src0Ptr, (vector_u16&)index, preg);
-                vsts(v_output, dstPtr, (i * TileDataD::Cols + j * elementsPerRepeat), PK_B16, preg);
+                vsts(
+                    v_output, (__ubuf__ GatherT*)dstPtr,
+                    (i * TileDataD::Cols + j * elementsPerRepeat) * sizeof(typename TileDataD::DType) / sizeof(GatherT),
+                    PK_B16, preg);
             }
         }
     }

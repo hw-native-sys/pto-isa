@@ -103,6 +103,8 @@ For each row `i` in `src0`, compare each element `src0[i, j]` against threshold 
     - `Src1TileData::DType` must be `int16_t`, `uint16_t`, `int32_t`, `uint32_t`.
     - `DstTileData::DType` must be the same type as `Src0TileData::DType`.
     - 64-bit data requires 32-bit indices (`int32_t` or `uint32_t`).
+    - 8-bit data (`int8_t`, `uint8_t`) requires 16-bit indices (`int16_t` or `uint16_t`).
+    - `int8_t`/`uint8_t` destinations require an even `Cols` (packed 16-bit stores address destination rows in 2-byte units).
     - The 64-bit indexed path supports RowMajor/ColMajor destination and index tiles using their physical row/column strides; valid columns may be smaller than physical columns. The index valid region must cover the destination valid region.
 - **Mask-pattern gather: implementation checks (A2A3)**:
     - Source element size must be `2` or `4` bytes.
