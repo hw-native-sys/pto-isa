@@ -151,7 +151,7 @@ void TCvtCol2NzImp(typename tile_shape_out::TileDType dst, const typename tile_s
     for (size_t i = 0; i < tile_shape_out::ValidCol; ++i) {
         size_t sub_tile_i = i / inner_cols;
         size_t idx_i = i % inner_cols;
-        for (size_t j = 0; i < tile_shape_out::ValidRow; ++j) {
+        for (size_t j = 0; j < tile_shape_out::ValidRow; ++j) {
             size_t sub_tile_j = j / inner_rows;
             size_t idx_j = j % inner_rows;
 
@@ -176,7 +176,7 @@ void TCvtNz2ColImp(typename tile_shape_out::TileDType dst, const typename tile_s
     for (size_t i = 0; i < tile_shape_in::ValidCol; ++i) {
         size_t sub_tile_i = i / inner_cols;
         size_t idx_i = i % inner_cols;
-        for (size_t j = 0; i < tile_shape_out::ValidRow; ++j) {
+        for (size_t j = 0; j < tile_shape_out::ValidRow; ++j) {
             size_t sub_tile_j = j / inner_rows;
             size_t idx_j = j % inner_rows;
             size_t idx_src = sub_tile_i * ceil_rows_in * inner_cols + sub_tile_j * tile_shape_in::InnerNumel +

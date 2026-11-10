@@ -60,7 +60,9 @@ Host numerical tests and unsupported-configuration checks (also run by CI).
 The host compiler needs C++20, `_Float16` and `std::bit_cast`; GCC 14.2.1 is a
 validated configuration. The tests cover every public elementwise instruction
 on row/column-major wide and tall rectangles, partial valid regions and padding,
-double TSQRT extremes, dynamic GM strides, and two-translation-unit linking:
+double TSQRT extremes, dynamic GM strides, and two-translation-unit linking.
+A separate internal regression checks both column-major/NZ conversion directions
+and padding; it does not add public TCVT or boxed-layout CPU support:
 
 ```sh
 python3 tests/compile/test_linx_target.py --output-dir build/linx_cpu_sim
@@ -97,6 +99,7 @@ PTO source headers/formatting, removal of unused architecture import branches,
 architectural type traits, public comparison-enum encoding, and a CPU thread-index fallback. Public signature
 adaptations live outside `impl` to simplify future updates. Local correctness
 fixes inside `impl` mark `layout_type_to_str` inline, correct column-major TMIN
-indexing, and preserve double precision in TSQRT; retain these when updating
+indexing, preserve double precision in TSQRT, and bound both column-major/NZ
+conversion loops by their row iterator; retain these when updating
 the imported snapshot. The revision header identifies the source snapshot,
 not a byte-identical vendored tree.

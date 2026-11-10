@@ -104,6 +104,10 @@ def main() -> int:
     binary = (args.output_dir / "linx_cpu_sim").resolve()
     run(command + [str(root / "tests/compile/linx_target.cpp"), "-o", str(binary)])
     run([str(binary)])
+    conversion = (args.output_dir / "linx_conversion").resolve()
+    run(command + [str(root / "tests/compile/linx_conversion.cpp"), "-o", str(conversion)])
+    for direction in ("to-nz", "to-col"):
+        run([str(conversion), direction], timeout=30)
     check_multi_tu(command, args.output_dir)
     # Every failure must match our contract diagnostic, not an unrelated syntax error.
     cases = [
@@ -141,7 +145,9 @@ def main() -> int:
         "#include <pto/pto-inst.hpp>\n#include <pto/common/type.hpp>\n#include <pto/common/pto_tile.hpp>\n"
     )
     run(command + ["-fsyntax-only", str(source)])
-    print(f"Linx CPU-sim: numerical/multi-TU tests, {len(cases)} rejection tests and include-order check passed")
+    print(
+        f"Linx CPU-sim: numerical/internal-conversion/multi-TU tests, {len(cases)} rejection tests and include-order check passed"
+    )
     return 0
 
 
