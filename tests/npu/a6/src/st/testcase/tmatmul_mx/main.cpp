@@ -37,8 +37,8 @@ std::string GetGoldenDir()
 //   fp4 (e1m2/e2m1/hif4): 0.5 B/elem (packed).  fp8: 1 B/elem.  fp16/bf16: 2 B/elem.
 // A-scale: e8m0 (non-hif4 A) = M*K/32.  hif4 A = (M*K/64)*4.
 // B-scale: e8m0 (e2m1/e1m2 B) = K*N/32.  hif4 B = (K*N/64)*4.
-enum class AKind : uint8_t { E1M2, E2M1, E4M3, F16, BF16, HIF4 };
-enum class BKind : uint8_t { E1M2, E2M1, HIF4 };
+enum class AKind : uint8_t { E1M2, E2M1, E4M3, F16, BF16, HIF4, HIF4_ND };
+enum class BKind : uint8_t { E1M2, E2M1, HIF4, HIF4_DN };
 
 struct CaseConfig {
     int m, k, n;
@@ -92,6 +92,10 @@ CFG(32, 64, 64, 64, E2M1, E1M2)
 CFG(33, 128, 256, 128, E4M3, E2M1)
 CFG(34, 128, 256, 128, F16, HIF4)
 CFG(35, 128, 128, 256, E4M3, HIF4)
+CFG(36, 128, 128, 128, HIF4_ND, HIF4_DN)
+CFG(37, 128, 256, 128, HIF4_ND, HIF4_DN)
+CFG(38, 256, 128, 128, HIF4_ND, HIF4_DN)
+CFG(39, 128, 128, 256, HIF4_ND, HIF4_DN)
 
 #undef CFG
 
@@ -120,13 +124,13 @@ static size_t bDataBytes(BKind k, int kk, int n)
 static size_t aScaleBytes(AKind k, int m, int kk)
 {
     size_t mPadded = static_cast<size_t>((m + 15) / 16) * 16;
-    return (k == AKind::HIF4) ? (mPadded * kk / 64) * 4 : mPadded * kk / 32;
+    return (k == AKind::HIF4 || k == AKind::HIF4_ND) ? (mPadded * kk / 64) * 4 : mPadded * kk / 32;
 }
 
 static size_t bScaleBytes(BKind k, int kk, int n)
 {
     size_t nPadded = static_cast<size_t>((n + 15) / 16) * 16;
-    return (k == BKind::HIF4) ? (kk * nPadded / 64) * 4 : kk * nPadded / 32;
+    return (k == BKind::HIF4 || k == BKind::HIF4_DN) ? (kk * nPadded / 64) * 4 : kk * nPadded / 32;
 }
 
 std::vector<float> Bf16BytesToFloat(const uint8_t* raw, int n)
@@ -267,5 +271,9 @@ CASE(32, case_mmad_mx_e2m1e1m2_64x64x64)
 CASE(33, case_mmad_mx_e4m3e2m1_128x256x128)
 CASE(34, case_mmad_mx_fp16hi4_128x256x128)
 CASE(35, case_mmad_mx_e4m3hi4_128x128x256)
+CASE(36, case_mmad_mx_hif4hif4_nd2zz_dn2nn_128x128x128)
+CASE(37, case_mmad_mx_hif4hif4_nd2zz_dn2nn_128x256x128)
+CASE(38, case_mmad_mx_hif4hif4_nd2zz_dn2nn_256x128x128)
+CASE(39, case_mmad_mx_hif4hif4_nd2zz_dn2nn_128x128x256)
 
 #undef CASE

@@ -13,6 +13,10 @@
 <!-- end id3 -->
 
 
+## Tile Operation Diagram
+
+> No `TPUSH.svg` is provided. `TPUSH` is a **FIFO control-plane** primitive; it records data-ready synchronization for the slot allocated by `TALLOC`, committing the producer slot to the consumer. It does not store tile data itself.
+
 ## Introduction
 
 Push a producer tile into a `TPipe` FIFO for Cube-Vector communication.

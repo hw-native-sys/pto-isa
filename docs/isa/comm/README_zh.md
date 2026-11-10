@@ -78,7 +78,7 @@ comm::TTEST(signal, 1, comm::WaitCmp::GE);
 
 ### DmaEngine
 
-`TPUT_ASYNC` 和 `TGET_ASYNC` 的 DMA 后端选择：
+`TPUT_ASYNC`、`TPUT_ASYNC_NOTIFY` 和 `TGET_ASYNC` 的 DMA 后端选择：
 
 | 值 | 说明 |
 |-------|-------------|
@@ -86,18 +86,56 @@ comm::TTEST(signal, 1, comm::WaitCmp::GE);
 | `DmaEngine::URMA` | URMA 引擎（支持一维传输，仅 Ascend950 / NPU_ARCH 3510；要求 CANN >= 9.1.0）|
 | `DmaEngine::RDMA` | RDMA 引擎（支持一维传输，仅 Ascend950 / NPU_ARCH 3510；当前网卡平台仅支持 HNS1825）|
 
+### AsyncSubmitMode
+
+`AsyncSession::submitMode` 的取值，控制 `TPUT_ASYNC` 立即提交还是暂存后成批提交：
+
+| 值 | 说明 |
+|-------|-------------|
+| `AsyncSubmitMode::IMMEDIATE` | 立即提交（默认）。若存在暂存批次，先提交该批次 |
+| `AsyncSubmitMode::DEFER` | 暂存本次操作，暂存数达到 `batchSize` 时自动提交 |
+| `AsyncSubmitMode::DEFER_AND_SUBMIT` | 暂存本次操作并立即提交整个批次 |
+
+仅 A2/A3 的 `TPUT_ASYNC<SDMA>` 与 Ascend 950 的 `TPUT_ASYNC<URMA>` 支持批量。详见 [TPUT_ASYNC 批量提交](TPUT_ASYNC_zh.md#批量提交)。
+
 ### AsyncEvent
 
-由 `TPUT_ASYNC` / `TGET_ASYNC` 返回，用于同步传输完成状态：
+由 `TPUT_ASYNC` / `TPUT_ASYNC_NOTIFY` / `TGET_ASYNC` 返回，用于同步传输完成状态：
 
 ```cpp
 struct AsyncEvent {
     uint64_t handle;
     DmaEngine engine;
 
-    bool valid() const;                        // handle != 0 时返回 true
+    bool valid() const;                           // 仅表示 handle != 0
     bool Wait(const AsyncSession &session) const; // 阻塞直到传输完成
     bool Test(const AsyncSession &session) const; // 非阻塞完成检测
+
+    // 供无法执行设备侧轮询原语的消费者读取完成记录
+    uint32_t CompletionRecordCount(const AsyncSession &session) const;
+    AsyncCompletionRecord CompletionRecordAt(const AsyncSession &session, uint32_t idx) const;
+};
+```
+
+`Wait` 和 `Test` 的返回值是判断操作结果的唯一依据：返回 `true` 表示操作已完成，返回 `false` 表示提交失败。`handle == 0` 表示操作无需等待（空传输，或 Ascend 950 上的同步 SDMA 路径），此时 `Wait` 和 `Test` 立即返回 `true`；`valid()` 仅反映 `handle != 0`，不能用于判断成功与否。
+
+`CompletionRecordCount` 在 `handle == 0` 时返回 0；非零 handle 无法解析时返回 `kCompletionRecordCountError`（`UINT32_MAX`），该值须按错误处理。`CompletionRecordAt` 无法解析时返回 `addr == nullptr` 的空记录。
+
+### AsyncCompletionRecord
+
+完成记录描述一次传输的完成判据，供无法执行设备侧轮询原语的消费者使用。消费者按 `kind` 比较 `addr` 处的值与 `expected`，无需了解后端队列布局：
+
+```cpp
+enum class CompletionKind : uint32_t {
+    SDMA_POST_DONE = 1,
+    URMA_CQE_DW0 = 2,
+    RDMA_HNS1825_CQE = 3,
+};
+
+struct AsyncCompletionRecord {
+    __gm__ uint8_t *addr;
+    uint64_t expected;
+    CompletionKind kind;
 };
 ```
 
@@ -108,9 +146,11 @@ struct AsyncEvent {
 ```cpp
 comm::AsyncSession session;
 comm::BuildAsyncSession<comm::DmaEngine::SDMA>(scratchTile, workspace, session);
+session.submitMode = comm::AsyncSubmitMode::DEFER;  // 可选，默认 IMMEDIATE 逐条提交
+session.batchSize = 8U;                             // 可选，批量提交阈值
 ```
 
-定义于 `include/pto/comm/async_common/async_types.hpp`。构建参数详见 [TPUT_ASYNC](TPUT_ASYNC_zh.md)。
+定义于 `include/pto/comm/async_common/async_types.hpp`。构建参数和批量提交详见 [TPUT_ASYNC](TPUT_ASYNC_zh.md)。
 
 ### ParallelGroup
 

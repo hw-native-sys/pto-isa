@@ -31,6 +31,9 @@ template <typename TileDataOut, typename TileDataIn, typename TileDataTmp>
 PTO_INTERNAL void TROWPROD_IMPL(TileDataOut& dstTile, TileDataIn& srcTile, TileDataTmp& tmp)
 {
     (void)tmp;
+    static_assert(
+        !TileDataOut::kRowPlusOneNZ && !TileDataIn::kRowPlusOneNZ,
+        "RowPlusOne mode for TROWPROD Op is not supported in CPU-SIM currently.");
     TRowProd<TileDataOut, TileDataIn>(dstTile.data(), srcTile.data(), srcTile.GetValidRow(), srcTile.GetValidCol());
 }
 } // namespace pto

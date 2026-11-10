@@ -133,16 +133,16 @@ PTO_INTERNAL void UnaryTileScalarOpImpl(TileDst& dst, TileSrc& src, typename Til
         if constexpr (TileDst::isRowMajor) {
             cpu::parallel_for_rows(rows, cols, [&](std::size_t r) {
                 for (std::size_t c = 0; c < cols; ++c) {
-                    const std::size_t idxDst = GetTileElementOffset<TileDst>(r, c);
-                    const std::size_t idxSrc = GetTileElementOffset<TileSrc>(r, c);
+                    const std::size_t idxDst = GetTileElementOffset<TileDst>(r, c, rows);
+                    const std::size_t idxSrc = GetTileElementOffset<TileSrc>(r, c, rows);
                     ElementOpCal<T, op>::apply(dst.data()[idxDst], src.data()[idxSrc], scalar, extra);
                 }
             });
         } else {
             cpu::parallel_for_rows(cols, rows, [&](std::size_t c) {
                 for (std::size_t r = 0; r < rows; ++r) {
-                    const std::size_t idxDst = GetTileElementOffset<TileDst>(r, c);
-                    const std::size_t idxSrc = GetTileElementOffset<TileSrc>(r, c);
+                    const std::size_t idxDst = GetTileElementOffset<TileDst>(r, c, rows);
+                    const std::size_t idxSrc = GetTileElementOffset<TileSrc>(r, c, rows);
                     ElementOpCal<T, op>::apply(dst.data()[idxDst], src.data()[idxSrc], scalar, extra);
                 }
             });
@@ -284,8 +284,8 @@ PTO_INTERNAL void TAXPY_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDa
     unsigned col = dst.GetValidCol();
     for (size_t c = 0; c < col; ++c) {
         for (size_t r = 0; r < row; ++r) {
-            const size_t dstIdx = GetTileElementOffset<TileDataDst>(r, c);
-            const size_t srcIdx = GetTileElementOffset<TileDataSrc>(r, c);
+            const size_t dstIdx = GetTileElementOffset<TileDataDst>(r, c, row);
+            const size_t srcIdx = GetTileElementOffset<TileDataSrc>(r, c, row);
             if constexpr (
                 std::is_same_v<typename TileDataDst::DType, half> &&
                 std::is_same_v<typename TileDataSrc::DType, half>) {

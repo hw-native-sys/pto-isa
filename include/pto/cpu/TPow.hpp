@@ -99,9 +99,9 @@ PTO_INTERNAL void TPow_Impl(
         if constexpr (DstTile::isRowMajor) {
             cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
                 for (std::size_t c = 0; c < validCol; ++c) {
-                    const std::size_t idxDst = GetTileElementOffset<DstTile>(r, c);
-                    const std::size_t idxBase = GetTileElementOffset<BaseTile>(r, c);
-                    const std::size_t idxExp = GetTileElementOffset<ExpTile>(r, c);
+                    const std::size_t idxDst = GetTileElementOffset<DstTile>(r, c, validRow);
+                    const std::size_t idxBase = GetTileElementOffset<BaseTile>(r, c, validRow);
+                    const std::size_t idxExp = GetTileElementOffset<ExpTile>(r, c, validRow);
                     dst[idxDst] = compute_pow<T>(base[idxBase], exp[idxExp]);
                 }
             });
@@ -109,9 +109,9 @@ PTO_INTERNAL void TPow_Impl(
         } else {
             cpu::parallel_for_rows(validCol, validRow, [&](std::size_t c) {
                 for (std::size_t r = 0; r < validRow; ++r) {
-                    const std::size_t idxDst = GetTileElementOffset<DstTile>(r, c);
-                    const std::size_t idxBase = GetTileElementOffset<BaseTile>(r, c);
-                    const std::size_t idxExp = GetTileElementOffset<ExpTile>(r, c);
+                    const std::size_t idxDst = GetTileElementOffset<DstTile>(r, c, validRow);
+                    const std::size_t idxBase = GetTileElementOffset<BaseTile>(r, c, validRow);
+                    const std::size_t idxExp = GetTileElementOffset<ExpTile>(r, c, validRow);
                     dst[idxDst] = compute_pow<T>(base[idxBase], exp[idxExp]);
                 }
             });

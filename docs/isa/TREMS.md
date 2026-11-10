@@ -93,11 +93,17 @@ Two execution organizations exist (issue #2 loop inversion). The per-vector path
 seed:      dst[row] = |src[row]|                     (vabs, rep = fullPerRow)
 iters 11→1: for each row: SolveScale iteration         (ops with rep = fullPerRow,
              on dst[row] with state in place            state = dst[row])
+final:     iteration 1 runs in chunks of min(8, C) vectors (the
+           compensated subtract's window scales with the chunk) state = dst[row])
 post:      for each row: HpPostS on dst[row]
 tails:     per-vector fallback on the <64-element tail of each row
 ```
 
 Staging engages when `validRows * (validCols / 64) >= TREM_HP_STAGED_MIN_VECS` (48) and the `dst` tile does not alias the input; `validCols / 64 <= 255` (8-bit repeatTimes) always applies — split wider tiles into multiple calls.
+
+### Exact final iteration
+
+The last peel iteration computes `state -= k * b` with single-rounding semantics. A5 evaluates it as one fused `vmula`; A2/A3 has no fused multiply-add (`vmla` rounds the product first), so the port splits $k$ (an integer below $2^{24}$) and $b$ into 12-bit halves, evaluates the four exact partial products, reassembles $k \cdot b$ exactly as a `(hi, lo)` pair with full TwoSum chains, and subtracts both parts. The first subtraction is Sterbenz-exact, so the second rounds once and yields the true remainder — which is always representable. The staged final pass batches $\min(C, 8)$ vectors per call (`TREM_HP_FUSED_CHUNK_A2A3`), converging the exactness overhead to roughly +35% vector-core cycles for tiles up to 512 columns. Lanes whose $|b|$ would overflow the split ($|b| > \text{FLT\_MAX}/4097$) keep the plain two-op result, where the error stays within half an ulp of the dividend (the tolerated class for quotients beyond $2^{24}$). This is what makes results such as $4580025 \bmod -7.25$ exact ($-3.0$, not $-3.25$).
 
 ## High Precision Tiling Budget
 
@@ -112,6 +118,7 @@ The HP scratch is a capacity-sized window over the `tmp` tile, $C = \max(\lfloor
 | `cmpMask` | `[128C, +maskF)` | packed compare bitmask, from `vcmp` until the `vsel` that consumes it |
 | `addrBuf` | `+8` | the full 64-bit `cmpMask` address, around each `set_cmpmask` |
 | `state` | `+64`, only when $C = 1$ | per-vector fallback state across the 11 iterations |
+| `comp` | `+512\,\min(C,8)$ | final-iteration compensated subtract (`HpFusedSub`), batched over $\min(C,8)$ vectors per call: 12-bit split halves, four exact partial products and the TwoSum reassembly of $k \cdot b$ |
 
 The quotient/temp sharing is safe because `k` dies at the `vmul` that reads it, and the post-pass probe is consumed by `vcmp` before the candidate write — every handoff is separated by a `pipe_barrier` (in-place `dst == src0` ops are the established A2/A3 idiom). The staged path keeps state in `dst`, so `state` never scales with $C$.
 
@@ -120,16 +127,16 @@ The quotient/temp sharing is safe because `k` dies at the `vmul` that reads it, 
 $$
 \mathit{tmpCols}(N)=
 \begin{cases}
-208, & \text{TREMS},\ C=1 \\[2pt]
-128C+8\lceil C/4\rceil+8, & \text{TREMS},\ C\ge 2 \\[2pt]
-272, & \text{TREM},\ C=1 \\[2pt]
-192C+8\lceil C/4\rceil+8, & \text{TREM},\ C\ge 2
+208+512, & \text{TREMS},\ C=1 \\[2pt]
+128C+8\lceil C/4\rceil+8+512\min(C,8), & \text{TREMS},\ C\ge 2 \\[2pt]
+272+512, & \text{TREM},\ C=1 \\[2pt]
+192C+8\lceil C/4\rceil+8+512\min(C,8), & \text{TREM},\ C\ge 2
 \end{cases}
 \qquad
 C=\max\Bigl(\Bigl\lfloor \frac{N}{64}\Bigr\rfloor,\ 1\Bigr)
 $$
 
-The $8\lceil C/4\rceil$ term is the packed compare mask (32-byte padded); the constant $C=1$ branch folds in the 64-float per-vector state buffer. TREM carries one more region than TREMS — the unscaled `|src1|` row must persist across a pass's iterations as the rescaling source (it cannot live in `bTmp`, which iteration 1 overwrites, nor in `k`, which the quotient overwrites mid-iteration).
+The $8\lceil C/4\rceil$ term is the packed compare mask (32-byte padded); the constant $C=1$ branch folds in the 64-float per-vector state buffer, and the $+512\min(C,8)$ term is the batched compensation window of the final iteration's exact `state -= k*b` (see below; `TREM_HP_FUSED_CHUNK_A2A3` = 8). TREM carries one more region than TREMS — the unscaled `|src1|` row must persist across a pass's iterations as the rescaling source (it cannot live in `bTmp`, which iteration 1 overwrites, nor in `k`, which the quotient overwrites mid-iteration).
 
 ### Per-tile occupancy and maximum tiling
 
@@ -146,22 +153,22 @@ Worked examples — byte size of each tile:
 
 | tile $[M, N]$ | dst | src | tmp | total UBUF | of 196608 B | dispatch ($M \cdot C$ vs 48) |
 |---|---|---|---|---|---|---|
-| $[1, 64]$ | 256 | 256 | 832 | 1344 | 1% | per-vector (1) |
-| $[32, 64]$ | 8192 | 8192 | 832 | 17216 | 9% | per-vector (32) |
-| $[12, 256]$ | 12288 | 12288 | 2112 | 26688 | 14% | staged (48) |
-| $[8, 448]$ | 14336 | 14336 | 3680 | 32352 | 16% | staged (56) |
-| $[2, 2048]$ | 16384 | 16384 | 16672 | 49440 | 25% | staged (64) |
-| $[1, 8192]$ | 32768 | 32768 | 66592 | 132128 | 67% | staged (128) |
-| $[8, 2688]$ | 86016 | 86016 | 21888 | 193920 | 99% | staged (336) |
-| $[1, 12160]$ | 48640 | 48640 | 98848 | 196128 | 100% | staged (190) |
+| $[1, 64]$ | 256 | 256 | 2880 | 3392 | 2% | per-vector (1) |
+| $[32, 64]$ | 8192 | 8192 | 2880 | 19264 | 10% | per-vector (32) |
+| $[12, 256]$ | 12288 | 12288 | 10304 | 34880 | 18% | staged (48) |
+| $[8, 448]$ | 14336 | 14336 | 18016 | 46688 | 24% | staged (56) |
+| $[2, 2048]$ | 16384 | 16384 | 33056 | 65824 | 33% | staged (64) |
+| $[1, 8192]$ | 32768 | 32768 | 82976 | 148512 | 76% | staged (128) |
+| $[8, 2496]$ | 79872 | 79872 | 36704 | 196448 | 100% | staged (312) |
+| $[1, 11136]$ | 44544 | 44544 | 106912 | 196000 | 100% | staged (174) |
 
-Largest packed `W` per row count (TREMS; rule of thumb $W \lesssim 24576/(R+1)$):
+Largest packed `W` per row count (TREMS; rule of thumb $W \lesssim 22278/(R+1)$):
 
 | rows R | 1 | 2 | 3 | 4 | 7 | 8 | 12 | 16 | 32 |
 |---|---|---|---|---|---|---|---|---|---|
-| max W | 12160 | 8128 | 6080 | 4864 | 3008 | 2688 | 1856 | 1408 | 704 |
+| max W | 11136 | 7424 | 5568 | 4480 | 2752 | 2496 | 1728 | 1280 | 640 |
 
-For TREM ($W \lesssim 16384/(R+1)$): max W = 8128 / 5440 / 4032 / 3264 / 1984 / 1792 / 1216 / 960 / 448 for the same row counts; the widest legal single row is `[1, 8128]` (196128 B).
+For TREM ($W \lesssim 14852/(R+1)$): max W = 7424 / 4928 / 3712 / 2944 / 1856 / 1664 / 1152 / 832 / 448 for the same row counts; the widest legal single row is `[1, 7424]` (195520 B).
 
 Design checklist:
 - Pick the working width $N$ first — it alone fixes the tmp size; then bound the rows by $M \le (196608 - 4\,\mathit{tmpCols}(N))\,/\,(4N \cdot n_{\text{tiles}})$.
@@ -215,8 +222,8 @@ void example() {
   TREMS(out, x, 3.0f, tmp);
 
   // High precision: 8x448 tile, tmp sized per the High Precision Tiling Budget
-  // (C = 448/64 = 7, tmpCols = 128*7 + 8*ceil(7/4) + 8 = 920)
-  using HpTmpT = Tile<TileType::Vec, float, 1, 920>;
+  // (C = 448/64 = 7, tmpCols = 128*7 + 8*ceil(7/4) + 8 + 512*7 = 4504)
+  using HpTmpT = Tile<TileType::Vec, float, 1, 4504>;
   Tile<TileType::Vec, float, 8, 448> hpOut, hpSrc;
   HpTmpT hpTmp;
   TREMS<RemSAlgorithm::HIGH_PRECISION>(hpOut, hpSrc, 7.5f, hpTmp);

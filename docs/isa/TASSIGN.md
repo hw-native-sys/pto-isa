@@ -103,6 +103,9 @@ On NPU targets, capacities can be overridden at build time via `-D` flags (e.g.
         - `addr` must be a pointer type.
         - The pointed-to element type must match `GlobalTensor::DType`.
 
+- **Default base address (tile never `TASSIGN`-ed).** A Tile that is never bound with `TASSIGN` falls back to an implementation-defined default base address. On A5 NPU this default is **not 32-byte aligned** (it lands at `0x10`), and the first vector operation on such a tile can hang silently. **Always `TASSIGN` every UB tile to an explicitly aligned base address before first use**, even tiles that would "obviously" start at offset 0 — the default is not offset 0.
+- **Inter-tile overlap is not checked.** The implementation checks (SA-0351~0354) verify each tile's capacity, alignment, and bounds **individually**, but do **not** detect overlap between two tiles in the same memory space. Two `TASSIGN` calls whose `[addr, addr + tile_size)` ranges overlap produce silent data corruption (the later write overwrites the earlier tile's tail). The safe spacing between two tiles is the physical tile size (`Rows * RowStride * sizeof(DType)`) rounded up to the 32-byte alignment. For the multi-tile UB layout convention on A5, see [a5-on-chip-storage-reuse.md](a5-on-chip-storage-reuse.md).
+
 ## Examples
 
 ### Runtime address (no compile-time check)

@@ -13,6 +13,10 @@
 <!-- end id3 -->
 
 
+## Tile Operation Diagram
+
+> No `TPREFETCH_ASYNC.svg` is provided. `TPREFETCH_ASYNC` is a **cache hint** primitive; it issues an SDMA CMO prefetch from GM/HBM into L2 cache and does not move data into a Tile.
+
 ## Introduction
 
 Prefetch data from Global Memory (GM/HBM) into the NPU's L2 Cache via SDMA CMO (Cache Maintenance Operation, opcode=6). Unlike `TPREFETCH`, which moves data from GM into UB, `TPREFETCH_ASYNC` keeps data in L2 cache only, consuming no UB space for the data itself. This allows subsequent `TLOAD` operations to hit L2 cache instead of going to GM.

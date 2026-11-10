@@ -8,7 +8,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 |---|---|---|
 | Overview | [`docs/README.md`](README.md) | PTO ISA guide entry point and navigation. |
 | Overview | [`docs/PTOISA.md`](PTOISA.md) | This page (overview + full instruction index). |
-| ISA reference | [`docs/isa/README.md`](isa/scalar/ops/micro-instruction/README.md) | Per-instruction reference directory index. |
+| ISA reference | [`docs/isa/README.md`](isa/README.md) | Per-instruction reference directory index. |
 | ISA reference | [`docs/isa/conventions.md`](isa/conventions.md) | Shared notation, operands, events, and modifiers. |
 | Communication ISA | [`docs/isa/comm/README.md`](isa/comm/README.md) | Per-instruction communication ISA reference. |
 | Source of truth | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header.md) | C++ intrinsic API (authoritative). |
@@ -44,6 +44,7 @@ This page is the source-synchronized ISA index generated from `docs/isa/manifest
 | Elementwise (Tile-Tile) | [`TPRELU`](isa/TPRELU.md) | Elementwise PReLU (parametric ReLU) with a per-element slope tile. |
 | Elementwise (Tile-Tile) | [`TCVT`](isa/TCVT.md) | Elementwise type conversion with a specified rounding mode. |
 | Elementwise (Tile-Tile) | [`TSEL`](isa/TSEL.md) | Select between two tiles using a mask tile (per-element selection). |
+| Elementwise (Tile-Tile) | [`TPARTSEL`](isa/TPARTSEL.md) | Masked selection with independent data tile types. |
 | Elementwise (Tile-Tile) | [`TRSQRT`](isa/TRSQRT.md) | Elementwise reciprocal square root. |
 | Elementwise (Tile-Tile) | [`TSQRT`](isa/TSQRT.md) | Elementwise square root. |
 | Elementwise (Tile-Tile) | [`TEXP`](isa/TEXP.md) | Elementwise exponential. |

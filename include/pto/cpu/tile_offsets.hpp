@@ -39,11 +39,23 @@ using TypeSum = std::conditional_t<
     typename TileData::DType>;
 
 template <typename TileData>
-size_t inline GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, size_t subTileC, size_t innerC)
+constexpr size_t GetRowPlusOnePanelPitch(size_t validRow)
+{
+    return (validRow + TileData::InnerRows - 1) / TileData::InnerRows * TileData::InnerRows + 1;
+}
+
+template <typename TileData>
+size_t inline GetTileElementOffsetSubfractals(
+    size_t subTileR, size_t innerR, size_t subTileC, size_t innerC, size_t validRow)
 {
     if constexpr (!TileData::isRowMajor & (TileData::SFractal == SLayout::RowMajor)) {
-        // Nz
-        return subTileC * TileData::Rows * TileData::InnerCols + subTileR * TileData::InnerNumel +
+        // Nz. RowPlusOne (CompactMode::RowPlusOne) inserts one 32-byte row between
+        // column panels, so the panel pitch is ceil(validRow / InnerRows) * InnerRows + 1.
+        const size_t kPanelPitch =
+            (TileData::kRowPlusOneNZ ?
+                 (validRow != 0 ? GetRowPlusOnePanelPitch<TileData>(validRow) : static_cast<size_t>(TileData::Rows)) :
+                 static_cast<size_t>(TileData::Rows));
+        return subTileC * kPanelPitch * TileData::InnerCols + subTileR * TileData::InnerNumel +
                innerR * TileData::InnerCols + innerC;
     } else if constexpr (TileData::isRowMajor & (TileData::SFractal == SLayout::ColMajor)) {
         // Zn
@@ -64,6 +76,18 @@ size_t inline GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, si
 }
 
 template <typename TileData>
+size_t inline GetTileElementOffsetSubfractals(size_t subTileR, size_t innerR, size_t subTileC, size_t innerC)
+{
+    // Compile-time entry: a static valid extent folds the RowPlusOne pitch to a
+    // constant; a dynamic valid extent keeps the declared Rows (a legacy declaration
+    // that already includes the gap row) and must be addressed through the
+    // runtime-aware GetElement/SetElement/TPRINT, which pass the current valid row.
+    constexpr size_t kValidRow =
+        TileData::kRowPlusOneNZ && TileData::ValidRow > 0 ? static_cast<size_t>(TileData::ValidRow) : 0;
+    return GetTileElementOffsetSubfractals<TileData>(subTileR, innerR, subTileC, innerC, kValidRow);
+}
+
+template <typename TileData>
 size_t inline GetTileElementOffsetPlain(size_t r, size_t c)
 {
     if constexpr (TileData::isRowMajor) {
@@ -73,14 +97,28 @@ size_t inline GetTileElementOffsetPlain(size_t r, size_t c)
     }
 }
 
+// Runtime-aware overload used by the element accessors (GetElement/SetElement,
+// TPRINT): validRow is the current valid row count, so a dynamic-shape RowPlusOne
+// tile is addressed with the pitch its consumers (TINSERT SPLIT, A5 TSTORE) use.
+// validRow is ignored for every other layout, which is addressed by its static shape.
+template <typename TileData>
+size_t inline GetTileElementOffset(size_t r, size_t c, size_t validRow)
+{
+    if constexpr (TileData::SFractal == SLayout::NoneBox)
+        return GetTileElementOffsetPlain<TileData>(r, c);
+    else {
+        return GetTileElementOffsetSubfractals<TileData>(
+            r / TileData::InnerRows, r % TileData::InnerRows, c / TileData::InnerCols, c % TileData::InnerCols,
+            validRow);
+    }
+}
+
 template <typename TileData>
 size_t inline GetTileElementOffset(size_t r, size_t c)
 {
     if constexpr (TileData::SFractal == SLayout::NoneBox)
         return GetTileElementOffsetPlain<TileData>(r, c);
     else {
-        size_t subTileR = r / TileData::InnerRows;
-        size_t innerR = r % TileData::InnerRows;
         return GetTileElementOffsetSubfractals<TileData>(
             r / TileData::InnerRows, r % TileData::InnerRows, c / TileData::InnerCols, c % TileData::InnerCols);
     }

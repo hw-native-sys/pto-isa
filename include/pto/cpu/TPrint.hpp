@@ -60,7 +60,6 @@ PTO_INTERNAL void PrintValue(const T& value)
 template <PrintFormat Format = PrintFormat::Width8_Precision4, typename T>
 PTO_INTERNAL void TPRINT_IMPL(T& src)
 {
-    using DType = typename T::DType;
     std::cout << "TPRINT " << src.GetValidRow() << "x" << src.GetValidCol() << '\n';
     for (unsigned r = 0; r < src.GetValidRow(); ++r) {
         for (unsigned c = 0; c < src.GetValidCol(); ++c) {
@@ -68,7 +67,7 @@ PTO_INTERNAL void TPRINT_IMPL(T& src)
                 std::cout << ' ';
             }
             using DataType = typename T::DType;
-            PrintValue<Format, DataType>(src.data()[GetTileElementOffset<T>(r, c)]);
+            PrintValue<Format, DataType>(src.data()[GetTileElementOffset<T>(r, c, src.GetValidRow())]);
         }
         std::cout << '\n';
     }

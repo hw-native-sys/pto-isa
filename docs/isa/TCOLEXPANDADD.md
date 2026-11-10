@@ -46,6 +46,7 @@ PTO_INST RecordEvent TCOLEXPANDADD(TileDataDst &dst, TileDataSrc0 &src0, TileDat
 - `TileDataDst::DType`, `TileDataSrc1::DType` must be one of: `half`, `float`, `int16`, `int32` for A2, A3 and A5, `uint16`, `uint32`, `bfloat16_t`, `int8`, `uint8`, `int64`, `uint64` for A5.
 - Tile shape/layout constraint (compile-time): `TileDataDst::isRowMajor`.
 - `src1` is expected to provide **one scalar per column** (i.e., its valid shape must cover `C` values).
+- **`src1` truncation semantics.** The broadcast reads exactly `C` scalars from `src1` (one per destination column). If `src1`'s valid column count is **larger** than `C`, the trailing scalars are silently **ignored** — no error is reported and the extra columns are never read. If `src1`'s valid column count is **smaller** than `C`, the behaviour is target-specific and typically reads undefined memory for the missing columns; always size `src1` to at least `C`. The "silently ignore trailing" behaviour is the one that surprises users who expect a shape-mismatch assertion; there is none.
 - Exact layout/fractal constraints are target-specific; see backend headers under `include/pto/npu/*/TColExpand*.hpp`.
 
 ### 64-bit element types (A5)

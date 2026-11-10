@@ -54,6 +54,8 @@ PTO_INST RecordEvent TMATMUL_ACC(TileRes &cMatrix, TileLeft &aMatrix, TileRight 
 
 The four-argument overload is retained for compatibility with existing call sites. Its `cOutMatrix` and `cInMatrix` must reference the same accumulator tile; Prefer the three-argument overload `TMATMUL_ACC(cMatrix, aMatrix, bMatrix)`.
 
+> **Backend capability boundary.** The three-argument in-place overload (`cMatrix` used as both accumulator input and output) is implemented on the NPU backends (A2/A3, A5, A6, Kirin) but **not on the CPU simulator backend**. The CPU simulator's `TMATMUL_ACC_IMPL` (`include/pto/cpu/TMatmul.hpp:217`) only provides the four-argument form. Code that calls the three-argument overload will fail to compile against the CPU simulator target. When writing a kernel that must run on both CPU and NPU, use the four-argument overload with `cOutMatrix` and `cInMatrix` bound to the same tile.
+
 ## Constraints
 
 - All constraints from `TMATMUL` apply to the `(cOutMatrix, aMatrix, bMatrix)` triple.

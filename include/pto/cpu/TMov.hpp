@@ -158,7 +158,7 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
         const std::size_t cols = static_cast<std::size_t>(dst.GetValidCol());
         for (std::size_t r = 0; r < rows; ++r) {
             for (std::size_t c = 0; c < cols; ++c) {
-                auto& v = dst.data()[GetTileElementOffset<DstTileData>(r, c)];
+                auto& v = dst.data()[GetTileElementOffset<DstTileData>(r, c, dst.GetValidRow())];
                 if (v < static_cast<typename DstTileData::DType>(0)) {
                     v = static_cast<typename DstTileData::DType>(0);
                 }

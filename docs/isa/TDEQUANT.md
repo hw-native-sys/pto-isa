@@ -33,7 +33,7 @@ $$ \mathrm{dst}_{i,j} = \bigl(\mathrm{src}_{i,j} - \mathrm{offset}_{i}\bigr) \cd
 
 > Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined. `scale` and `offset` are ISA-visible tile operands (not compiler scratch).
 
-## C++ Intrinsics
+## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`.
 

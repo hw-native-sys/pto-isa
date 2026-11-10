@@ -55,7 +55,7 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 - **Per-pass divisor reload**: each pass re-reads `|src1|` from the original tile (`vabs` into the scratch `div` region), because a scaled divisor must not feed the next pass.
 - **Per-element subnormal regime**: with a scalar divisor, "is the divisor subnormal" is a host-side constant; here iteration 1 decides per element — where `|src1| <= minNormal`, divisor and state are lifted by $2^{24}$ (packed-mask compare + selects) and the post pass rescales exactly those lanes by $2^{-24}$.
 - **Exception fixups are per-element selects**: `src1 = ±inf → src0`; then (after it) `src0 = ±inf ∧ src1 = ±inf → NaN`; then `src0 = ±0` with an in-domain divisor `→ src0`.
-- **One more scratch region**: the unscaled `|src1|` row persists across a pass's iterations, so TREM's tmp is $192C$-based (272 floats at $C=1$) versus TREMS's $128C$ — see the `tmpCols` cases equation in [TREMS](TREMS.md#tmp-occupancy).
+- **One more scratch region**: the unscaled `|src1|` row persists across a pass's iterations, so TREM's tmp is $192C$-based (784 floats at $C=1$, including the 512-float compensation window; it grows with $\min(C,8)$ for wider rows) versus TREMS's $128C$ — see the `tmpCols` cases equation in [TREMS](TREMS.md#tmp-occupancy).
 
 **Divisor domain**: `src1` elements must be nonzero and not NaN. $\pm\infty$ is fine ($x \bmod \pm\infty = x$). The guaranteed domain is $|y| \ge 1$ (or $\pm\infty$): the remainder sign correction probes $r \cdot y$, which underflows to $\pm 0$ when $|r \cdot y| < 2^{-149}$ and would then miss the correction — a limitation inherited from the A5 implementation. Smaller divisors follow the A5 iteration arithmetic including that limitation.
 
@@ -98,9 +98,9 @@ void example() {
   TREM(dst, src0, src1, tmp);
 
   // High precision (float only): tmp sized per the TREMS tiling budget,
-  // e.g. 8x448 tiles -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 = 1368
+  // e.g. 8x448 tiles -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 + 512*7 = 4952
   Tile<TileType::Vec, float, 8, 448> hpDst, hpSrc0, hpSrc1;
-  Tile<TileType::Vec, float, 1, 1368> hpTmp;
+  Tile<TileType::Vec, float, 1, 4952> hpTmp;
   TREM<RemAlgorithm::HIGH_PRECISION>(hpDst, hpSrc0, hpSrc1, hpTmp);
 }
 ```

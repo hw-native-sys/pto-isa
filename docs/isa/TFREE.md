@@ -13,6 +13,10 @@
 <!-- end id3 -->
 
 
+## Tile Operation Diagram
+
+> No `TFREE.svg` is provided. `TFREE` is a **FIFO control-plane** primitive; it releases the consumer slot previously bound by `TPOP`, notifying the producer that the slot is free.
+
 ## Introduction
 
 Release FIFO slot space.

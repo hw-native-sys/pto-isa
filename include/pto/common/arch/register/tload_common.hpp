@@ -441,7 +441,8 @@ PTO_INTERNAL constexpr bool IsScale()
         GlobalData::layout == pto::Layout::MX_A_ND || GlobalData::layout == pto::Layout::MX_A_DN ||
         GlobalData::layout == pto::Layout::MX_A_ZZ || GlobalData::layout == pto::Layout::MX_B_ND ||
         GlobalData::layout == pto::Layout::MX_B_DN || GlobalData::layout == pto::Layout::MX_B_NN ||
-        GlobalData::layout == pto::Layout::HIF4_A_ZZ || GlobalData::layout == pto::Layout::HIF4_B_NN) {
+        GlobalData::layout == pto::Layout::HIF4_A_ZZ || GlobalData::layout == pto::Layout::HIF4_B_NN ||
+        GlobalData::layout == pto::Layout::HIF4_SCALE_ND || GlobalData::layout == pto::Layout::HIF4_SCALE_DN) {
         return true;
     }
     return false;
@@ -459,9 +460,12 @@ PTO_INTERNAL void StaticCheck()
             TileData::PadVal == PadValue::Null || TileData::PadVal == PadValue::Zero,
             "Fix: TileData::PadVal only support Null or Zero in B64 mode");
     }
-    static_assert(
-        sizeof(typename TileData::DType) == sizeof(typename GlobalData::DType),
-        "Fix: Source dtype must be same with dst dtype!");
+    if constexpr (
+        GlobalData::layout != pto::Layout::HIF4_SCALE_ND && GlobalData::layout != pto::Layout::HIF4_SCALE_DN) {
+        static_assert(
+            sizeof(typename TileData::DType) == sizeof(typename GlobalData::DType),
+            "Fix: Source dtype must be same with dst dtype!");
+    }
 
     // for static shape case, enforce the global tensor (tiled) shape matching with vecTile valid shape for xfer
     if constexpr (TileData::Loc == pto::TileType::Vec) {

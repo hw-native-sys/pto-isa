@@ -15,7 +15,7 @@
 
 ## 简介
 
-`TPUT_ASYNC` 是异步远程写原语。它启动一次从本地GM到远端GM的传输，并立即返回 `AsyncEvent`。
+`TPUT_ASYNC` 是远程写原语。它发起一次从本地GM到远端GM的传输，并返回 `AsyncEvent` 用于后续等待。
 
 数据流：
 
@@ -24,31 +24,39 @@
 ## 模板参数
 
 - `engine`：
-    - `DmaEngine::SDMA`（默认）
+    - `DmaEngine::SDMA`（默认）。A2/A3为异步传输；Ascend 950为同步实现，参见 [A5上的SDMA路径](#a5上的sdma路径)
     - `DmaEngine::URMA`（Ascend 950PR/Ascend 950DT，仅NPU_ARCH 3510）
     - `DmaEngine::RDMA`（Ascend 950PR/Ascend 950DT，仅NPU_ARCH 3510；当前网卡平台仅支持 HNS1825）
 
-> **注意（SDMA路径）**
-> `TPUT_ASYNC` 配合 `DmaEngine::SDMA` 目前**仅支持扁平连续的逻辑一维tensor**。
-> 当前SDMA异步实现不支持非一维或非连续布局。
+> **注意（布局约束）**
+> 各引擎目前都**仅支持扁平连续的逻辑一维tensor**，不支持非一维或非连续布局。
 
 ## C++内建接口
 
 声明于 `include/pto/comm/pto_comm_inst.hpp`：
 
 ```cpp
+// 全架构可用。URMA/RDMA 使用 session 中绑定的目标rank。
 template <DmaEngine engine = DmaEngine::SDMA,
           typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
 PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
                                const AsyncSession &session, WaitEvents &... events);
+
+// 仅Ascend 950和CPU仿真可用。URMA/RDMA 用 peer 选择目标rank；SDMA 忽略 peer。
+template <DmaEngine engine = DmaEngine::SDMA,
+          typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
+PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                               const AsyncSession &session, uint32_t peer,
+                               WaitEvents &... events);
 ```
 
 `AsyncSession` 是引擎无关的会话对象。使用 `BuildAsyncSession<engine>()` 构建一次后，传递给所有异步调用和事件等待。模板参数 `engine` 在编译期选择DMA后端，使代码对未来引擎（CCU等）保持前向兼容。
 
+`events` 为可空的变参列表，每个事件需提供无参 `Wait()`，指令在发起传输前依次等待。`AsyncEvent` 使用 `Wait(session)`，不能作为 `events` 传入。
+
 ## AsyncSession构建
 
-使用 `include/pto/comm/async_common/async_event_impl.hpp` 中的 `BuildAsyncSession`。
-该函数有两个重载——分别用于SDMA和URMA，参数列表不同。
+使用 `include/pto/comm/async_common/async_event_impl.hpp` 中的 `BuildAsyncSession`，按引擎选择重载。构建失败返回 `false`，只有构建成功的Session才能用于后续调用。
 
 ### SDMA构建（默认）
 
@@ -64,7 +72,7 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| `scratchTile` | — | 用于SDMA控制元数据的UB scratch tile（参见 [scratchTile的作用](#scratchtile的作用)）。|
+| `scratchTile` | — | UB scratch tile，用途参见 [scratchTile的作用](#scratchtile的作用)。|
 | `workspace` | — | 由调用方分配并传给主机侧 `SdmaWorkspaceManager` 初始化的GM指针。|
 | `session` | — | 输出的 `AsyncSession` 对象。|
 | `syncId` | `0` | MTE3/MTE2管道同步事件ID（0-7）。若kernel在相同ID上使用了其他管道屏障，则需覆盖此值。|
@@ -78,6 +86,12 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
+// 不绑定目标rank，配合带 peer 的指令重载使用。
+template <DmaEngine engine>
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    AsyncSession &session);
+
+// 绑定目标rank，配合不带 peer 的指令重载使用。
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
                                     uint32_t destRankId,
@@ -88,10 +102,12 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 | 参数 | 说明 |
 |---|---|
 | `workspace` | 由调用方分配并传给主机侧 `UrmaWorkspaceManager` 初始化的GM指针。|
-| `destRankId` | 此会话通信的远端PE rank id。对于 `TPUT_ASYNC`，这是数据写入的目标rank。|
+| `destRankId` | 此会话绑定的远端PE rank id。对于 `TPUT_ASYNC`，这是数据写入的目标rank。|
 | `session` | 输出的 `AsyncSession` 对象。|
 
 URMA不需要 `scratchTile`——轮询通过 `ld_dev`/`st_dev` 硬件原语直接操作。
+
+构建时按当前AI Core划分该核可用的URMA队列。`workspace` 无效，或当前block数超出workspace配置的队列容量时，返回 `false`。
 
 ### RDMA构建（仅NPU_ARCH 3510）
 
@@ -99,9 +115,20 @@ RDMA面向经典跨机场景组网，当前网卡平台仅支持 HNS1825。
 
 ```cpp
 #ifdef PTO_RDMA_SUPPORTED
+// 不绑定peer，配合带 peer 的指令重载使用，一个Session可访问多个远端rank。
 template <DmaEngine engine, typename ScratchTile>
 PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
                                     __gm__ uint8_t *workspace,
+                                    uint32_t myPe,
+                                    AsyncSession &session,
+                                    uint32_t syncId = 0,
+                                    uint32_t qpIdx = 0);
+
+// 绑定目标rank，配合不带 peer 的指令重载使用。
+template <DmaEngine engine, typename ScratchTile>
+PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
+                                    __gm__ uint8_t *workspace,
+                                    uint32_t destRankId,
                                     uint32_t myPe,
                                     AsyncSession &session,
                                     uint32_t syncId = 0,
@@ -113,6 +140,7 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 |---|---|
 | `scratchTile` | 用于 WQE/CQE 控制数据的 UB/Vec tile，至少 64 字节。|
 | `workspace` | Host侧 RDMA 初始化流程返回的 GM 指针。|
+| `destRankId` | 此会话绑定的远端rank。|
 | `myPe` | 本地 rank id，用于选择已注册的本地内存区域。|
 | `session` | 输出的 `AsyncSession` 对象。|
 | `syncId` | MTE/Scalar 同步事件 ID，取值范围为 0-7。|
@@ -121,7 +149,7 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 Host通过 `RdmaTransportConfig::qpNum` 设置每个peer的QP数（默认1，各rank须一致）；直接使用后端管理器时设置
 `rdma::WorkspaceConfig::qpNum`。不同QP独立完成，需分别等待其Event。
 
-构建一次不绑定 peer 的Session，再通过显式 `peer` 参数选择目标rank：
+访问多个远端rank时，推荐构建不绑定 peer 的Session，再通过显式 `peer` 参数选择目标：
 
 ```cpp
 comm::AsyncSession session;
@@ -135,7 +163,7 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
-- SDMA和URMA路径均要求源tensor为**扁平连续的逻辑一维**
+- 源、目的tensor均须为**扁平连续的逻辑一维**，且目的容量不小于源元素数
 - SDMA workspace必须是由调用方分配并传给主机侧 `SdmaWorkspaceManager` 初始化的有效GM指针
 - URMA workspace必须是由调用方分配并传给主机侧 `UrmaWorkspaceManager` 初始化的有效GM指针
 - Session和workspace的生命周期必须覆盖相关Event的完成阶段
@@ -146,30 +174,58 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 - RDMA源、目的tensor必须是扁平连续的逻辑一维，且本地和远端完整传输范围必须位于Host初始化阶段注册的内存区域内
 - 单次RDMA传输不能超过 `0x7fffffff` 字节
 
-若不满足一维连续要求，当前实现返回无效async event（`handle == 0`）。
+违反上述tensor约束时由 `PTO_ASSERT` 拦截。
+
+## A5上的SDMA路径
+
+Ascend 950上，`TPUT_ASYNC<DmaEngine::SDMA>` 是保持接口兼容的同步实现：payload经UB分块搬运，调用返回时传输已完成，返回已完成状态的Event，`Wait` 和 `Test` 立即返回 `true`。该路径不支持 [批量提交](#批量提交)。
+
+同平台的 `TGET_ASYNC<DmaEngine::SDMA>` 仍为异步传输。
 
 ## scratchTile的作用
 
-`scratchTile` **不是**用于存放用户数据负载的暂存缓冲区。
-它被转换为 `TmpBuffer`，用作临时UB工作区，用于：
+| 场景 | 用途 | 最小可用字节 |
+|---|---|---|
+| A2/A3 SDMA | SDMA控制元数据与完成标志轮询，不承载payload | 8 |
+| Ascend 950 SDMA | payload分块暂存，tile大小即分块粒度 | 8 |
+| RDMA | WQE/CQE控制数据，不承载payload | 64 |
 
-- 写入/读取SDMA控制字（flag、sq_tail、channel_info）
-- 轮询事件完成标志
-- 完成时提交队列尾部
+类型要求：必须是UB/Vec位置的 `pto::Tile`（`ScratchTile::Loc == TileType::Vec`）。
 
-实际数据负载直接在GM缓冲区之间传输；`scratchTile` 仅用于控制和同步元数据。
+推荐 `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>`（256Byte）。Ascend 950 SDMA路径下传输大块payload时，应按典型payload尺寸放大该tile以减少分块次数。
 
-## scratchTile类型与大小约束
+## 批量提交
 
-- 必须是 `pto::Tile` 类型
-- 必须是UB/Vec tile（`ScratchTile::Loc == TileType::Vec`）
-- 可用字节数至少为 `sizeof(uint64_t)`（8字节）
+`AsyncSession::submitMode` 和 `AsyncSession::batchSize` 控制 `TPUT_ASYNC` 立即提交还是暂存后成批提交。两者在 `BuildAsyncSession` 成功后直接赋值，指令签名不变。默认 `IMMEDIATE` + `UINT32_MAX`，即逐条立即提交。
 
-推荐使用：`Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>`（256Byte）。
+| `AsyncSubmitMode` | 含义 |
+|---|---|
+| `IMMEDIATE` | 立即提交本次传输。若存在暂存批次，先提交该批次。|
+| `DEFER` | 暂存本次传输，暂存数达到 `batchSize` 时自动提交。|
+| `DEFER_AND_SUBMIT` | 暂存本次传输并立即提交整个批次。|
+
+- 仅A2/A3的 `TPUT_ASYNC<SDMA>` 和Ascend 950的 `TPUT_ASYNC<URMA>` 支持批量；其余路径忽略 `submitMode`。
+- `batchSize` 为0表示禁用批量，此时使用非 `IMMEDIATE` 模式将返回失败Event。
+- URMA同一批次内的目标rank必须一致，否则返回失败Event。
+- `TGET_ASYNC` 和 `TPUT_ASYNC_NOTIFY` 不加入批次，但会先提交同一Session上已暂存的批次。
+- 应等待提交批次时返回的Event，`DEFER` 阶段返回的中间Event不代表批次已提交。
+
+```cpp
+comm::AsyncSession session;
+if (!comm::BuildAsyncSession<comm::DmaEngine::SDMA>(scratchTile, sdmaWorkspace, session)) {
+    return;
+}
+session.batchSize = 2U;
+
+session.submitMode = comm::AsyncSubmitMode::DEFER;
+(void)comm::TPUT_ASYNC(dst0, src0, session);          // 暂存
+
+session.submitMode = comm::AsyncSubmitMode::DEFER_AND_SUBMIT;
+auto event = comm::TPUT_ASYNC(dst1, src1, session);   // 暂存并提交整个批次
+(void)event.Wait(session);
+```
 
 ## 完成语义（Quiet语义）
-
-不同引擎的底层完成机制不同，但用户侧的quiet语义行为一致：
 
 - **SDMA**：每次`TPUT_ASYNC`都会提交数据传输SQE和用于标记本次操作完成的flag SQE。对其返回的Event调用`Wait`或`Test`时，通过轮询对应flag判断该次`TPUT_ASYNC`是否完成；完成后也能保证同一Session中此前提交的所有SDMA操作均已完成。
 - **URMA**：`TPUT_ASYNC` 立即提交RDMA WRITE WQE并敲门铃。`Wait` 通过轮询Completion Queue（CQ）等待所有预期的CQE被消费。
@@ -229,7 +285,7 @@ __global__ AICORE void SimplePut(__gm__ T *remoteDst, __gm__ T *localSrc,
 }
 ```
 
-### 批量传输（Quiet语义）
+### 连续多次传输（Quiet语义）
 
 ```cpp
 template <typename T>

@@ -13,6 +13,10 @@
 <!-- end id3 -->
 
 
+## Tile Operation Diagram
+
+> No `TALLOC.svg` is provided. `TALLOC` is a **FIFO control-plane** primitive; it allocates a producer slot in a `TPipe` and exposes it as a `GlobalTensor` view. Its meaning is "reserve the next producer slot and bind it to the caller's `GlobalData` handle".
+
 ## Introduction
 
 Allocate a producer FIFO slot from a `TPipe` and expose it as a `GlobalTensor` view.

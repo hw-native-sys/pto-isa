@@ -104,6 +104,9 @@ PTO_INTERNAL void TCmpCheck(const TileDataDst& dst, const TileDataSrc0& src0, co
     static_assert(TileDataDst::Loc == TileType::Vec, "TCMP: dst tile must be TileType::Vec");
     static_assert(TileDataSrc0::Loc == TileType::Vec, "TCMP: src0 tile must be TileType::Vec");
     static_assert(TileDataSrc1::Loc == TileType::Vec, "TCMP: src1 tile must be TileType::Vec");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc0::kRowPlusOneNZ && !TileDataSrc1::kRowPlusOneNZ,
+        "RowPlusOne mode for TCMP Op is not supported in CPU-SIM currently.");
 
     PTO_ASSERT(src0.GetValidRow() == src1.GetValidRow(), "TCMP: src0 and src1 must have same valid rows");
     PTO_ASSERT(src0.GetValidCol() == src1.GetValidCol(), "TCMP: src0 and src1 must have same valid cols");

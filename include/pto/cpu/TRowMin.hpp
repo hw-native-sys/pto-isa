@@ -34,10 +34,10 @@ PTO_INTERNAL void TRowmin_Impl(
                 minVal = std::min(minVal, static_cast<typename TileOut::DType>(src[base + j]));
             }
         } else {
-            size_t idx = GetTileElementOffset<TileIn>(i, 0);
+            size_t idx = GetTileElementOffset<TileIn>(i, 0, validRow);
             minVal = src[idx];
             for (std::size_t j = 1; j < validCol; ++j) {
-                idx = GetTileElementOffset<TileIn>(i, j);
+                idx = GetTileElementOffset<TileIn>(i, j, validRow);
                 if (src[idx] < minVal) {
                     minVal = src[idx];
                 }
@@ -47,7 +47,7 @@ PTO_INTERNAL void TRowmin_Impl(
         if constexpr (TileOut::SFractal == SLayout::NoneBox && TileOut::isRowMajor) {
             dst[i * TileOut::Cols] = minVal;
         } else {
-            dst[GetTileElementOffset<TileOut>(i, 0)] = minVal;
+            dst[GetTileElementOffset<TileOut>(i, 0, validRow)] = minVal;
         }
     });
 }

@@ -241,7 +241,12 @@ AICORE inline void RunMxHif4BImpl(
         outGm, aDataGm, bDataGm, aScaleGm, bScaleGm);
 }
 
-template <int validM, int validK, int validN>
+enum class Hif4ScaleGmMode {
+    ZZ_NN,
+    ND_DN,
+};
+
+template <int validM, int validK, int validN, Hif4ScaleGmMode ScaleGmMode = Hif4ScaleGmMode::ZZ_NN>
 AICORE inline void RunMxHif4ABImpl(
     __gm__ bfloat16_t* out, __gm__ hifloat4x2_t* aData, __gm__ uint8_t* aScale, __gm__ hifloat4x2_t* bData,
     __gm__ uint8_t* bScale)
@@ -274,10 +279,18 @@ AICORE inline void RunMxHif4ABImpl(
         pto::Stride<validK * validN, validK * validN, validK * validN, validN, 1>>;
     using MxShapeA = TileShape2D<uint8_t, M, scaleK, Layout::HIF4_A_ZZ>;
     using MxStrideA = BaseShape2D<uint8_t, M, scaleK, Layout::HIF4_A_ZZ>;
-    using GlobalScaleA = GlobalTensor<uint8_t, MxShapeA, MxStrideA, Layout::HIF4_A_ZZ>;
+    using FractalGlobalScaleA = GlobalTensor<uint8_t, MxShapeA, MxStrideA, Layout::HIF4_A_ZZ>;
+    using NdGlobalScaleA = GlobalTensor<
+        hif4_scale, pto::Shape<1, 1, 1, M, scaleK>, pto::Stride<M * scaleK, M * scaleK, M * scaleK, scaleK, 1>,
+        Layout::HIF4_SCALE_ND>;
+    using GlobalScaleA = std::conditional_t<ScaleGmMode == Hif4ScaleGmMode::ND_DN, NdGlobalScaleA, FractalGlobalScaleA>;
     using MxShapeB = TileShape2D<uint8_t, scaleK, N, Layout::HIF4_B_NN>;
     using MxStrideB = BaseShape2D<uint8_t, scaleK, N, Layout::HIF4_B_NN>;
-    using GlobalScaleB = GlobalTensor<uint8_t, MxShapeB, MxStrideB, Layout::HIF4_B_NN>;
+    using FractalGlobalScaleB = GlobalTensor<uint8_t, MxShapeB, MxStrideB, Layout::HIF4_B_NN>;
+    using DnGlobalScaleB = GlobalTensor<
+        hif4_scale, pto::Shape<1, 1, 1, scaleK, N>, pto::Stride<scaleK * N, scaleK * N, scaleK * N, 1, scaleK>,
+        Layout::HIF4_SCALE_DN>;
+    using GlobalScaleB = std::conditional_t<ScaleGmMode == Hif4ScaleGmMode::ND_DN, DnGlobalScaleB, FractalGlobalScaleB>;
     using LeftTile = TileLeft<hifloat4x2_t, M, K, validM, validK>;
     using LeftScaleTile = TileLeftScale<uint8_t, M, scaleKCols, validM, scaleKCols>;
     using RightTile = TileRight<hifloat4x2_t, K, tileN, validK, tileN>;
@@ -285,8 +298,8 @@ AICORE inline void RunMxHif4ABImpl(
     using AccTile = TileAcc<float, M, tileN, validM, tileN>;
     GlobalDataA aDataGm(aData);
     GlobalDataB bDataGm(bData);
-    GlobalScaleA aScaleGm(aScale);
-    GlobalScaleB bScaleGm(bScale);
+    GlobalScaleA aScaleGm(reinterpret_cast<typename GlobalScaleA::DType*>(aScale));
+    GlobalScaleB bScaleGm(reinterpret_cast<typename GlobalScaleB::DType*>(bScale));
     MxRunTiledMatmul<
         TileMatA, TileMatB, TileScaleA, TileScaleB, LeftTile, RightTile, LeftScaleTile, RightScaleTile, AccTile,
         GlobalDataA, GlobalDataB, GlobalScaleA, GlobalScaleB, validM, validN, tileN, nTiles>(
@@ -313,7 +326,15 @@ __global__ AICORE void RunMxHif4ABMatmul(
     __gm__ bfloat16_t* out, __gm__ hifloat4x2_t* aData, __gm__ uint8_t* aScale, __gm__ hifloat4x2_t* bData,
     __gm__ uint8_t* bScale)
 {
-    RunMxHif4ABImpl<validM, validK, validN>(out, aData, aScale, bData, bScale);
+    RunMxHif4ABImpl<validM, validK, validN, Hif4ScaleGmMode::ZZ_NN>(out, aData, aScale, bData, bScale);
+}
+
+template <int validM, int validK, int validN>
+__global__ AICORE void RunMxHif4ABMatmulWithND(
+    __gm__ bfloat16_t* out, __gm__ hifloat4x2_t* aData, __gm__ uint8_t* aScale, __gm__ hifloat4x2_t* bData,
+    __gm__ uint8_t* bScale)
+{
+    RunMxHif4ABImpl<validM, validK, validN, Hif4ScaleGmMode::ND_DN>(out, aData, aScale, bData, bScale);
 }
 
 namespace TmatmulMxA6 {
@@ -347,6 +368,17 @@ void Launch(uint8_t* out, uint8_t* aData, uint8_t* aScale, uint8_t* bData, uint8
         uint8_t * out, uint8_t * aData, uint8_t * aScale, uint8_t * bData, uint8_t * bScale, void* stream) \
     {                                                                                                      \
         RunMxHif4ABMatmul<M, K, N><<<1, nullptr, stream>>>(                                                \
+            reinterpret_cast<bfloat16_t*>(out), reinterpret_cast<hifloat4x2_t*>(aData),                    \
+            reinterpret_cast<uint8_t*>(aScale), reinterpret_cast<hifloat4x2_t*>(bData),                    \
+            reinterpret_cast<uint8_t*>(bScale));                                                           \
+    }
+
+#define LAUNCH_HIF4AB_WITH_ND(ID, M, K, N)                                                                 \
+    template <>                                                                                            \
+    void TmatmulMxA6::Launch<ID>(                                                                          \
+        uint8_t * out, uint8_t * aData, uint8_t * aScale, uint8_t * bData, uint8_t * bScale, void* stream) \
+    {                                                                                                      \
+        RunMxHif4ABMatmulWithND<M, K, N><<<1, nullptr, stream>>>(                                          \
             reinterpret_cast<bfloat16_t*>(out), reinterpret_cast<hifloat4x2_t*>(aData),                    \
             reinterpret_cast<uint8_t*>(aScale), reinterpret_cast<hifloat4x2_t*>(bData),                    \
             reinterpret_cast<uint8_t*>(bScale));                                                           \
@@ -387,7 +419,12 @@ LAUNCH_E2M1(32, float4_e2m1x2_t, float4_e1m2x2_t, 64, 64, 64)
 LAUNCH_E2M1(33, float8_e4m3_t, float4_e2m1x2_t, 128, 256, 128)
 LAUNCH_HIF4B(34, half, 128, 256, 128)
 LAUNCH_HIF4B(35, float8_e4m3_t, 128, 128, 256)
+LAUNCH_HIF4AB_WITH_ND(36, 128, 128, 128)
+LAUNCH_HIF4AB_WITH_ND(37, 128, 256, 128)
+LAUNCH_HIF4AB_WITH_ND(38, 256, 128, 128)
+LAUNCH_HIF4AB_WITH_ND(39, 128, 128, 256)
 
 #undef LAUNCH_E2M1
 #undef LAUNCH_HIF4B
 #undef LAUNCH_HIF4AB
+#undef LAUNCH_HIF4AB_WITH_ND

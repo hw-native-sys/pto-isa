@@ -31,10 +31,10 @@ void TRowmax_Impl(
                 max_val = std::max(max_val, static_cast<typename tile_shape_out::DType>(src[base + j]));
             }
         } else {
-            size_t idx = GetTileElementOffset<tile_shape_in>(i, 0);
+            size_t idx = GetTileElementOffset<tile_shape_in>(i, 0, validRow);
             max_val = src[idx];
             for (std::size_t j = 1; j < validCol; ++j) {
-                idx = GetTileElementOffset<tile_shape_in>(i, j);
+                idx = GetTileElementOffset<tile_shape_in>(i, j, validRow);
                 if (src[idx] > max_val) {
                     max_val = src[idx];
                 }
@@ -44,7 +44,7 @@ void TRowmax_Impl(
         if constexpr (tile_shape_out::SFractal == SLayout::NoneBox && tile_shape_out::isRowMajor) {
             dst[i * tile_shape_out::Cols] = max_val;
         } else {
-            dst[GetTileElementOffset<tile_shape_out>(i, 0)] = max_val;
+            dst[GetTileElementOffset<tile_shape_out>(i, 0, validRow)] = max_val;
         }
     });
 }

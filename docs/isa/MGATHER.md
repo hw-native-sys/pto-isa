@@ -112,6 +112,7 @@ The implementation launches `simt_mgather_row_kernel` or `simt_mgather_elem_kern
 - `idx` — UB index tile (`TileType::Vec`).
 - `CMode` — `Coalesce` value (`Row` or `Elem`). First template parameter, so the operating mode is always explicit at the call site.
 - `Oob` / `Mode` — `GatherOOB` value for out-of-bounds handling.
+- `events` (`WaitEvents&...`) — optional trailing event pack. Each event is a producer dependency that must be satisfied before the gather reads its sources: pass the `RecordEvent` handle returned by the instruction that produced `table` (GM write) or `idx` (UB write). The intrinsic emits the corresponding `wait_flag`/`set_flag` (or equivalent) on the target backend and returns a new `RecordEvent` representing the completion of this `MGATHER`. Omit the pack when the sources are already ordered by an earlier barrier or when operating on the CPU reference form.
 
 ### Enums
 
@@ -623,7 +624,7 @@ This works identically on A2/A3 and A5.
 
 ### API
 
-Row mode reuses the 3-argument form; the dispatcher routes to the GM → L1 path because the
+The GM → L1 path has a different parameter list from the GM → UB path documented under "C++ Intrinsic" above: it does **not** accept a trailing `WaitEvents&...` pack, because the cube core that issues the L1 DMA does not participate in the AIV event pipeline. Producers of `table` or `idx` on GM must be ordered by an explicit barrier or `dcci`/`dsb` before calling the GM → L1 form. Row mode reuses the 3-argument form; the dispatcher routes to the GM → L1 path because the
 destination is a `Mat` tile:
 
 ```cpp

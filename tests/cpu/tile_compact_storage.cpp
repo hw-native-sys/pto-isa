@@ -43,13 +43,35 @@ using NZ = Tile<
     TileType::Vec, T, Rows, 128 / sizeof(T), BLayout::ColMajor, ValidRows, ValidCols, SLayout::RowMajor,
     TileConfig::fractalABSize, Pad, Mode>;
 
-// Independent oracle for the existing CPU representation: Rows is the physical
-// panel stride. This storage-only regression does not assert native compact pitch.
+// Independent runtime oracle for the element accessors. A RowPlusOne tile is
+// addressed by its current valid row: ceil(validRow / InnerRows) * InnerRows + 1,
+// matching the pitch the compact consumers (TINSERT SPLIT, A5 TSTORE) use. This
+// deliberately differs from the allocation capacity StorageNumel reserves (padded
+// to the declared Rows). Plain/Normal tiles keep the declared Rows as the pitch.
 template <typename Data>
-size_t legacyOffset(unsigned r, unsigned c)
+size_t cpuOffset(unsigned r, unsigned c, unsigned validRow)
 {
     constexpr size_t PANEL = 32 / sizeof(typename Data::DType);
-    return (c / PANEL) * Data::Rows * PANEL + r * PANEL + c % PANEL;
+    const size_t pitch =
+        Data::kRowPlusOneNZ ?
+            ((static_cast<size_t>(validRow) + Data::InnerRows - 1) / Data::InnerRows * Data::InnerRows + 1) :
+            static_cast<size_t>(Data::Rows);
+    return (c / PANEL) * pitch * PANEL + r * PANEL + c % PANEL;
+}
+
+// Independent oracle for the compile-time 2-arg pto::GetTileElementOffset: a static
+// valid extent folds the RowPlusOne pitch from the declared ValidRow; a dynamic
+// valid extent keeps the declared Rows as the legacy fallback (the runtime valid
+// row is honored only by the runtime-aware accessors).
+template <typename Data>
+size_t cpuOffsetStatic(unsigned r, unsigned c)
+{
+    constexpr size_t PANEL = 32 / sizeof(typename Data::DType);
+    constexpr size_t pitch =
+        Data::kRowPlusOneNZ && Data::ValidRow > 0 ?
+            ((static_cast<size_t>(Data::ValidRow) + Data::InnerRows - 1) / Data::InnerRows * Data::InnerRows + 1) :
+            static_cast<size_t>(Data::Rows);
+    return (c / PANEL) * pitch * PANEL + r * PANEL + c % PANEL;
 }
 
 int value(unsigned r, unsigned c) { return static_cast<int>((r * 13 + c * 7) % 41) - 20; }
@@ -79,7 +101,7 @@ struct Guarded {
         std::memset(backing->data(), CANARY, backing->size() * sizeof(T));
         for (unsigned r = 0; r < tile.GetValidRow(); ++r)
             for (unsigned c = 0; c < tile.GetValidCol(); ++c)
-                tile.data()[legacyOffset<Data>(r, c)] = static_cast<T>(fn(r, c));
+                tile.data()[cpuOffset<Data>(r, c, tile.GetValidRow())] = static_cast<T>(fn(r, c));
     }
 
     template <typename Value>
@@ -89,7 +111,7 @@ struct Guarded {
         std::memset(expected.data(), CANARY, expected.size() * sizeof(T));
         for (unsigned r = 0; r < tile.GetValidRow(); ++r)
             for (unsigned c = 0; c < tile.GetValidCol(); ++c)
-                expected[GUARD + legacyOffset<Data>(r, c)] = static_cast<T>(fn(r, c));
+                expected[GUARD + cpuOffset<Data>(r, c, tile.GetValidRow())] = static_cast<T>(fn(r, c));
         require(std::memcmp(backing->data(), expected.data(), expected.size() * sizeof(T)) == 0, message);
     }
 };
@@ -150,8 +172,9 @@ void checkLegacyOperations(unsigned rows)
     for (unsigned r = 0; r < rows; ++r)
         for (unsigned c = 0; c < Data::Cols; ++c) {
             require(
-                GetTileElementOffset<Data>(r, c) == legacyOffset<Data>(r, c),
-                "descriptor changed the legacy Rows stride");
+                GetTileElementOffset<Data>(r, c) == cpuOffsetStatic<Data>(r, c), "descriptor static stride changed");
+            // GetElement honors the runtime valid row, so a dynamic RowPlusOne tile
+            // (Rows=64, valid=19) must read the pitch-33 layout cpuOffset wrote.
             require(a.tile.GetElement(r, c) == value(r, c), "element accessor changed raw legacy layout");
         }
     TADD(out.tile, a.tile, b.tile);
@@ -186,9 +209,11 @@ void checkLegacyFill(unsigned rows)
     Guarded<Data> guarded(rows, Data::Cols);
     guarded.initialize(value);
     auto expected = *guarded.backing;
-    for (unsigned r = rows; r < Rows; ++r)
+    const size_t pitch = GetRowPlusOnePanelPitch<Data>(guarded.tile.GetValidRow());
+    const size_t padRows = Data::kRowPlusOneNZ ? pitch : static_cast<size_t>(Data::Rows);
+    for (unsigned r = rows; r < padRows; ++r)
         for (unsigned c = 0; c < Data::Cols; ++c)
-            expected[Guarded<Data>::GUARD + legacyOffset<Data>(r, c)] = 0;
+            expected[Guarded<Data>::GUARD + cpuOffset<Data>(r, c, guarded.tile.GetValidRow())] = 0;
     TFILLPAD(guarded.tile, guarded.tile);
     require(
         std::memcmp(guarded.backing->data(), expected.data(), expected.size() * sizeof(int32_t)) == 0,
@@ -270,6 +295,7 @@ int main(int argc, char** argv)
     checkLegacyOperations<NZ<int32_t, 64, DYNAMIC, CompactMode::Normal>>(19);
     checkLegacyFill<33, 32>(32);
     checkLegacyFill<64, DYNAMIC>(19);
+    checkLegacyFill<64, 19>(19);
     checkFifoBacking<NZ<int8_t, 17>>();
     checkFifoBacking<NZ<float4_e2m1x2_t, 17>>();
     std::cout << "RowPlusOne storage and legacy CPU checks passed: " << checks << '\n';

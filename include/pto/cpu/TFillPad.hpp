@@ -26,6 +26,7 @@ void TFillPad(TileDataDst& dst, TileDataSrc& src)
     DType padVal{};
     const auto validSrcRow = src.GetValidRow();
     const auto validSrcCol = src.GetValidCol();
+    const auto validDstRow = dst.GetValidRow();
 
     // Decode PadValue via GetPadValue so fp8/fp4/custom share the NPU bit maps.
     // PadValueMap<bfloat16_t> is NPU-only: default CPU_SIM aliases bf16 to half
@@ -48,17 +49,21 @@ void TFillPad(TileDataDst& dst, TileDataSrc& src)
         }
     }
 
-    cpu::parallel_for_1d(
-        0, TileDataDst::Rows, static_cast<std::size_t>(TileDataDst::Rows) * TileDataDst::Cols, [&](std::size_t i) {
-            PTO_CPU_VECTORIZE_LOOP
-            for (std::size_t j = 0; j < TileDataDst::Cols; ++j) {
-                if (i < validSrcRow && j < validSrcCol) {
-                    dst.SetElement(i, j, src.GetElement(i, j));
-                } else {
-                    dst.SetElement(i, j, padVal);
-                }
+    const size_t padRows = TileDataDst::kRowPlusOneNZ ?
+                               (validDstRow != 0 ? GetRowPlusOnePanelPitch<TileDataDst>(validDstRow) :
+                                                   static_cast<size_t>(TileDataDst::Rows)) :
+                               static_cast<size_t>(TileDataDst::Rows);
+
+    cpu::parallel_for_1d(0, padRows, padRows * TileDataDst::Cols, [&](std::size_t i) {
+        PTO_CPU_VECTORIZE_LOOP
+        for (std::size_t j = 0; j < TileDataDst::Cols; ++j) {
+            if (i < validSrcRow && j < validSrcCol) {
+                dst.SetElement(i, j, src.GetElement(i, j));
+            } else {
+                dst.SetElement(i, j, padVal);
             }
-        });
+        }
+    });
 }
 
 template <typename TileDataDst, typename TileDataSrc, bool inplace>
@@ -133,6 +138,5 @@ PTO_INTERNAL void TFILLPAD_EXPAND_IMPL(TileDataDst& dst, TileDataSrc& src)
 
     TFILLPAD_IMPL<TileDataDst, TileDataSrc, false>(dst, src);
 }
-
 } // namespace pto
 #endif

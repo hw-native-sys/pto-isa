@@ -20,6 +20,9 @@ PTO_INTERNAL void TPartInstr(
     typename TileDataDst::TileDType dst, typename TileDataSrc0::TileDType src0, typename TileDataSrc1::TileDType src1,
     int DstValidRow, int DstValidCol, int Src0ValidRow, int Src0ValidCol, int Src1ValidRow, int Src1ValidCol)
 {
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc0::kRowPlusOneNZ && !TileDataSrc1::kRowPlusOneNZ,
+        "RowPlusOne mode for TPART Op is not supported in CPU-SIM currently.");
     for (int i = 0; i < DstValidRow; i++) {
         for (int j = 0; j < DstValidCol; j++) {
             const size_t DstOffset = GetTileElementOffset<TileDataDst>(i, j);
@@ -49,6 +52,9 @@ PTO_INTERNAL void TPartInstr2(
     typename TileDataSrc0Idx::TileDType src0Idx, typename TileDataSrc1Idx::TileDType src1Idx, int DstValidRow,
     int DstValidCol, int Src0ValidRow, int Src0ValidCol, int Src1ValidRow, int Src1ValidCol)
 {
+    static_assert(
+        !TileDataDstVal::kRowPlusOneNZ && !TileDataSrc0Val::kRowPlusOneNZ && !TileDataSrc1Val::kRowPlusOneNZ,
+        "RowPlusOne mode for TPART Op is not supported in CPU-SIM currently.");
     for (int i = 0; i < DstValidRow; i++) {
         for (int j = 0; j < DstValidCol; j++) {
             const size_t DstOffset = GetTileElementOffset<TileDataDstVal>(i, j);

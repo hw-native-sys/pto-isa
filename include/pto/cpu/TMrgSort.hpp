@@ -43,6 +43,7 @@ PTO_INTERNAL constexpr void CheckMrgSortTileConstraints()
     static_assert(TileData::Loc == TileType::Vec, "TMRGSORT: tile type must be Vec.");
     static_assert(TileData::Rows == 1, "TMRGSORT: tile rows must be 1.");
     static_assert(TileData::isRowMajor, "TMRGSORT: BLayout must be RowMajor.");
+    static_assert(!TileData::kRowPlusOneNZ, "RowPlusOne mode for TMRGSORT Op is not supported in CPU-SIM currently.");
 }
 
 template <typename TileData, size_t N>

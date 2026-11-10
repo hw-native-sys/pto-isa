@@ -30,6 +30,9 @@ void TColProd(typename TileDst::TileDType dst, typename TileSrc::TileDType src, 
 template <typename TileDst, typename TileSrc>
 PTO_INTERNAL void TCOLPROD_IMPL(TileDst& dstTile, TileSrc& srcTile)
 {
+    static_assert(
+        !TileDst::kRowPlusOneNZ && !TileSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TCOLPROD Op is not supported in CPU-SIM currently.");
     TColProd<TileDst, TileSrc>(dstTile.data(), srcTile.data(), srcTile.GetValidRow(), srcTile.GetValidCol());
 }
 } // namespace pto

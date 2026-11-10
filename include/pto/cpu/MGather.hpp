@@ -18,6 +18,15 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+template <typename T>
+PTO_INTERNAL constexpr bool IsRowPlusOneTile()
+{
+    if constexpr (HasSFractal<T>::value) {
+        return T::kRowPlusOneNZ;
+    }
+    return false;
+}
+
 template <Coalesce CMode, GatherOOB Mode, typename TileDst, typename GlobalData, typename TileInd>
 PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
 {
@@ -25,6 +34,9 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
     static_assert(std::is_integral_v<IndexT>, "MGATHER: indexes must be an integral type");
     static_assert(
         sizeof(typename TileDst::DType) == sizeof(typename GlobalData::DType), "MGATHER: element sizes must match");
+    static_assert(
+        !TileDst::kRowPlusOneNZ && !IsRowPlusOneTile<TileInd>(),
+        "RowPlusOne mode for MGATHER Op is not supported in CPU-SIM currently.");
 
     const unsigned validRow = dst.GetValidRow();
     const unsigned validCol = dst.GetValidCol();

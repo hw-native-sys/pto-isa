@@ -55,8 +55,9 @@ void TAdd_Impl(
     } else {
         cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
             for (std::size_t c = 0; c < validCol; ++c) {
-                dst[GetTileElementOffset<TileDataDst>(r, c)] =
-                    src0[GetTileElementOffset<TileDataSrc0>(r, c)] + src1[GetTileElementOffset<TileDataSrc1>(r, c)];
+                dst[GetTileElementOffset<TileDataDst>(r, c, validRow)] =
+                    src0[GetTileElementOffset<TileDataSrc0>(r, c, validRow)] +
+                    src1[GetTileElementOffset<TileDataSrc1>(r, c, validRow)];
             }
         });
     }

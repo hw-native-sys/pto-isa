@@ -100,6 +100,9 @@ AICORE void TCmps(
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TCMPS_IMPL(TileDataDst& dst, TileDataSrc& src0, typename TileDataSrc::DType src1, CmpMode cmpMode)
 {
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TCMPS Op is not supported in CPU-SIM currently.");
     unsigned dstValidRow = dst.GetValidRow();
     unsigned dstValidCol = dst.GetValidCol();
 
@@ -122,6 +125,9 @@ PTO_INTERNAL void TCMPS_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1&
     static_assert(
         std::is_same_v<typename TileDataSrc0::DType, typename TileDataSrc1::DType>,
         "Fix: TCMPS src0 and src1 must have the same data type.");
+    static_assert(
+        !TileDataDst::kRowPlusOneNZ && !TileDataSrc0::kRowPlusOneNZ && !TileDataSrc1::kRowPlusOneNZ,
+        "RowPlusOne mode for TCMPS Op is not supported in CPU-SIM currently.");
     using T = typename TileDataSrc0::DType;
 
     unsigned dstValidRow = dst.GetValidRow();

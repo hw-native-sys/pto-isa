@@ -21,7 +21,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace cpu {
 template <typename TileSrc>
-PTO_INTERNAL typename TileSrc::DType rowSumTree(typename TileSrc::TileDType src, std::size_t row, uint32_t cols)
+PTO_INTERNAL typename TileSrc::DType rowSumTree(
+    typename TileSrc::TileDType src, std::size_t row, uint32_t cols, uint32_t validRow)
 {
     using T = typename TileSrc::DType;
     constexpr std::size_t vectorBytes = 256;
@@ -34,7 +35,7 @@ PTO_INTERNAL typename TileSrc::DType rowSumTree(typename TileSrc::TileDType src,
             if constexpr (TileSrc::SFractal == SLayout::NoneBox && TileSrc::isRowMajor) {
                 lanes[col] = src[row * TileSrc::Cols + base + col];
             } else {
-                lanes[col] = src[GetTileElementOffset<TileSrc>(row, base + col)];
+                lanes[col] = src[GetTileElementOffset<TileSrc>(row, base + col, validRow)];
             }
         }
         for (std::size_t width = elementsPerVector; width > 1; width /= 2) {
@@ -48,14 +49,15 @@ PTO_INTERNAL typename TileSrc::DType rowSumTree(typename TileSrc::TileDType src,
 }
 
 template <typename TileSrc>
-PTO_INTERNAL typename TileSrc::DType rowSumModular(typename TileSrc::TileDType src, std::size_t row, uint32_t cols)
+PTO_INTERNAL typename TileSrc::DType rowSumModular(
+    typename TileSrc::TileDType src, std::size_t row, uint32_t cols, uint32_t validRow)
 {
     using T = typename TileSrc::DType;
     using Acc = std::conditional_t<std::is_same_v<T, int16_t>, uint32_t, std::make_unsigned_t<T>>;
     Acc sum = 0;
     // Modular addition preserves the hardware result without signed-overflow UB.
     for (std::size_t col = 0; col < cols; ++col) {
-        sum += static_cast<Acc>(src[GetTileElementOffset<TileSrc>(row, col)]);
+        sum += static_cast<Acc>(src[GetTileElementOffset<TileSrc>(row, col, validRow)]);
     }
     return std::bit_cast<T>(static_cast<std::make_unsigned_t<T>>(sum));
 }
@@ -71,9 +73,9 @@ void TRowSumForArch(typename TileDst::TileDType dst, typename TileSrc::TileDType
         if constexpr (Arch == NPUArch::A5) {
             using T = typename TileSrc::DType;
             if constexpr (std::is_same_v<T, float> || std::is_same_v<T, half>) {
-                sum = cpu::rowSumTree<TileSrc>(src, i, N);
+                sum = cpu::rowSumTree<TileSrc>(src, i, N, M);
             } else if constexpr (std::is_integral_v<T>) {
-                sum = cpu::rowSumModular<TileSrc>(src, i, N);
+                sum = cpu::rowSumModular<TileSrc>(src, i, N, M);
             }
         } else if constexpr (TileSrc::SFractal == SLayout::NoneBox && TileSrc::isRowMajor) {
             const std::size_t base = i * TileSrc::Cols;
@@ -83,13 +85,13 @@ void TRowSumForArch(typename TileDst::TileDType dst, typename TileSrc::TileDType
             }
         } else {
             for (std::size_t j = 0; j < N; ++j) {
-                sum += src[GetTileElementOffset<TileSrc>(i, j)];
+                sum += src[GetTileElementOffset<TileSrc>(i, j, M)];
             }
         }
         if constexpr (TileDst::SFractal == SLayout::NoneBox && TileDst::isRowMajor) {
             dst[i * TileDst::Cols] = static_cast<typename TileDst::DType>(sum);
         } else {
-            dst[GetTileElementOffset<TileDst>(i, 0)] = static_cast<typename TileDst::DType>(sum);
+            dst[GetTileElementOffset<TileDst>(i, 0, M)] = static_cast<typename TileDst::DType>(sum);
         }
     });
 }

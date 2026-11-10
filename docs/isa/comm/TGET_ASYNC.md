@@ -28,19 +28,27 @@ Data flow:
     - `DmaEngine::URMA` (Ascend950, NPU_ARCH 3510 only)
     - `DmaEngine::RDMA` (Ascend950, NPU_ARCH 3510 only; currently supports only the HNS1825 NIC platform)
 
-> **Important (SDMA path)**
-> `TGET_ASYNC` with `DmaEngine::SDMA` currently supports **only flat contiguous logical 1D tensors**.
-> Non-1D or non-contiguous layouts are not supported by the current SDMA async implementation.
+> **Important (layout constraint)**
+> All engines currently support **only flat contiguous logical 1D tensors**; non-1D or non-contiguous layouts are not supported.
 
 ## C++ Intrinsic
 
 Declared in `include/pto/comm/pto_comm_inst.hpp`.
 
 ```cpp
+// Available on all architectures. URMA/RDMA use the source rank bound in the session.
 template <DmaEngine engine = DmaEngine::SDMA,
           typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
 PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
                                const AsyncSession &session, WaitEvents &... events);
+
+// Available on Ascend 950 and CPU simulation only. URMA/RDMA select the source rank with `peer`;
+// SDMA ignores `peer`.
+template <DmaEngine engine = DmaEngine::SDMA,
+          typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
+PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobalData,
+                               const AsyncSession &session, uint32_t peer,
+                               WaitEvents &... events);
 ```
 
 `AsyncSession` is an engine-agnostic session object. Build once with
@@ -48,10 +56,15 @@ PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
 The template `engine` parameter selects the DMA backend at compile time, making the
 code forward-compatible with future engines (CCU, etc.).
 
+`events` is a possibly empty variadic list; each event must expose a no-argument `Wait()`, and the
+instruction waits on them in order before issuing the transfer. `AsyncEvent` uses `Wait(session)` and
+cannot be passed as one of `events`.
+
 ## AsyncSession Construction
 
-Use `BuildAsyncSession` from `include/pto/comm/async_common/async_event_impl.hpp`.
-There are two overloads — one for SDMA and one for URMA — with different parameter lists.
+Use `BuildAsyncSession` from `include/pto/comm/async_common/async_event_impl.hpp`, picking the
+overload for the engine. It returns `false` on failure; only a successfully built session may be used
+in subsequent calls.
 
 ### SDMA Construction (default)
 
@@ -81,6 +94,12 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
+// No source rank bound; use with the instruction overload that takes `peer`.
+template <DmaEngine engine>
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    AsyncSession &session);
+
+// Binds the source rank; use with the instruction overload without `peer`.
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
                                     uint32_t destRankId,
@@ -91,10 +110,14 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 | Parameter | Description |
 |---|---|
 | `workspace` | GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`. |
-| `destRankId` | Remote PE rank id that this session communicates with. For `TGET_ASYNC` this is the source rank. |
+| `destRankId` | Remote PE rank id bound to this session. For `TGET_ASYNC` this is the source rank. |
 | `session` | Output `AsyncSession` object. |
 
 URMA does not require `scratchTile` — polling uses `ld_dev`/`st_dev` hardware intrinsics directly.
+
+Construction divides the URMA queues available to the current AI core. It returns `false` when
+`workspace` is invalid, or when the current block count exceeds the queue capacity configured in the
+workspace.
 
 ### RDMA Construction (NPU_ARCH 3510 only)
 
@@ -102,9 +125,21 @@ RDMA is intended for standard cross-node networking and currently supports only 
 
 ```cpp
 #ifdef PTO_RDMA_SUPPORTED
+// No peer bound; use with the instruction overload that takes `peer`, so one session can reach
+// multiple remote ranks.
 template <DmaEngine engine, typename ScratchTile>
 PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
                                     __gm__ uint8_t *workspace,
+                                    uint32_t myPe,
+                                    AsyncSession &session,
+                                    uint32_t syncId = 0,
+                                    uint32_t qpIdx = 0);
+
+// Binds the source rank; use with the instruction overload without `peer`.
+template <DmaEngine engine, typename ScratchTile>
+PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
+                                    __gm__ uint8_t *workspace,
+                                    uint32_t destRankId,
                                     uint32_t myPe,
                                     AsyncSession &session,
                                     uint32_t syncId = 0,
@@ -116,12 +151,13 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 |---|---|
 | `scratchTile` | UB/Vec tile used for WQE/CQE control data; at least 64 bytes. |
 | `workspace` | GM pointer returned by the host-side RDMA initialization flow. |
+| `destRankId` | Remote rank bound to this session. |
 | `myPe` | Local rank id used to select the registered local memory region. |
 | `session` | Output `AsyncSession` object. |
 | `syncId` | MTE/scalar synchronization event id in the range 0-7. |
 | `qpIdx` | QP index for each peer; defaults to 0 and must be less than the host-configured [`qpNum`](TPUT_ASYNC.md#rdma-construction-npu_arch-3510-only). |
 
-Build one peer-independent session, then select the source rank with the explicit `peer` argument:
+When reaching multiple remote ranks, prefer building one peer-independent session and selecting the source rank with the explicit `peer` argument:
 
 ```cpp
 comm::AsyncSession session;
@@ -135,7 +171,7 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
-- Both SDMA and URMA paths require source tensor to be **flat contiguous logical 1D only**
+- Source and destination tensors must both be **flat contiguous logical 1D**, and the destination capacity must be no smaller than the source element count
 - SDMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `SdmaWorkspaceManager`
 - URMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`
 - Keep the session and its workspace alive until all associated events have completed
@@ -146,30 +182,28 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 - RDMA source and destination tensors must be flat contiguous logical 1D, and the complete local and remote ranges must lie within memory regions registered during host initialization
 - One RDMA transfer must not exceed `0x7fffffff` bytes
 
-If the 1D contiguous requirement is not met, current implementation returns an invalid async event (`handle == 0`).
+Violations of the tensor constraints above are caught by `PTO_ASSERT`.
 
 ## scratchTile Role
 
-`scratchTile` is **not** used to hold transferred payload data.
-It is converted to `TmpBuffer` and used as temporary UB workspace for:
+`scratchTile` does not carry transferred data. It only serves as temporary UB workspace for SDMA
+control metadata and completion flag polling, and for WQE/CQE control data on the RDMA path. The
+payload always follows the remote GM -> DMA engine -> local GM path.
 
-- writing/reading SDMA control words (flag, sq_tail, channel_info)
-- polling event completion flags
-- committing queue tail during completion
+Type requirement: must be a `pto::Tile` located in UB/Vec (`ScratchTile::Loc == TileType::Vec`). At
+least 8 bytes for SDMA and 64 bytes for RDMA; `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>`
+(256Byte) is recommended.
 
-The real payload path remains remote GM -> DMA engine -> local GM; `scratchTile` is only for control/synchronization metadata.
+## Batch Submission
 
-## scratchTile Type and Size Constraints
+`TGET_ASYNC` does not join an `AsyncSubmitMode` batch, but before issuing the read it submits any
+batch staged on the same session by `TPUT_ASYNC`. Under URMA, the target rank of that batch must
+match the peer of this call, otherwise a failed event is returned.
 
-- must be a `pto::Tile` type
-- must be UB/Vec tile (`ScratchTile::Loc == TileType::Vec`)
-- available bytes must be at least `sizeof(uint64_t)` (8 bytes)
-
-Recommended: `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>` (256Byte).
+For the full semantics of `submitMode` and `batchSize`, see
+[TPUT_ASYNC Batch Submission](TPUT_ASYNC.md#batch-submission).
 
 ## Completion Semantics (Quiet Semantics)
-
-The completion mechanism differs by engine, but user-facing quiet semantics are identical:
 
 - **SDMA**: Each `TGET_ASYNC` submits data-transfer SQEs and flag SQEs that mark completion of that operation. `Wait` or `Test` on its returned event polls the corresponding flags to determine whether that `TGET_ASYNC` has completed; completion also guarantees that all earlier SDMA operations in the same session have completed.
 - **URMA**: `TGET_ASYNC` submits an RDMA READ WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
@@ -229,7 +263,7 @@ __global__ AICORE void SimpleGet(__gm__ T *localDst, __gm__ T *remoteSrc,
 }
 ```
 
-### Batch Transfer (Quiet Semantics)
+### Repeated Transfers (Quiet Semantics)
 
 ```cpp
 template <typename T>

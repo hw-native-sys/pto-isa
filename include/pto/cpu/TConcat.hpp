@@ -30,6 +30,9 @@ PTO_INTERNAL void TConcatTileCheck(TileDst& dst, TileSrc0& src0, TileSrc1& src1)
     static_assert(
         TileDst::Loc == TileType::Vec && TileSrc0::Loc == TileType::Vec && TileSrc1::Loc == TileType::Vec,
         "TCONCAT: TileType of src and dst tiles must be TileType::Vec.");
+    static_assert(
+        !TileDst::kRowPlusOneNZ && !TileSrc0::kRowPlusOneNZ && !TileSrc1::kRowPlusOneNZ,
+        "RowPlusOne mode for TCONCAT Op is not supported in CPU-SIM currently.");
 
     assert(
         dst.GetValidRow() == src0.GetValidRow() && dst.GetValidRow() == src1.GetValidRow() &&
@@ -53,6 +56,9 @@ PTO_INTERNAL void TConcatIdxTileCheck(
     static_assert(
         TileSrc0Idx::Loc == TileType::Vec && TileSrc1Idx::Loc == TileType::Vec,
         "TCONCAT: TileType of src0Idx and src1Idx tiles must be TileType::Vec.");
+    static_assert(
+        !TileSrc0Idx::kRowPlusOneNZ && !TileSrc1Idx::kRowPlusOneNZ,
+        "RowPlusOne mode for TCONCAT Op is not supported in CPU-SIM currently.");
 }
 
 template <

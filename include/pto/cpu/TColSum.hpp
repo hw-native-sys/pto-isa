@@ -58,6 +58,9 @@ template <typename TileDst, typename TileSrc>
 PTO_INTERNAL void TCOLSUM_IMPL(TileDst& dstTile, TileSrc& srcTile)
 {
     CheckCSValid<TileDst, TileSrc>();
+    static_assert(
+        !TileDst::kRowPlusOneNZ && !TileSrc::kRowPlusOneNZ,
+        "RowPlusOne mode for TCOLSUM Op is not supported in CPU-SIM currently.");
 
     uint16_t m = srcTile.GetValidRow();
     uint16_t n = srcTile.GetValidCol();

@@ -13,6 +13,10 @@
 <!-- end id3 -->
 
 
+## Tile Operation Diagram
+
+> No `TPOP.svg` is provided. `TPOP` is a **FIFO control-plane** primitive; it waits for data-ready, binds the consumer's `GlobalData` to the current FIFO slot address, and advances the consumer tile index. It does not load data into a local tile.
+
 ## Introduction
 
 Pop a consumer tile from a `TPipe` FIFO for Cube-Vector communication.

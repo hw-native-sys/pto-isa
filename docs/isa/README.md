@@ -2,9 +2,9 @@
   <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
-# PTO ISA Manual And Reference
+# PTO ISA Reference
 
-This directory is the canonical PTO ISA tree. It combines the architecture manual, the instruction set guides, the instruction set contracts, and the exact instruction-reference groupings in one place.
+This directory contains the per-instruction reference for the PTO Tile Lib ISA.
 
 - Source of truth (C++ intrinsics): `include/pto/common/pto_instr.hpp`
 - Common conventions (operands, events, modifiers): `docs/isa/conventions.md`
@@ -29,7 +29,7 @@ The current ISA reference no longer exposes the following legacy instruction int
 
 Migration guidance:
 
-- Effective version: this cleanup takes effect in PTO ISA v9.2.0. The compatibility window for these legacy wrappers is closed; no public wrapper is retained.
+- Effective version: this cleanup takes effect in PTO ISA v9.1.0. The compatibility window for these legacy wrappers is closed; no public wrapper is retained.
 - Replace `TSYNC(events...)` with ordinary event-based ordering: pass the event object to the consumer intrinsic, or call `WaitAllEvents(events...)` before the consumer when an explicit wait is required.
 - `TSUBVIEW` is not a public ISA replacement. In-repository implementations may use `pto::detail::PtoSubTileView` as an internal helper; external code should express the data view through supported tile construction and public data movement APIs.
 - Replace ternary/scalar fused arithmetic forms with the corresponding primitive arithmetic sequence, such as `TADD`, `TSUB`, `TADDS`, `TSUBS`, `TMUL`, `TMADD`, and `TRELU`.

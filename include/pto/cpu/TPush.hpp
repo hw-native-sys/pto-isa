@@ -401,7 +401,7 @@ PTO_INTERNAL void FillTile(TileData& tile, typename TileData::DType value)
 {
     for (int r = 0; r < tile.GetValidRow(); ++r) {
         for (int c = 0; c < tile.GetValidCol(); ++c) {
-            SetProperDataPart(tile.data(), GetTileElementOffset<TileData>(r, c), value);
+            SetProperDataPart(tile.data(), GetTileElementOffset<TileData>(r, c, tile.GetValidRow()), value);
         }
     }
 }
@@ -487,8 +487,8 @@ PTO_INTERNAL void CopyTileWindow(DstTileData& dst, SrcTileData& src, uint32_t ro
 {
     for (int r = 0; r < dst.GetValidRow(); ++r) {
         for (int c = 0; c < dst.GetValidCol(); ++c) {
-            dst.data()[GetTileElementOffset<DstTileData>(r, c)] =
-                src.data()[GetTileElementOffset<SrcTileData>(r + rowOffset, c + colOffset)];
+            dst.data()[GetTileElementOffset<DstTileData>(r, c, dst.GetValidRow())] =
+                src.data()[GetTileElementOffset<SrcTileData>(r + rowOffset, c + colOffset, src.GetValidRow())];
         }
     }
 }
@@ -498,8 +498,8 @@ PTO_INTERNAL void InsertTileWindow(DstTileData& dst, SrcTileData& src, uint32_t 
 {
     for (int r = 0; r < src.GetValidRow(); ++r) {
         for (int c = 0; c < src.GetValidCol(); ++c) {
-            dst.data()[GetTileElementOffset<DstTileData>(r + rowOffset, c + colOffset)] =
-                src.data()[GetTileElementOffset<SrcTileData>(r, c)];
+            dst.data()[GetTileElementOffset<DstTileData>(r + rowOffset, c + colOffset, dst.GetValidRow())] =
+                src.data()[GetTileElementOffset<SrcTileData>(r, c, src.GetValidRow())];
         }
     }
 }
@@ -514,8 +514,8 @@ PTO_INTERNAL void CopyTileWindowToLinear(
     constexpr bool use_relu = reluPreMode == ReluPreMode::NormalRelu;
     for (uint32_t r = 0; r < dstRows; ++r) {
         for (uint32_t c = 0; c < dstCols; ++c) {
-            SrcT val =
-                GetProperDataPart(src.data(), GetTileElementOffset<SrcTileData>(r + srcRowOffset, c + srcColOffset));
+            SrcT val = GetProperDataPart(
+                src.data(), GetTileElementOffset<SrcTileData>(r + srcRowOffset, c + srcColOffset, src.GetValidRow()));
             StoreByteStorageElement(
                 dst, slotIndex, baseByteOffset, regionByteEnd, static_cast<std::size_t>(r) * dstStrideCols + c,
                 ConvertStoreValue<DstT, SrcT, quantMode, use_relu>(val, scalars[c]), "CopyTileWindowToLinear");
@@ -531,7 +531,7 @@ PTO_INTERNAL void CopyLinearToTile(
     for (int r = 0; r < dst.GetValidRow(); ++r) {
         for (int c = 0; c < dst.GetValidCol(); ++c) {
             SetProperDataPart(
-                dst.data(), GetTileElementOffset<DstTileData>(r, c),
+                dst.data(), GetTileElementOffset<DstTileData>(r, c, dst.GetValidRow()),
                 LoadByteStorageElement<T>(
                     src, slotIndex, baseByteOffset, regionByteEnd,
                     static_cast<std::size_t>(r) * srcCols + static_cast<std::size_t>(c), "CopyLinearToTile"));
@@ -550,7 +550,8 @@ PTO_INTERNAL void InsertTileWindowToLinear(
                 (static_cast<uint32_t>(r) + dstRowOffset) * dstCols + static_cast<uint32_t>(c) + dstColOffset;
             StoreByteStorageElement(
                 dst, slotIndex, baseByteOffset, regionByteEnd, elementIndex,
-                static_cast<DstT>(GetProperDataPart(src.data(), GetTileElementOffset<SrcTileData>(r, c))),
+                static_cast<DstT>(
+                    GetProperDataPart(src.data(), GetTileElementOffset<SrcTileData>(r, c, src.GetValidRow()))),
                 "InsertTileWindowToLinear");
         }
     }

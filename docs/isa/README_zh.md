@@ -2,9 +2,9 @@
   <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />
 </p>
 
-# PTO ISA 手册与参考
+# PTO ISA 参考
 
-本文档目录是 PTO ISA 的权威文档树。它将架构手册、指令集指南、家族契约和精确的指令参考分组整合在同一个位置。
+本目录是 PTO Tile Lib ISA 的指令参考（每条指令一页）。
 
 - 权威来源：`include/pto/common/pto_instr.hpp`
 - 通用约定（操作数、事件、修饰符）：`docs/isa/conventions_zh.md`
@@ -29,7 +29,7 @@
 
 迁移建议：
 
-- 生效版本：本次清理自 PTO ISA v9.2.0 起生效；这些历史 wrapper 的兼容窗口关闭，不再保留公开 wrapper。
+- 生效版本：本次清理自 PTO ISA v9.1.0 起生效；这些历史 wrapper 的兼容窗口关闭，不再保留公开 wrapper。
 - 将 `TSYNC(events...)` 替换为普通 event 顺序表达：把 event 对象传给消费端 intrinsic，或在确需显式等待时调用 `WaitAllEvents(events...)`。
 - `TSUBVIEW` 不提供公开 ISA 替代接口。仓内实现可使用 `pto::detail::PtoSubTileView` 作为内部 helper；外部代码应通过受支持的 Tile 构造和公开数据搬运 API 表达数据视图。
 - 将三元/标量融合算术形式替换为对应基础算术序列，例如 `TADD`、`TSUB`、`TADDS`、`TSUBS`、`TMUL`、`TMADD` 和 `TRELU`。

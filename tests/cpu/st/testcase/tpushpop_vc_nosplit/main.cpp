@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <mutex>
 #include <pto/pto-inst.hpp>
 #include <vector>
+#include "cpu_tile_test_utils.h"
 #include "test_common.h"
 
 using namespace pto;
@@ -238,6 +239,156 @@ void checkPackedByteBounds()
     EXPECT_EQ(storage, (std::array<uint8_t, 4>{0xA5, 0x87, 0xD9, 0xF1}));
 }
 
+// End-to-end regression for the Dynamic NZ+1 (RowPlusOne) FIFO transfer bug.
+// TEXTRACT writes a RowPlusOne tile with the runtime compact pitch (valid row 32 ->
+// ceil(32/16)*16+1 = 33) but the old TPUSH FIFO read addressed it with the declared
+// Rows (64), silently reading the wrong column panel: element (0,8) came back as 3109
+// (= source(31,8)) instead of 9. 768 of 1024 elements were corrupted. This is a
+// supported A5 V2C path (the NPU implementation calls TINSERT, which uses the runtime
+// compact pitch), so the CPU TPUSH must do the same. Mirrors the reviewer repro: fill
+// a 64x64 ND source with 100*r+c+1, extract windows (0,0) and (32,32) into RowPlusOne
+// NZ Vec tiles (declared 64x32, ValidRow=DYNAMIC, runtime valid 32x32), push the
+// first tile through a V2C TPipe (8192-byte slots, TILE_NO_SPLIT) and pop into an NZ
+// Mat (declared 64x32, valid 32x32).
+void runRowPlusOneDynamicV2C()
+{
+    constexpr int kFifoDepth = 2;
+    constexpr int kValidRows = 32;
+    constexpr int kValidCols = 32;
+    using SrcTile = Tile<TileType::Vec, float, 64, 64, BLayout::RowMajor, 64, 64, SLayout::NoneBox>;
+    using VecTile = Tile<
+        TileType::Vec, float, 64, 32, BLayout::ColMajor, DYNAMIC, kValidCols, SLayout::RowMajor,
+        TileConfig::fractalABSize, PadValue::Null, CompactMode::RowPlusOne>;
+    using MatTile = Tile<TileType::Mat, float, 64, 32, BLayout::ColMajor, kValidRows, kValidCols, SLayout::RowMajor>;
+    using Pipe = TPipe<kPipeFlagId + 4, Direction::DIR_V2C, sizeof(float) * MatTile::Numel, kFifoDepth>;
+
+    static_assert(VecTile::kRowPlusOneNZ && VecTile::ValidRow == DYNAMIC, "fixture must be dynamic-shape NZ+1");
+    static_assert(sizeof(float) * MatTile::Numel == 8192, "fixture must use 8192-byte slots");
+
+    SrcTile src;
+    VecTile vecTile(kValidRows);
+    VecTile vecTile1(kValidRows);
+    MatTile matTile;
+    size_t addr = 0;
+    CpuTileTestUtils::AssignOneTileStorage(src, addr);
+    CpuTileTestUtils::AssignOneTileStorage(vecTile, addr);
+    CpuTileTestUtils::AssignOneTileStorage(vecTile1, addr);
+
+    // Clear must run after AssignOneTileStorage registers the buffers (it zero-fills
+    // them) but before the extract writes the payload the FIFO will read.
+    NPU_MEMORY_CLEAR();
+    Pipe::reset_for_cpu_sim();
+    Pipe pipe((__gm__ void*)nullptr, 0x0, kMatConsumerBase);
+    TASSIGN(matTile, 0x4000);
+
+    for (int r = 0; r < 64; ++r) {
+        for (int c = 0; c < 64; ++c) {
+            CpuTileTestUtils::SetValue(src, r, c, float(100 * r + c + 1));
+        }
+    }
+    // Zero the whole physical envelope so gap rows and padding stay deterministic.
+    std::fill(vecTile.data(), vecTile.data() + VecTile::StorageNumel, 0.0f);
+    std::fill(vecTile1.data(), vecTile1.data() + VecTile::StorageNumel, 0.0f);
+
+    TEXTRACT(vecTile, vecTile1, src, 0, 0, 32, 32);
+
+    cpu_sim::ScopedExecutionContext ctx(0, 0, 1);
+    TPUSH<Pipe, VecTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, vecTile);
+    TPOP<Pipe, MatTile, TileSplitAxis::TILE_NO_SPLIT>(pipe, matTile);
+    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
+
+    for (int r = 0; r < kValidRows; ++r) {
+        for (int c = 0; c < kValidCols; ++c) {
+            const float expected = CpuTileTestUtils::GetValue(src, r, c);
+            CpuTileTestUtils::ExpectValueEquals(matTile.GetElement(r, c), expected);
+        }
+    }
+}
+
+// Regression for CpuTileTestUtils::FillAll using StorageNumel as the fill length.
+// StorageNumel counts logical elements, but for packed FP4 two elements share one DType
+// unit, so the fill wrote 2x past the allocation (heap-buffer-overflow under ASan).
+// FillAll must bound the fill by GetSizeInUnits(). Guarded host storage makes the
+// overflow observable without ASan: the trailing guard byte is overwritten.
+template <typename T>
+void checkTestUtilsFillAllPackedStorageBoundary()
+{
+    constexpr int kRows = 8;
+    constexpr int kCols = 128;
+    using VecTile = Tile<
+        TileType::Vec, T, kRows, kCols, BLayout::ColMajor, kRows, kCols, SLayout::RowMajor, TileConfig::fractalABSize,
+        PadValue::Null, CompactMode::RowPlusOne>;
+    static_assert(VecTile::kRowPlusOneNZ, "fixture must be a RowPlusOne NZ tile");
+    static_assert(VecTile::GetSizeInUnits() * 2 == VecTile::StorageNumel, "packed FP4 packs two elements per unit");
+
+    const std::size_t units = VecTile::GetSizeInUnits();
+    const T guard = T::FromRaw(0xA5);
+    std::vector<T> storage(units + 2, guard);
+    VecTile tile;
+    tile.data() = storage.data() + 1;
+
+    const T fill = T::FromRaw(0x7);
+    CpuTileTestUtils::FillAll(tile, fill);
+    EXPECT_EQ(storage.front().RawData(), guard.RawData());
+    EXPECT_EQ(storage.back().RawData(), guard.RawData());
+    for (std::size_t i = 0; i < units; ++i) {
+        EXPECT_EQ(storage[i + 1].RawData(), fill.RawData());
+    }
+}
+
+// Regression for CpuTileTestUtils::FillLinear/GetValue/SetValue calling the 2-arg
+// GetTileElementOffset: for a dynamic-shape RowPlusOne tile the 2-arg helper falls back
+// to the declared Rows (64) as the panel pitch while the Tile accessors use the runtime
+// compact pitch (valid 19 -> ceil(19/16)*16+1 = 33). The helpers must pass
+// tile.GetValidRow() so helper and accessor reads/writes agree everywhere.
+void checkTestUtilsDynamicRowPlusOneHelperCrossCheck()
+{
+    constexpr int kDeclaredRows = 64;
+    constexpr int kCols = 32;
+    constexpr int kValidRows = 19;
+    using VecTile = Tile<
+        TileType::Vec, float, kDeclaredRows, kCols, BLayout::ColMajor, DYNAMIC, kCols, SLayout::RowMajor,
+        TileConfig::fractalABSize, PadValue::Null, CompactMode::RowPlusOne>;
+    static_assert(VecTile::kRowPlusOneNZ && VecTile::ValidRow == DYNAMIC, "fixture must be dynamic-shape NZ+1");
+
+    VecTile tile(kValidRows);
+    size_t addr = 0;
+    CpuTileTestUtils::AssignOneTileStorage(tile, addr);
+    NPU_MEMORY_CLEAR();
+
+    // Helper write -> accessor read.
+    CpuTileTestUtils::FillLinear(tile, 0.5f);
+    for (int r = 0; r < kValidRows; ++r) {
+        for (int c = 0; c < kCols; ++c) {
+            CpuTileTestUtils::ExpectValueEquals(tile.GetElement(r, c), 0.5f + static_cast<float>(r * kCols + c));
+        }
+    }
+
+    // Accessor write -> helper read.
+    for (int r = 0; r < kValidRows; ++r) {
+        for (int c = 0; c < kCols; ++c) {
+            tile.SetElement(r, c, static_cast<float>(10 * r + c));
+        }
+    }
+    for (int r = 0; r < kValidRows; ++r) {
+        for (int c = 0; c < kCols; ++c) {
+            CpuTileTestUtils::ExpectValueEquals(CpuTileTestUtils::GetValue(tile, r, c), static_cast<float>(10 * r + c));
+        }
+    }
+
+    // SetValue (helper write) -> accessor read.
+    for (int r = 0; r < kValidRows; ++r) {
+        for (int c = 0; c < kCols; ++c) {
+            CpuTileTestUtils::SetValue(tile, r, c, static_cast<float>(3 * r + 7 * c));
+        }
+    }
+    for (int r = 0; r < kValidRows; ++r) {
+        for (int c = 0; c < kCols; ++c) {
+            CpuTileTestUtils::ExpectValueEquals(tile.GetElement(r, c), static_cast<float>(3 * r + 7 * c));
+        }
+    }
+}
+
 } // namespace
 
 class TPushPopVCNoSplitTest : public testing::Test {
@@ -291,4 +442,24 @@ TEST_F(TPushPopVCNoSplitTest, fp4_preserves_nibbles_and_checks_byte_bounds)
 {
     checkPackedByteBounds<float4_e2m1x2_t>();
     checkPackedByteBounds<float4_e1m2x2_t>();
+}
+
+// Regression: a Dynamic NZ+1 (RowPlusOne) Vec tile written by TEXTRACT at the runtime
+// compact pitch (33) must be read by the V2C TPUSH at the same pitch, not the declared
+// Rows (64). Before the fix this corrupted 768/1024 elements on the A5 path.
+TEST_F(TPushPopVCNoSplitTest, row_plus_one_dynamic_extract_to_cube) { runRowPlusOneDynamicV2C(); }
+
+// Regression for CpuTileTestUtils::FillAll: the packed-FP4 RowPlusOne tile must not be
+// overrun (fill length is GetSizeInUnits(), not StorageNumel).
+TEST_F(TPushPopVCNoSplitTest, test_utils_fillall_packed_storage_boundary)
+{
+    checkTestUtilsFillAllPackedStorageBoundary<float4_e2m1x2_t>();
+    checkTestUtilsFillAllPackedStorageBoundary<float4_e1m2x2_t>();
+}
+
+// Regression for CpuTileTestUtils::FillLinear/GetValue/SetValue on dynamic RowPlusOne
+// tiles: helper and accessor addressing must agree (3-arg offset with GetValidRow()).
+TEST_F(TPushPopVCNoSplitTest, test_utils_dynamic_row_plus_one_helper_cross_check)
+{
+    checkTestUtilsDynamicRowPlusOneHelperCrossCheck();
 }

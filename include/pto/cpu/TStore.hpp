@@ -15,7 +15,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cassert>
 #include "pto/cpu/parallel.hpp"
 #include "common.hpp"
-#include "nz_utils.hpp"
 
 namespace pto {
 

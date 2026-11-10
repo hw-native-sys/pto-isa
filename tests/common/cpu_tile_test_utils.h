@@ -30,7 +30,7 @@ void FillLinear(TileData& tile, typename TileData::DType start = typename TileDa
     std::size_t offset = 0;
     for (int r = 0; r < tile.GetValidRow(); ++r) {
         for (int c = 0; c < tile.GetValidCol(); ++c, ++offset) {
-            tile.data()[pto::GetTileElementOffset<TileData>(r, c)] =
+            tile.data()[pto::GetTileElementOffset<TileData>(r, c, tile.GetValidRow())] =
                 static_cast<typename TileData::DType>(static_cast<double>(start) + static_cast<double>(offset));
         }
     }
@@ -39,26 +39,28 @@ void FillLinear(TileData& tile, typename TileData::DType start = typename TileDa
 template <typename TileData>
 void FillAll(TileData& tile, typename TileData::DType value)
 {
-    std::fill(tile.data(), tile.data() + TileData::Numel, value);
+    // GetSizeInUnits() (not StorageNumel): for packed FP4 two logical elements share one
+    // DType unit, so StorageNumel as the fill length would write 2x past the allocation.
+    std::fill(tile.data(), tile.data() + TileData::GetSizeInUnits(), value);
 }
 
 template <typename TileData>
 auto GetValue(const TileData& tile, int r, int c) -> typename TileData::DType
 {
-    return tile.data()[pto::GetTileElementOffset<TileData>(r, c)];
+    return tile.data()[pto::GetTileElementOffset<TileData>(r, c, tile.GetValidRow())];
 }
 
 template <typename TileData>
 void SetValue(TileData& tile, int r, int c, typename TileData::DType value)
 {
-    tile.data()[pto::GetTileElementOffset<TileData>(r, c)] = value;
+    tile.data()[pto::GetTileElementOffset<TileData>(r, c, tile.GetValidRow())] = value;
 }
 
 template <typename TileData>
 void AssignOneTileStorage(TileData& tile, std::size_t& addr)
 {
     TASSIGN(tile, addr);
-    addr += sizeof(typename TileData::DType) * static_cast<std::size_t>(TileData::Numel);
+    addr += sizeof(typename TileData::DType) * static_cast<std::size_t>(TileData::GetSizeInUnits());
     addr = (addr + 63) & ~static_cast<std::size_t>(63);
 }
 

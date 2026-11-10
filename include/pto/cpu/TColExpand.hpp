@@ -35,6 +35,9 @@ PTO_INTERNAL void TColExpand_Impl(
 template <typename TileDataOut, typename TileDataIn>
 PTO_INTERNAL void TCOLEXPAND_IMPL(TileDataOut& dst, TileDataIn& src)
 {
+    static_assert(
+        !TileDataOut::kRowPlusOneNZ && !TileDataIn::kRowPlusOneNZ,
+        "RowPlusOne mode for TCOLEXPAND Op is not supported in CPU-SIM currently.");
     TColExpand_Impl<TileDataOut, TileDataIn>(dst.data(), src.data(), dst.GetValidRow(), dst.GetValidCol());
 }
 

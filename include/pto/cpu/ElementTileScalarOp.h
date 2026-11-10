@@ -43,14 +43,14 @@ void ZeroTileScalarOp_Impl(
         if constexpr (tile_shape::isRowMajor) {
             cpu::parallel_for_rows(validRow, validCol, [&](std::size_t r) {
                 for (std::size_t c = 0; c < validCol; ++c) {
-                    const std::size_t idx = GetTileElementOffset<tile_shape>(r, c);
+                    const std::size_t idx = GetTileElementOffset<tile_shape>(r, c, validRow);
                     ElementOpCal<DType, op>::apply(dst[idx], scalar);
                 }
             });
         } else {
             cpu::parallel_for_rows(validCol, validRow, [&](std::size_t c) {
                 for (std::size_t r = 0; r < validRow; ++r) {
-                    const std::size_t idx = GetTileElementOffset<tile_shape>(r, c);
+                    const std::size_t idx = GetTileElementOffset<tile_shape>(r, c, validRow);
                     ElementOpCal<DType, op>::apply(dst[idx], scalar);
                 }
             });

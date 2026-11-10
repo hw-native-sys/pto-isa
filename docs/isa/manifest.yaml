@@ -329,6 +329,19 @@
       "notes": []
     },
     {
+      "instruction": "TPARTSEL",
+      "category": "Elementwise (Tile-Tile)",
+      "summary_en": "Masked selection with independent data tile types.",
+      "summary_zh": "允许不同数据 Tile 类型的掩码选择。",
+      "diagram_template": "elementwise",
+      "operands": [
+        "dst",
+        "src0",
+        "src1"
+      ],
+      "notes": []
+    },
+    {
       "instruction": "TRSQRT",
       "category": "Elementwise (Tile-Tile)",
       "summary_en": "Elementwise reciprocal square root.",
@@ -1632,8 +1645,8 @@
     {
       "instruction": "TSCATTER",
       "category": "Complex",
-      "summary_en": "Scatter source elements into a destination tile using per-element flattened offsets.",
-      "summary_zh": "使用逐元素扁平偏移将源 Tile 元素散播到目标 Tile 中。",
+      "summary_en": "Scatter rows of a source tile into a destination tile using per-element row indices.",
+      "summary_zh": "使用逐元素行索引将源 Tile 的行散播到目标 Tile 中。",
       "diagram_template": "complex",
       "operands": [
         "dst",

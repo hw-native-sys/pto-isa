@@ -502,6 +502,9 @@ PTO_INTERNAL void TQUANT_IMPL(TileDataOut& dst, TileDataSrc& src, TileDataPara& 
 {
     using SrcT = typename TileDataSrc::DType;
     static_assert(std::is_same_v<SrcT, float>, "Fix: Input has to be float 32");
+    static_assert(
+        !TileDataOut::kRowPlusOneNZ && !TileDataSrc::kRowPlusOneNZ && !TileDataPara::kRowPlusOneNZ,
+        "RowPlusOne mode for TQUANT Op is not supported in CPU-SIM currently.");
 
     for (int row = 0; row < src.GetValidRow(); ++row) {
         for (int col = 0; col < src.GetValidCol(); ++col) {
