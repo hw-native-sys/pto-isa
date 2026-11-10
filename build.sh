@@ -327,7 +327,8 @@ build_package() {
 run_example() {
   echo $dotted_line
   echo "Start to run example"
-  python3 tests/script/run_st.py -r $PLATFORM_MODE -v $EXAMPLE_MODE -t $INST_NAME -g $$EXAMPLE_NAME
+  python3 tests/script/run_st.py -r $PLATFORM_MODE -v $EXAMPLE_MODE -t $INST_NAME -g $$EXAMPLE_NAME \
+    || { echo "execute samples failed"; exit 1; }
   echo "execute samples success"
 }
 
