@@ -1694,10 +1694,10 @@ PTO_INTERNAL void TQuant_MXFP4_E2M1_B16(
         CalcQuantizedFP4E2M1Values_Bf16(srcPtr, scalingPtr, dstPtr, numGroups);
 }
 
-template <typename T>
+template <typename T, unsigned SrcCols, unsigned DstRowStrideBytes>
 PTO_INTERNAL void CalcQuantizedFP4E2M1Values_2D_Packed(
     __ubuf__ T* srcPtr, __ubuf__ T* scalingPtr, __ubuf__ uint8_t* dstPtr, __ubuf__ T* scaleTmpPtr,
-    __ubuf__ uint8_t* expPtr, unsigned validRows, unsigned validCols, unsigned srcCols, unsigned expColStride)
+    __ubuf__ uint8_t* expPtr, unsigned validRows, unsigned validCols, unsigned expColStride)
 {
     constexpr uint32_t kGroupSize = 32;
     constexpr uint32_t kGroupsPerWindow = 8;
@@ -1706,9 +1706,9 @@ PTO_INTERNAL void CalcQuantizedFP4E2M1Values_2D_Packed(
     uint32_t totalGroups = (uint32_t)validRows * groupsPerRow;
     uint16_t windowsPerRow = (uint16_t)CeilDivision(groupsPerRow, kGroupsPerWindow);
     for (uint16_t row = 0; row < (uint16_t)validRows; ++row) {
-        __ubuf__ T* srcRow = srcPtr + (uint32_t)row * srcCols;
+        __ubuf__ T* srcRow = srcPtr + (uint32_t)row * SrcCols;
         __ubuf__ T* scaleRow = scalingPtr + (uint32_t)row * groupsPerRow;
-        __ubuf__ uint8_t* dstRow = dstPtr + (uint32_t)row * (srcCols / 2);
+        __ubuf__ uint8_t* dstRow = dstPtr + (uint32_t)row * DstRowStrideBytes;
         __ubuf__ T* rowScaleTmp = scaleTmpPtr;
         (void)totalGroups;
         (void)expPtr;
@@ -1733,20 +1733,20 @@ PTO_INTERNAL void CalcQuantizedFP4E2M1Values_2D_Packed(
     }
 }
 
-template <QuantScaleAlg scale_alg, typename T>
+template <QuantScaleAlg scale_alg, typename T, unsigned SrcCols, unsigned DstRowStrideBytes>
 PTO_INTERNAL void TQuant_MXFP4_E2M1_B16_2D(
     __ubuf__ T* srcPtr, __ubuf__ uint8_t* expPtr, __ubuf__ uint8_t* dstPtr, __ubuf__ T* maxPtr, __ubuf__ T* scalingPtr,
-    unsigned validRows, unsigned validCols, unsigned srcCols, unsigned expColStride)
+    unsigned validRows, unsigned validCols, unsigned expColStride)
 {
     uint32_t groupsPerRow = CeilDivision((uint32_t)validCols, 32u);
 
-    AbsReduceMax_b16_ND_2D_Packed<scale_alg, T>(srcPtr, maxPtr, validRows, validCols, srcCols);
+    AbsReduceMax_b16_ND_2D_Packed<scale_alg, T>(srcPtr, maxPtr, validRows, validCols, SrcCols);
     mem_bar(VST_VLD);
     ExtractE2M1ExponentAndScaling_2D_Packed<scale_alg, T>(
         maxPtr, expPtr, scalingPtr, validRows, groupsPerRow, expColStride);
     mem_bar(VST_VLD);
-    CalcQuantizedFP4E2M1Values_2D_Packed<T>(
-        srcPtr, scalingPtr, dstPtr, maxPtr, expPtr, validRows, validCols, srcCols, expColStride);
+    CalcQuantizedFP4E2M1Values_2D_Packed<T, SrcCols, DstRowStrideBytes>(
+        srcPtr, scalingPtr, dstPtr, maxPtr, expPtr, validRows, validCols, expColStride);
 }
 
 // Fallback zero-padding using vstus/vstas for cases where
@@ -1873,10 +1873,17 @@ __tf__ PTO_INTERNAL void TQuant_MXFP4_E2M1_Impl(
         uint16_t vlCount = CeilDivision(totalElems, elemPerVL);
         uint32_t numGroups = totalElems / 32;
         unsigned expLoopCount = CeilDivision(numGroups, elemPerVL);
-        if constexpr (Exp2DStrided) {
-            TQuant_MXFP4_E2M1_B16_2D<scale_alg>(
+        // The output may have a wider physical row than the packed input row.
+        // Keep both strides in the tile types so address arithmetic is constant-folded.
+        // A one-row output explicitly requests flat, compact storage across source rows.
+        constexpr bool flatOutput = TileDataOut::Rows == 1;
+        constexpr unsigned dstRowStrideBytes = flatOutput ? TileDataSrc::Cols / 2 : TileDataOut::RowStride / 2;
+        constexpr bool packedRowsMatch = flatOutput || TileDataOut::RowStride == TileDataSrc::RowStride;
+        if constexpr (Exp2DStrided || (!packedRowsMatch && TileDataSrc::Rows > 1)) {
+            unsigned expColStride = Exp2DStrided ? TileDataExp::Cols : CeilDivision(validCols, 32u);
+            TQuant_MXFP4_E2M1_B16_2D<scale_alg, T, TileDataSrc::Cols, dstRowStrideBytes>(
                 srcPtr, (__ubuf__ uint8_t*)expPtr, (__ubuf__ uint8_t*)dstPtr, maxPtr, scalingPtr, validRows, validCols,
-                (unsigned)TileDataSrc::Cols, (unsigned)TileDataExp::Cols);
+                expColStride);
         } else {
             TQuant_MXFP4_E2M1_B16<scale_alg>(
                 srcPtr, (__ubuf__ uint8_t*)expPtr, (__ubuf__ uint8_t*)dstPtr, maxPtr, scalingPtr, vlCount, expLoopCount,

@@ -8,6 +8,7 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <vector>
 #include <pto/common/type.hpp>
@@ -137,3 +138,73 @@ TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_16x64_hif4_nd) { RunHif4Case<16, 64>(GetGo
 TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_48x128_hif4_nd) { RunHif4Case<48, 128>(GetGoldenDir()); }
 
 TEST_F(TQUANT_HIF4_A6_TEST, case_bf16_64x192_hif4_nd) { RunHif4Case<64, 192>(GetGoldenDir()); }
+
+// ---- MXFP4-E2M1 padded-output-row repro (issue #5, A6 port) ----
+namespace TQuantMxPaddedRowsA6 {
+void LaunchMxFp4PaddedOutputRows(uint8_t* q, uint16_t* x, uint8_t* exp, void* stream);
+}
+
+class TQUANT_A6_MX_TEST : public testing::Test {
+protected:
+    void SetUp() override {}
+    void TearDown() override {}
+};
+
+TEST_F(TQUANT_A6_MX_TEST, case_mxfp4_e2m1_fp16_2x32_padded_output_rows)
+{
+    using namespace TQuantMxPaddedRowsA6;
+    constexpr size_t srcCols = 32;
+    constexpr size_t packedCols = 16;
+    constexpr size_t dstRowBytes = 32;
+    constexpr size_t srcBytes = 2 * srcCols * sizeof(uint16_t);
+    constexpr size_t dstBytes = 2 * dstRowBytes;
+    constexpr size_t expBytes = 2;
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    uint16_t* srcHost = nullptr;
+    uint8_t* dstHost = nullptr;
+    uint8_t* expHost = nullptr;
+    uint8_t* srcDev = nullptr;
+    uint8_t* dstDev = nullptr;
+    uint8_t* expDev = nullptr;
+    aclrtMallocHost((void**)&srcHost, srcBytes);
+    aclrtMallocHost((void**)&dstHost, dstBytes);
+    aclrtMallocHost((void**)&expHost, expBytes);
+    aclrtMalloc((void**)&srcDev, srcBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&dstDev, dstBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&expDev, expBytes, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    std::fill_n(srcHost, srcCols, uint16_t(0x3c00));           // FP16 +1
+    std::fill_n(srcHost + srcCols, srcCols, uint16_t(0xc800)); // FP16 -8
+    std::fill_n(dstHost, dstBytes, uint8_t(0x55));
+    aclrtMemcpy(srcDev, srcBytes, srcHost, srcBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(dstDev, dstBytes, dstHost, dstBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+
+    LaunchMxFp4PaddedOutputRows(dstDev, (uint16_t*)srcDev, expDev, stream);
+    const aclError syncRet = aclrtSynchronizeStream(stream);
+    EXPECT_EQ(syncRet, ACL_SUCCESS) << aclGetRecentErrMsg();
+    if (syncRet == ACL_SUCCESS) {
+        aclrtMemcpy(dstHost, dstBytes, dstDev, dstBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(expHost, expBytes, expDev, expBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+        EXPECT_EQ(expHost[0], 125);
+        EXPECT_EQ(expHost[1], 128);
+        for (size_t col = 0; col < packedCols; ++col) {
+            EXPECT_EQ(dstHost[col], 0x66) << "row 0, byte " << col;
+            EXPECT_EQ(dstHost[dstRowBytes + col], 0xee) << "row 1, byte " << col;
+        }
+    }
+
+    aclrtFree(srcDev);
+    aclrtFree(dstDev);
+    aclrtFree(expDev);
+    aclrtFreeHost(srcHost);
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(expHost);
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+}

@@ -888,6 +888,52 @@ void LaunchTQuantMXFP4_E2M1_FP16_Exp2D(uint8_t* dst, uint16_t* src, uint8_t* dst
     runTQuantMXFP4E2M1B16Exp2D<Spec><<<1, nullptr, stream>>>(dst_exp, dst, (half*)src);
 }
 
+__global__ AICORE void RunMxFp4PaddedOutputRows(__gm__ half* x, __gm__ uint8_t* q, __gm__ uint8_t* expOut)
+{
+    using Src = Tile<TileType::Vec, half, 2, 32, BLayout::RowMajor, 2, 32>;
+    using Dst = Tile<TileType::Vec, float4_e2m1x2_t, 2, 64, BLayout::RowMajor, 2, 32>;
+    using Exp = Tile<TileType::Vec, uint8_t, 2, 32, BLayout::RowMajor, 2, 1>;
+    using Scratch = Tile<TileType::Vec, half, 1, 16>;
+    using DstBytes = Tile<TileType::Vec, uint8_t, 2, 32>;
+
+    Src src;
+    Dst dst;
+    Exp exp;
+    Scratch max;
+    Scratch scale;
+    DstBytes dstBytes;
+
+    TASSIGN(src, 0);
+    TASSIGN(dst, 256);
+    TASSIGN(dstBytes, 256);
+    TASSIGN(exp, 512);
+    TASSIGN(max, 768);
+    TASSIGN(scale, 1024);
+
+    GlobalTensor<half, Shape<1, 1, 1, 2, 32>, pto::Stride<64, 64, 64, 32, 1>> gx(x);
+    GlobalTensor<uint8_t, Shape<1, 1, 1, 2, 32>, pto::Stride<64, 64, 64, 32, 1>> gq(q);
+    GlobalTensor<uint8_t, Shape<1, 1, 1, 2, 1>, pto::Stride<2, 2, 2, 1, 1>> ge(expOut);
+
+    TLOAD(src, gx);
+    // Seed the padded destination so an unwritten second row is observable.
+    TLOAD(dstBytes, gq);
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+
+    TQUANT<QuantType::MXFP4_E2M1>(dst, src, &exp, &max, &scale);
+
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    // Read the whole UB tile, including padding, to expose the misplaced write.
+    TSTORE(gq, dstBytes);
+    TSTORE(ge, exp);
+}
+
+void LaunchMxFp4PaddedOutputRows(uint8_t* q, uint16_t* x, uint8_t* exp, void* stream)
+{
+    RunMxFp4PaddedOutputRows<<<1, nullptr, stream>>>((half*)x, q, exp);
+}
+
 } // namespace TQuantTest
 
 // MXFP8 cases
