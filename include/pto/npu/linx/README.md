@@ -22,7 +22,7 @@ The initial common surface is:
 
 | Instructions | NPU implementation | CPU simulator |
 | --- | --- | --- |
-| TLOAD, TSTORE | Linx TLSU | Strided 2-D GM transfer |
+| TLOAD, TSTORE | Linx TLSU; static GM column stride of 1 | Strided 2-D GM transfer |
 | TADD, TSUB, TMUL, TDIV, TMAX, TMIN | Linx TileOP | Imported elementwise simulation |
 | TABS, TAND, TOR, TSQRT, TEXP | Linx TileOP | Imported elementwise simulation |
 | TCMP | Runtime PTO mode dispatches to native predicates | Six predicates including floating EQ |
@@ -41,9 +41,26 @@ tiles. CUBE layouts and dynamic shapes are rejected at the adapter boundary;
 they are not approximated using Ascend layouts. CPU-sim validates operation
 values, not Linx timing, register allocation, Shared memory, or hardware execution.
 
+For public device TLOAD/TSTORE, `GlobalTensor::staticStride[4]` must be 1.
+Non-unit and dynamic GM column strides are rejected at compile time, including
+a dynamic column stride whose runtime value is 1. Native TLSU consumes the row
+stride and transfers contiguous columns; static and dynamic row strides remain
+supported. CPU TLOAD/TSTORE use both GM strides and accept dynamic row/column
+strides, with the first three GM dimensions equal to 1 and the last two large
+enough for the tile's valid region. CPU acceptance of a strided tensor does not
+imply device support. Pack non-contiguous columns before a device transfer.
+
+The initial validation level is CPU numerical reference plus device object
+compilation and relocatable linking. It does not establish runtime ABI linkage,
+hardware execution, or direct portability of arbitrary PTO kernels.
+
 ## Validation
 
-Host numerical tests and unsupported-configuration checks (also run by CI):
+Host numerical tests and unsupported-configuration checks (also run by CI).
+The host compiler needs C++20, `_Float16` and `std::bit_cast`; GCC 14.2.1 is a
+validated configuration. The tests cover every public elementwise instruction
+on row/column-major wide and tall rectangles, partial valid regions and padding,
+double TSQRT extremes, dynamic GM strides, and two-translation-unit linking:
 
 ```sh
 python3 tests/compile/test_linx_target.py --output-dir build/linx_cpu_sim
@@ -63,8 +80,9 @@ python3 tests/compile/test_linx_target.py --mode npu \
 never substitutes a host compiler for device compilation. Additional flags can
 be supplied through repeated `--compiler-arg=VALUE` arguments. The NPU lane
 compiles vector load/arithmetic/compare/select/store, SFU/logical, and CUBE
-matrix kernels to an object and checks the unsupported TTRANS diagnostic; it
-does not execute device code. CI runs the CPU lane because its runners do not install Linx LLVM.
+matrix kernels (including dynamic row stride) to an object, links two public-header
+objects with `-r -nostdlib`, and checks unsupported TTRANS and static/dynamic
+column-stride diagnostics. It does not execute device code. CI runs the CPU lane because its runners do not install Linx LLVM.
 
 ## Imported source provenance
 
@@ -77,4 +95,8 @@ Local integration changes include qualified include paths and header guards,
 PTO source headers/formatting, removal of unused architecture import branches,
 `LINX_` prefixes for native entry points adapted by the public wrappers, host
 architectural type traits, public comparison-enum encoding, and a CPU thread-index fallback. Public signature
-and CPU correctness adaptations live outside `impl` to simplify future updates.
+adaptations live outside `impl` to simplify future updates. Local correctness
+fixes inside `impl` mark `layout_type_to_str` inline, correct column-major TMIN
+indexing, and preserve double precision in TSQRT; retain these when updating
+the imported snapshot. The revision header identifies the source snapshot,
+not a byte-identical vendored tree.

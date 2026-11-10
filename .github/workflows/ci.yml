@@ -121,7 +121,7 @@ jobs:
         run: |
           python3 tests/run_cpu.py \
             --testcase tadd \
-            --gtest_filter 'TADDTest.case_float_64x64_64x64' \
+            --gtest_filter 'TADDTest.case_float_64x64_64x64_64x64' \
             --generator Ninja \
             --build-dir build/cpu_smoke_tadd \
             --clean

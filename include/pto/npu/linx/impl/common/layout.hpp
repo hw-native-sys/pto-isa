@@ -112,7 +112,7 @@ enum WeightLayoutEnum : uint64_t {
 
 enum PadValueEnum : uint64_t { Zero = 0, Max = 1, Min = 2, Null = 3 };
 
-const char* layout_type_to_str(LayoutEnum type)
+inline const char* layout_type_to_str(LayoutEnum type)
 {
     switch (type) {
         case LayoutEnum::kRowMajor:

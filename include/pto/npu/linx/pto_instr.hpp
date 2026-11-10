@@ -72,15 +72,19 @@ PTO_INTERNAL void TEXP_IMPL(Args&... args)
     static_assert(PrecisionType == ExpAlgorithm::DEFAULT, "Linx supports only the default math algorithm");
     ::LINX_TEXP(args...);
 }
-template <typename... Args>
-PTO_INTERNAL void TLOAD_IMPL(Args&... args)
+// Native TLSU uses the row stride but transfers contiguous columns. A dynamic
+// column stride cannot establish this contract, even when its runtime value is 1.
+template <typename T, typename G>
+PTO_INTERNAL void TLOAD_IMPL(T& dst, G& src)
 {
-    ::LINX_TLOAD(args...);
+    static_assert(G::staticStride[4] == 1, "Linx device TLOAD requires a static GM column stride of 1");
+    ::LINX_TLOAD(dst, src);
 }
-template <typename... Args>
-PTO_INTERNAL void TSTORE_IMPL(Args&... args)
+template <typename G, typename T>
+PTO_INTERNAL void TSTORE_IMPL(G& dst, T& src)
 {
-    ::LINX_TSTORE(args...);
+    static_assert(G::staticStride[4] == 1, "Linx device TSTORE requires a static GM column stride of 1");
+    ::LINX_TSTORE(dst, src);
 }
 template <typename... Args>
 PTO_INTERNAL void TMATMUL_IMPL(Args&... args)

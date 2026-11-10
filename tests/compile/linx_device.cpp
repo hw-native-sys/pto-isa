@@ -86,3 +86,14 @@ extern "C" void linxTranspose(float* output, float* input)
 }
 
 #endif
+
+// Unit columns with a runtime row pitch remain supported by native TLSU.
+extern "C" void linxDynamicRowStride(float* output, float* input, int inputPitch, int outputPitch)
+{
+    using S = Stride<1, 1, 1, DYNAMIC, 1>;
+    using StridedG = GlobalTensor<float, Shape<1, 1, 1, 4, 8>, S>;
+    StridedG in(input, {}, S(inputPitch)), out(output, {}, S(outputPitch));
+    T tile;
+    TLOAD(tile, in);
+    TSTORE(out, tile);
+}

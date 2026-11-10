@@ -13,7 +13,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/pto_tile.hpp>
 #include <pto/pto-inst.hpp>
 #include <pto/common/pto_tile.hpp>
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <cstdlib>
 #include <iostream>
 #include <type_traits>
@@ -98,38 +100,119 @@ void testVector()
         }
 }
 
-void testUnaryAndLogical()
+// Check each operation independently so another operation cannot hide a missed
+// write. Inspect the physical padding as well as every active element.
+template <BLayout Layout, int Rows, int Cols, int ValidRows = Rows, int ValidCols = Cols>
+void testElementwise()
 {
-    using F = Tile<TileType::Vec, float, 2, 3>;
-    F a, b, dst;
-    for (int i = 0; i < 6; ++i) {
-        a.data()[i] = i - 3;
-        b.data()[i] = 1;
-    }
-    TABS(dst, a);
-    for (int i = 0; i < 6; ++i)
-        check(dst.data()[i] == std::abs(i - 3));
-    TMAX(dst, a, b);
-    for (int i = 0; i < 6; ++i)
-        check(dst.data()[i] == std::max(i - 3, 1));
-    TMIN(dst, a, b);
-    for (int i = 0; i < 6; ++i)
-        check(dst.data()[i] == std::min(i - 3, 1));
-    TEXP(dst, a);
-    for (int i = 0; i < 6; ++i)
-        check(std::abs(dst.data()[i] - std::exp(float(i - 3))) < 1e-5f);
-    using I = Tile<TileType::Vec, int32_t, 2, 3>;
+    using F = Tile<TileType::Vec, float, Rows, Cols, Layout, ValidRows, ValidCols>;
+    using I = Tile<TileType::Vec, int32_t, Rows, Cols, Layout, ValidRows, ValidCols>;
+    using M = Tile<TileType::Vec, uint8_t, Rows, Cols, Layout, ValidRows, ValidCols>;
+    auto offset = [](int r, int c) { return Layout == BLayout::RowMajor ? r * Cols + c : c * Rows + r; };
+    F a, b, dst, tmp;
     I ia, ib, out;
-    for (int i = 0; i < 6; ++i) {
-        ia.data()[i] = i + 1;
-        ib.data()[i] = 10;
+    M mask;
+    for (int r = 0; r < Rows; ++r)
+        for (int c = 0; c < Cols; ++c) {
+            int i = offset(r, c);
+            a.data()[i] = float((r * Cols + c) % 7 - 3);
+            b.data()[i] = 2;
+            ia.data()[i] = r * Cols + c + 1;
+            ib.data()[i] = 10;
+        }
+    auto verify = [&](auto& result, auto operation, auto expected) {
+        for (auto& x : result.data())
+            x = 99;
+        operation();
+        for (int r = 0; r < Rows; ++r)
+            for (int c = 0; c < Cols; ++c) {
+                int i = offset(r, c);
+                double value = r < ValidRows && c < ValidCols ? expected(i) : 99;
+                check(std::abs(double(result.data()[i]) - value) <= 1e-6 * std::max(1.0, std::abs(value)));
+            }
+    };
+    verify(dst, [&] { TADD(dst, a, b); }, [&](int i) { return a.data()[i] + b.data()[i]; });
+    verify(dst, [&] { TSUB(dst, a, b); }, [&](int i) { return a.data()[i] - b.data()[i]; });
+    verify(dst, [&] { TMUL(dst, a, b); }, [&](int i) { return a.data()[i] * b.data()[i]; });
+    verify(dst, [&] { TDIV(dst, a, b); }, [&](int i) { return a.data()[i] / b.data()[i]; });
+    verify(dst, [&] { TMAX(dst, a, b); }, [&](int i) { return std::max(a.data()[i], b.data()[i]); });
+    verify(dst, [&] { TMIN(dst, a, b); }, [&](int i) { return std::min(a.data()[i], b.data()[i]); });
+    verify(dst, [&] { TABS(dst, a); }, [&](int i) { return std::abs(a.data()[i]); });
+    verify(dst, [&] { TEXP(dst, a); }, [&](int i) { return std::exp(a.data()[i]); });
+    verify(out, [&] { TAND(out, ia, ib); }, [&](int i) { return ia.data()[i] & ib.data()[i]; });
+    verify(out, [&] { TOR(out, ia, ib); }, [&](int i) { return ia.data()[i] | ib.data()[i]; });
+    for (auto mode : {CmpMode::EQ, CmpMode::NE, CmpMode::LT, CmpMode::GT, CmpMode::LE, CmpMode::GE}) {
+        auto predicate = [&](int i) {
+            auto x = a.data()[i], y = b.data()[i];
+            return mode == CmpMode::EQ ? x == y :
+                   mode == CmpMode::NE ? x != y :
+                   mode == CmpMode::LT ? x < y :
+                   mode == CmpMode::GT ? x > y :
+                   mode == CmpMode::LE ? x <= y :
+                                         x >= y;
+        };
+        verify(mask, [&] { TCMP(mask, a, b, mode); }, predicate);
+        verify(
+            dst, [&] { TSEL(dst, mask, a, b, tmp); }, [&](int i) { return predicate(i) ? a.data()[i] : b.data()[i]; });
     }
-    TAND(out, ia, ib);
-    for (int i = 0; i < 6; ++i)
-        check(out.data()[i] == ((i + 1) & 10));
-    TOR(out, ia, ib);
-    for (int i = 0; i < 6; ++i)
-        check(out.data()[i] == ((i + 1) | 10));
+    for (auto& x : a.data())
+        x = std::abs(x) + 0.25f;
+    verify(dst, [&] { TSQRT(dst, a); }, [&](int i) { return std::sqrt(a.data()[i]); });
+}
+
+template <BLayout Layout>
+void testDoubleSqrt()
+{
+    using T = Tile<TileType::Vec, double, 2, 4, Layout>;
+    const double values[] = {1e300, 1e-300,
+                             2.0,   0.0,
+                             -0.0,  std::numeric_limits<double>::infinity(),
+                             -1.0,  std::numeric_limits<double>::quiet_NaN()};
+    T src, dst;
+    for (int i = 0; i < 8; ++i)
+        src.data()[i] = values[i];
+    TSQRT(dst, src);
+    for (int i = 0; i < 8; ++i) {
+        double expected = std::sqrt(values[i]), actual = dst.data()[i];
+        if (std::isnan(expected))
+            check(std::isnan(actual));
+        else if (std::isinf(expected) || expected == 0)
+            check(actual == expected && std::signbit(actual) == std::signbit(expected));
+        else
+            check(std::isfinite(actual) && std::abs(actual / expected - 1) < 1e-15);
+    }
+}
+
+template <BLayout Layout>
+void testDynamicStride()
+{
+    using T = Tile<TileType::Vec, float, 4, 8, Layout, 3, 5>;
+    using S = Stride<1, 1, 1, DYNAMIC, DYNAMIC>;
+    using G = GlobalTensor<float, Shape<1, 1, 1, 3, 5>, S>;
+    for (int colStride : {1, 2, 3}) {
+        // Different source/destination pitches exercise both transfer directions.
+        float input[60], output[60];
+        for (int i = 0; i < 60; ++i) {
+            input[i] = float(i + 1);
+            output[i] = -999;
+        }
+        G src(input, {}, S(19, colStride)), dst(output, {}, S(20, colStride));
+        T tile;
+        for (auto& x : tile.data())
+            x = -777;
+        TLOAD(tile, src);
+        for (int r = 0; r < 4; ++r)
+            for (int c = 0; c < 8; ++c)
+                check(
+                    tile.data()[Layout == BLayout::RowMajor ? r * 8 + c : c * 4 + r] ==
+                    (r < 3 && c < 5 ? input[r * 19 + c * colStride] : -777));
+        TSTORE(dst, tile);
+        for (int i = 0; i < 60; ++i) {
+            int r = i / 20, c = (i % 20) / colStride;
+            bool active = i % 20 % colStride == 0 && c < 5;
+            check(output[i] == (active ? input[r * 19 + c * colStride] : -999));
+        }
+    }
 }
 
 void testMatrix()
@@ -162,7 +245,18 @@ int main()
 {
     testVector<BLayout::RowMajor>();
     testVector<BLayout::ColMajor>();
-    testUnaryAndLogical();
+    testElementwise<BLayout::RowMajor, 2, 3>();
+    testElementwise<BLayout::ColMajor, 2, 3>();
+    testElementwise<BLayout::RowMajor, 8, 4>();
+    testElementwise<BLayout::ColMajor, 8, 4>();
+    testElementwise<BLayout::RowMajor, 4, 8, 3, 5>();
+    testElementwise<BLayout::ColMajor, 4, 8, 3, 5>();
+    testElementwise<BLayout::RowMajor, 8, 4, 5, 3>();
+    testElementwise<BLayout::ColMajor, 8, 4, 5, 3>();
+    testDoubleSqrt<BLayout::RowMajor>();
+    testDoubleSqrt<BLayout::ColMajor>();
+    testDynamicStride<BLayout::RowMajor>();
+    testDynamicStride<BLayout::ColMajor>();
     testMatrix();
     std::cout << "Linx CPU-sim numerical tests passed\n";
 }

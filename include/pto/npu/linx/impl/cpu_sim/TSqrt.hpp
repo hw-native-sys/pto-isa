@@ -13,6 +13,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_LINX_VENDOR_TSQRT_HPP
 #define PTO_LINX_VENDOR_TSQRT_HPP
 
+#include <cmath>
+#include <type_traits>
 #include "pto/npu/linx/impl/common/pto_tile.hpp"
 
 using namespace pto;
@@ -24,7 +26,8 @@ void TSqrt_RowMajor_Imp(typename tile_shape::TileDType dst, const typename tile_
         for (size_t j = 0; j < tile_shape::ValidCol; ++j) {
             size_t idx = i * tile_shape::RowStride + j;
             using type = typename tile_shape::DType;
-            dst[idx] = static_cast<type>(std::sqrt((float)src[idx]));
+            using compute_type = std::conditional_t<std::is_same_v<type, double>, double, float>;
+            dst[idx] = static_cast<type>(std::sqrt(static_cast<compute_type>(src[idx])));
         }
 }
 
@@ -35,7 +38,8 @@ void TSqrt_ColMajor_Imp(typename tile_shape::TileDType dst, const typename tile_
         for (size_t j = 0; j < tile_shape::ValidCol; ++j) {
             size_t idx = j * tile_shape::ColStride + i;
             using type = typename tile_shape::DType;
-            dst[idx] = static_cast<type>(std::sqrt((float)src[idx]));
+            using compute_type = std::conditional_t<std::is_same_v<type, double>, double, float>;
+            dst[idx] = static_cast<type>(std::sqrt(static_cast<compute_type>(src[idx])));
         }
 }
 
@@ -52,7 +56,8 @@ void TSqrt_NzLayout_Imp(typename tile_shape::TileDType dst, const typename tile_
             size_t idx = sub_tile_j * tile_shape::Rows * tile_shape::InnerCols + sub_tile_i * tile_shape::InnerNumel +
                          idx_i * tile_shape::InnerCols + idx_j;
             using type = typename tile_shape::DType;
-            dst[idx] = static_cast<type>(std::sqrt((float)src[idx]));
+            using compute_type = std::conditional_t<std::is_same_v<type, double>, double, float>;
+            dst[idx] = static_cast<type>(std::sqrt(static_cast<compute_type>(src[idx])));
         }
 }
 

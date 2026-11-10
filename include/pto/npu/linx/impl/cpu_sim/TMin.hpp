@@ -36,7 +36,7 @@ void TMin_ColMajor_Imp(
 {
     for (size_t i = 0; i < tile_shape::ValidCol; ++i)
         for (size_t j = 0; j < tile_shape::ValidRow; ++j) {
-            size_t index = i + j * tile_shape::ColStride;
+            size_t index = i * tile_shape::ColStride + j;
             dst[index] = std::min(src0[index], src1[index]);
         }
 }

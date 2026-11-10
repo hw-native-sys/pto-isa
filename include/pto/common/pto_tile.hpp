@@ -17,8 +17,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/linx/impl/common/pto_tile.hpp>
 #else
 
-#include <pto/cpu/target_config.hpp>
-
 #include <type_traits>
 
 #include <pto/common/arch_macro.hpp>
@@ -1863,18 +1861,18 @@ public:
     DType GetElement(int64_t r, int64_t c)
     {
         return GetProperDataPart(
-            data(), GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c, GetValidRow()));
+            data(), GetTileElementOffset<std::remove_reference_t<decltype(*this)> >(r, c, GetValidRow()));
     }
 
     void SetElement(int64_t r, int64_t c, const DType& val)
     {
-        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c, GetValidRow());
+        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)> >(r, c, GetValidRow());
         SetProperDataPart(data(), offset, val);
     }
 
     void AddToElement(int64_t r, int64_t c, const DType& summand)
     {
-        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)>>(r, c, GetValidRow());
+        const auto offset = GetTileElementOffset<std::remove_reference_t<decltype(*this)> >(r, c, GetValidRow());
         std::lock_guard<std::mutex> lock(cpu::AtomicAddMutex());
         if constexpr (IsTwinType<DType>()) {
             const auto val = GetProperDataPart(data(), offset);
