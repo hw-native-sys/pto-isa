@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -54,18 +55,8 @@ protected:
         std::string fullPath = "../" + suiteName + "." + caseName;
         return fullPath;
     }
-    void SetUp() override
-    {
-        aclInit(nullptr);
-        aclrtSetDevice(0);
-        aclrtCreateStream(&this->stream);
-    }
-    void TearDown() override
-    {
-        aclrtDestroyStream(this->stream);
-        aclrtResetDevice(0);
-        aclFinalize();
-    }
+    void SetUp() override { aclrtCreateStream(&this->stream); }
+    void TearDown() override { aclrtDestroyStream(this->stream); }
     template <
         typename T, typename TMask, int dstTileH, int dstTileW, int maskTileH, int maskTileW, int srcTileH,
         int srcTileW>
@@ -291,4 +282,11 @@ TEST_F(TSELSTest, case_int64_uint8_4x40_4x5_4x40_4x40_inplace)
 TEST_F(TSELSTest, case_int64_uint8_1x2048_1x256_1x2048_1x2045_inplace)
 {
     this->LaunchInplace<int64_t, uint8_t, 1, 2048, 1, 256, 1, 2048, 1, 2045>();
+}
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
 }

@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -41,8 +42,6 @@ void test_tdeinterleave()
 {
     size_t fileSizeTile = tileH * tileW * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -92,8 +91,6 @@ void test_tdeinterleave()
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden0(fileSizeTile / sizeof(T));
     std::vector<T> golden1(fileSizeTile / sizeof(T));
@@ -141,8 +138,6 @@ void test_tdeinterleave_single_src()
 {
     size_t fileSizeTile = tileH * tileW * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -186,8 +181,6 @@ void test_tdeinterleave_single_src()
     aclrtFreeHost(dst1Host);
     aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden0(fileSizeTile / sizeof(T));
     std::vector<T> golden1(fileSizeTile / sizeof(T));
@@ -221,4 +214,11 @@ TEST_F(TDEINTERLEAVETest, case_int8_single_src_8x512_8x512) { test_tdeinterleave
 TEST_F(TDEINTERLEAVETest, case_uint8_single_src_8x512_8x512)
 {
     test_tdeinterleave_single_src<uint8_t, 8, 512, 8, 512>();
+}
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
 }

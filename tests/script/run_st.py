@@ -15,7 +15,11 @@ import subprocess
 import shutil
 import argparse
 import fnmatch
+import glob
 import re
+
+
+RE_GTEST_RUNNING = re.compile(r"\[==========\] Running (\d+) tests? from \d+ test suite")
 
 
 def run_command(command, cwd=None, check=True):
@@ -26,6 +30,69 @@ def run_command(command, cwd=None, check=True):
     except subprocess.CalledProcessError as e:
         print(f"run command failed with return code {e.returncode}")
         raise
+
+
+def run_gtest_binary(command, cwd=None):
+    """Run a gtest binary, relay its output line by line, and return the number
+    of test cases it reported running.
+
+    Output is relayed instead of inherited so the count can be read from the
+    same stream the CI log captures. A gtest binary that matches no test still
+    exits 0, so callers must treat a zero count as a failure: a mistyped
+    --gtest_filter would otherwise drop a whole suite while CI stays green.
+    """
+    print(f"run command: {' '.join(command)}")
+    proc = subprocess.Popen(
+        command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+    )
+    ran = 0
+    for line in proc.stdout:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+        match = RE_GTEST_RUNNING.search(line)
+        if match:
+            ran += int(match.group(1))
+    proc.wait()
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, command)
+    return ran
+
+
+def expected_case_count(gtest_filter):
+    """Number of cases a fully literal gtest_filter should run, or None if the
+    filter uses wildcards / negative patterns and the count is not predictable."""
+    if gtest_filter in (None, "", "all", "*"):
+        return None
+    if any(ch in gtest_filter for ch in "*?-"):
+        return None
+    return len([p for p in gtest_filter.split(":") if p])
+
+
+def count_tests_in_binary(binary):
+    """Count the cases a binary registers, via --gtest_list_tests.
+
+    gtest prints the list and exits before any environment SetUp runs, so this
+    costs a process start but no aclInit. Used for the unfiltered invocations
+    where the expected count cannot be derived from the command line.
+    """
+    try:
+        result = subprocess.run(
+            [binary, "--gtest_list_tests"], capture_output=True, text=True, timeout=120
+        )
+    except Exception as e:
+        print(f"[CASES] --gtest_list_tests failed for {binary}: {e}")
+        return None
+    if result.returncode != 0:
+        print(f"[CASES] --gtest_list_tests exited {result.returncode} for {binary}")
+        return None
+    count = 0
+    for line in result.stdout.splitlines():
+        # Suite lines are unindented and end with '.'; case lines are indented.
+        if line and not line[0].isspace() and line.rstrip().endswith("."):
+            continue
+        if line.strip() and line[0].isspace():
+            count += 1
+    return count
 
 
 def set_env_variables(run_mode, soc_version):
@@ -84,8 +151,8 @@ def get_simulator_info(ascend_home, soc_version):
 
 def build_project(run_mode, soc_version, testcase="all", debug_enable=False, auto_enable=False):
     original_dir = os.getcwd()
-    # 清理并创建build目录
-    build_dir = "build"
+    # 清理并创建build目录（可通过 PTO_BUILD_DIR 环境变量覆盖，用于多卡并行隔离）
+    build_dir = os.environ.get("PTO_BUILD_DIR", "build")
     if os.path.exists(build_dir):
         print(f"clean build: {build_dir}")
         shutil.rmtree(build_dir)
@@ -129,13 +196,17 @@ def build_project(run_mode, soc_version, testcase="all", debug_enable=False, aut
 def run_gen_data(golden_path):
     original_dir = os.getcwd()
     try:
-        cmd = ["cp", golden_path, "build/gen_data.py"]
+        build_dir = os.environ.get("PTO_BUILD_DIR", "build")
+        # Use a testcase-specific filename to avoid races when multiple
+        # gen_data invocations target the same build_dir in parallel.
+        _tc_name = os.path.basename(os.path.dirname(golden_path))
+        _gen_script = f"gen_data_{_tc_name}.py"
+        cmd = ["cp", golden_path, f"{build_dir}/{_gen_script}"]
         run_command(cmd)
 
-        build_dir = "build/"
         os.chdir(build_dir)
 
-        gloden_gen_cmd = [sys.executable, "gen_data.py"]
+        gloden_gen_cmd = [sys.executable, _gen_script]
         output = run_command(gloden_gen_cmd)
         print(output)
     except Exception as e:
@@ -180,8 +251,6 @@ def detect_npu_count():
     Returns the count, or None if /dev/davinci* devices are not present (likely
     running on a host without NPUs — let downstream checks decide).
     """
-    import glob
-
     pattern = re.compile(r"^/dev/davinci(\d+)$")
     devs = [p for p in glob.glob("/dev/davinci*") if pattern.match(p)]
     if not devs:
@@ -223,7 +292,7 @@ def find_mpirun():
 def run_binary(testcase, run_mode, args="all", is_comm=False, nranks=2):
     original_dir = os.getcwd()
     try:
-        build_dir = "build/bin/"
+        build_dir = os.environ.get("PTO_BUILD_DIR", "build") + "/bin/"
         os.chdir(build_dir)
 
         if run_mode == "sim":
@@ -256,9 +325,35 @@ def run_binary(testcase, run_mode, args="all", is_comm=False, nranks=2):
             if os.path.isdir(mpi_lib_dir):
                 os.environ["MPI_LIB_PATH"] = os.path.join(mpi_lib_dir, "libmpi.so")
 
-        print(f"run command: {' '.join(cmd)}")
-        output = run_command(cmd)
-        print(output)
+        # Case-count guard is opt-in: run_st.sh enables it by exporting
+        # PTO_CASE_COUNT_FILE. Other callers (A3/Kirin/comm) keep the original
+        # behaviour.
+        count_file = None if is_comm else os.environ.get("PTO_CASE_COUNT_FILE")
+
+        if count_file is None:
+            print(f"run command: {' '.join(cmd)}")
+            output = run_command(cmd)
+            print(output)
+        else:
+            ran = run_gtest_binary(cmd)
+            expected = expected_case_count(args)
+            if expected is None and args == "all":
+                expected = count_tests_in_binary("./" + testcase)
+            print(f"[CASES] {testcase} ran={ran} expected={expected if expected is not None else 'n/a'}")
+            # One short append per invocation; O_APPEND keeps concurrent
+            # writers from interleaving, so run_st.sh can sum these later.
+            with open(count_file, "a") as _f:
+                _f.write(f"{ran} {expected if expected is not None else -1} {testcase}\n")
+            if ran == 0:
+                raise RuntimeError(
+                    f"{testcase} ran 0 test cases (gtest_filter={args!r}). "
+                    "The filter matched nothing, so this suite would be silently skipped."
+                )
+            if expected is not None and ran != expected:
+                raise RuntimeError(
+                    f"{testcase} ran {ran} test cases but the filter lists {expected} "
+                    f"(gtest_filter={args!r}). At least one case name does not match."
+                )
 
     except Exception as e:
         print(f"run binary failed: {e}")
@@ -338,7 +433,13 @@ def main():
 
         # 执行构建
         if args.without_build:
-            subprocess.run(["rm", "-rf", "build/T*"], cwd=original_dir, check=True)
+            # _build_dir is relative to target_dir (we chdir'd there above), the
+            # same base every other PTO_BUILD_DIR use relies on. Expand the
+            # pattern here: subprocess does not go through a shell, so "T*"
+            # would reach rm as a literal path and -f would swallow the miss.
+            _build_dir = os.environ.get("PTO_BUILD_DIR", "build")
+            for _stale in glob.glob(os.path.join(_build_dir, "T*")):
+                subprocess.run(["rm", "-rf", _stale], check=True)
         else:
             build_project(args.run_mode, default_soc_version, testcase, args.debug_enable, args.auto_mode_enable)
 

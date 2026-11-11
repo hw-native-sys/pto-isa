@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include <gtest/gtest.h>
 #include <acl/acl.h>
 
@@ -50,9 +51,6 @@ template <
     bool isHalf = false, bool highPrecision = false>
 void TDivSTestFramework()
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -94,8 +92,6 @@ void TDivSTestFramework()
     aclrtFreeHost(srcHost);
 
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(dstByteSize / sizeof(T));
     std::vector<T> devFinal(dstByteSize / sizeof(T));
@@ -115,9 +111,6 @@ void TDivSTestFramework()
 template <typename T, int tileRow, int tileCol, int validRow, int validCol>
 void TDivSInplaceTestFramework()
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
-
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -144,8 +137,6 @@ void TDivSInplaceTestFramework()
     aclrtFreeHost(dstHost);
 
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(byteSize / sizeof(T));
     std::vector<T> devFinal(byteSize / sizeof(T));
@@ -183,3 +174,10 @@ TEST_F(TDIVSTest, case_uint64_4x32_inplace) { TDivSInplaceTestFramework<uint64_t
 TEST_F(TDIVSTest, case_int64_1x1024_inplace) { TDivSInplaceTestFramework<int64_t, 1, 1024, 1, 1024>(); }
 TEST_F(TDIVSTest, case_int64_4x64_40_inplace) { TDivSInplaceTestFramework<int64_t, 4, 64, 4, 40>(); }
 TEST_F(TDIVSTest, case_int64_1x2048_2045_inplace) { TDivSInplaceTestFramework<int64_t, 1, 2048, 1, 2045>(); }
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}

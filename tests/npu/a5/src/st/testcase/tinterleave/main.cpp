@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -41,8 +42,6 @@ void test_tinterleave()
 {
     size_t fileSizeTile = tileH * tileW * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -92,8 +91,6 @@ void test_tinterleave()
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden0(fileSizeTile / sizeof(T));
     std::vector<T> golden1(fileSizeTile / sizeof(T));
@@ -129,3 +126,10 @@ TEST_F(TINTERLEAVETest, case_int32_16x32_16x31) { test_tinterleave<int32_t, 16, 
 TEST_F(TINTERLEAVETest, case_int8_32x256_32x255) { test_tinterleave<int8_t, 32, 256, 32, 255>(); }
 TEST_F(TINTERLEAVETest, case_uint8_32x256_32x255) { test_tinterleave<uint8_t, 32, 256, 32, 255>(); }
 TEST_F(TINTERLEAVETest, case_float_2x72_2x66) { test_tinterleave<float, 2, 72, 2, 66>(); }
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}

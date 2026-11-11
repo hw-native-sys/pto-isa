@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -38,8 +39,6 @@ void test_tneg()
 {
     size_t fileSize = kGRows_ * kGCols_ * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -69,8 +68,6 @@ void test_tneg()
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(fileSize / sizeof(T));
     std::vector<T> devFinal(fileSize / sizeof(T));
@@ -93,3 +90,10 @@ TEST_F(TNEGTest, case_int32_32x32_32x32) { test_tneg<int32_t, 32, 32, 32, 32>();
 TEST_F(TNEGTest, case_half_32x64_32x64) { test_tneg<aclFloat16, 32, 64, 32, 64>(); }
 TEST_F(TNEGTest, case_int16_64x16_64x16) { test_tneg<int16_t, 64, 16, 64, 16>(); }
 TEST_F(TNEGTest, case_int16_1x16_1x16) { test_tneg<int16_t, 1, 16, 1, 16>(); }
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}
