@@ -41,6 +41,9 @@ template <typename TileData, typename TileDataSrc0, typename TileDataSrc1>
 PTO_INTERNAL void TCOLEXPANDMUL_IMPL(TileData& dst, TileDataSrc0& src0, TileDataSrc1& src1)
 {
     using T = typename TileData::DType;
+    static_assert(
+        !std::is_same_v<T, uint8_t> && !std::is_same_v<T, int8_t>,
+        "Fix: TCOLEXPANDMUL does not support int8_t/uint8_t (issue #828: A5 has no b8 vmul).");
     TCOLEXPANDOP_IMPL<ColExpandMulOp<T>, ColExpandMulOp<T>, TileData, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
 }
 } // namespace pto

@@ -124,6 +124,9 @@ set(ALL_TESTCASES
     tmov_nd2nz
     tmov_zz
     tquant_dn
+    tpushpop_cv_nosplit
+    tpushpop_vc_nosplit
+    tpushpop_subtile
 )
 
 if (AUTO_MODE)

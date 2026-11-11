@@ -98,9 +98,6 @@ void launchTGATHER_demo(src0T* src0, src1T* src1, dstT* out, void* stream)
     } else if constexpr (isF8E5M2) {
         runTGather<float8_e5m2_t, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL>
             <<<1, nullptr, stream>>>((float8_e5m2_t*)(out), (float8_e5m2_t*)(src0), src1);
-    } else if constexpr (std::is_same_v<src0T, int8_t> || std::is_same_v<src0T, uint8_t>) {
-        runTGather<float8_e4m3_t, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL>
-            <<<1, nullptr, stream>>>((float8_e4m3_t*)(out), (float8_e4m3_t*)(src0), src1);
     } else {
         runTGather<src0T, src1T, SRCROW, SRCCOL, DSTROW, DSTCOL, SRCROW, SRCCOL>
             <<<1, nullptr, stream>>>(out, src0, src1);

@@ -70,9 +70,11 @@ PTO_INTERNAL void TROWEXPANDMUL_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileD
     static_assert(
         std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> || std::is_same_v<T, int32_t> ||
             std::is_same_v<T, uint32_t> || std::is_same_v<T, float> || std::is_same_v<T, int16_t> ||
-            std::is_same_v<T, uint16_t> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t> ||
-            std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+            std::is_same_v<T, uint16_t> || std::is_same_v<T, half> || std::is_same_v<T, bfloat16_t>,
         "Fix: TROWEXPANDMUL Invalid data type.");
+    static_assert(
+        !std::is_same_v<T, uint8_t> && !std::is_same_v<T, int8_t>,
+        "Fix: TROWEXPANDMUL does not support int8_t/uint8_t (issue #828: A5 has no b8 vmul).");
     static_assert(TileDataDst::isRowMajor, "Fix: TROWEXPANDMUL Invalid tile shape.");
 
     unsigned validRow = dst.GetValidRow();

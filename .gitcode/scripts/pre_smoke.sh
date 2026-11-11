@@ -27,10 +27,12 @@ source /usr/local/Ascend/cann/set_env.sh
 echo "bash build.sh --run_simple"
 set +e
 bash build.sh --run_simple --a3 2>&1 | tee -a ./run_test.log
+rc_simple=${PIPESTATUS[0]}
 source /usr/local/Ascend/cann/set_env.sh
 echo "bash build.sh --comm --a3 --npu"
 
 bash build.sh --comm --a3 --npu 2>&1 | tee -a ./run_test.log
+rc_comm=${PIPESTATUS[0]}
 
 # Package slog
 mkdir -p /root/ascend
@@ -45,9 +47,32 @@ fi
 npu-smi info
 echo "4. checking test results ..."
 date_time=$(date +%Y%m%d.%H%M%S)
-if grep -w -e "execute comm samples success" "./run_test.log" && grep -w -e "execute samples success" "./run_test.log"; then
-    echo "$date_time : run test case success"
-else
+failed=0
+
+# Check each section against its own exit code and its own success marker.
+# The previous gate only grepped the log for both success strings and never
+# looked at build.sh's exit code, so any failure that did not suppress a
+# marker (a crash after the marker, a non-zero exit from a path that still
+# printed it) went unnoticed. It also reported a bare "failed" with no
+# indication of which section broke.
+if [ "$rc_simple" -ne 0 ]; then
+    echo "$date_time : simple st failed (build.sh exit $rc_simple)"
+    failed=1
+elif ! grep -qw -e "execute samples success" ./run_test.log; then
+    echo "$date_time : simple st failed (no 'execute samples success')"
+    failed=1
+fi
+
+if [ "$rc_comm" -ne 0 ]; then
+    echo "$date_time : comm st failed (build.sh exit $rc_comm)"
+    failed=1
+elif ! grep -qw -e "execute comm samples success" ./run_test.log; then
+    echo "$date_time : comm st failed (no 'execute comm samples success')"
+    failed=1
+fi
+
+if [ "$failed" -ne 0 ]; then
     echo "$date_time : run test case failed"
     exit 1
 fi
+echo "$date_time : run test case success"

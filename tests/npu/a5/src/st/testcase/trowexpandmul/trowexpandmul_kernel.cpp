@@ -151,6 +151,16 @@ template void launchTRowExpandMul2<int64_t, 24, 64, 24, 4, true>(
     int64_t* out, int64_t* src0, int64_t* src1, void* stream);
 template void launchTRowExpandMul<uint64_t, 16, 32, 16, 1, true>(
     uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
+
+// issue #828: bf16 was never exercised on A5 (vmul bf16 is native; regression coverage)
+template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
+void launchTRowExpandMulBf16(uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream)
+{
+    runROWEXPANDMUL<bfloat16_t, dstRow, dstCol, src1Row, src1Col, src0eqdst>
+        <<<1, nullptr, stream>>>((bfloat16_t*)out, (bfloat16_t*)src0, (bfloat16_t*)src1);
+}
+
+template void launchTRowExpandMulBf16<16, 32, 16, 1, true>(uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
 // Packed short-row cases (issue #406): widths 8/16/32 with 2-8 rows per vector, plus the model
 // shapes (1024x16 FP4 groups, 512x32 FP8 groups) and a half variant.
 template void launchTRowExpandMul<float, 8, 8, 8, 1, true>(float* out, float* src0, float* src1, void* stream);

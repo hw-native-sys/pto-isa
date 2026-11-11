@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "test_common.h"
 #include "acl/acl.h"
+#include <cstring>
 #include <gtest/gtest.h>
 
 using namespace std;
@@ -120,6 +121,76 @@ TEST_F(TRowExpandMulTest, case_uint16_16_64) { test_trowexpandmul<uint16_t, 16, 
 TEST_F(TRowExpandMulTest, case_int64_16_32) { test_trowexpandmul<int64_t, 16, 32, 16, 1, true, false>(); }
 TEST_F(TRowExpandMulTest, case_int64_24_64) { test_trowexpandmul<int64_t, 24, 64, 24, 4, true, true>(); }
 TEST_F(TRowExpandMulTest, case_uint64_16_32) { test_trowexpandmul<uint64_t, 16, 32, 16, 1, true, false>(); }
+
+// issue #828: bf16 was never exercised on A5 (vmul bf16 is native; regression coverage)
+template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col, bool src0eqdst>
+void launchTRowExpandMulBf16(uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
+
+template <uint32_t dstRow, uint32_t dstCol, uint32_t src1Row, uint32_t src1Col>
+void test_trowexpandmul_bf16()
+{
+    size_t inputFileSize = src1Row * src1Col * sizeof(uint16_t);
+    size_t outputFileSize = dstRow * dstCol * sizeof(uint16_t);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    uint16_t *dstHost, *src0Host, *src1Host;
+    uint16_t *dstDevice, *src0Device, *src1Device;
+
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
+
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
+    ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
+
+    aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, inputFileSize, src1Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTRowExpandMulBf16<dstRow, dstCol, src1Row, src1Col, true>(dstDevice, src0Device, src1Device, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, outputFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(src0Host);
+    aclrtFreeHost(src1Host);
+
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    // widen bf16 bit patterns to f32 (exact) and compare with the usual tolerance
+    std::vector<uint16_t> golden16(outputFileSize / sizeof(uint16_t));
+    std::vector<uint16_t> devFinal16(outputFileSize / sizeof(uint16_t));
+    ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden16.data(), outputFileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal16.data(), outputFileSize);
+    std::vector<float> golden(golden16.size());
+    std::vector<float> devFinal(devFinal16.size());
+    for (size_t i = 0; i < golden16.size(); i++) {
+        uint32_t bits = static_cast<uint32_t>(golden16[i]) << 16;
+        std::memcpy(&golden[i], &bits, sizeof(float));
+        uint32_t devBits = static_cast<uint32_t>(devFinal16[i]) << 16;
+        std::memcpy(&devFinal[i], &devBits, sizeof(float));
+    }
+    bool ret = ResultCmp(golden, devFinal, 0.001f);
+
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(TRowExpandMulTest, case_bf16_16_32) { test_trowexpandmul_bf16<16, 32, 16, 1>(); }
 // Short-row cases (issue #406) with dynamic valid extents: these tiles use DYNAMIC (-1) valid
 // dimensions, so isContiguous is false and the dispatch keeps the pre-existing per-row 2D path;
 // they act as regression coverage for it. dst aliases src0 in all cases (in-place), scales and
