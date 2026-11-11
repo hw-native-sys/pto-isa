@@ -67,6 +67,7 @@ struct TPipe;
 - **A2A3 GlobalData producer**:
     - `GlobalData` must satisfy `is_global_data_v<GlobalData>`.
     - `Direction::DIR_C2V`: the producer sees the whole FIFO slot.
+    - `Direction::DIR_BOTH`: the Cube producer sees the whole FIFO slot; the Vector producer may apply split offsets according to `Split`.
     - `Direction::DIR_V2C`: split offsets may be applied for vector subblocks according to `Split`.
 - **A5 GlobalData producer**:
     - `GlobalData` must satisfy `is_global_data_v<GlobalData>`.

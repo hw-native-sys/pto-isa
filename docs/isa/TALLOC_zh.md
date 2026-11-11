@@ -63,6 +63,7 @@ struct TPipe;
 - **Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品GlobalData生产者**：
     - `GlobalData` 必须满足 `is_global_data_v<GlobalData>`。
     - `Direction::DIR_C2V`：生产者可以看到整个FIFO槽位。
+    - `Direction::DIR_BOTH`：Cube 生产者可以看到整个 FIFO 槽位；Vector 生产者可能会根据 `Split` 应用切分偏移。
     - `Direction::DIR_V2C`：对于向量子块，可能会根据 `Split` 应用切分偏移。
 - **Ascend 950PR/Ascend 950DT GlobalData生产者**：
     - `GlobalData` 必须满足 `is_global_data_v<GlobalData>`。
