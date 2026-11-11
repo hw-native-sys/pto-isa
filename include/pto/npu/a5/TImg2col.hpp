@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 
 template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode>
-__tf__ PTO_INTERNAL void TImg2col(
+__tf__ PTO_INTERNAL void TImg2colToA(
     typename TileData::TileDType __out__ dst, typename ConvTileData::TileDType __in__ src, uint16_t stepM,
     uint16_t stepK, uint16_t posM, uint16_t posK, uint8_t strideW, uint8_t strideH, uint16_t filterW, uint16_t filterH,
     uint8_t dilationW, uint8_t dilationH, bool transpose, uint16_t channelSize)
@@ -32,6 +32,27 @@ __tf__ PTO_INTERNAL void TImg2col(
     img2colv2_cbuf_to_ca(
         dstAddr, srcAddr, stepK, stepM, posK, posM, strideW, strideH, lowFilterW, lowFilterH, dilationW, dilationH,
         highFilterW, highFilterH, transpose, fmatrixCtrl, channelSize);
+}
+
+template <typename TileData, typename ConvTileData, SetFmatrixMode FmatrixMode>
+__tf__ PTO_INTERNAL void TImg2colToB(
+    typename TileData::TileDType __out__ dst, typename ConvTileData::TileDType __in__ src, uint16_t stepM,
+    uint16_t stepK, uint16_t posM, uint16_t posK, uint8_t strideW, uint8_t strideH, uint16_t filterW, uint16_t filterH,
+    uint8_t dilationW, uint8_t dilationH, bool transpose, uint16_t channelSize)
+{
+    using DstType = std::conditional_t<(sizeof(typename TileData::DType) == 2), half, typename TileData::DType>;
+    using SrcType = std::conditional_t<(sizeof(typename ConvTileData::DType) == 2), half, typename ConvTileData::DType>;
+    __cb__ DstType* dstAddr = (__cb__ DstType*)__cce_get_tile_ptr(dst);
+    __cbuf__ SrcType* srcAddr = (__cbuf__ SrcType*)__cce_get_tile_ptr(src);
+    bool fmatrixCtrl =
+        (FmatrixMode == SetFmatrixMode::FMATRIX_B_AUTO) || (FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL);
+    bool highFilterH = (filterH > 255);
+    bool highFilterW = (filterW > 255);
+    uint8_t lowFilterH = filterH & 0xFF;
+    uint8_t lowFilterW = filterW & 0xFF;
+    img2colv2_cbuf_to_cb(
+        dstAddr, srcAddr, stepK, stepM, posK, posM, strideW, strideH, lowFilterW, lowFilterH, dilationW, dilationH,
+        highFilterW, highFilterH, transpose, fmatrixCtrl, channelSize); // transpose will be neglected
 }
 
 template <SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_AUTO>
@@ -107,13 +128,17 @@ template <typename TileData, typename ConvTileData>
 PTO_INTERNAL void Timg2colConvTileCheck(TileData& dst, ConvTileData& src)
 {
     static_assert((ConvTileData::Loc == TileType::Mat), "TImg2col: Source TileType only support Mat.");
-    static_assert((TileData::Loc == TileType::Left), "TImg2col: Destination TileType only support Left.");
+    static_assert(
+        (TileData::Loc == TileType::Left || TileData::Loc == TileType::Right),
+        "TImg2col: Destination TileType only support Left and Right.");
     static_assert(
         (ConvTileData::layout == Layout::NC1HWC0) || (ConvTileData::layout == Layout::NDC1HWC0),
         "TImg2col: Source layout only support NC1HWC0.");
     static_assert(
-        TileData::SFractal == SLayout::RowMajor && !TileData::isRowMajor,
-        "TImg2col: Destination layout only support SLayout is RowMajor ang BLayout is ColMajor.");
+        ((TileData::Loc == TileType::Left) && (TileData::SFractal == SLayout::RowMajor && !TileData::isRowMajor)) ||
+            ((TileData::Loc == TileType::Right) && (TileData::SFractal == SLayout::ColMajor && TileData::isRowMajor)),
+        "TImg2col: Left destination layout only supports SLayout RowMajor and BLayout ColMajor; Right destination "
+        "layout only supports SLayout ColMajor and BLayout RowMajor.");
     static_assert(
         std::is_same_v<typename ConvTileData::DType, typename TileData::DType>,
         "TImg2col: Destination and Source tile data types must be the same.");
@@ -139,9 +164,15 @@ PTO_INTERNAL void TIMG2COL_IMPL(TileData& dst, ConvTileData& src, uint16_t posM,
     constexpr uint32_t c0Size = BLOCK_BYTE_SIZE / sizeof(typename TileData::DType);
     uint16_t stepK = CeilAlignment(dst.GetValidCol(), c0Size);
     uint16_t stepM = dst.GetValidRow();
-    TImg2col<TileData, ConvTileData, FmatrixMode>(
-        dst.data(), src.data(), stepM, stepK, posM, posK, src.GetStrideW(), src.GetStrideH(), src.GetFilterW(),
-        src.GetFilterH(), src.GetDilationW(), src.GetDilationH(), src.GetTranspose(), src.GetChannelSize());
+    if constexpr (TileData::Loc == TileType::Left) {
+        TImg2colToA<TileData, ConvTileData, FmatrixMode>(
+            dst.data(), src.data(), stepM, stepK, posM, posK, src.GetStrideW(), src.GetStrideH(), src.GetFilterW(),
+            src.GetFilterH(), src.GetDilationW(), src.GetDilationH(), src.GetTranspose(), src.GetChannelSize());
+    } else {
+        TImg2colToB<TileData, ConvTileData, FmatrixMode>(
+            dst.data(), src.data(), stepM, stepK, posM, posK, src.GetStrideW(), src.GetStrideH(), src.GetFilterW(),
+            src.GetFilterH(), src.GetDilationW(), src.GetDilationH(), src.GetTranspose(), src.GetChannelSize());
+    }
 }
 } // namespace pto
 #endif // TIMG2COL_HPP

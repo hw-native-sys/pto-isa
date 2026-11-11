@@ -127,6 +127,215 @@ AICORE inline void runTIMG2COL(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
 }
 
 template <
+    typename T, typename U, uint32_t leftN, uint32_t leftC1, uint32_t leftH, uint32_t leftW, uint32_t leftC0,
+    uint32_t rightN, uint32_t rightC1, uint32_t rightH, uint32_t rightW, uint32_t rightC0, uint32_t filterH,
+    uint32_t filterW, uint8_t dilationH = 1, uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1,
+    uint8_t padTop = 1, uint8_t padBottom = 1, uint8_t padLeft = 1, uint8_t padRight = 1>
+AICORE inline void runTIMG2COL_DW(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
+{
+    constexpr uint32_t rightHeightOut = (rightH + padTop + padBottom - dilationH * (filterH - 1) - 1) / strideH + 1;
+    constexpr uint32_t rightWidthOut = (rightW + padLeft + padRight - dilationW * (filterW - 1) - 1) / strideW + 1;
+    constexpr uint32_t innerDim = leftN * leftH * leftW;
+    constexpr uint32_t outRows = leftC1 * leftC0;
+    constexpr uint32_t outCols = rightC1 * filterH * filterW * rightC0;
+    constexpr uint32_t baseK = 32;
+    constexpr uint32_t iter = innerDim / baseK;
+    static_assert(
+        innerDim == rightN * rightHeightOut * rightWidthOut, "DW backward requires left H*W to equal right Hout*Wout");
+    static_assert(innerDim % baseK == 0, "DW backward inner dimension must be a multiple of 32");
+
+    constexpr int gStrideSrc0[5] = {leftC1 * leftH * leftW * leftC0, leftH * leftW * leftC0, leftW * leftC0, leftC0, 1};
+    using ShapeDim5Src0 = pto::Shape<leftN, leftC1, leftH, leftW, leftC0>;
+    using StridDim5Src0 = pto::Stride<gStrideSrc0[0], gStrideSrc0[1], gStrideSrc0[2], gStrideSrc0[3], gStrideSrc0[4]>;
+    using GlobalDataSrc0 = GlobalTensor<U, ShapeDim5Src0, StridDim5Src0, Layout::NC1HWC0>;
+
+    constexpr int gStrideSrc1[5] = {
+        rightC1 * rightH * rightW * rightC0, rightH * rightW * rightC0, rightW * rightC0, rightC0, 1};
+    using ShapeDim5Src1 = pto::Shape<rightN, rightC1, rightH, rightW, rightC0>;
+    using StridDim5Src1 = pto::Stride<gStrideSrc1[0], gStrideSrc1[1], gStrideSrc1[2], gStrideSrc1[3], gStrideSrc1[4]>;
+    using GlobalDataSrc1 = GlobalTensor<U, ShapeDim5Src1, StridDim5Src1, Layout::NC1HWC0>;
+
+    using GlobalDataOut = GlobalTensor<
+        T, pto::Shape<1, 1, 1, outRows, outCols>,
+        pto::Stride<1 * outRows * outCols, 1 * outRows * outCols, outRows * outCols, outCols, 1>>;
+
+    GlobalDataSrc1 src1Global(src1);
+    GlobalDataSrc0 src0Global(src0);
+    GlobalDataOut dstGlobal(out);
+
+    constexpr int bufferSizeA = leftN * leftC1 * leftH * leftW * leftC0;
+    using TileMatAData = ConvTile<
+        TileType::Mat, U, bufferSizeA, Layout::NC1HWC0, pto::ConvTileShape<leftN, leftC1, leftH, leftW, leftC0>>;
+    TileMatAData aMatTile;
+    TASSIGN(aMatTile, 0x0);
+
+    constexpr int bufferSizeB = rightN * rightC1 * rightH * rightW * rightC0;
+    using TileMatBData = ConvTile<
+        TileType::Mat, U, bufferSizeB, Layout::NC1HWC0, pto::ConvTileShape<rightN, rightC1, rightH, rightW, rightC0>>;
+    TileMatBData bMatTile;
+    TASSIGN(bMatTile, 0x40000);
+
+    using LeftTile = TileLeft<U, outRows, baseK, outRows, baseK>;
+    using RightTile = TileRight<U, baseK, outCols, baseK, outCols>;
+    using AccTile = TileAcc<T, outRows, outCols, outRows, outCols>;
+    AccTile cTile;
+    LeftTile aTile;
+    RightTile bTile;
+    TASSIGN(cTile, 0x0);
+    TASSIGN(aTile, 0x0);
+    TASSIGN(bTile, 0x0);
+
+    TLOAD(aMatTile, src0Global);
+    TLOAD(bMatTile, src1Global);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
+
+    uint8_t padList[] = {padLeft, padRight, padTop, padBottom};
+    bMatTile.SetFmapH(rightH);
+    bMatTile.SetFmapW(rightW);
+    bMatTile.SetPadListArray(padList);
+    bMatTile.SetDilationH(dilationH);
+    bMatTile.SetDilationW(dilationW);
+    bMatTile.SetFilterH(filterH);
+    bMatTile.SetFilterW(filterW);
+    bMatTile.SetStrideH(strideH);
+    bMatTile.SetStrideW(strideW);
+    bMatTile.SetChannelSize(rightC1 * rightC0);
+    bMatTile.SetDstStride(CeilDivision<uint32_t>(outCols, 16));
+
+    SETFMATRIX<TileMatBData, SetFmatrixMode::FMATRIX_B_MANUAL>(bMatTile);
+    SET_IMG2COL_PADDING<TileMatBData, SetFmatrixMode::FMATRIX_B_MANUAL>(bMatTile);
+    SET_IMG2COL_RPT<TileMatBData, SetFmatrixMode::FMATRIX_B_MANUAL>(bMatTile);
+
+    aMatTile.SetTranspose(true); // convtile->tile need transpose
+    for (uint32_t i = 0; i < iter; ++i) {
+#ifndef __PTO_AUTO__
+        set_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
+        wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
+#endif
+        TEXTRACT(aTile, aMatTile, i * baseK, 0);
+        TIMG2COL<RightTile, TileMatBData, SetFmatrixMode::FMATRIX_B_MANUAL>(bTile, bMatTile, i * baseK, 0);
+#ifndef __PTO_AUTO__
+        set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+        wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
+        if (i == 0) {
+            TMATMUL(cTile, aTile, bTile);
+        } else {
+            TMATMUL_ACC(cTile, cTile, aTile, bTile);
+        }
+    }
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, cTile);
+    out = dstGlobal.data();
+}
+
+template <
+    typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
+    uint32_t filterC1, uint32_t filterH, uint32_t filterW, uint32_t filterN, uint32_t filterC0, uint8_t dilationH = 1,
+    uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1, uint8_t padBottom = 1,
+    uint8_t padLeft = 1, uint8_t padRight = 1>
+AICORE inline void runTIMG2COL_DX(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
+{
+    constexpr uint32_t expandedH = (fmapH - 1) * strideH + 1;
+    constexpr uint32_t expandedW = (fmapW - 1) * strideW + 1;
+    constexpr uint32_t heightOut = expandedH;
+    constexpr uint32_t widthOut = expandedW;
+    constexpr uint32_t validM = fmapN * heightOut * widthOut;
+    constexpr uint32_t M = CeilAlign<uint32_t>(validM, 16);
+    constexpr uint32_t SingleCoreM = heightOut * widthOut;
+    constexpr uint32_t N = filterN;
+    constexpr uint32_t validK = filterC1 * filterC0 * filterH * filterW;
+    constexpr uint32_t K = validK;
+    constexpr uint32_t NAligned = CeilAlign<uint32_t>(N, 16);
+    constexpr int srcC = fmapC1 * fmapC0;
+    constexpr int gStrideSrc0[5] = {fmapN * srcC * fmapH * fmapW, srcC * fmapH * fmapW, fmapH * fmapW, fmapW, 1};
+    using ShapeDim5Src0 = pto::Shape<1, fmapN, srcC, fmapH, fmapW>;
+    using StridDim5Src0 = pto::Stride<gStrideSrc0[0], gStrideSrc0[1], gStrideSrc0[2], gStrideSrc0[3], gStrideSrc0[4]>;
+    using GlobalDataSrc0 = GlobalTensor<U, ShapeDim5Src0, StridDim5Src0, Layout::NCHW>;
+
+    constexpr int gStrideSrc1[5] = {
+        filterH * filterW * filterN * filterC0, filterW * filterN * filterC0, filterN * filterC0, filterC0, 1};
+    using ShapeDim5Src1 = pto::Shape<filterC1, filterH, filterW, filterN, filterC0>;
+    using StridDim5Src1 = pto::Stride<gStrideSrc1[0], gStrideSrc1[1], gStrideSrc1[2], gStrideSrc1[3], gStrideSrc1[4]>;
+    using GlobalDataSrc1 = GlobalTensor<U, ShapeDim5Src1, StridDim5Src1, Layout::FRACTAL_Z>;
+
+    using GlobalDataOut = GlobalTensor<
+        T, pto::Shape<1, 1, 1, validM, validK>,
+        pto::Stride<1 * validM * validK, 1 * validM * validK, validM * validK, validK, 1>>;
+
+    GlobalDataSrc1 src1Global(src1);
+    GlobalDataSrc0 src0Global(src0);
+    GlobalDataOut dstGlobal(out);
+
+    using ZeroTileMatAData = Tile<TileType::Mat, T, M, srcC, BLayout::ColMajor, -1, -1, SLayout::RowMajor>;
+    ZeroTileMatAData zeroMatTile(0, 0);
+    TASSIGN(zeroMatTile, 0x0);
+    TFILLPAD(zeroMatTile, zeroMatTile);
+
+    // for auto mode, bufferSize is a misleading variable name in convTile, it shouldn't be number of bytes it should be
+    // the number of elements
+    constexpr int bufferSizeA = fmapN * fmapC1 * expandedH * expandedW * fmapC0; // * sizeof(U);
+    using TileMatAData = ConvTile<
+        TileType::Mat, U, bufferSizeA, Layout::NC1HWC0,
+        pto::ConvTileShape<fmapN, fmapC1, expandedH, expandedW, fmapC0>>;
+    TileMatAData aMatTile;
+    TASSIGN(aMatTile, 0x0);
+    static_assert(aMatTile.totalDimCount == 5);
+
+    aMatTile.SetStrideH(strideH);
+    aMatTile.SetStrideW(strideW);
+
+    constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0;
+    using TileMatBData = ConvTile<
+        TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
+        pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
+    TileMatBData bMatTile;
+    static_assert(bMatTile.totalDimCount == 5);
+    TASSIGN(bMatTile, 0x40000);
+
+    using LeftTile = TileLeft<U, M, NAligned, validM, N>;
+    using RightTile = TileRight<U, NAligned, K, NAligned, K>;
+    using AccTile = TileAcc<T, M, K, validM, validK>;
+    AccTile cTile;
+    LeftTile aTile;
+    RightTile bTile;
+    TASSIGN(cTile, 0x0);
+    TASSIGN(aTile, 0x0);
+    TASSIGN(bTile, 0x0);
+
+    TLOAD(aMatTile, src0Global);
+    TLOAD(bMatTile, src1Global);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
+#endif
+
+    TMOV(aTile, aMatTile);
+    bMatTile.SetTranspose(true);
+    TMOV(bTile, bMatTile);
+
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+    wait_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
+#endif
+    TMATMUL(cTile, aTile, bTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+    wait_flag(PIPE_M, PIPE_FIX, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, cTile);
+    out = dstGlobal.data();
+}
+
+template <
     typename T, typename U, uint32_t fmapN, uint32_t fmapC1, uint32_t fmapH, uint32_t fmapW, uint32_t fmapC0,
     uint32_t filterC1, uint32_t filterH, uint32_t filterW, uint32_t filterN, uint32_t filterC0, uint8_t dilationH = 1,
     uint8_t dilationW = 1, uint8_t strideH = 1, uint8_t strideW = 1, uint8_t padTop = 1, uint8_t padBottom = 1,
@@ -597,6 +806,96 @@ extern "C" __global__ AICORE void launchTIMG2COL_12(__gm__ uint8_t* out, __gm__ 
         reinterpret_cast<__gm__ int8_t*>(src1));
 }
 
+extern "C" __global__ AICORE void launchTIMG2COL_13(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
+{
+    constexpr uint32_t leftN = 1;
+    constexpr uint32_t leftC1 = 4;
+    constexpr uint32_t leftH = 16;
+    constexpr uint32_t leftW = 16;
+    constexpr uint32_t leftC0 = 16;
+
+    constexpr uint32_t rightN = 1;
+    constexpr uint32_t rightC1 = 4;
+    constexpr uint32_t rightH = 18;
+    constexpr uint32_t rightW = 18;
+    constexpr uint32_t rightC0 = 16;
+    constexpr uint32_t filterH = 3;
+    constexpr uint32_t filterW = 3;
+
+    runTIMG2COL_DW<
+        float, bfloat16_t, leftN, leftC1, leftH, leftW, leftC0, rightN, rightC1, rightH, rightW, rightC0, filterH,
+        filterW, 1, 1, 1, 1, 0, 0, 0, 0>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ bfloat16_t*>(src0),
+        reinterpret_cast<__gm__ bfloat16_t*>(src1));
+}
+
+extern "C" __global__ AICORE void launchTIMG2COL_14(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
+{
+    constexpr uint32_t leftN = 1;
+    constexpr uint32_t leftC1 = 2;
+    constexpr uint32_t leftH = 16;
+    constexpr uint32_t leftW = 16;
+    constexpr uint32_t leftC0 = 32;
+
+    constexpr uint32_t rightN = 1;
+    constexpr uint32_t rightC1 = 2;
+    constexpr uint32_t rightH = 18;
+    constexpr uint32_t rightW = 18;
+    constexpr uint32_t rightC0 = 32;
+    constexpr uint32_t filterH = 3;
+    constexpr uint32_t filterW = 3;
+
+    runTIMG2COL_DW<
+        int32_t, int8_t, leftN, leftC1, leftH, leftW, leftC0, rightN, rightC1, rightH, rightW, rightC0, filterH,
+        filterW, 1, 1, 1, 1, 0, 0, 0, 0>(
+        reinterpret_cast<__gm__ int32_t*>(out), reinterpret_cast<__gm__ int8_t*>(src0),
+        reinterpret_cast<__gm__ int8_t*>(src1));
+}
+
+extern "C" __global__ AICORE void launchTIMG2COL_15(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
+{
+    constexpr uint32_t leftN = 1;
+    constexpr uint32_t leftC1 = 8;
+    constexpr uint32_t leftH = 16;
+    constexpr uint32_t leftW = 16;
+    constexpr uint32_t leftC0 = 8;
+
+    constexpr uint32_t rightN = 1;
+    constexpr uint32_t rightC1 = 8;
+    constexpr uint32_t rightH = 17;
+    constexpr uint32_t rightW = 17;
+    constexpr uint32_t rightC0 = 8;
+    constexpr uint32_t filterH = 2;
+    constexpr uint32_t filterW = 2;
+
+    runTIMG2COL_DW<
+        float, float, leftN, leftC1, leftH, leftW, leftC0, rightN, rightC1, rightH, rightW, rightC0, filterH, filterW,
+        1, 1, 1, 1, 0, 0, 0, 0>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ float*>(src0),
+        reinterpret_cast<__gm__ float*>(src1));
+}
+
+extern "C" __global__ AICORE void launchTIMG2COL_16(__gm__ uint8_t* out, __gm__ uint8_t* src0, __gm__ uint8_t* src1)
+{
+    constexpr uint32_t fmapN = 1;
+    constexpr uint32_t fmapC1 = 2;
+    constexpr uint32_t fmapH = 7;
+    constexpr uint32_t fmapW = 7;
+    constexpr uint32_t fmapC0 = 16;
+
+    constexpr uint32_t filterC1 = 2;
+    constexpr uint32_t filterH = 3;
+    constexpr uint32_t filterW = 3;
+    constexpr uint32_t filterN = 32;
+    constexpr uint32_t filterC0 = 16;
+
+    runTIMG2COL_DX<
+        float, bfloat16_t, fmapN, fmapC1, fmapH, fmapW, fmapC0, filterC1, filterH, filterW, filterN, filterC0, 1, 1, 2,
+        2, 0, 0, 0, 0>(
+        reinterpret_cast<__gm__ float*>(out), reinterpret_cast<__gm__ bfloat16_t*>(src0),
+        reinterpret_cast<__gm__ bfloat16_t*>(src1));
+}
+
 template <int32_t tilingKey>
 void launchTIMG2COL(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
 {
@@ -624,6 +923,14 @@ void launchTIMG2COL(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream)
         launchTIMG2COL_11<<<1, nullptr, stream>>>(out, src0, src1);
     } else if constexpr (tilingKey == 12) {
         launchTIMG2COL_12<<<1, nullptr, stream>>>(out, src0, src1);
+    } else if constexpr (tilingKey == 13) {
+        launchTIMG2COL_13<<<1, nullptr, stream>>>(out, src0, src1);
+    } else if constexpr (tilingKey == 14) {
+        launchTIMG2COL_14<<<1, nullptr, stream>>>(out, src0, src1);
+    } else if constexpr (tilingKey == 15) {
+        launchTIMG2COL_15<<<1, nullptr, stream>>>(out, src0, src1);
+    } else if constexpr (tilingKey == 16) {
+        launchTIMG2COL_16<<<1, nullptr, stream>>>(out, src0, src1);
     }
 }
 
@@ -639,3 +946,7 @@ template void launchTIMG2COL<9>(uint8_t* out, uint8_t* src0, uint8_t* src1, void
 template void launchTIMG2COL<10>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTIMG2COL<11>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void launchTIMG2COL<12>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<13>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<14>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<15>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
+template void launchTIMG2COL<16>(uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
