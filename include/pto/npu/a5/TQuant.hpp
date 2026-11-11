@@ -169,14 +169,14 @@ PTO_INTERNAL void AbsReduceMax_b16_ND(
     uint16_t loop_num = CeilDivision(vl_count, 2);
     RegTensor<T> vb16_max;
 
-    // loop_num==1: single window writes only 16 B of group-maxes. Using
+    // loop_num==1: single window writes only 16 B of BF16 abs maxima. Using
     // vstus+vstas would leave 16 B pending and trip VSTAI. Use predicated
     // vsts directly at maxPtr (always 32-B aligned).
     if (loop_num == 1) {
         uint32_t remaining = (total_elem_count < elements_per_dintlv) ? total_elem_count : elements_per_dintlv;
         uint32_t out_count = CeilDivision(remaining, 32u);
         MaskReg preg_out = CreatePredicate<T>(out_count);
-        AbsReduceMax_b16_DintlvWindow(srcPtr, 0u, remaining, vb16_max);
+        AbsReduceMax_b16_DintlvWindow<T, fp16AsBf16ForMax>(srcPtr, 0u, remaining, vb16_max);
         vsts(vb16_max, maxPtr, 0, distValue, preg_out);
         return;
     }
@@ -190,7 +190,7 @@ PTO_INTERNAL void AbsReduceMax_b16_ND(
         uint32_t remaining = (total_elem_count > offset) ? (total_elem_count - offset) : 0;
         if (remaining > elements_per_dintlv)
             remaining = elements_per_dintlv;
-        AbsReduceMax_b16_DintlvWindow(srcPtr, offset, remaining, vb16_max);
+        AbsReduceMax_b16_DintlvWindow<T, fp16AsBf16ForMax>(srcPtr, offset, remaining, vb16_max);
         vstus(ureg_max, blks_per_vl, vb16_max, maxPtr + i * grps_per_dintlv);
     }
     vstas(ureg_max, maxPtr + loop_num * grps_per_dintlv, 0);
@@ -637,13 +637,6 @@ PTO_INTERNAL void ExtractB8ExponentAndScalingVL(
     }
 }
 
-// B16 (BF16/FP16) -> FP8 shared-exponent + scaling for MXFP8 (OCP MX spec).
-// OCP MX fixes the block scale to E8M0 (bias 127), so shared_exp must be on
-// the bias-127 axis. BF16 is already bias-127 (b8_emax=8, exp_max_val=0xFE).
-// FP16 is bias-15; we fold the +112 rebias into the constants (b8_emax=-104,
-// exp_max_val=0x8E) so a single vsub yields the correct bias-127 result.
-// Other format-specific constants (shr, exp mask, NaN/subnorm, clamp) are
-// picked at compile time via T.
 template <typename T>
 PTO_INTERNAL void ExtractB8ExponentAndScaling(
     __ubuf__ T* maxPtr, __ubuf__ uint8_t* expPtr, __ubuf__ T* scalingPtr, unsigned exp_max_loop_count,
@@ -782,48 +775,7 @@ template <typename T>
 PTO_INTERNAL void ExtractE2M1ExponentAndScalingVL(
     __ubuf__ T* maxPtr, __ubuf__ uint8_t* expPtr, __ubuf__ T* scalingPtr, uint32_t off, uint32_t rem)
 {
-    static_assert(
-        std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
-        "ExtractE2M1ExponentAndScalingVL: T must be bfloat16_t or half");
-    constexpr uint16_t kBf16ExpMask = 0x7F80;
-    constexpr uint16_t kBf16MantissaMask = 0x007F;
-    constexpr uint16_t kFp4E2M1MaxExp = 0x0100;
-    constexpr uint16_t kBf16ExpBias = 0x7F00;
-    constexpr uint16_t kFp4Nan = 0x00FF;
-    constexpr uint16_t kBf16Nan = 0x7FC0;
-
-    __ubuf__ uint16_t* maxPtr_u16 = (__ubuf__ uint16_t*)maxPtr;
-    __ubuf__ uint16_t* scalingPtr_u16 = (__ubuf__ uint16_t*)scalingPtr;
-    RegTensor<uint16_t> vu16_max_abs, vu16_max_exp, vu16_mantissa;
-    RegTensor<uint16_t> vu16_shared_exp, vu16_scale_value, vu16_recip_scale;
-    RegTensor<uint16_t> vu16_max_exp_value, vu16_scale_bias, vu16_fp4_nan;
-    RegTensor<uint16_t> vu16_nan, vu16_exp_mask, vu16_mantissa_mask;
-    vector_bool preg_clamp, preg_special, preg_nan;
-    vector_bool preg_b16 = CreatePredicate<T>(rem);
-
-    vbr(vu16_max_exp_value, kFp4E2M1MaxExp);
-    vbr(vu16_scale_bias, kBf16ExpBias);
-    vbr(vu16_fp4_nan, kFp4Nan);
-    vbr(vu16_nan, kBf16Nan);
-    vbr(vu16_exp_mask, kBf16ExpMask);
-    vbr(vu16_mantissa_mask, kBf16MantissaMask);
-
-    vlds(vu16_max_abs, maxPtr_u16, off, NORM);
-    vand(vu16_max_exp, vu16_max_abs, vu16_exp_mask, preg_b16, MODE_ZEROING);
-    vand(vu16_mantissa, vu16_max_abs, vu16_mantissa_mask, preg_b16, MODE_ZEROING);
-    vcmps_eq(preg_special, vu16_max_exp, kBf16ExpMask, preg_b16);
-    vcmps_ne(preg_nan, vu16_mantissa, 0, preg_special);
-    vcmps_le(preg_clamp, vu16_max_exp, kFp4E2M1MaxExp, preg_b16);
-    vsel(vu16_max_exp, vu16_max_exp_value, vu16_max_exp, preg_clamp);
-
-    vsub(vu16_shared_exp, vu16_max_exp, vu16_max_exp_value, preg_b16, MODE_ZEROING);
-    vshrs(vu16_scale_value, vu16_shared_exp, 7, preg_b16, MODE_ZEROING);
-    vsel(vu16_scale_value, vu16_fp4_nan, vu16_scale_value, preg_nan);
-    vsts(vu16_scale_value, (__ubuf__ uint16_t*)expPtr, off / sizeof(T), PK_B16, preg_b16);
-
-    vsub(vu16_recip_scale, vu16_scale_bias, vu16_shared_exp, preg_b16, MODE_ZEROING);
-    vsel(vu16_recip_scale, vu16_nan, vu16_recip_scale, preg_nan);
-    vsts(vu16_recip_scale, scalingPtr_u16, off, NORM_B16, preg_b16);
+    ExtractMxOcpExponentAndScalingVL<T, OcpMxFp4E2M1Spec>(maxPtr, expPtr, scalingPtr, off, rem);
 }
 
 template <typename T>
@@ -1731,7 +1683,10 @@ PTO_INTERNAL void TQuant_MXFP4_E2M1_B16(
     ReduceMxB16AbsMaxFlat<scale_alg>(srcPtr, maxPtr, vl_count, total_elements_count);
     mem_bar(VST_VLD);
     maxPtr = maxPtr_backup;
-    ExtractE2M1ExponentAndScaling(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups);
+    if constexpr (scale_alg == QuantScaleAlg::NV)
+        ExtractE2M1ExponentAndScalingNV(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups);
+    else
+        ExtractE2M1ExponentAndScaling(maxPtr, expPtr, scalingPtr, exp_loop_count, numGroups);
     mem_bar(VST_VLD);
     if constexpr (std::is_same<T, half>::value)
         CalcQuantizedFP4E2M1Values_Half(srcPtr, scalingPtr, dstPtr, numGroups);
@@ -1956,7 +1911,8 @@ __tf__ PTO_INTERNAL void TQuant_Int8Sym(
                      BRC_B32); // broadcast row scaling
                 vlds(v_input, srcPtr, ELE_CNT_B32 * idx + row * TileDataSrc::Cols, NORM);
                 vmul(v_input, v_input, v_scale, preg_b32, MODE_ZEROING);
-                // Round once at fp32 (s32 round-trip) then exact fp32->fp16->s8.
+                // Round once at fp32 (s32 round-trip) then
+                // exact fp32->fp16->s8.
                 vcvt(v_s32, v_input, preg_b32, ROUND_R, RS_ENABLE);
                 vcvt(v_input, v_s32, preg_b32, ROUND_R);
                 vcvt(vb16, v_input, preg_b32, ROUND_R, RS_ENABLE, PART_EVEN);
@@ -1999,7 +1955,8 @@ __tf__ PTO_INTERNAL void TQuant_Int8Asym(
                 vlds(vb32_input, srcPtr, ELE_CNT_B32 * idx + row * TileDataSrc::Cols, NORM);
                 vmul(vb32_input, vb32_input, vb32_scale, preg_b32, MODE_ZEROING);
                 vadd(vb32_input, vb32_input, vb32_offset, preg_b32, MODE_ZEROING);
-                // Round once at fp32 (s32 round-trip) then exact fp32->fp16->u8.
+                // Round once at fp32 (s32 round-trip) then
+                // exact fp32->fp16->u8.
                 vcvt(vb32_int, vb32_input, preg_b32, ROUND_R, RS_ENABLE);
                 vcvt(vb32_input, vb32_int, preg_b32, ROUND_R);
                 vcvt(vb16_output, vb32_input, preg_b32, ROUND_R, RS_ENABLE, PART_EVEN);
@@ -2723,23 +2680,9 @@ PTO_INTERNAL void TQUANT_IMPL(
     TileDataOut& dst, TileDataSrc& src, TileDataExp* exp, TileDataMax* max, TileDataScaling* scaling)
 {
     using T = typename TileDataSrc::DType;
-    static_assert(
-        quant_type == QuantType::MXFP8 || quant_type == QuantType::MXFP4_E2M1,
-        "Fix: MX quant overload supports MXFP8/MXFP4_E2M1.");
-    if constexpr (quant_type == QuantType::MXFP8) {
-        static_assert(
-            std::is_same<T, float32_t>::value || std::is_same<T, bfloat16_t>::value || std::is_same<T, half>::value,
-            "Fix: MXFP8 input has to be float32, bfloat16, or float16 (half)");
-    } else {
-        static_assert(
-            std::is_same<T, half>::value || std::is_same<T, bfloat16_t>::value,
-            "Fix: MXFP4_E2M1 input has to be float16 (half) or bfloat16");
-        static_assert(
-            std::is_same<typename TileDataOut::DType, float4_e2m1x2_t>::value,
-            "Fix: MXFP4_E2M1 output has to be float4_e2m1x2_t");
-    }
+    using OutT = typename TileDataOut::DType;
+    CheckTQuantMxTypes<quant_type, T, OutT>();
     constexpr bool exp2D = (TileDataExp::Rows > 1);
-    // Create 1D flat views — TQuant operates on flattened buffers internally.
     constexpr int maxN = TileDataMax::Rows * TileDataMax::Cols;
     FlatTile1D<TileDataMax> flatMax(1, maxN);
     TRESHAPE_IMPL(flatMax, *max);
