@@ -58,7 +58,7 @@ This table tracks per-instruction backend availability:
 | [`TCOLEXPANDSUB`](../docs/isa/TCOLEXPANDSUB.md) | TODO | TODO | Yes | Yes | Yes | TODO |
 | [`TCOLMAX`](../docs/isa/TCOLMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TCOLMIN`](../docs/isa/TCOLMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TCOLPROD`](../docs/isa/TCOLPROD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`TCOLPROD`](../docs/isa/TCOLPROD.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TCOLSUM`](../docs/isa/TCOLSUM.md) | Yes | Yes | Yes | Yes | Yes | TODO |
 | [`TConcat`](../docs/isa/TCONCAT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
 | [`TCVT`](../docs/isa/TCVT.md) | Yes | Yes | Yes | Yes | Yes | TODO |
@@ -142,7 +142,7 @@ This table tracks per-instruction backend availability:
 | [`TROWEXPANDSUB`](../docs/isa/TROWEXPANDSUB.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TROWMAX`](../docs/isa/TROWMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TROWMIN`](../docs/isa/TROWMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TROWPROD`](../docs/isa/TROWPROD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`TROWPROD`](../docs/isa/TROWPROD.md) | Yes | TODO | Yes | Yes | Yes | TODO |
 | [`TROWSUM`](../docs/isa/TROWSUM.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TRSQRT`](../docs/isa/TRSQRT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
 | [`TSCATTER`](../docs/isa/TSCATTER.md) | Yes | Yes | Yes | Yes | Yes | Yes |

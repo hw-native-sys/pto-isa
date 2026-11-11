@@ -400,7 +400,7 @@ PTO_INST AsyncEvent TPUT_ASYNC(
         }
         if (mode == AsyncSubmitMode::IMMEDIATE) {
             AsyncEvent batchEvent;
-            if (session.rt.urma.batchLogicalWqeCount != 0U) {
+            if (session.rt.urma.batchWqeCount != 0U) {
                 if (session.rt.urma.batchPeer != peer) {
                     PTO_ASSERT(false, "TPUT_ASYNC URMA: immediate peer differs from the pending logical batch.");
                     return AsyncEvent::Failed(engine);
@@ -448,7 +448,7 @@ PTO_INST AsyncEvent TPUT_ASYNC(
         }
         if (mode == AsyncSubmitMode::IMMEDIATE) {
             AsyncEvent batchEvent;
-            if (session.rt.urma.batchLogicalWqeCount != 0U) {
+            if (session.rt.urma.batchWqeCount != 0U) {
                 if (session.rt.urma.batchPeer != peer) {
                     PTO_ASSERT(false, "TPUT_ASYNC URMA: immediate peer differs from the pending logical batch.");
                     return AsyncEvent::Failed(engine);
@@ -474,6 +474,27 @@ PTO_INST AsyncEvent TPUT_ASYNC(
         return deferredEvent;
     }
 }
+
+#ifdef PTO_URMA_SUPPORTED
+template <DmaEngine engine = DmaEngine::URMA, typename... WaitEvents>
+PTO_INST AsyncEvent TPUT_ASYNC(
+    __gm__ const GatherDestination* destinations, uint32_t destinationCount, __gm__ const GatherSegment* sourceSegments,
+    uint32_t sourceSegmentCount, const AsyncSession& session, WaitEvents&... events)
+{
+    static_assert(engine == DmaEngine::URMA, "Gather TPUT_ASYNC is supported only by URMA.");
+    WaitAllEvents(events...);
+    if ((destinationCount != 0U && destinations == nullptr) ||
+        (sourceSegmentCount != 0U && sourceSegments == nullptr)) {
+        PTO_ASSERT(false, "Gather TPUT_ASYNC descriptor pointer is null for a non-zero count.");
+        return AsyncEvent::Failed(DmaEngine::URMA);
+    }
+    urma::detail::UrmaRawGatherDestinationList destinationList{destinations};
+    urma::detail::UrmaRawGatherSourceSegmentList sourceList{sourceSegments};
+    return urma::detail::SubmitUrmaGatherWrite(
+        destinationList, destinationCount, sourceList, sourceSegmentCount, session);
+}
+
+#endif
 
 #elif defined(__CPU_SIM)
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
@@ -532,7 +553,7 @@ PTO_INST AsyncEvent TPUT_ASYNC_NOTIFY(
     }
 #elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (engine == DmaEngine::URMA) {
-        if (session.rt.urma.batchLogicalWqeCount != 0U) {
+        if (session.rt.urma.batchWqeCount != 0U) {
             if (session.rt.urma.batchPeer != peer) {
                 PTO_ASSERT(false, "TPUT_ASYNC_NOTIFY URMA: peer differs from the pending logical batch.");
                 return AsyncEvent::Failed(engine);
@@ -573,7 +594,7 @@ PTO_INST AsyncEvent TGET_ASYNC(
 #elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (engine == DmaEngine::URMA) {
         const uint32_t peer = session.destRankId;
-        if (session.rt.urma.batchLogicalWqeCount != 0U) {
+        if (session.rt.urma.batchWqeCount != 0U) {
             if (session.rt.urma.batchPeer != peer) {
                 PTO_ASSERT(false, "TGET_ASYNC URMA: peer differs from the pending logical batch.");
                 return AsyncEvent::Failed(engine);
@@ -605,7 +626,7 @@ PTO_INST AsyncEvent TGET_ASYNC(
     AsyncEvent batchEvent;
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
     if constexpr (engine == DmaEngine::URMA) {
-        if (session.rt.urma.batchLogicalWqeCount != 0U) {
+        if (session.rt.urma.batchWqeCount != 0U) {
             if (session.rt.urma.batchPeer != peer) {
                 PTO_ASSERT(false, "TGET_ASYNC URMA: peer differs from the pending logical batch.");
                 return AsyncEvent::Failed(engine);

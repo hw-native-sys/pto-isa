@@ -37,6 +37,8 @@ Data flow:
 
 Declared in `include/pto/comm/pto_comm_inst.hpp`.
 
+### Contiguous Tensor Overload
+
 ```cpp
 // Available on all architectures. URMA/RDMA use the destination rank bound in the session.
 template <DmaEngine engine = DmaEngine::SDMA,
@@ -52,6 +54,24 @@ PTO_INST AsyncEvent TPUT_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
                                const AsyncSession &session, uint32_t peer,
                                WaitEvents &... events);
 ```
+
+### URMA Gather Overload
+
+```cpp
+template <DmaEngine engine = DmaEngine::URMA, typename... WaitEvents>
+PTO_INST AsyncEvent TPUT_ASYNC(
+    __gm__ const GatherDestination *destinations,
+    uint32_t destinationCount,
+    __gm__ const GatherSegment *sourceSegments,
+    uint32_t sourceSegmentCount,
+    const AsyncSession &session,
+    WaitEvents &... events);
+```
+
+This overload gathers non-contiguous local GM segments into one or more contiguous remote ranges and
+supports only `DmaEngine::URMA`. Each destination descriptor carries its own `peer`, so one call may
+target multiple ranks and still returns a single `AsyncEvent`. Validation or resource-reservation
+failure returns a failed event; check `event.valid()` before `Wait` or `Test`.
 
 `AsyncSession` is an engine-agnostic session object. Build once with
 `BuildAsyncSession<engine>()`, then pass to all async calls and event waits.
@@ -96,9 +116,16 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
-// No destination rank bound; use with the instruction overload that takes `peer`.
+// No destination rank bound; use with the instruction overload that takes `peer`,
+// and with the Gather overload.
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    AsyncSession &session);
+
+// Same, plus the UB scratch required by the Gather SIMT path.
+template <DmaEngine engine, typename ScratchTile>
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    ScratchTile &scratchTile,
                                     AsyncSession &session);
 
 // Binds the destination rank; use with the instruction overload without `peer`.
@@ -111,11 +138,17 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 
 | Parameter | Description |
 |---|---|
+| `scratchTile` | UB scratch tile allocated by the kernel. Required only by the Gather SIMT path. |
 | `workspace` | GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`. |
-| `destRankId` | Remote PE rank id bound to this session. For `TPUT_ASYNC` this is the destination rank. |
+| `destRankId` | Remote PE rank id used by the contiguous-tensor overload. |
 | `session` | Output `AsyncSession` object. |
 
-URMA does not require `scratchTile` — polling uses `ld_dev`/`st_dev` hardware intrinsics directly.
+The contiguous-tensor overload uses the builder that takes `destRankId`; the Gather overload uses the
+rank-independent builder, where each `GatherDestination::peer` names its own target rank.
+
+Contiguous transfers do not require `scratchTile`, because polling uses `ld_dev`/`st_dev` hardware
+intrinsics directly. The Gather SIMT path needs at least `sizeof(urma::UrmaGatherSimtScratch)` bytes
+of UB; without it Gather falls back to the scalar path.
 
 Construction divides the URMA queues available to the current AI core. It returns `false` when
 `workspace` is invalid, or when the current block count exceeds the queue capacity configured in the
@@ -173,11 +206,67 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 }
 ```
 
+## URMA Gather Descriptors and Data Mapping
+
+The descriptor types are:
+
+```cpp
+struct GatherSegment {
+    __gm__ const uint8_t *addr;  // start of a local GM segment
+    uint32_t length;             // length in bytes
+};
+
+struct GatherDestination {
+    __gm__ uint8_t *addr;        // start of a contiguous remote range
+    uint32_t segCount;           // number of source segments consumed
+    uint32_t peer;               // destination rank
+};
+```
+
+Entries in `destinations` consume consecutive entries from `sourceSegments` in index order. If
+the destination `segCount` values are 2 and 1:
+
+```text
+destinations[0] <- sourceSegments[0], sourceSegments[1]
+destinations[1] <- sourceSegments[2]
+```
+
+The descriptors must therefore satisfy `sum(destinations[i].segCount) == sourceSegmentCount`.
+
+## URMA Gather Completion Policies
+
+Submission timing follows `submitMode` and `batchSize` as described in
+[Batch Submission](#batch-submission), except that a Gather batch is not restricted to a single
+destination rank. Completion-notification granularity is controlled separately by
+`session.cfg.urma.cqePolicy`, which defaults to `OneCqe`.
+
+| `UrmaCqePolicy` | Behavior |
+|---|---|
+| `OneCqe` | Keep full completion notifications for this operation; the returned event supports `Wait`/`Test`. The default. |
+| `Final` | Reduce completion-notification overhead; the returned event supports `Wait`/`Test` and also covers preceding unconfirmed `NoCqe` operations. |
+| `NoCqe` | Do not request a completion notification. An event returned by a non-empty call does not support `Wait`/`Test` and must be confirmed by a later `Final`. |
+
 ## Constraints
+
+Contiguous tensor overload:
 
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
 - Source and destination tensors must both be **flat contiguous logical 1D**, and the destination capacity must be no smaller than the source element count
+
+URMA Gather overload:
+
+- `destinations` and `sourceSegments` reside in GM; a nonzero count requires a non-null pointer
+- Each source segment has a non-null `addr` and `length > 0`
+- Every local source range and remote destination range lies within an MR registered during host initialization
+- Every `peer` is less than the host-configured rank count
+- `sum(destinations[i].segCount) == sourceSegmentCount`
+- Do not mix an unfinished contiguous-tensor batch with a Gather batch in one session
+- Do not use one session concurrently from multiple execution flows; each AIV must build its own session
+- Keep descriptor arrays valid while the call reads them, and source/destination data alive until the associated event completes
+
+General constraints:
+
 - SDMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `SdmaWorkspaceManager`
 - URMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`
 - Keep the session and its workspace alive until all associated events have completed
@@ -250,7 +339,8 @@ auto event = comm::TPUT_ASYNC(dst1, src1, session);   // staged, then the whole 
 ## Completion Semantics (Quiet Semantics)
 
 - **SDMA**: Each `TPUT_ASYNC` submits data-transfer SQEs and flag SQEs that mark completion of that operation. `Wait` or `Test` on its returned event polls the corresponding flags to determine whether that `TPUT_ASYNC` has completed; completion also guarantees that all earlier SDMA operations in the same session have completed.
-- **URMA**: `TPUT_ASYNC` submits an RDMA WRITE WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
+- **URMA contiguous tensor overload**: `TPUT_ASYNC` submits an RDMA WRITE WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
+- **URMA Gather overload**: `submitMode` controls submission, and `cqePolicy` controls completion semantics. Events returned with `OneCqe` or `Final` support waiting. A non-empty `NoCqe` event does not; use a later `Final` to confirm completion.
 - **RDMA**: `TPUT_ASYNC` submits an RDMA WRITE WQE to the queue selected by `peer`. Completion is tracked independently for each peer/queue.
 
 - `event.Wait(session)` — blocks until **all async operations issued since the last Wait** are complete
@@ -258,6 +348,8 @@ auto event = comm::TPUT_ASYNC(dst1, src1, session);   // staged, then the whole 
 This means after multiple `TPUT_ASYNC` calls, a single `Wait` on the last returned `AsyncEvent` drains all pending operations (similar to shmem's quiet semantics).
 
 For RDMA operations targeting different peers, wait for the last event of each peer separately.
+
+The Gather overload follows its CQE policy instead: never wait on a non-empty `NoCqe` event, and use a later `Final` to confirm the preceding `NoCqe` operations in the session.
 
 Up to 64 operations may be outstanding in one session before submission can apply backpressure.
 
@@ -370,3 +462,79 @@ __global__ AICORE void SimplePutUrma(__gm__ T *remoteDst, __gm__ T *localSrc,
     (void)event.Wait(session);
 }
 ```
+
+### URMA Gather Example (NPU_ARCH 3510)
+
+This example concatenates four non-contiguous local segments into two contiguous remote ranges.
+The destinations may belong to different ranks:
+
+```cpp
+#include <pto/comm/pto_comm_inst.hpp>
+
+using namespace pto;
+
+__global__ AICORE void GatherPutUrma(
+    __gm__ uint8_t *remote0, __gm__ uint8_t *remote1,
+    __gm__ const uint8_t *local0, __gm__ const uint8_t *local1,
+    __gm__ const uint8_t *local2, __gm__ const uint8_t *local3,
+    __gm__ comm::GatherDestination *dsts, __gm__ comm::GatherSegment *segs,
+    __gm__ uint8_t *urmaWorkspace, uint32_t peer0, uint32_t peer1)
+{
+    dsts[0] = {remote0, 2, peer0};
+    dsts[1] = {remote1, 2, peer1};
+
+    segs[0] = {local0, 4096};
+    segs[1] = {local1, 1024};
+    segs[2] = {local2, 2048};
+    segs[3] = {local3, 3072};
+    comm::urma::DcciCachelines(
+        reinterpret_cast<__gm__ uint8_t *>(dsts), 2 * sizeof(comm::GatherDestination));
+    comm::urma::DcciCachelines(
+        reinterpret_cast<__gm__ uint8_t *>(segs), 4 * sizeof(comm::GatherSegment));
+    dsb(DSB_DDR);
+
+    using ScratchTile =
+        Tile<TileType::Vec, uint8_t, 1, sizeof(comm::urma::UrmaGatherSimtScratch)>;
+    ScratchTile scratchTile;
+    TASSIGN(scratchTile, 0x0);
+    comm::AsyncSession session;
+    if (!comm::BuildAsyncSession<comm::DmaEngine::URMA>(urmaWorkspace, scratchTile, session)) {
+        return;
+    }
+    session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
+
+    auto event = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(dsts, 2, segs, 4, session);
+    if (event.valid()) {
+        (void)event.Wait(session);
+    }
+}
+```
+
+On completion, `remote0` contains `local0` followed by `local1`, while `remote1` contains `local2`
+followed by `local3`. After writing descriptors, the execution flow that submits the session must
+clean their cache lines and issue `dsb(DSB_DDR)` so they are visible before URMA reads them.
+
+### URMA Gather Deferred Submission with a NoCqe Prefix
+
+To reduce submission overhead, stage calls with `DEFER + NoCqe`, then submit and wait for the entire
+prefix through an empty `Final` call:
+
+```cpp
+session.submitMode = comm::AsyncSubmitMode::DEFER;
+session.batchSize = 4;
+session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::NoCqe;
+
+auto noCqeEvent = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(dsts, 2, segs, 4, session);
+// Do not call Wait/Test on a non-empty NoCqe event.
+
+session.submitMode = comm::AsyncSubmitMode::DEFER_AND_SUBMIT;
+session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
+auto finalEvent = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(
+    nullptr, 0, nullptr, 0, session);
+if (finalEvent.valid()) {
+    (void)finalEvent.Wait(session);
+}
+```
+
+`DEFER` automatically submits accumulated operations according to `batchSize`. Set `batchSize`
+to `UINT32_MAX` when submission should occur only through an explicit `DEFER_AND_SUBMIT` call.

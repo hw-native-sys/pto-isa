@@ -81,14 +81,21 @@ AICORE inline void FillFaaWqe(
     *reinterpret_cast<__gm__ int32_t*>(secondBb) = addValue;
 }
 
-AICORE inline bool UrmaRingHasRoom(
-    __gm__ UrmaWQCtx* wq, __gm__ UrmaCqCtx* cq, uint32_t head, uint32_t submittedWqeCount, uint32_t requiredBb,
-    uint32_t requiredWqeCount)
+AICORE inline bool HasUrmaQueueCapacity(
+    __gm__ UrmaWQCtx* wq, __gm__ UrmaCqCtx* cq, const UrmaQueueCapacityRequest& request)
 {
     const uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
     const uint32_t completedCqe = ld_dev(reinterpret_cast<__gm__ uint32_t*>(cq->tailAddr), 0);
-    return head - completedBb + requiredBb <= wq->depth &&
-           submittedWqeCount - completedCqe + requiredWqeCount <= cq->depth;
+    return request.bbProducerSequence - completedBb + request.requiredBbCount <= wq->depth &&
+           request.cqeProducerSequence - completedCqe + request.requiredCqeCount <= cq->depth;
+}
+
+AICORE inline bool UrmaRingHasRoom(
+    __gm__ UrmaWQCtx* wq, __gm__ UrmaCqCtx* cq, uint32_t bbProducerSequence, uint32_t cqeProducerSequence,
+    uint32_t requiredBbCount, uint32_t requiredCqeCount)
+{
+    const UrmaQueueCapacityRequest request{bbProducerSequence, cqeProducerSequence, requiredBbCount, requiredCqeCount};
+    return HasUrmaQueueCapacity(wq, cq, request);
 }
 
 AICORE inline void FillTransferWqeAt(
@@ -122,23 +129,17 @@ AICORE inline bool UrmaAwaitOneCqe(const AsyncSession& session, uint32_t peer, u
         return false;
     }
     const uint32_t cqeSize = 1U << cq->cqeShiftSize;
-    __gm__ UrmaJfcCqeCtx* cqe = nullptr;
-    if (!WaitForUrmaCqe(cq, retiredCqe, cqeSize, cqe)) {
+    uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+    if (!RetireUrmaCqePrefix(wq, cq, retiredCqe, retiredCqe + 1U, cqeSize, completedBb)) {
         dsb(DSB_DDR);
         UrmaPostSendUpdateInfo(ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->headAddr), 0), wq);
         pipe_barrier(PIPE_ALL);
-        if (!WaitForUrmaCqe(cq, retiredCqe, cqeSize, cqe)) {
+        completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+        if (!RetireUrmaCqePrefix(wq, cq, retiredCqe, retiredCqe + 1U, cqeSize, completedBb)) {
             return false;
         }
     }
-    constexpr uint32_t kStatusShift = 8U;
-    const uint32_t cqeError =
-        (static_cast<uint32_t>(cqe->status) << kStatusShift) | static_cast<uint32_t>(cqe->substatus);
-    if (cqeError != 0U) {
-        return false;
-    }
-    const uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
-    PublishCqAndWqTails(completedBb + 1U, retiredCqe + 1U, cq, wq);
+    PublishCqAndWqTails(completedBb, retiredCqe + 1U, cq, wq);
     return true;
 }
 
@@ -192,7 +193,9 @@ AICORE inline UrmaMultiPostResult UrmaPostSend(
     UrmaMultiPostResult result{};
     result.jettyBase = session.qpIdxBase;
 
-    if (!ValidateUrmaSession(session, peer) || (opcode != UrmaOpcode::WRITE && opcode != UrmaOpcode::READ)) {
+    if (!ValidateUrmaSession(session, peer) || session.rt.urma.batchStagedWqeCount != 0U ||
+        (opcode != UrmaOpcode::WRITE && opcode != UrmaOpcode::READ) || !PublishQueuedUrmaFinals(session) ||
+        !ValidateUrmaSubmissionTransition(session, UrmaBatchKind::Continuous, UrmaCqePolicy::OneCqe)) {
         result.failed = true;
         return result;
     }
@@ -201,18 +204,15 @@ AICORE inline UrmaMultiPostResult UrmaPostSend(
         return result;
     }
 
-    __gm__ UrmaInfo* info = reinterpret_cast<__gm__ UrmaInfo*>(session.contextGm);
-    const bool onRails = info->railCycleLen != 0U;
-    uint32_t cursor = onRails ? session.rt.urma.railCycleCursor : 0U;
+    uint32_t nextWqeSeq = session.rt.urma.nextWqeSeq;
     bool postedOk = true;
     uint64_t offset = 0U;
     while (offset < messageLen) {
         const uint64_t remaining = messageLen - offset;
         const uint64_t chunk = remaining < kUrmaMaxWqeTransferBytes ? remaining : kUrmaMaxWqeTransferBytes;
-        const uint32_t slot =
-            onRails ? info->railCycle[cursor % info->railCycleLen] : cursor % session.cfg.urma.qpCount;
+        const uint32_t slot = nextWqeSeq % session.cfg.urma.qpCount;
         const uint32_t jetty = session.qpIdxBase + slot;
-        cursor += 1U;
+        nextWqeSeq += 1U;
         if (!UrmaPostSliceOnJetty(remoteAddr + offset, localAddr + offset, chunk, opcode, session, peer, jetty).ok) {
             // The drain this failed on already timed out, so retrying it here
             // would only time out again; later slices are skipped and the event
@@ -223,8 +223,8 @@ AICORE inline UrmaMultiPostResult UrmaPostSend(
         offset += chunk;
     }
 
-    if (onRails) {
-        session.rt.urma.railCycleCursor = cursor;
+    if (postedOk) {
+        session.rt.urma.nextWqeSeq = nextWqeSeq;
     }
 
     for (uint32_t slot = 0U; slot < session.cfg.urma.qpCount; ++slot) {
@@ -355,9 +355,11 @@ AICORE inline UrmaPostResult UrmaPostNotify(
     UrmaPostResult result{};
     result.jetty = session.qpIdxBase;
 
-    // Covers every jetty in the run, so the one picked below is known good and
-    // contextGm is known non-null before info is read.
-    if (!ValidateUrmaSession(session, peer)) {
+    // Validate the AIV's complete queue run before selecting one slot for the
+    // ordered payload-and-signal pair.
+    if (!ValidateUrmaSession(session, peer) || session.rt.urma.batchStagedWqeCount != 0U ||
+        !PublishQueuedUrmaFinals(session) ||
+        !ValidateUrmaSubmissionTransition(session, UrmaBatchKind::Continuous, UrmaCqePolicy::OneCqe)) {
         result.failed = true;
         return result;
     }
@@ -367,8 +369,7 @@ AICORE inline UrmaPostResult UrmaPostNotify(
         return result;
     }
 
-    const uint32_t aiv = session.qpIdxBase / session.cfg.urma.qpCount;
-    const uint32_t jetty = session.qpIdxBase + UrmaRailCycleSlot(info, aiv);
+    const uint32_t jetty = session.qpIdxBase + session.rt.urma.nextWqeSeq % session.cfg.urma.qpCount;
     result.jetty = jetty;
 
     const bool isAtomicAdd = notifyOp == NotifyOp::AtomicAdd;
@@ -405,6 +406,7 @@ AICORE inline UrmaPostResult UrmaPostNotify(
     state.submittedWqeCount += 1U; // the signal contributes exactly one completion (FAA's second BB carries no CQE)
 
     CommitPostedWqes(state.wq, targetBb, state.submittedWqeCount);
+    session.rt.urma.nextWqeSeq += 1U;
     result.handle = EncodeHandle(peer, targetBb);
     result.targetCqe = state.submittedWqeCount;
     return result;

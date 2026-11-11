@@ -75,18 +75,20 @@ bool BuildChannelsSharedPoolOnRails()
     return AcquireJettiesOnPlan();
 }
 
-bool RunCoversEveryRail() const { return jettiesPerCore_ == railCount_; }
-
 bool AcquireJettiesOnPlan()
 {
-    const std::vector<uint32_t> cycle = AivRailCycle();
+    const std::vector<uint32_t> railByQueueInstance = QueueInstanceRailPlacement();
+    if (railByQueueInstance.size() != JettyCount()) {
+        PTO_HOST_LOG_ERROR(
+            "URMA", "cannot place " << JettyCount() << " shared queue instances on " << railCount_ << " rails");
+        return false;
+    }
     channelsPerJetty_ = static_cast<uint32_t>(sharedPeerOrder_.size());
 
     const uint32_t jettyTotal = JettyCount();
     channelHandles_.assign(static_cast<size_t>(jettyTotal) * channelsPerJetty_, 0);
     for (uint32_t jetty = 0; jetty < jettyTotal; ++jetty) {
-        const uint32_t aiv = jetty / jettiesPerCore_;
-        const uint32_t rail = RunCoversEveryRail() ? (jetty % jettiesPerCore_) : cycle[aiv % cycle.size()];
+        const uint32_t rail = railByQueueInstance[jetty];
         if (!AcquireOneJetty(jetty, railPeerLinks_[rail])) {
             return false;
         }
@@ -174,46 +176,79 @@ std::vector<uint32_t> RailJettyWeights() const
     for (uint32_t weight : weights) {
         divisor = Gcd(divisor, weight);
     }
-    uint32_t total = 0;
     for (uint32_t& weight : weights) {
         weight = (divisor > 1U) ? (weight / divisor) : weight;
-        total += weight;
-    }
-    bool shrank = true;
-    while (total > kUrmaMaxJettyShareTotal && shrank) {
-        shrank = false;
-        total = 0;
-        for (uint32_t& weight : weights) {
-            if (weight > 1U) {
-                weight = (weight + 1U) / 2U;
-                shrank = true;
-            }
-            total += weight;
-        }
     }
     return weights;
 }
 
-std::vector<uint32_t> AivRailCycle() const
+std::vector<uint32_t> QueueInstanceRailPlacement() const
 {
-    std::vector<uint32_t> remaining = RailJettyWeights();
-    std::vector<uint32_t> cycle;
+    const uint32_t queueInstanceCount = JettyCount();
+    const std::vector<uint32_t> weights = RailJettyWeights();
+    if (queueInstanceCount == 0U || weights.empty()) {
+        return {};
+    }
+
+    std::vector<uint32_t> assigned(weights.size(), 0U);
+    if (queueInstanceCount < weights.size()) {
+        std::vector<uint32_t> rails(weights.size());
+        for (uint32_t rail = 0U; rail < rails.size(); ++rail) {
+            rails[rail] = rail;
+        }
+        std::stable_sort(rails.begin(), rails.end(), [&weights](uint32_t lhs, uint32_t rhs) {
+            return weights[lhs] != weights[rhs] ? weights[lhs] > weights[rhs] : lhs < rhs;
+        });
+        for (uint32_t index = 0U; index < queueInstanceCount; ++index) {
+            assigned[rails[index]] = 1U;
+        }
+    } else {
+        for (uint32_t& count : assigned) {
+            count = 1U;
+        }
+        const uint32_t extraCount = queueInstanceCount - static_cast<uint32_t>(weights.size());
+        uint64_t totalWeight = 0U;
+        for (uint32_t weight : weights) {
+            totalWeight += weight;
+        }
+        std::vector<uint64_t> remainders(weights.size(), 0U);
+        uint32_t allocatedExtra = 0U;
+        for (uint32_t rail = 0U; rail < weights.size(); ++rail) {
+            const uint64_t numerator = static_cast<uint64_t>(extraCount) * weights[rail];
+            const uint32_t floorExtra = static_cast<uint32_t>(numerator / totalWeight);
+            assigned[rail] += floorExtra;
+            allocatedExtra += floorExtra;
+            remainders[rail] = numerator % totalWeight;
+        }
+        std::vector<uint32_t> rails(weights.size());
+        for (uint32_t rail = 0U; rail < rails.size(); ++rail) {
+            rails[rail] = rail;
+        }
+        std::stable_sort(rails.begin(), rails.end(), [&remainders, &weights](uint32_t lhs, uint32_t rhs) {
+            if (remainders[lhs] != remainders[rhs]) {
+                return remainders[lhs] > remainders[rhs];
+            }
+            return weights[lhs] != weights[rhs] ? weights[lhs] > weights[rhs] : lhs < rhs;
+        });
+        for (uint32_t index = 0U; index < extraCount - allocatedExtra; ++index) {
+            assigned[rails[index]] += 1U;
+        }
+    }
+
+    std::vector<uint32_t> placement;
+    placement.reserve(queueInstanceCount);
     bool placedAny = true;
     while (placedAny) {
         placedAny = false;
-        for (uint32_t rail = 0; rail < remaining.size(); ++rail) {
-            if (remaining[rail] == 0U) {
-                continue;
+        for (uint32_t rail = 0U; rail < assigned.size(); ++rail) {
+            if (assigned[rail] != 0U) {
+                placement.push_back(rail);
+                assigned[rail] -= 1U;
+                placedAny = true;
             }
-            cycle.push_back(rail);
-            remaining[rail] -= 1U;
-            placedAny = true;
         }
     }
-    if (cycle.empty()) {
-        cycle.push_back(0U);
-    }
-    return cycle;
+    return placement;
 }
 
 std::vector<uint32_t> SharedPoolNetLayers() const

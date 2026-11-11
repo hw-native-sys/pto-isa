@@ -178,10 +178,11 @@ CPU_SIM 默认采用架构对应的 UB 容量：A2A3 为 192 KiB，A5 为 256 Ki
 类型、布局和有效区域约束见 [TROWSUM 的 CPU_SIM实现检查](../isa/TROWSUM_zh.md#cpu_sim实现检查)。
 以下为 [CPU 实现](../../include/pto/cpu/TRowSum.hpp) 的计算方式，不是新增的 NPU 接口约束。
 
-- A5 浮点路径使用 `rowSumTree`，按连续 256 字节分组：`float` 每组 64 lane，
+- A5 浮点路径使用 `rowSumTreeAcc<TileSrc, float>`，按连续 256 字节分组：`float` 每组 64 lane，
   `half` 每组 128 lane。组内按相邻元素二叉树归约；尾组未使用的 lane 补零，
   不读取源 Tile 的无效填充区。各组结果从正零开始按列地址递增顺序累加。
-  每次树内加法和组间累加均转换回元素类型，包括 `half` 的组间舍入。
+  所有部分和均保持在 `float`（fp32），因此 `half` 输入仅在写回时舍入一次（精度提升为 fp32）；
+  对 `float` 输入，这些转换是空操作。
 - A5 整数路径使用 `rowSumModular`，通过无符号模运算避免有符号溢出的未定义行为。
   `int16_t` 使用 32 位累加器，最终截取低 16 位；其他支持的整数按自身位宽回绕。
   有符号输出保留结果位模式，不执行饱和处理。

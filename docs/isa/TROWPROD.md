@@ -63,6 +63,12 @@ PTO_INST RecordEvent TROWPROD(TileDataOut &dst, TileDataIn &src, TileDataTmp &tm
 - In the currently inspected implementation path, the enforced constraints are on `src` and `dst`.
 - No extra shape/layout assertions on `tmp` are enforced in the current implementation path.
 
+### CPU_SIM implementation checks
+
+- `half` / `bfloat16_t` products are widened to `float` (fp32) and rounded back to the output type only
+  once; other types accumulate in their own type. `tmp` is accepted for API compatibility but its storage
+  is not accessed.
+
 ## Temporary Space
 
 ### A2A3

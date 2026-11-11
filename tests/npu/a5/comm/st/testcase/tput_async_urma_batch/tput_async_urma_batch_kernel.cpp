@@ -396,7 +396,8 @@ __global__ AICORE void TPutAsyncUrmaBatchPolicyKernel(
                 session.batchSize = 1U;
                 session.submitMode = pto::comm::AsyncSubmitMode::DEFER;
                 event = pto::comm::TPUT_ASYNC<pto::comm::DmaEngine::URMA>(dst, src, session, kTargetPeer);
-                if (session.rt.urma.batchStagedWqeCount != 0U) {
+                if (session.rt.urma.batchStagedWqeCount != 0U || session.rt.urma.batchWqeCount == 0U ||
+                    session.rt.urma.batchKind != pto::comm::urma::UrmaBatchKind::Continuous) {
                     status[0] = 0U;
                     return;
                 }

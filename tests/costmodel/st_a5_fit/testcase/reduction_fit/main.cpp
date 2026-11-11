@@ -48,7 +48,7 @@ TEST(A5ReductionFit, RemainingReductionsFp16)
         double profilingCycles;
     };
     constexpr ReductionCase kCases[] = {
-        {PtoOpcode::TROWMAX, "TROWMAX", 7, 1024, 197.0},   {PtoOpcode::TROWMIN, "TROWMIN", 128, 128, 786.0},
+        {PtoOpcode::TROWMAX, "TROWMAX", 7, 1024, 384.0},   {PtoOpcode::TROWMIN, "TROWMIN", 128, 128, 4535.0},
         {PtoOpcode::TROWPROD, "TROWPROD", 33, 128, 907.5}, {PtoOpcode::TCOLSUM, "TCOLSUM", 12, 320, 131.5},
         {PtoOpcode::TCOLMAX, "TCOLMAX", 12, 320, 65.0},    {PtoOpcode::TCOLMIN, "TCOLMIN", 128, 128, 165.0},
         {PtoOpcode::TCOLPROD, "TCOLPROD", 7, 1024, 230.0},
@@ -66,6 +66,87 @@ TEST(A5ReductionFit, RemainingReductionsFp16)
     }
 }
 
+TEST(A5ReductionFit, RowExtremaOddEvenHardwareProfiles)
+{
+    // A5 AIV vector cycles per iteration, 4096 iterations at approximately 1650 MHz.
+    // The odd-repeat remainder path can cost more than the next even repeat.
+    for (const auto op : {PtoOpcode::TROWMAX, PtoOpcode::TROWMIN}) {
+        const char* name = op == PtoOpcode::TROWMAX ? "TROWMAX/odd-even" : "TROWMIN/odd-even";
+        CostModelInput input{.op = op, .dtype = DType::Half, .rows = 16, .cols = 384, .arch = CostModelArch::A5};
+        ExpectCycleNear(name, input, 855.0);
+        input.cols = 512;
+        ExpectCycleNear(name, input, 775.0);
+    }
+}
+
+TEST(A5ReductionFit, RowExtremaTailPath)
+{
+    constexpr CostModelInput kTailInput{
+        .op = PtoOpcode::TROWMAX,
+        .dtype = DType::Half,
+        .rows = 209,
+        .cols = 208,
+        .arch = CostModelArch::A5,
+        .valid_rows = 209,
+        .valid_cols = 208,
+    };
+    ExpectCycleNear("TROWMAX", kTailInput, 9669.0);
+    auto minInput = kTailInput;
+    minInput.op = PtoOpcode::TROWMIN;
+    ExpectCycleNear("TROWMIN", minInput, 9669.0);
+}
+
+TEST(A5ReductionFit, ColProdRowsAndRepeats)
+{
+    struct ColProdCase {
+        int64_t rows;
+        int64_t cols;
+        double profilingCycles;
+    };
+    constexpr ColProdCase kColProdCases[] = {
+        {1, 16, 48.0},    {1, 208, 56.0},   {16, 16, 104.0},    {209, 16, 876.0},   {16, 128, 123.0},
+        {64, 128, 448.0}, {16, 256, 170.0}, {128, 288, 2178.0}, {295, 288, 5518.0}, {2728, 16, 10952.0},
+    };
+    constexpr double kRequiredPrecision = 0.95;
+    for (const auto& testCase : kColProdCases) {
+        const CostModelInput input{
+            .op = PtoOpcode::TCOLPROD,
+            .dtype = DType::Half,
+            .rows = testCase.rows,
+            .cols = testCase.cols,
+            .arch = CostModelArch::A5,
+            .valid_rows = testCase.rows,
+            .valid_cols = testCase.cols,
+        };
+        pto::test::ExpectA5CycleNear("TCOLPROD/grid", input, testCase.profilingCycles, kRequiredPrecision);
+    }
+}
+
+TEST(A5ReductionFit, ColSumRowsAndRepeats)
+{
+    struct ColSumCase {
+        int64_t rows;
+        int64_t cols;
+        double profilingCycles;
+    };
+    constexpr ColSumCase kCases[] = {
+        {12, 320, 131.5}, {16, 256, 137.5}, {128, 288, 1166.0}, {295, 288, 2836.0}, {2728, 16, 5497.0},
+    };
+    constexpr double kRequiredPrecision = 0.95;
+    for (const auto& testCase : kCases) {
+        const CostModelInput input{
+            .op = PtoOpcode::TCOLSUM,
+            .dtype = DType::Half,
+            .rows = testCase.rows,
+            .cols = testCase.cols,
+            .arch = CostModelArch::A5,
+            .valid_rows = testCase.rows,
+            .valid_cols = testCase.cols,
+        };
+        pto::test::ExpectA5CycleNear("TCOLSUM/grid", input, testCase.profilingCycles, kRequiredPrecision);
+    }
+}
+
 TEST(A5ReductionFit, IndexReductionHardwareProfiles)
 {
     struct IndexReductionCase {
@@ -77,7 +158,7 @@ TEST(A5ReductionFit, IndexReductionHardwareProfiles)
         double profilingCycles;
     };
     constexpr IndexReductionCase kCases[] = {
-        {PtoOpcode::TROWARGMAX, "TROWARGMAX", DType::Half, 8, 256, 153.0},
+        {PtoOpcode::TROWARGMAX, "TROWARGMAX", DType::Half, 8, 256, 157.0},
         {PtoOpcode::TROWARGMIN, "TROWARGMIN", DType::Half, 16, 128, 159.0},
         {PtoOpcode::TCOLARGMAX, "TCOLARGMAX", DType::Half, 8, 256, 96.0},
         {PtoOpcode::TCOLARGMIN, "TCOLARGMIN", DType::Half, 16, 128, 122.0},

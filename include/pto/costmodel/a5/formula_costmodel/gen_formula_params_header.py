@@ -41,6 +41,9 @@ TAIL_KIND_MAP = {"full": "TailKind::Full", "tail": "TailKind::Tail"}
 
 FORMULA_KIND_MAP = {
     "linear": "FormulaKind::Linear",
+    "linear_small_loop": "FormulaKind::LinearSmallLoop",
+    "linear_two_startup": "FormulaKind::LinearTwoStartup",
+    "continuous_piecewise_linear": "FormulaKind::ContinuousPiecewiseLinear",
     "linear_rows": "FormulaKind::LinearRows",
     "linear_tail": "FormulaKind::LinearTail",
     "nested_loop": "FormulaKind::NestedLoop",
@@ -49,6 +52,7 @@ FORMULA_KIND_MAP = {
     "dual_loop_max_scaled": "FormulaKind::DualLoopMaxScaled",
     "linear_floor": "FormulaKind::LinearFloor",
     "affine_grid": "FormulaKind::AffineGrid",
+    "scatter_pattern_row": "FormulaKind::ScatterPatternRow",
 }
 
 
@@ -165,6 +169,10 @@ def _render_type_defs() -> list[str]:
         "enum class FormulaKind : uint8_t",
         "{",
         "    Linear,",
+        "    LinearSmallLoop,",
+        "    LinearTwoStartup,",
+        "    ContinuousPiecewiseLinear,",
+        "    ScatterPatternRow,",
         "    LinearRows,",
         "    LinearTail,",
         "    NestedLoop,",

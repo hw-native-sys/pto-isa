@@ -72,6 +72,12 @@ PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp
 
 - For `int64_t` / `uint64_t`: use output valid shape `[1, src.GetValidCol()]`. Physical `Cols` is a multiple of 4; valid columns need not be aligned. Only valid results in row 0 are written; other physical padding is preserved.
 
+### CPU_SIM implementation checks
+
+- `half` / `bfloat16_t` accumulations are widened to `float` (fp32) and rounded back to the output type only
+  once; other types accumulate in their own type. Both A2A3 and A5 CPU paths use the same sequential
+  float accumulation.
+
 ## Temporary Space
 
 ### Without `tmp` (2-argument overload: `TCOLSUM(dst, src)`)

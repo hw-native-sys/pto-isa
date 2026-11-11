@@ -136,10 +136,10 @@ TEST(A5TcvtFit, bf16_to_fp4_e1m2_1D_NO_POST_UPDATE_full)
 
 constexpr A5TcvtFitCase kCases5[] = {
     // bf16_to_fp4_e1m2 2D POST_UPDATE full
-    {DType::BFloat16, DType::Float4E1M2, 3, 192, 3, 128, 96.0, 0.1145, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::BFloat16, DType::Float4E1M2, 3, 192, 3, 128, 75.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E1M2, 3, 448, 3, 384, 893.0, 0.7917, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E1M2, 3, 1344, 3, 1280, 2552.0, 0.9992, VFImplKind::VFIMPL_1D_POST_UPDATE},
-    {DType::BFloat16, DType::Float4E1M2, 10, 192, 10, 128, 180.0, 0.0000, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::BFloat16, DType::Float4E1M2, 10, 192, 10, 128, 160.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E1M2, 10, 448, 10, 384, 2839.0, 0.8245, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E1M2, 10, 1344, 10, 1280, 8369.0, 0.9863, VFImplKind::VFIMPL_1D_POST_UPDATE},
 };
@@ -167,10 +167,10 @@ TEST(A5TcvtFit, bf16_to_fp4_e2m1_1D_NO_POST_UPDATE_full)
 
 constexpr A5TcvtFitCase kCases7[] = {
     // bf16_to_fp4_e2m1 2D POST_UPDATE full
-    {DType::BFloat16, DType::Float4E2M1, 3, 192, 3, 128, 96.0, 0.1145, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::BFloat16, DType::Float4E2M1, 3, 192, 3, 128, 75.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E2M1, 3, 448, 3, 384, 893.0, 0.7917, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E2M1, 3, 1344, 3, 1280, 2552.0, 0.9992, VFImplKind::VFIMPL_1D_POST_UPDATE},
-    {DType::BFloat16, DType::Float4E2M1, 10, 192, 10, 128, 180.0, 0.0000, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::BFloat16, DType::Float4E2M1, 10, 192, 10, 128, 160.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E2M1, 10, 448, 10, 384, 2839.0, 0.8245, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::BFloat16, DType::Float4E2M1, 10, 1344, 10, 1280, 8369.0, 0.9863, VFImplKind::VFIMPL_1D_POST_UPDATE},
 };
@@ -322,10 +322,10 @@ TEST(A5TcvtFit, fp32_to_fp8_e4m3_1D_NO_POST_UPDATE_full)
 
 constexpr A5TcvtFitCase kCases17[] = {
     // fp32_to_fp8_e4m3 2D POST_UPDATE full
-    {DType::Float, DType::Float8E4M3, 3, 192, 3, 128, 97.0, 0.1443, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::Float, DType::Float8E4M3, 3, 192, 3, 128, 111.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E4M3, 3, 448, 3, 384, 890.0, 0.7932, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E4M3, 3, 1344, 3, 1280, 2549.0, 0.9992, VFImplKind::VFIMPL_1D_POST_UPDATE},
-    {DType::Float, DType::Float8E4M3, 10, 192, 10, 128, 181.0, 0.0000, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::Float, DType::Float8E4M3, 10, 192, 10, 128, 279.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E4M3, 10, 448, 10, 384, 2829.0, 0.8260, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E4M3, 10, 1344, 10, 1280, 8359.0, 0.9866, VFImplKind::VFIMPL_1D_POST_UPDATE},
 };
@@ -353,10 +353,10 @@ TEST(A5TcvtFit, fp32_to_fp8_e5m2_1D_NO_POST_UPDATE_full)
 
 constexpr A5TcvtFitCase kCases19[] = {
     // fp32_to_fp8_e5m2 2D POST_UPDATE full
-    {DType::Float, DType::Float8E5M2, 3, 192, 3, 128, 97.0, 0.1443, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::Float, DType::Float8E5M2, 3, 192, 3, 128, 111.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E5M2, 3, 448, 3, 384, 890.0, 0.7932, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E5M2, 3, 1344, 3, 1280, 2549.0, 0.9992, VFImplKind::VFIMPL_1D_POST_UPDATE},
-    {DType::Float, DType::Float8E5M2, 10, 192, 10, 128, 181.0, 0.0000, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::Float, DType::Float8E5M2, 10, 192, 10, 128, 279.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E5M2, 10, 448, 10, 384, 2829.0, 0.8260, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::Float8E5M2, 10, 1344, 10, 1280, 8359.0, 0.9866, VFImplKind::VFIMPL_1D_POST_UPDATE},
 };
@@ -384,10 +384,10 @@ TEST(A5TcvtFit, fp32_to_hif8_1D_NO_POST_UPDATE_full)
 
 constexpr A5TcvtFitCase kCases21[] = {
     // fp32_to_hif8 2D POST_UPDATE full
-    {DType::Float, DType::HFloat8, 3, 192, 3, 128, 97.0, 0.1443, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::Float, DType::HFloat8, 3, 192, 3, 128, 111.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::HFloat8, 3, 448, 3, 384, 890.0, 0.7932, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::HFloat8, 3, 1344, 3, 1280, 2549.0, 0.9992, VFImplKind::VFIMPL_1D_POST_UPDATE},
-    {DType::Float, DType::HFloat8, 10, 192, 10, 128, 181.0, 0.0000, VFImplKind::VFIMPL_1D_POST_UPDATE},
+    {DType::Float, DType::HFloat8, 10, 192, 10, 128, 279.0, 0.9500, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::HFloat8, 10, 448, 10, 384, 2829.0, 0.8260, VFImplKind::VFIMPL_1D_POST_UPDATE},
     {DType::Float, DType::HFloat8, 10, 1344, 10, 1280, 8359.0, 0.9866, VFImplKind::VFIMPL_1D_POST_UPDATE},
 };

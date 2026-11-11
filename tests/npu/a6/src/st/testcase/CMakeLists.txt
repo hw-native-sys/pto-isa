@@ -120,6 +120,7 @@ set(ALL_TESTCASES
     tshrs
     tinterleave
     tdeinterleave
+    tcvt_e8m0
     syncall
     tmov_nd2nz
     tmov_zz

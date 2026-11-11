@@ -7,6 +7,7 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <type_traits>
 #include <pto/common/type.hpp>
@@ -19,6 +20,8 @@ using namespace std;
 using namespace PtoTestCommon;
 
 namespace TQuantTest {
+
+void LaunchMxFp4PaddedOutputRows(uint8_t* q, uint16_t* x, uint8_t* exp, void* stream);
 
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 void LaunchTQuantMXFP8(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
@@ -529,6 +532,38 @@ TEST_F(TQUANTTEST, case_mxfp4_e2m1_nv_bf16_2x256_mixed_nd)
 TEST_F(TQUANTTEST, case_mxfp4_e2m1_nv_bf16_2x128_static4x128_exp2d_nd)
 {
     test_tquant_mxfp4_e2m1_bf16_exp2d<4, 128, 2, 128, pto::QuantScaleAlg::NV>();
+}
+
+TEST_F(TQUANTTEST, case_mxfp4_e2m1_fp16_2x32_padded_output_rows)
+{
+    constexpr size_t srcCols = 32;
+    constexpr size_t packedCols = 16;
+    constexpr size_t dstRowBytes = 32;
+    constexpr size_t srcBytes = 2 * srcCols * sizeof(uint16_t);
+    constexpr size_t dstBytes = 2 * dstRowBytes;
+    constexpr size_t expBytes = 2;
+    MxQuantBuffers<uint16_t> buffers;
+    InitMxQuantBuffers(buffers, srcBytes, dstBytes, expBytes);
+    std::fill_n(buffers.srcHost, srcCols, 0x3c00);           // FP16 +1
+    std::fill_n(buffers.srcHost + srcCols, srcCols, 0xc800); // FP16 -8
+    std::fill_n(buffers.dstHost, dstBytes, 0x55);
+    aclrtMemcpy(buffers.srcDevice, srcBytes, buffers.srcHost, srcBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(buffers.dstDevice, dstBytes, buffers.dstHost, dstBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+    LaunchMxFp4PaddedOutputRows(buffers.dstDevice, buffers.srcDevice, buffers.dstExpDevice, buffers.stream);
+
+    const aclError syncRet = aclrtSynchronizeStream(buffers.stream);
+    EXPECT_EQ(syncRet, ACL_SUCCESS) << aclGetRecentErrMsg();
+    if (syncRet == ACL_SUCCESS) {
+        aclrtMemcpy(buffers.dstHost, dstBytes, buffers.dstDevice, dstBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+        aclrtMemcpy(buffers.dstExpHost, expBytes, buffers.dstExpDevice, expBytes, ACL_MEMCPY_DEVICE_TO_HOST);
+        EXPECT_EQ(buffers.dstExpHost[0], 125);
+        EXPECT_EQ(buffers.dstExpHost[1], 128);
+        for (size_t col = 0; col < packedCols; ++col) {
+            EXPECT_EQ(buffers.dstHost[col], 0x66) << "row 0, byte " << col;
+            EXPECT_EQ(buffers.dstHost[dstRowBytes + col], 0xee) << "row 1, byte " << col;
+        }
+    }
+    ReleaseMxQuantBuffers(buffers);
 }
 
 TEST_F(TQUANTTEST, case_mxfp8_fp16_32x128_nz) { test_tquant_mxfp8_fp16<32, 128, 1>(); }

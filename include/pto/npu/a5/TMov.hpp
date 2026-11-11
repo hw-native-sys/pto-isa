@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "common.hpp"
 #include <pto/common/arch_impl_switch.hpp>
 #include "TPartAdd.hpp"
+#include "TExtractCommon.hpp"
 
 namespace pto {
 template <typename T>
@@ -839,9 +840,12 @@ AICORE void TMovToRight(DstTileData& dst, SrcTileData& src)
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TMOV_CONVTILE_IMPL(DstTileData& dst, SrcTileData& src)
 {
-    if constexpr (SrcTileData::layout == pto::Layout::FRACTAL_Z) { // C1HWNC0, dst dim4 is c0Size
-        TExtractToBConv<DstTileData, SrcTileData>(
-            dst.data(), src.data(), src.GetShape(3), dst.GetValidRow(), dst.GetValidCol(), 0, 0);
+    if constexpr (DstTileData::Loc == TileType::Left) { // NC1HWC0
+        TExtractToAConvDispatch<DstTileData, SrcTileData>(
+            dst.data(), src.data(), src.GetShape(3), dst.GetValidRow(), dst.GetValidCol(), 0, 0, src.GetTranspose());
+    } else if constexpr (SrcTileData::layout == pto::Layout::FRACTAL_Z) { // C1HWNC0, dst dim4 is c0Size
+        TExtractToBConvDispatch<DstTileData, SrcTileData>(
+            dst.data(), src.data(), src.GetShape(3), dst.GetValidRow(), dst.GetValidCol(), 0, 0, src.GetTranspose());
     }
 }
 

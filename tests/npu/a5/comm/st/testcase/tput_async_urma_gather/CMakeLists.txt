@@ -1,0 +1,7 @@
+pto_comm_st(tput_async_urma_gather)
+
+if(PTO_URMA_GATHER_FORCE_SCALAR)
+    target_compile_definitions(tput_async_urma_gather_kernel PRIVATE PTO_URMA_GATHER_FORCE_SCALAR)
+elseif(PTO_URMA_GATHER_FORCE_SIMT)
+    target_compile_definitions(tput_async_urma_gather_kernel PRIVATE PTO_URMA_GATHER_FORCE_SIMT)
+endif()

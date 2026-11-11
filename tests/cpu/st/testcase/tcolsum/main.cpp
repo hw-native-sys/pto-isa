@@ -11,6 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "test_common.h"
 #include <pto/pto-inst.hpp>
 #include <gtest/gtest.h>
+#include <array>
+#include <bit>
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -18,7 +20,7 @@ using namespace PtoTestCommon;
 class TCOLSUMTest : public testing::Test {
 protected:
     void SetUp() override {}
-    void TearDown() override {}
+    void TearDown() override { pto::NPU_MEMORY_INIT(pto::NPUArch::A2A3); }
 };
 
 std::string GetGoldenDir()
@@ -93,3 +95,43 @@ TEST_F(TCOLSUMTest, case_int16_64x64_64x64_64x64) { test_tcolsum<int16_t, 64, 64
 TEST_F(TCOLSUMTest, case_uint16_64x64_64x64_64x64) { test_tcolsum<uint16_t, 64, 64, 64, 64>(); }
 TEST_F(TCOLSUMTest, case_int32_64x64_64x64_64x64) { test_tcolsum<int32_t, 64, 64, 64, 64>(); }
 TEST_F(TCOLSUMTest, case_uint32_64x64_64x64_64x64) { test_tcolsum<uint32_t, 64, 64, 64, 64>(); }
+
+template <typename T, int Rows, int Cols>
+void ExpectColSumFp32(const std::array<T, 4>& pattern, T expected)
+{
+    using Src = pto::Tile<pto::TileType::Vec, T, Rows, Cols, pto::BLayout::RowMajor, Rows, -1>;
+    using Dst = pto::Tile<pto::TileType::Vec, T, Rows, Cols, pto::BLayout::RowMajor, Rows, -1>;
+    pto::NPU_MEMORY_INIT(pto::NPUArch::A5);
+    Src src(Cols);
+    Dst dst(Cols);
+    pto::TASSIGN(src, 0);
+    for (int col = 0; col < Cols; ++col) {
+        for (int row = 0; row < Rows; ++row) {
+            src.data()[row * Cols + col] = pattern[row % pattern.size()];
+        }
+    }
+    const T sentinel = static_cast<T>(123);
+    pto::TASSIGN(dst, Src::GetSizeInBytes());
+    std::fill_n(dst.data(), Dst::Numel, sentinel);
+    pto::TCOLSUM(dst, src);
+    for (int col = 0; col < Cols; ++col) {
+        ASSERT_EQ(std::bit_cast<uint16_t>(dst.data()[col]), std::bit_cast<uint16_t>(expected)) << "col=" << col;
+        for (int row = 1; row < Rows; ++row) {
+            EXPECT_EQ(dst.data()[row * Cols + col], sentinel);
+        }
+    }
+}
+
+TEST_F(TCOLSUMTest, case_half_fp32_accumulation)
+{
+    // Each column is 4096 + 1 - 4096 + 1. Half accumulation loses the 1s
+    // (4096 + 1 rounds to 4096), yielding 1; fp32 accumulation preserves the
+    // exact sum 2.
+    const std::array<half, 4> pattern = {
+        std::bit_cast<half>(static_cast<uint16_t>(0x7000)),
+        std::bit_cast<half>(static_cast<uint16_t>(0x3c00)),
+        std::bit_cast<half>(static_cast<uint16_t>(0xf000)),
+        std::bit_cast<half>(static_cast<uint16_t>(0x3c00)),
+    };
+    ExpectColSumFp32<half, 4, 16>(pattern, std::bit_cast<half>(static_cast<uint16_t>(0x4000)));
+}

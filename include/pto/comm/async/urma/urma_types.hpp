@@ -38,8 +38,6 @@ constexpr uint32_t kUrmaCompletionRecordMinCqDepth = 128U;
 
 constexpr uint64_t kUrmaMaxWqeTransferBytes = 256ULL * 1024ULL * 1024ULL;
 
-constexpr uint32_t kUrmaMaxJettyShareTotal = 16U;
-
 constexpr uint32_t kUrmaAutoAivCount = UINT32_MAX;
 
 constexpr uint32_t kUrmaAutoJettiesPerCore = 0U;
@@ -55,6 +53,26 @@ constexpr uint32_t kUrmaSqeRmtAddrHOffset = 44;
 
 constexpr uint32_t kUrmaNotifySetSlotCount = 8U;
 constexpr uint32_t kUrmaNotifyResourceCachelineBytes = 64U;
+constexpr uint32_t kUrmaMaxSgesPerSqe = 12U;
+
+// Bounds for the plan-free SIMT gather fast path.
+constexpr uint32_t kUrmaGatherSimtWarpSize = 32U;
+constexpr uint32_t kUrmaGatherSimtWarps = 32U;
+constexpr uint32_t kUrmaGatherSimtMaxQueues = 16U;
+// Largest payload-SQE count routed to the scalar path. A 4-rank A5 sweep over
+// 1/2/6/12 SGEs and 1/4 queues puts the robust single-threshold crossover at
+// two SQEs: low-SGE N=1/2 favors scalar, while N>=4 favors SIMT overall.
+constexpr uint32_t kUrmaGatherScalarSqeThreshold = 2U;
+
+constexpr uint32_t kUrmaGatherSimtMaxSlotBbs = (kUrmaSqeSizeBytes + kUrmaMaxSgesPerSqe * kUrmaSgeSizeBytes + 63U) / 64U;
+static_assert(
+    kUrmaGatherSimtMaxSlotBbs * 8U <= kUrmaGatherSimtWarpSize,
+    "A fixed SQE slot must fit one 64-bit word per lane of a single warp");
+
+constexpr uint32_t kDefaultInflightGatherEventsPerAiv = 64U;
+constexpr uint16_t kUrmaGatherInlineEvent = UINT16_MAX - 2U;
+constexpr uint16_t kUrmaGatherNoCompletionEvent = UINT16_MAX - 1U;
+constexpr uint16_t kUrmaGatherSlotEvent = UINT16_MAX;
 
 struct UrmaNotifyResourceRegion {
     int32_t setValues[kUrmaNotifySetSlotCount];
@@ -99,16 +117,11 @@ enum class UrmaOpcode : uint32_t {
 //              row is (peer, queue).
 // SHARED_POOL: a pool of jetties, each reaching every peer. Peer and queue are
 //              chosen independently, so a ctx row is a jetty. The pool is
-//              carved into one exclusive run per AIV. At the default width the
-//              run holds one jetty per rail, so slot j is rail j and one AIV
-//              on its own reaches all of them; puts then walk the weighted
-//              rail cycle a call at a time, while a notify stays on the single
-//              slot its block index names, because its payload and signal are
-//              only ordered against each other while they share a queue. An
-//              explicit width instead pins the whole run to the one rail the
-//              cycle gave that AIV, and puts just rotate the run. Either way a
-//              session derives its run from get_block_idx() and no caller ever
-//              names a jetty.
+//              carved into one exclusive run per AIV. The default run contains
+//              one queue; an explicit jettiesPerCore > 1 gives each AIV more
+//              queue slots. Host-side weighted placement distributes all queue
+//              instances over the available rails. Device code rotates only
+//              within the current AIV's run.
 // ============================================================================
 enum class UrmaLayout : uint32_t { PER_PEER = 0, SHARED_POOL = 1 };
 
@@ -127,9 +140,136 @@ struct UrmaInfo {
     UrmaLayout layout;
     uint32_t jettyCount;
     uint32_t jettiesPerCore;
-    uint32_t railCycleLen;
-    uint8_t railCycle[kUrmaMaxJettyShareTotal];
+    uint64_t gatherRuntimeBase;
+    uint32_t gatherRuntimeStride;
+    uint32_t gatherCompletionSlotStride;
+    uint32_t gatherQueueStageCapacity;
+    uint64_t localMrBase;
+    uint64_t localMrLength;
 };
+
+enum class UrmaGatherQueueState : uint8_t {
+    Clean = 0,
+    OpenNoCqePrefix = 1,
+    FinalQueued = 2,
+};
+
+enum class UrmaGatherSlotState : uint8_t {
+    Allocated = 0,
+    Published = 1,
+    Retired = 2,
+};
+
+struct alignas(16) UrmaGatherAivRuntimeHeader {
+    uint32_t queueStageCapacity;
+    uint32_t reserved[3];
+};
+static_assert(sizeof(UrmaGatherAivRuntimeHeader) == 16U, "URMA gather runtime header layout mismatch");
+
+struct alignas(16) UrmaGatherCompletionPoolState {
+    uint32_t allocateSequence;
+    uint32_t reclaimSequence;
+    uint32_t nextGeneration;
+    uint32_t reserved;
+};
+static_assert(sizeof(UrmaGatherCompletionPoolState) == 16U, "URMA gather completion pool layout mismatch");
+
+struct alignas(16) UrmaGatherQueueStage {
+    uint32_t publishedBbSequence;
+    uint32_t nextBbSequence;
+    uint32_t publishedCqeSequence;
+    uint32_t nextCqeSequence;
+    uint32_t stagedOperationCount;
+    uint32_t noCqePrefixBbCount;
+    uint32_t lastPeer;
+    UrmaGatherQueueState state;
+    uint8_t initialized;
+    uint8_t reserved[2];
+};
+static_assert(sizeof(UrmaGatherQueueStage) == 32U, "URMA gather queue stage layout mismatch");
+
+struct alignas(16) UrmaGatherQueueSubmission {
+    uint32_t peer;
+    uint16_t jettyIndex;
+    uint16_t stageIndex;
+    uint32_t nextBbSequence;
+    uint32_t remainingSqeCount;
+    uint32_t payloadBbCount;
+    uint32_t requestedCqeCount;
+    uint32_t beginBbSequence;
+    uint32_t endBbSequence;
+    uint32_t beginCqeSequence;
+    uint32_t endCqeSequence;
+    uint8_t finalizeOnly;
+    uint8_t reserved[3];
+};
+static_assert(sizeof(UrmaGatherQueueSubmission) == 48U, "URMA gather queue submission layout mismatch");
+
+struct alignas(16) UrmaGatherSubmissionPlan {
+    uint32_t queueCount;
+    uint32_t payloadSqeCount;
+    uint64_t completionSlotAddress;
+    uint32_t completionSlotGeneration;
+    uint32_t nextWqeSeq;
+    uint8_t slotBbCount;
+};
+static_assert(sizeof(UrmaGatherSubmissionPlan) == 32U, "URMA gather submission plan layout mismatch");
+
+// ============================================================================
+// UB scratch for the plan-free SIMT gather fast path
+// ============================================================================
+// Everything the two SIMT passes share lives here instead of in GM: the
+// per-queue ring coordinates the fill needs, and the atomics that hand out SQE
+// slots. Keeping the counters in UB is what makes a per-SQE atomic affordable.
+struct UrmaGatherSimtQueueEntry {
+    uint64_t sqBaseAddress;
+    uint32_t workQueueDepth;
+    uint32_t baseBbSequence;
+    uint32_t sqeCount;
+    uint32_t fillCounter;
+};
+static_assert(sizeof(UrmaGatherSimtQueueEntry) == 24U, "URMA gather SIMT queue entry layout mismatch");
+
+struct UrmaGatherSimtActiveStage {
+    uint32_t stageKey;
+    uint32_t sqeCount;
+    uint32_t queueIndex;
+    uint32_t peer;
+};
+static_assert(sizeof(UrmaGatherSimtActiveStage) == 16U, "URMA gather SIMT active-stage layout mismatch");
+
+struct UrmaGatherSimtScratch {
+    UrmaGatherSimtActiveStage activeStages[kUrmaGatherSimtMaxQueues];
+    uint32_t warpSegmentSum[kUrmaGatherSimtWarps];
+    uint32_t warpSegmentBase[kUrmaGatherSimtWarps];
+    uint32_t warpSqeSum[kUrmaGatherSimtWarps];
+    uint32_t warpSqeBase[kUrmaGatherSimtWarps];
+    uint32_t maxSegmentCount;
+    uint32_t rejected;
+    uint32_t reserved[6];
+    UrmaGatherSimtQueueEntry queues[kUrmaGatherSimtMaxQueues];
+};
+static_assert(sizeof(UrmaGatherSimtScratch) == 1184U, "URMA gather SIMT scratch layout mismatch");
+
+struct UrmaCompletionTarget {
+    uint32_t peer;
+    uint16_t jettyIndex;
+    uint16_t reserved;
+    uint32_t targetBbSequence;
+    uint32_t beginCqeSequence;
+    uint32_t endCqeSequence;
+};
+static_assert(sizeof(UrmaCompletionTarget) == 20U, "URMA gather completion target layout mismatch");
+
+struct UrmaGatherCompletionSlotHeader {
+    uint32_t generation;
+    uint32_t targetCount;
+    uint32_t slotBytes;
+    uint8_t cqePolicy;
+    UrmaGatherSlotState state;
+    uint16_t reserved;
+};
+static_assert(sizeof(UrmaGatherCompletionSlotHeader) == 16U, "URMA gather completion slot layout mismatch");
 
 // ============================================================================
 // UrmaMemInfo — per-peer memory authentication info
@@ -186,6 +326,15 @@ struct UrmaCqCtx {
     uint32_t cqeShiftSize;
     uint32_t depth;
     UrmaDbMode dbMode;
+};
+
+// Independent producer requirements for the WQ BB ring and CQE ring.
+// The producer sequences already include any software-staged entries.
+struct UrmaQueueCapacityRequest {
+    uint32_t bbProducerSequence;
+    uint32_t cqeProducerSequence;
+    uint32_t requiredBbCount;
+    uint32_t requiredCqeCount;
 };
 
 // ============================================================================

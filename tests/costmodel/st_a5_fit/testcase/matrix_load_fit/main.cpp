@@ -50,6 +50,18 @@ TEST(A5MatrixLoadFit, MatmulFp16Fp32)
             .k = 128,
             .dst_dtype = DType::Float},
         24.4);
+    ExpectCycleNear(
+        "TMATMUL",
+        CostModelInput{
+            .op = PtoOpcode::TMATMUL,
+            .dtype = DType::Half,
+            .rows = 1,
+            .cols = 2,
+            .arch = CostModelArch::A5,
+            .dtype2 = DType::Half,
+            .k = 64,
+            .dst_dtype = DType::Float},
+        12.4);
 }
 
 TEST(A5MatrixLoadFit, MatmulAdapterPreservesInnerDimension)
@@ -60,6 +72,71 @@ TEST(A5MatrixLoadFit, MatmulAdapterPreservesInnerDimension)
     runtimeContext.npu_arch = ::pto::perf_sim::kAscend950Arch;
     EXPECT_EQ(::pto::perf_sim::EstimateLightweightCycles("TMATMUL", 16, 16, "fp16", "fp32", 128), kExpectedCycles);
     runtimeContext.npu_arch = originalArch;
+}
+
+TEST(A5MatrixLoadFit, AdapterPreservesA5PhysicalAndValidShapePath)
+{
+    auto& runtimeContext = ::pto::perf_sim::GetCostModelCtx();
+    const uint32_t originalArch = runtimeContext.npu_arch;
+    runtimeContext.npu_arch = ::pto::perf_sim::kAscend950Arch;
+
+    const ::pto::perf_sim::LightweightEstimateOptions options{
+        .physical_rows = 16,
+        .physical_cols = 256,
+        .valid_rows = 16,
+        .valid_cols = 256,
+        .a5_shape_path = A5ShapePathHint::Path2D,
+    };
+    EXPECT_EQ(
+        ::pto::perf_sim::EstimateLightweightCycles(
+            "TABS", 16, 256, "fp16", "unknown", 0, TransferTileType::Unknown, options),
+        130U);
+
+    runtimeContext.npu_arch = originalArch;
+}
+
+TEST(A5MatrixLoadFit, AdapterKeepsValidMatrixAndLegacyDimensions)
+{
+    auto& context = ::pto::perf_sim::GetCostModelCtx();
+    const uint32_t originalArch = context.npu_arch;
+    const ::pto::perf_sim::LightweightEstimateOptions options{
+        .physical_rows = 128, .physical_cols = 128, .valid_rows = 16, .valid_cols = 16};
+    context.npu_arch = ::pto::perf_sim::kAscend950Arch;
+    EXPECT_EQ(
+        ::pto::perf_sim::EstimateLightweightCycles(
+            "TMATMUL", 16, 16, "fp16", "fp32", 128, TransferTileType::Unknown, options),
+        24U);
+    context.npu_arch = 2201;
+    auto legacyOptions = options;
+    legacyOptions.valid_cols = 32;
+    const auto expected = ::pto::perf_sim::EstimateLightweightCycles("TADDS", 16, 32, "fp16");
+    EXPECT_GT(expected, 0U);
+    EXPECT_EQ(
+        ::pto::perf_sim::EstimateLightweightCycles(
+            "TADDS", 16, 32, "fp16", "unknown", 0, TransferTileType::Unknown, legacyOptions),
+        expected);
+    context.npu_arch = originalArch;
+}
+
+TEST(A5MatrixLoadFit, MissingA5FitDoesNotUseGenericFallback)
+{
+    auto& context = ::pto::perf_sim::GetCostModelCtx();
+    const uint32_t originalArch = context.npu_arch;
+    const ::pto::perf_sim::LightweightEstimateOptions indexOptions{.dtype2 = DType::Uint16, .has_dtype2 = true};
+    for (const auto arch : {::pto::perf_sim::kAscend950Arch, ::pto::perf_sim::kAscend950UrmaArch}) {
+        context.npu_arch = arch;
+        EXPECT_EQ(
+            ::pto::perf_sim::EstimateInstrCycles(
+                "TGATHER", 16, 128, "fp16", "fp16", 0, TransferTileType::Unknown, indexOptions),
+            0U);
+        EXPECT_EQ(
+            ::pto::perf_sim::EstimateInstrCycles("TLOAD", 12, 128, "fp16", "unknown", 0, TransferTileType::MatTile),
+            0U);
+        EXPECT_EQ(::pto::perf_sim::EstimateInstrCycles("TMATMUL", 16, 16, "fp16", "fp32", 128), 24U);
+    }
+    context.npu_arch = 2201;
+    EXPECT_GT(::pto::perf_sim::EstimateInstrCycles("UNSUPPORTED_TEST_OPCODE", 16, 128, "fp16"), 0U);
+    context.npu_arch = originalArch;
 }
 
 TEST(A5MatrixLoadFit, LoadFp16NdLargeTransfer)

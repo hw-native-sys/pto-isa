@@ -138,4 +138,62 @@ TEST(A5ElementwiseFit, HardwareProfiles)
     }
 }
 
+TEST(A5ElementwiseFit, Fp16SingleRepeatUsesMeasuredStartupRegion)
+{
+    struct SmallRepeatCase {
+        PtoOpcode op;
+        double cycles;
+    };
+    constexpr SmallRepeatCase kCases[] = {
+        {PtoOpcode::TADD, 38.0}, {PtoOpcode::TSUB, 38.0},  {PtoOpcode::TMUL, 39.0},
+        {PtoOpcode::TNEG, 38.0}, {PtoOpcode::TMINS, 36.0},
+    };
+    for (const auto& testCase : kCases) {
+        CostModelResult result{};
+        ASSERT_TRUE(EstimateCycles(
+            CostModelInput{
+                .op = testCase.op,
+                .dtype = DType::Half,
+                .rows = 1,
+                .cols = 16,
+                .arch = CostModelArch::A5,
+                .valid_rows = 1,
+                .valid_cols = 16,
+            },
+            result));
+        EXPECT_EQ(result.cycles, testCase.cycles);
+    }
+}
+
+TEST(A5ElementwiseFit, Fp16LongSingleRowAndTwoDimensionalPaths)
+{
+    struct RegressionCase {
+        PtoOpcode op;
+        const char* name;
+        int64_t rows;
+        int64_t cols;
+        double profilingCycles;
+    };
+    constexpr RegressionCase kCases[] = {
+        {PtoOpcode::TADD, "TADD/long-row", 1, 43648, 737.0}, {PtoOpcode::TMUL, "TMUL/long-row", 1, 43648, 737.0},
+        {PtoOpcode::TMAX, "TMAX/long-row", 1, 43648, 736.0}, {PtoOpcode::TMIN, "TMIN/long-row", 1, 43648, 736.0},
+        {PtoOpcode::TABS, "TABS/long-row", 1, 65472, 548.0}, {PtoOpcode::TABS, "TABS/2D", 128, 128, 786.0},
+        {PtoOpcode::TNEG, "TNEG/2D", 16, 256, 130.0},        {PtoOpcode::TNEG, "TNEG/narrow-2D", 4092, 16, 24570.0},
+    };
+    constexpr double kRequiredPrecision = 0.95;
+    for (const auto& testCase : kCases) {
+        const CostModelInput input{
+            .op = testCase.op,
+            .dtype = DType::Half,
+            .rows = testCase.rows,
+            .cols = testCase.cols,
+            .arch = CostModelArch::A5,
+            .valid_rows = testCase.rows,
+            .valid_cols = testCase.cols,
+            .a5_shape_path = testCase.rows == 1 ? A5ShapePathHint::Path1D : A5ShapePathHint::Path2D,
+        };
+        pto::test::ExpectA5CycleNear(testCase.name, input, testCase.profilingCycles, kRequiredPrecision);
+    }
+}
+
 } // namespace

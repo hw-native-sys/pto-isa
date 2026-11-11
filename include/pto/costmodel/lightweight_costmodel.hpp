@@ -152,6 +152,12 @@ enum class CostModelArch : uint8_t {
     A5,
 };
 
+enum class A5ShapePathHint : uint8_t {
+    Auto,
+    Path1D,
+    Path2D,
+};
+
 struct CostModelInput {
     PtoOpcode op;
     DType dtype;
@@ -160,6 +166,7 @@ struct CostModelInput {
     CostModelArch arch = CostModelArch::A2A3;
 
     DType dtype2 = DType::Float;
+    bool has_dtype2 = false;
     int64_t k = 0;
 
     DType dst_dtype = DType::Float;
@@ -182,9 +189,17 @@ struct CostModelInput {
 
     int64_t valid_rows = 0;
     int64_t valid_cols = 0;
+    A5ShapePathHint a5_shape_path = A5ShapePathHint::Auto;
     VFImplKind vf_impl_kind = VFImplKind::VFIMPL_DEFAULT;
     SaturationMode saturation_mode = SaturationMode::ON;
     std::string_view a5_op_params{};
+    // Pattern overloads are distinct from indexed gather/scatter, including P1111.
+    bool has_mask_pattern = false;
+    MaskPattern mask_pattern = MaskPattern::P1111;
+    GatherAxis gather_axis = GatherAxis::GATHER_ROW;
+    ScatterAxis scatter_axis = ScatterAxis::SCATTER_ROW;
+    int64_t dst_valid_rows = 0;
+    int64_t dst_valid_cols = 0;
 };
 
 struct CostModelResult {

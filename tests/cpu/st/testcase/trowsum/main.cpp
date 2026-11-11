@@ -277,7 +277,12 @@ TEST_F(TROWSUMTest, case_a5_half_tree_rounding_and_tail)
         for (int col = 0; col < validCols; ++col) {
             input[col] = pattern[col % pattern.size()];
         }
-        const half expected = validCols == 129 ? 4096 : 0;
+        // fp32 accumulation: every full 4-element group sums to 2; the tail contributes
+        // 4096 (+1) (-4096) per remaining lane. All results are exact in fp32 and half.
+        const int fullGroups = validCols / 4;
+        const int tail = validCols % 4;
+        const half expected =
+            static_cast<half>(fullGroups * 2 + (tail >= 1 ? 4096 : 0) + (tail >= 2 ? 1 : 0) + (tail >= 3 ? -4096 : 0));
         ExpectA5TypedReduction<half, 1>(input, validCols, expected);
         ExpectA5TypedReduction<half, 130, true>(input, validCols, expected);
     }
@@ -290,9 +295,9 @@ TEST_F(TROWSUMTest, case_a5_half_rounds_between_vectors)
     input[128] = 1;
     input[256] = -4096;
     input[384] = 1;
-    // Half accumulation gives 1; widening all four group sums to float gives 2.
-    ExpectA5TypedReduction<half, 1>(input, 512, static_cast<half>(1));
-    ExpectA5TypedReduction<half, 33>(input, 512, static_cast<half>(1));
+    // fp32 accumulation preserves 4096 + 1 - 4096 + 1 = 2 (half accumulation would lose the two 1s).
+    ExpectA5TypedReduction<half, 1>(input, 512, static_cast<half>(2));
+    ExpectA5TypedReduction<half, 33>(input, 512, static_cast<half>(2));
 }
 
 TEST_F(TROWSUMTest, case_a5_half_valid_columns_do_not_truncate)

@@ -17,13 +17,14 @@ namespace pto {
 template <typename TileDst, typename TileSrc>
 void TRowProd(typename TileDst::TileDType dst, typename TileSrc::TileDType src, uint16_t rows, uint16_t cols)
 {
+    // 16-bit floating-point products are widened to float and rounded back once.
+    using Acc = TypeSum<TileDst>;
     cpu::parallel_for_1d(0, rows, static_cast<std::size_t>(rows) * cols, [&](std::size_t r) {
-        typename TileDst::DType prod = static_cast<typename TileDst::DType>(1);
+        Acc prod = static_cast<Acc>(1);
         for (std::size_t c = 0; c < cols; ++c) {
-            prod = static_cast<typename TileDst::DType>(
-                prod * static_cast<typename TileDst::DType>(src[GetTileElementOffset<TileSrc>(r, c)]));
+            prod = static_cast<Acc>(prod * static_cast<Acc>(src[GetTileElementOffset<TileSrc>(r, c)]));
         }
-        dst[GetTileElementOffset<TileDst>(r, 0)] = prod;
+        dst[GetTileElementOffset<TileDst>(r, 0)] = static_cast<typename TileDst::DType>(prod);
     });
 }
 

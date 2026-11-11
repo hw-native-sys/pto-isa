@@ -16,6 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/async/sdma/sdma_async_intrin.hpp"
 #ifdef PTO_URMA_SUPPORTED
 #include "pto/comm/async/urma/urma_async_intrin.hpp"
+#include "pto/comm/async/urma/urma_gather_async.hpp"
 #endif
 #ifdef PTO_RDMA_SUPPORTED
 #include "pto/comm/async/rdma/rdma_async_intrin.hpp"
@@ -43,35 +44,26 @@ PTO_INTERNAL bool BuildAsyncSession(
 }
 
 #ifdef PTO_URMA_SUPPORTED
+// Scratch-carrying URMA builder. The scratch tile is what lets the SIMT gather
+// path run; sessions built without one fall back to the scalar path. Like the
+// other URMA builders it takes the workspace first, which also keeps it apart
+// from the SDMA overload above instead of colliding on (tile, workspace, session).
+template <DmaEngine engine, typename ScratchTile>
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t* workspace, ScratchTile& scratchTile, AsyncSession& session)
+{
+    static_assert(engine == DmaEngine::URMA, "This overload is for URMA only");
+    if (!urma::BuildSession(workspace, session)) {
+        return false;
+    }
+    urma::BindSessionScratch(scratchTile, session);
+    return true;
+}
+
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t* workspace, AsyncSession& session)
 {
     static_assert(engine == DmaEngine::URMA, "This overload is for URMA only");
-    session = AsyncSession{};
-    // AsyncSession{} leaves cfg/rt on their SDMA alternative, so the URMA ones
-    // have to be activated explicitly rather than inherited from the defaults.
-    detail::ActivateEngineState<DmaEngine::URMA>(session);
-    session.contextGm = workspace;
-    // destRankId and qpIdxBase keep the zeros AsyncSession{} gave them; the shared-pool path below
-    // is the only one that moves qpIdxBase off its base.
-    session.cfg.urma.qpCount = 1;
-    if (workspace == nullptr) {
-        return false;
-    }
-    __gm__ urma::UrmaInfo* info = reinterpret_cast<__gm__ urma::UrmaInfo*>(workspace);
-    const uint32_t perCore = info->jettiesPerCore;
-    if (perCore == 0U || perCore > urma::kUrmaMaxJettiesPerCore) {
-        return false;
-    }
-    session.qpIdxBase = 0;
-    session.cfg.urma.qpCount = perCore;
-    const uint32_t block = static_cast<uint32_t>(get_block_idx());
-    const uint32_t bound = urma::detail::UrmaJettyIdxBound(info);
-    session.valid = (perCore <= bound) && (block <= (bound - perCore) / perCore);
-    if (session.valid) {
-        session.qpIdxBase = block * perCore;
-    }
-    return session.valid;
+    return urma::BuildSession(workspace, session);
 }
 
 template <DmaEngine engine>
@@ -129,6 +121,10 @@ PTO_INTERNAL bool BuildAsyncSession(
 // Shared by Wait/Test so the two cannot drift apart on which jetties they drain.
 PTO_INTERNAL bool UrmaEventComplete(const AsyncEvent& event, const AsyncSession& session, bool blocking)
 {
+    const uint16_t eventKind = event.urmaJettyCount;
+    if (urma::detail::IsUrmaGatherEventKind(eventKind)) {
+        return urma::detail::UrmaGatherEventComplete(event, session, blocking);
+    }
     if (event.urmaJettyCount == 0U) {
         return urma::detail::UrmaWaitEvent(event.handle, event.urmaTargetCqe, session, blocking);
     }
@@ -208,6 +204,10 @@ PTO_INTERNAL uint32_t AsyncEvent::CompletionRecordCount(const AsyncSession& sess
         }
 #ifdef PTO_URMA_SUPPORTED
         case DmaEngine::URMA: {
+            const uint16_t eventKind = urmaJettyCount;
+            if (urma::detail::IsUrmaGatherEventKind(eventKind)) {
+                return urma::detail::UrmaGatherCompletionRecordCount(*this, session);
+            }
             uint32_t peer = 0U;
             uint32_t targetBb = 0U;
             urma::detail::DecodeHandle(handle, peer, targetBb);
@@ -267,6 +267,10 @@ PTO_INTERNAL AsyncCompletionRecord AsyncEvent::CompletionRecordAt(const AsyncSes
         }
 #ifdef PTO_URMA_SUPPORTED
         case DmaEngine::URMA: {
+            const uint16_t eventKind = urmaJettyCount;
+            if (urma::detail::IsUrmaGatherEventKind(eventKind)) {
+                return urma::detail::UrmaGatherCompletionRecordAt(*this, session, idx);
+            }
             uint32_t peer = 0U;
             uint32_t targetBb = 0U;
             urma::detail::DecodeHandle(handle, peer, targetBb);

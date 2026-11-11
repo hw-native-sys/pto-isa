@@ -376,23 +376,6 @@ bool BuildAndCopyUrmaInfoTable(const UrmaPeerInfoTables& tables)
     return true;
 }
 
-void FillRailCycle(UrmaInfo& info) const
-{
-    info.railCycleLen = 0U;
-    for (uint8_t& entry : info.railCycle) {
-        entry = 0U;
-    }
-    if (Layout() != UrmaLayout::SHARED_POOL || railPeerLinks_.empty() || !RunCoversEveryRail()) {
-        return;
-    }
-    const std::vector<uint32_t> cycle = AivRailCycle();
-    const size_t len = std::min(cycle.size(), sizeof(info.railCycle) / sizeof(info.railCycle[0]));
-    for (size_t k = 0; k < len; ++k) {
-        info.railCycle[k] = static_cast<uint8_t>(cycle[k]);
-    }
-    info.railCycleLen = static_cast<uint32_t>(len);
-}
-
 void FillUrmaInfoLayout(std::vector<uint8_t>& hostBuf, const UrmaPeerInfoTables& tables)
 {
     const size_t ctxRows = tables.wqList.size();
@@ -403,7 +386,13 @@ void FillUrmaInfoLayout(std::vector<uint8_t>& hostBuf, const UrmaPeerInfoTables&
     info->layout = Layout();
     info->jettyCount = static_cast<uint32_t>(ctxRows);
     info->jettiesPerCore = JettiesPerCore();
-    FillRailCycle(*info);
+    const uint64_t gatherRuntimeOffset = AlignUp(QueueMetadataBytes(), kCacheLineSize);
+    info->gatherRuntimeBase = reinterpret_cast<uint64_t>(static_cast<uint8_t*>(urmaInfoDevice_) + gatherRuntimeOffset);
+    info->gatherRuntimeStride = static_cast<uint32_t>(GatherRuntimeStride());
+    info->gatherCompletionSlotStride = GatherCompletionSlotStride();
+    info->gatherQueueStageCapacity = GatherQueueStageCapacity();
+    info->localMrBase = reinterpret_cast<uint64_t>(symmetricAddr_);
+    info->localMrLength = symmetricSize_;
 
     uint8_t* devAddr = static_cast<uint8_t*>(urmaInfoDevice_) + sizeof(UrmaInfo);
     info->sqPtr = reinterpret_cast<uint64_t>(devAddr);
@@ -435,6 +424,16 @@ void FillUrmaInfoLayout(std::vector<uint8_t>& hostBuf, const UrmaPeerInfoTables&
     }
     for (size_t row = 0; row < tables.memList.size(); ++row) {
         memArr[row] = tables.memList[row];
+    }
+
+    for (uint32_t aiv = 0U; aiv < aivCount_; ++aiv) {
+        uint8_t* runtimeBase =
+            hostBuf.data() + gatherRuntimeOffset + static_cast<uint64_t>(aiv) * info->gatherRuntimeStride;
+        auto* header = reinterpret_cast<UrmaGatherAivRuntimeHeader*>(runtimeBase);
+        header->queueStageCapacity = info->gatherQueueStageCapacity;
+        auto* completionPool =
+            reinterpret_cast<UrmaGatherCompletionPoolState*>(runtimeBase + sizeof(UrmaGatherAivRuntimeHeader));
+        completionPool->nextGeneration = 1U;
     }
 }
 

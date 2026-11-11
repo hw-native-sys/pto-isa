@@ -43,6 +43,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/a5/async/TPutAsync.hpp"
 #include "pto/comm/a5/async/TPutAsyncBatch.hpp"
 #include "../../../pkg_inc/pto/comm/a5/async/TPutAsyncNotify.hpp"
+#ifdef PTO_URMA_SUPPORTED
+#include "pto/comm/async/urma/urma_gather_async.hpp"
+#endif
 #include "pto/comm/a5/async/TGetAsync.hpp"
 // Signal-Based Synchronization
 #include "pto/comm/a5/TNotify.hpp"

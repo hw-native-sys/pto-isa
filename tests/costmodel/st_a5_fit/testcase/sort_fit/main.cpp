@@ -31,7 +31,7 @@ struct FitCase {
 
 constexpr FitCase kCases[] = {
     {PtoOpcode::TMRGSORT, "TMRGSORT", DType::Half, 1, 8192, 1123.0},
-    {PtoOpcode::TSORT32, "TSORT32", DType::Half, 128, 32, 6400.0},
+    {PtoOpcode::TSORT32, "TSORT32", DType::Half, 128, 32, 1290.1},
 };
 
 TEST(A5SortFit, HardwareProfiles)
@@ -46,6 +46,37 @@ TEST(A5SortFit, HardwareProfiles)
             .arch = CostModelArch::A5,
             .valid_rows = testCase.rows,
             .valid_cols = testCase.cols,
+        };
+        pto::test::ExpectA5CycleNear(testCase.name, input, testCase.profilingCycles, kRequiredPrecision);
+    }
+}
+
+TEST(A5SortFit, SortWithoutTemporaryTileShortRows)
+{
+    struct SortCase {
+        DType dtype;
+        const char* name;
+        int64_t rows;
+        int64_t cols;
+        double profilingCycles;
+    };
+    constexpr SortCase kSortCases[] = {
+        {DType::Half, "TSORT32/no_tmp/fp16", 16, 16, 138.2},
+        {DType::Float, "TSORT32/no_tmp/fp32", 16, 16, 137.2},
+        {DType::Half, "TSORT32/no_tmp/fp16", 64, 16, 522.2},
+    };
+    constexpr double kRequiredPrecision = 0.95;
+    for (const auto& testCase : kSortCases) {
+        const CostModelInput input{
+            .op = PtoOpcode::TSORT32,
+            .dtype = testCase.dtype,
+            .rows = testCase.rows,
+            .cols = testCase.cols,
+            .arch = CostModelArch::A5,
+            .valid_rows = testCase.rows,
+            .valid_cols = testCase.cols,
+            .a5_shape_path = A5ShapePathHint::Path2D,
+            .a5_op_params = "no_tmp_subrepeat",
         };
         pto::test::ExpectA5CycleNear(testCase.name, input, testCase.profilingCycles, kRequiredPrecision);
     }

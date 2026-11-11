@@ -153,6 +153,15 @@ public:
         eidDevice_ = base + workspace.eidOffset;
         notifyPoolDevice_ = base + workspace.notifyOffset;
         notifyPoolSize_ = workspace.notifyBytes;
+        const uint64_t gatherQueueCapacity =
+            layout_ == UrmaLayout::PER_PEER ? static_cast<uint64_t>(rankCount_) * jettiesPerCore_ : jettiesPerCore_;
+        if (gatherQueueCapacity > std::numeric_limits<uint16_t>::max() ||
+            JettyCount() > std::numeric_limits<uint16_t>::max()) {
+            PTO_HOST_LOG_ERROR(
+                "URMA", "queue topology exceeds the 16-bit gather queue index: stages=" << gatherQueueCapacity
+                                                                                        << " jetties=" << JettyCount());
+            return false;
+        }
 
         if (!AllocateNotifyPool()) {
             return false;
@@ -333,8 +342,26 @@ private:
         if (targetRows > UINT32_MAX) {
             return ACL_ERROR_INVALID_PARAM;
         }
-        result.infoBytes = sizeof(UrmaInfo) + ctxRows * (2U * sizeof(UrmaWQCtx) + 2U * sizeof(UrmaCqCtx)) +
-                           targetRows * sizeof(UrmaMemInfo);
+        const uint64_t queueMetadataBytes = sizeof(UrmaInfo) +
+                                            ctxRows * (2U * sizeof(UrmaWQCtx) + 2U * sizeof(UrmaCqCtx)) +
+                                            targetRows * sizeof(UrmaMemInfo);
+        const uint64_t gatherQueueCapacity = layout == UrmaLayout::PER_PEER ?
+                                                 static_cast<uint64_t>(rankCount) * result.jettiesPerCore :
+                                                 result.jettiesPerCore;
+        if (gatherQueueCapacity > std::numeric_limits<uint16_t>::max() ||
+            ctxRows > std::numeric_limits<uint16_t>::max()) {
+            return ACL_ERROR_INVALID_PARAM;
+        }
+        const uint64_t gatherCompletionSlotStride =
+            AlignUp(sizeof(UrmaGatherCompletionSlotHeader) + gatherQueueCapacity * sizeof(UrmaCompletionTarget), 16U);
+        const uint64_t gatherRuntimeStride = AlignUp(
+            sizeof(UrmaGatherAivRuntimeHeader) + sizeof(UrmaGatherCompletionPoolState) +
+                gatherQueueCapacity * sizeof(UrmaGatherQueueStage) +
+                gatherQueueCapacity * sizeof(UrmaGatherQueueSubmission) +
+                static_cast<uint64_t>(kDefaultInflightGatherEventsPerAiv) * gatherCompletionSlotStride,
+            kCacheLineSize);
+        result.infoBytes =
+            AlignUp(queueMetadataBytes, kCacheLineSize) + static_cast<uint64_t>(result.aivCount) * gatherRuntimeStride;
         result.eidOffset = (result.infoBytes + kCacheLineSize - 1) & ~(uint64_t{kCacheLineSize} - 1);
         constexpr uint64_t notifyAlignment = kUrmaNotifyResourceCachelineBytes;
         result.notifyOffset =
@@ -343,6 +370,36 @@ private:
         result.totalBytes = result.notifyOffset + result.notifyBytes;
         out = result;
         return ACL_SUCCESS;
+    }
+
+    static uint64_t AlignUp(uint64_t value, uint64_t alignment)
+    {
+        return (value + alignment - 1U) / alignment * alignment;
+    }
+
+    uint32_t GatherQueueStageCapacity() const { return IsPerPeer() ? rankCount_ * jettiesPerCore_ : jettiesPerCore_; }
+
+    uint32_t GatherCompletionSlotStride() const
+    {
+        const uint64_t bytes = sizeof(UrmaGatherCompletionSlotHeader) +
+                               static_cast<uint64_t>(GatherQueueStageCapacity()) * sizeof(UrmaCompletionTarget);
+        return static_cast<uint32_t>(AlignUp(bytes, 16U));
+    }
+
+    uint64_t GatherRuntimeStride() const
+    {
+        const uint64_t queueCapacity = GatherQueueStageCapacity();
+        const uint64_t bytes = sizeof(UrmaGatherAivRuntimeHeader) + sizeof(UrmaGatherCompletionPoolState) +
+                               queueCapacity * sizeof(UrmaGatherQueueStage) +
+                               queueCapacity * sizeof(UrmaGatherQueueSubmission) +
+                               static_cast<uint64_t>(kDefaultInflightGatherEventsPerAiv) * GatherCompletionSlotStride();
+        return AlignUp(bytes, kCacheLineSize);
+    }
+
+    uint64_t QueueMetadataBytes() const
+    {
+        return sizeof(UrmaInfo) + CtxRowCount() * (2U * sizeof(UrmaWQCtx) + 2U * sizeof(UrmaCqCtx)) +
+               TargetRowCount() * sizeof(UrmaMemInfo);
     }
 
     bool AllocateNotifyPool()
