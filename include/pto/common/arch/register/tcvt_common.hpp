@@ -454,6 +454,71 @@ inline AICORE void cast8to16_1D_NoPostUpdate(
     }
 }
 
+#if defined(PTO_NPU_ARCH_A6)
+/**
+ * Cast BF16 to E8M0 (exponent-only FP8) - 1D version
+ * Intrinsic: vcvt_bf162e8m0(dst, src, preg, rnd, sat, part)
+ *
+ * Hardware only accepts ROUND_C (exponent ceil) and ROUND_Z (exponent trunc):
+ *   - R == ROUND_C or ROUND_A -> ROUND_C
+ *   - everything else (ROUND_R/ROUND_F/ROUND_Z/ROUND_O) -> ROUND_Z
+ * The sat operand is ignored by hardware (always saturating); RS_ENABLE is passed
+ * to match the CANN high-level Cast reference implementation.
+ */
+template <typename R>
+inline AICORE void castBf16ToE8m0_1D_NoPostUpdate(
+    __ubuf__ float8_e8m0_t* dst, __ubuf__ bfloat16_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    uint32_t totalElements = validRows * validCols;
+    uint16_t repeatTimes = CeilDivision(totalElements, ELE_CNT_B16);
+    uint32_t sReg = totalElements;
+    uint32_t len16 = ELE_CNT_B16;
+    MaskReg preg_b16 = CreatePredicate<half>(len16);
+
+    for (uint16_t i = 0; i < repeatTimes; ++i) {
+        vector_bf16 v_input_0;
+        vector_f8e8m0 v_output_even;
+        MaskReg preg_b16_st = CreatePredicate<half>(sReg);
+
+        vlds(v_input_0, src, i * ELE_CNT_B16, NORM);
+        if constexpr (std::is_same_v<R, decltype(ROUND_C)> || std::is_same_v<R, decltype(ROUND_A)>) {
+            vcvt_bf162e8m0(v_output_even, v_input_0, preg_b16, ROUND_C, RS_ENABLE, PART_EVEN, MODE_ZEROING);
+        } else {
+            vcvt_bf162e8m0(v_output_even, v_input_0, preg_b16, ROUND_Z, RS_ENABLE, PART_EVEN, MODE_ZEROING);
+        }
+        vsts(v_output_even, dst, i * ELE_CNT_B16, PK_B16, preg_b16_st);
+        // sReg is decremented by CreatePredicate with POST_UPDATE
+    }
+}
+
+/**
+ * Cast E8M0 (exponent-only FP8) to BF16 - 1D version (exact widening, no rounding)
+ * Intrinsic: vcvt_e8m02bf16(dst, src, preg, part)
+ */
+inline AICORE void castE8m0ToBf16_1D_NoPostUpdate(
+    __ubuf__ bfloat16_t* dst, __ubuf__ float8_e8m0_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    uint32_t totalElements = validRows * validCols;
+    uint16_t repeatTimes = CeilDivision(totalElements, ELE_CNT_B16);
+    uint32_t sReg = totalElements;
+    uint32_t len8 = ELE_CNT_B8;
+    MaskReg preg_b8 = CreatePredicate<uint8_t>(len8);
+
+    for (uint16_t i = 0; i < repeatTimes; ++i) {
+        vector_f8e8m0 v_input_0;
+        vector_bf16 v_output;
+        MaskReg preg_b16 = CreatePredicate<half>(sReg);
+
+        vlds(v_input_0, src, i * ELE_CNT_B16, UNPK_B8);
+        vcvt_e8m02bf16(v_output, v_input_0, preg_b8, PART_EVEN);
+        vsts(v_output, dst, i * ELE_CNT_B16, NORM_B16, preg_b16);
+        // sReg is decremented by CreatePredicate with POST_UPDATE
+    }
+}
+#endif // PTO_NPU_ARCH_A6
+
 /**
  * Cast 8-bit to 32-bit types - 1D version
  */
@@ -1086,6 +1151,77 @@ inline AICORE void cast8to16(
     END_FOR_ROWS
 }
 
+#if defined(PTO_NPU_ARCH_A6)
+/**
+ * Cast BF16 to E8M0 (exponent-only FP8) - 2D versions
+ * Rounds the exponent field only (hardware supports ceil/trunc of the exponent):
+ *   - R == ROUND_C or ROUND_A -> ROUND_C ; else -> ROUND_Z
+ * Saturation is always on (hardware ignores the sat operand).
+ */
+template <typename R>
+inline AICORE void castBf16ToE8m0(
+    __ubuf__ float8_e8m0_t* dst, __ubuf__ bfloat16_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    uint32_t len16 = ELE_CNT_B16;
+    MaskReg preg_b16 = CreatePredicate<half>(len16);
+
+    FOR_ROWS
+    FOR_ELEMENTS(ELE_CNT_B16)
+    vector_bf16 v_input_0;
+    vector_f8e8m0 v_output_even;
+    MaskReg preg_b16_st = CreatePredicate<half>(sreg);
+
+    vlds(v_input_0, src, srcOffset, NORM);
+    if constexpr (std::is_same_v<R, decltype(ROUND_C)> || std::is_same_v<R, decltype(ROUND_A)>) {
+        vcvt_bf162e8m0(v_output_even, v_input_0, preg_b16, ROUND_C, RS_ENABLE, PART_EVEN, MODE_ZEROING);
+    } else {
+        vcvt_bf162e8m0(v_output_even, v_input_0, preg_b16, ROUND_Z, RS_ENABLE, PART_EVEN, MODE_ZEROING);
+    }
+    vsts(v_output_even, dst, dstOffset, PK_B16, preg_b16_st);
+    END_FOR_ELEMENTS
+    END_FOR_ROWS
+}
+
+template <typename R>
+inline AICORE void castBf16ToE8m0_2D_NoPostUpdate(
+    __ubuf__ float8_e8m0_t* dst, __ubuf__ bfloat16_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castBf16ToE8m0<R>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+
+/**
+ * Cast E8M0 (exponent-only FP8) to BF16 - 2D versions (exact widening, no rounding)
+ */
+inline AICORE void castE8m0ToBf16(
+    __ubuf__ bfloat16_t* dst, __ubuf__ float8_e8m0_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    uint32_t len8 = ELE_CNT_B8;
+    MaskReg preg_b8 = CreatePredicate<uint8_t>(len8);
+
+    FOR_ROWS
+    FOR_ELEMENTS(ELE_CNT_B16)
+    vector_f8e8m0 v_input_0;
+    vector_bf16 v_output;
+    MaskReg preg_b16 = CreatePredicate<half>(sreg);
+
+    vlds(v_input_0, src, srcOffset, UNPK_B8);
+    vcvt_e8m02bf16(v_output, v_input_0, preg_b8, PART_EVEN);
+    vsts(v_output, dst, dstOffset, NORM_B16, preg_b16);
+    END_FOR_ELEMENTS
+    END_FOR_ROWS
+}
+
+inline AICORE void castE8m0ToBf16_2D_NoPostUpdate(
+    __ubuf__ bfloat16_t* dst, __ubuf__ float8_e8m0_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castE8m0ToBf16(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+#endif // PTO_NPU_ARCH_A6
+
 /**
  * Cast 8-bit to 32-bit types (FP8 to FP32 type expansion)
  * Handles: e4m3/e5m2/h8 -> f32 #part
@@ -1666,6 +1802,25 @@ inline AICORE void castData_2D_NoPostUpdate(
 {
     cast16to16<R, CastMode::SAT_ROUND>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
 }
+
+#if defined(PTO_NPU_ARCH_A6)
+/** BF16 -> E8M0 (exponent-only FP8) #rnd (ceil/trunc of exponent, always saturating) */
+template <typename R>
+inline AICORE void castData(
+    __ubuf__ float8_e8m0_t* dst, __ubuf__ bfloat16_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castBf16ToE8m0<R>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+
+template <typename R>
+inline AICORE void castData_2D_NoPostUpdate(
+    __ubuf__ float8_e8m0_t* dst, __ubuf__ bfloat16_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castBf16ToE8m0_2D_NoPostUpdate<R>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+#endif // PTO_NPU_ARCH_A6
 #endif // PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_A6
 
 /**
@@ -2378,6 +2533,25 @@ inline AICORE void castData_2D_NoPostUpdate(
 {
     cast8to32<vector_hif8>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
 }
+
+#if defined(PTO_NPU_ARCH_A6)
+/** E8M0 (exponent-only FP8) -> BF16 (exact widening) → vcvt_e8m02bf16(dst, src, preg, part) */
+template <typename R>
+inline AICORE void castData(
+    __ubuf__ bfloat16_t* dst, __ubuf__ float8_e8m0_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castE8m0ToBf16(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+
+template <typename R>
+inline AICORE void castData_2D_NoPostUpdate(
+    __ubuf__ bfloat16_t* dst, __ubuf__ float8_e8m0_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castE8m0ToBf16_2D_NoPostUpdate(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+#endif // PTO_NPU_ARCH_A6
 #endif // PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_A6
 
 //=============================================================================================
@@ -2459,6 +2633,17 @@ inline AICORE void castData_1D_NoPostUpdate(
 {
     cast8to32_1D_NoPostUpdate<vector_hif8>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
 }
+
+#if defined(PTO_NPU_ARCH_A6)
+// Source: E8M0 (exponent-only FP8)
+template <typename R>
+inline AICORE void castData_1D_NoPostUpdate(
+    __ubuf__ bfloat16_t* dst, __ubuf__ float8_e8m0_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castE8m0ToBf16_1D_NoPostUpdate(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+#endif // PTO_NPU_ARCH_A6
 #endif // PTO_NPU_ARCH_A5 || PTO_NPU_ARCH_A6
 
 //---------------------------------------------------------------------------------------------
@@ -2569,6 +2754,17 @@ inline AICORE void castData_1D_NoPostUpdate(
 {
     cast16to16_1D_NoPostUpdate<R, CastMode::SAT_ROUND>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
 }
+
+#if defined(PTO_NPU_ARCH_A6)
+// BF16 -> E8M0 (exponent-only FP8)
+template <typename R>
+inline AICORE void castData_1D_NoPostUpdate(
+    __ubuf__ float8_e8m0_t* dst, __ubuf__ bfloat16_t* src, uint32_t validRows, uint32_t validCols, uint32_t dstCols,
+    uint32_t srcCols, SaturationMode satMode)
+{
+    castBf16ToE8m0_1D_NoPostUpdate<R>(dst, src, validRows, validCols, dstCols, srcCols, satMode);
+}
+#endif // PTO_NPU_ARCH_A6
 
 // FP4 (packed x2) conversions are A5-only
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)

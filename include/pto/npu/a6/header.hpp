@@ -67,7 +67,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a5/TColSum.hpp"
 #include "pto/npu/a5/TConcat.hpp"
 #ifdef PTO_COMPILE_VEC
-#include "pto/npu/a5/TCvt.hpp"
+#include "pto/npu/a6/TCvt.hpp"
 #endif
 #include "pto/npu/a5/TDeQuant.hpp"
 #include "pto/npu/a5/TDiv.hpp"
