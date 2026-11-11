@@ -131,6 +131,18 @@ def main() -> int:
         ),
         ("precision", [], "T a,b,c; pto::TDIV<pto::DivAlgorithm::HIGH_PRECISION>(c,a,b);", "default math algorithm"),
     ]
+    for layout in ("RowMajor", "ColMajor"):
+        for rows, cols in ((2, 5), (3, 3)):
+            cases.append(
+                (
+                    f"tabs_valid_{layout}_{rows}_{cols}",
+                    [],
+                    f"pto::Tile<pto::TileType::Vec,float,4,8,pto::BLayout::{layout},3,5> src;"
+                    f"pto::Tile<pto::TileType::Vec,float,4,8,pto::BLayout::{layout},{rows},{cols}> dst;"
+                    "pto::TABS(dst,src);",
+                    "TABS source and destination valid shapes must match",
+                )
+            )
     for name, flags, body, diagnostic in cases:
         source = args.output_dir / (name + ".cpp")
         source.write_text(

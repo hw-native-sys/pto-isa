@@ -13,6 +13,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_LINX_VENDOR_TEXP_HPP
 #define PTO_LINX_VENDOR_TEXP_HPP
 
+#include <cmath>
+#include <type_traits>
 #include "pto/npu/linx/impl/common/pto_tile.hpp"
 
 using namespace pto;
@@ -23,10 +25,11 @@ void TExp_RowMajor_Imp(typename tile_shape::TileDType dst, const typename tile_s
     for (size_t i = 0; i < tile_shape::ValidRow; ++i)
         for (size_t j = 0; j < tile_shape::ValidCol; ++j) {
             size_t index = i * tile_shape::RowStride + j;
-            if constexpr (std::is_same<typename tile_shape::DType, __half>::value) {
+            using type = typename tile_shape::DType;
+            if constexpr (std::is_same_v<type, __half> || std::is_same_v<type, __bf16>) {
                 const float src_float = static_cast<float>(src[index]);
                 const float exp_float = std::exp(src_float);
-                dst[index] = static_cast<__half>(exp_float);
+                dst[index] = static_cast<type>(exp_float);
             } else {
                 dst[index] = std::exp(src[index]);
             }
@@ -38,10 +41,11 @@ void TExp_ColMajor_Imp(typename tile_shape::TileDType dst, const typename tile_s
     for (size_t i = 0; i < tile_shape::ValidCol; ++i)
         for (size_t j = 0; j < tile_shape::ValidRow; ++j) {
             size_t index = i * tile_shape::ColStride + j;
-            if constexpr (std::is_same<typename tile_shape::DType, __half>::value) {
+            using type = typename tile_shape::DType;
+            if constexpr (std::is_same_v<type, __half> || std::is_same_v<type, __bf16>) {
                 const float src_float = static_cast<float>(src[index]);
                 const float exp_float = std::exp(src_float);
-                dst[index] = static_cast<__half>(exp_float);
+                dst[index] = static_cast<type>(exp_float);
             } else {
                 dst[index] = std::exp(src[index]);
             }
@@ -60,10 +64,11 @@ void TExp2NzImp(typename tile_shape::TileDType dst, const typename tile_shape::T
             size_t idx_j = j % inner_rows;
             size_t index = sub_tile_i * tile_shape::Rows * inner_cols + sub_tile_j * tile_shape::InnerNumel +
                            idx_j * inner_cols + idx_i;
-            if constexpr (std::is_same<typename tile_shape::DType, __half>::value) {
+            using type = typename tile_shape::DType;
+            if constexpr (std::is_same_v<type, __half> || std::is_same_v<type, __bf16>) {
                 const float src_float = static_cast<float>(src[index]);
                 const float exp_float = std::exp(src_float);
-                dst[index] = static_cast<__half>(exp_float);
+                dst[index] = static_cast<type>(exp_float);
             } else {
                 dst[index] = std::exp(src[index]);
             }

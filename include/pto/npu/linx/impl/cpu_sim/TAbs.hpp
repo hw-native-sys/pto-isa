@@ -14,8 +14,20 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_LINX_VENDOR_TABS_HPP
 
 #include "pto/npu/linx/impl/common/pto_tile.hpp"
-#include <cmath>
+#include <limits>
+#include <type_traits>
 using namespace pto;
+
+template <typename T>
+T TAbs_Scalar_Imp(T value)
+{
+    if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+        // Match the PTO CPU simulator: INT_MIN has no positive counterpart.
+        if (value == std::numeric_limits<T>::min())
+            return value;
+    }
+    return value < 0 ? -value : value;
+}
 
 template <typename tile_shape>
 void TAbs_RowMajor_Imp(typename tile_shape::TileDType dst, const typename tile_shape::TileDType src)
@@ -23,7 +35,7 @@ void TAbs_RowMajor_Imp(typename tile_shape::TileDType dst, const typename tile_s
     for (size_t i = 0; i < tile_shape::ValidRow; ++i)
         for (size_t j = 0; j < tile_shape::ValidCol; ++j) {
             size_t idx = i * tile_shape::RowStride + j;
-            dst[idx] = (src[idx] < 0) ? -src[idx] : src[idx];
+            dst[idx] = TAbs_Scalar_Imp(src[idx]);
         }
 }
 
@@ -33,7 +45,7 @@ void TAbs_ColMajor_Imp(typename tile_shape::TileDType dst, const typename tile_s
     for (size_t i = 0; i < tile_shape::ValidCol; ++i)
         for (size_t j = 0; j < tile_shape::ValidRow; ++j) {
             size_t idx = i * tile_shape::ColStride + j;
-            dst[idx] = (src[idx] < 0) ? -src[idx] : src[idx];
+            dst[idx] = TAbs_Scalar_Imp(src[idx]);
         }
 }
 
@@ -51,7 +63,7 @@ void TAbs_NzLayout_Imp(typename tile_shape::TileDType dst, const typename tile_s
             size_t idx_j = j % inner_rows;
             size_t index = sub_tile_i * tile_shape::Rows * inner_cols + sub_tile_j * tile_shape::InnerNumel +
                            idx_j * inner_cols + idx_i;
-            dst[index] = (src[index] < 0) ? -src[index] : src[index];
+            dst[index] = TAbs_Scalar_Imp(src[index]);
         }
     }
 }
@@ -66,6 +78,9 @@ void TABS_Impl(tile_shape_out& dst, const tile_shape_in& src)
         tile_shape_out::Rows == tile_shape_in::Rows && tile_shape_out::Cols == tile_shape_in::Cols &&
             tile_shape_out::BFractal == tile_shape_in::BFractal && tile_shape_out::SFractal == tile_shape_in::SFractal,
         "TABS source and destination descriptors must match");
+    static_assert(
+        tile_shape_out::ValidRow == tile_shape_in::ValidRow && tile_shape_out::ValidCol == tile_shape_in::ValidCol,
+        "TABS source and destination valid shapes must match");
     static_assert(
         tile_shape_in::ValidRow != DYNAMIC && tile_shape_in::ValidCol != DYNAMIC, "TODO: Support tile dynamic shape!");
     if constexpr (is_Nz_layout<tile_shape_in>::value) {

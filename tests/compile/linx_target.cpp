@@ -215,6 +215,85 @@ void testDynamicStride()
     }
 }
 
+template <typename DType, BLayout Layout>
+void testIntegerAbs()
+{
+    using T = Tile<TileType::Vec, DType, 4, 8, Layout, 3, 5>;
+    constexpr DType min = std::numeric_limits<DType>::min(), max = std::numeric_limits<DType>::max();
+    const DType values[] = {min, DType(min + 1), -1, 0, 1, max};
+    const DType expected[] = {min, max, 1, 0, 1, max};
+    auto offset = [](int r, int c) { return Layout == BLayout::RowMajor ? r * 8 + c : c * 4 + r; };
+    T src, dst;
+    for (auto& x : src.data())
+        x = -7;
+    for (auto& x : dst.data())
+        x = 99;
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 5; ++c)
+            src.data()[offset(r, c)] = values[(r * 5 + c) % 6];
+    auto verify = [&](const T& result, DType padding) {
+        for (int r = 0; r < 4; ++r)
+            for (int c = 0; c < 8; ++c)
+                check(result.data()[offset(r, c)] == (r < 3 && c < 5 ? expected[(r * 5 + c) % 6] : padding));
+    };
+    TABS(dst, src);
+    verify(dst, 99);
+    TABS(src, src);
+    verify(src, -7);
+}
+
+template <typename DType, BLayout Layout>
+void testExpTypes()
+{
+    using T = Tile<TileType::Vec, DType, 4, 8, Layout, 3, 5>;
+    const double values[] = {
+        -700,
+        -100,
+        -20,
+        -1,
+        -0.25,
+        0,
+        0.25,
+        1,
+        12,
+        20,
+        100,
+        700,
+        std::numeric_limits<double>::infinity(),
+        -std::numeric_limits<double>::infinity(),
+        std::numeric_limits<double>::quiet_NaN()};
+    auto offset = [](int r, int c) { return Layout == BLayout::RowMajor ? r * 8 + c : c * 4 + r; };
+    T src, dst;
+    for (auto& x : src.data())
+        x = 0;
+    for (auto& x : dst.data())
+        x = 99;
+    for (int r = 0; r < 3; ++r)
+        for (int c = 0; c < 5; ++c)
+            src.data()[offset(r, c)] = static_cast<DType>(values[r * 5 + c]);
+    TEXP(dst, src);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 8; ++c) {
+            int i = offset(r, c);
+            if (r >= 3 || c >= 5) {
+                check(dst.data()[i] == DType(99));
+                continue;
+            }
+            double expected = static_cast<DType>(std::exp(static_cast<double>(src.data()[i])));
+            double actual = static_cast<double>(dst.data()[i]);
+            if (std::isnan(expected))
+                check(std::isnan(actual));
+            else if (std::isinf(expected) || expected == 0)
+                check(actual == expected);
+            else {
+                constexpr double tolerance = std::is_same_v<DType, double> ? 1e-14 :
+                                             std::is_same_v<DType, float>  ? 1e-6 :
+                                                                             0;
+                check(std::isfinite(actual) && std::abs(actual / expected - 1) <= tolerance);
+            }
+        }
+}
+
 void testMatrix()
 {
     using A = Tile<TileType::Left, float, 3, 4, BLayout::ColMajor>;
@@ -255,6 +334,22 @@ int main()
     testElementwise<BLayout::ColMajor, 8, 4, 5, 3>();
     testDoubleSqrt<BLayout::RowMajor>();
     testDoubleSqrt<BLayout::ColMajor>();
+    testIntegerAbs<int8_t, BLayout::RowMajor>();
+    testIntegerAbs<int8_t, BLayout::ColMajor>();
+    testIntegerAbs<int16_t, BLayout::RowMajor>();
+    testIntegerAbs<int16_t, BLayout::ColMajor>();
+    testIntegerAbs<int32_t, BLayout::RowMajor>();
+    testIntegerAbs<int32_t, BLayout::ColMajor>();
+    testIntegerAbs<int64_t, BLayout::RowMajor>();
+    testIntegerAbs<int64_t, BLayout::ColMajor>();
+    testExpTypes<__half, BLayout::RowMajor>();
+    testExpTypes<__half, BLayout::ColMajor>();
+    testExpTypes<__bf16, BLayout::RowMajor>();
+    testExpTypes<__bf16, BLayout::ColMajor>();
+    testExpTypes<float, BLayout::RowMajor>();
+    testExpTypes<float, BLayout::ColMajor>();
+    testExpTypes<double, BLayout::RowMajor>();
+    testExpTypes<double, BLayout::ColMajor>();
     testDynamicStride<BLayout::RowMajor>();
     testDynamicStride<BLayout::ColMajor>();
     testMatrix();

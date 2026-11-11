@@ -35,11 +35,16 @@ arguments produce a compile-time diagnostic until Linx event support exists.
 Only the default math algorithm is accepted. TSTORE atomic/quantization
 options, TMATMUL phase overloads, and other PTO instructions are not part of
 this initial common surface. Internal imported functions are not a stable PTO API.
+CPU scalar-value Tile constructors depend on TEXPANDS and are also unsupported;
+default-construct a tile and initialize it with TLOAD instead.
 
 CPU-sim currently supports static valid shapes and unboxed RowMajor/ColMajor
 tiles. CUBE layouts and dynamic shapes are rejected at the adapter boundary;
 they are not approximated using Ascend layouts. CPU-sim validates operation
 values, not Linx timing, register allocation, Shared memory, or hardware execution.
+CPU TABS requires identical source/destination valid shapes and preserves the
+minimum signed integer value, matching the existing PTO CPU simulator.
+CPU TEXP computes FP16/BF16 through float and preserves double computation for FP64.
 
 For public device TLOAD/TSTORE, `GlobalTensor::staticStride[4]` must be 1.
 Non-unit and dynamic GM column strides are rejected at compile time, including
@@ -60,7 +65,9 @@ Host numerical tests and unsupported-configuration checks (also run by CI).
 The host compiler needs C++20, `_Float16` and `std::bit_cast`; GCC 14.2.1 is a
 validated configuration. The tests cover every public elementwise instruction
 on row/column-major wide and tall rectangles, partial valid regions and padding,
-double TSQRT extremes, dynamic GM strides, and two-translation-unit linking.
+double TSQRT extremes, signed-integer TABS limits and shape rejection,
+FP16/BF16/FP32/FP64 TEXP values and extremes, dynamic GM strides, and
+two-translation-unit linking.
 A separate internal regression checks both column-major/NZ conversion directions
 and padding; it does not add public TCVT or boxed-layout CPU support:
 
@@ -99,7 +106,8 @@ PTO source headers/formatting, removal of unused architecture import branches,
 architectural type traits, public comparison-enum encoding, and a CPU thread-index fallback. Public signature
 adaptations live outside `impl` to simplify future updates. Local correctness
 fixes inside `impl` mark `layout_type_to_str` inline, correct column-major TMIN
-indexing, preserve double precision in TSQRT, and bound both column-major/NZ
+indexing, preserve double precision in TSQRT, handle TABS integer limits and
+valid-shape agreement, promote BF16 TEXP inputs to float, and bound both column-major/NZ
 conversion loops by their row iterator; retain these when updating
 the imported snapshot. The revision header identifies the source snapshot,
 not a byte-identical vendored tree.
