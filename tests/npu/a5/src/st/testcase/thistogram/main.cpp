@@ -11,6 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <gtest/gtest.h>
 #include "acl/acl.h"
 #include "test_common.h"
+#include "acl_env.h"
 #include <pto/common/type.hpp>
 
 using namespace std;
@@ -55,8 +56,6 @@ void test_thistogram()
     size_t dstFileSize = validRows * 256 * sizeof(uint32_t);
     const size_t idxFileSize = validRows * sizeof(uint8_t);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -96,8 +95,6 @@ void test_thistogram()
     aclrtFreeHost(idxHost);
     aclrtFreeHost(dstHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     constexpr size_t numBinsPerRow = 256;
     std::vector<uint32_t> golden(validRows * numBinsPerRow);
@@ -123,8 +120,6 @@ void test_thistogram_u32()
     // idx shape: (numIdxRows, validCols) for byte < 3, else unused
     const size_t idxFileSize = numIdxRows > 0 ? numIdxRows * validCols * sizeof(uint8_t) : sizeof(uint8_t);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -163,8 +158,6 @@ void test_thistogram_u32()
     aclrtFreeHost(idxHost);
     aclrtFreeHost(dstHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     constexpr size_t numBinsPerRow = 256;
     std::vector<uint32_t> golden(validRows * numBinsPerRow);
@@ -234,3 +227,10 @@ TEST_F(THISTOGRAMTest, case_u32_1x256_b0_k128) { test_thistogram_u32<1, 256, His
 TEST_F(THISTOGRAMTest, case_u32_2x4096_b0_k96) { test_thistogram_u32<2, 4096, HistByte::BYTE_0>(); }
 TEST_F(THISTOGRAMTest, case_u32_2x192_b0_k64) { test_thistogram_u32<2, 192, HistByte::BYTE_0>(); }
 TEST_F(THISTOGRAMTest, case_u32_6x912_b0_k64) { test_thistogram_u32<6, 912, HistByte::BYTE_0>(); }
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}

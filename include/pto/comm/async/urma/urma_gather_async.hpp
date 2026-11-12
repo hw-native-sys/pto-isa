@@ -554,8 +554,27 @@ AICORE inline bool ReserveUrmaGatherSubmissionResources(
     return true;
 }
 
+// Closes a queue that carries an unfinished NoCqe prefix but no payload in this
+// submission. One WQEBB, no SGEs, CQE requested. The scalar path calls this even
+// when the SIMT headers are unavailable, so the body stays outside that guard.
 AICORE inline void FillUrmaGatherFinalNopScalar(
-    __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, uint32_t bbSequence);
+    __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, uint32_t bbSequence)
+{
+    constexpr uint32_t kWordsPerBb = 8U;
+    __gm__ uint64_t* sqWords = reinterpret_cast<__gm__ uint64_t*>(workQueue->bufAddr);
+    for (uint32_t word = 0U; word < kWordsPerBb; ++word) {
+        sqWords[(bbSequence * kWordsPerBb + word) & (workQueue->depth * kWordsPerBb - 1U)] = 0U;
+    }
+    __gm__ uint8_t* firstBb = reinterpret_cast<__gm__ uint8_t*>(
+        workQueue->bufAddr + static_cast<uint64_t>(bbSequence & (workQueue->depth - 1U)) * 64U);
+    FillSqeCtx(
+        reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb), remoteMem, nullptr, UrmaOpcode::NOP, bbSequence,
+        workQueue->depth);
+    __gm__ UrmaSqeCtx* header = reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb);
+    header->flag = kUrmaGatherFinalFlags;
+    header->sgeNum = 0U;
+    DcciCachelines(firstBb, 64U);
+}
 
 AICORE inline void FillOneUrmaGatherSqeScalar(
     __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, __gm__ uint8_t* remoteAddress,
@@ -1359,27 +1378,6 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
         }
         firstSegment += segmentCount;
     }
-}
-
-// Closes a queue that carries an unfinished NoCqe prefix but no payload in this
-// submission. One WQEBB, no SGEs, CQE requested.
-AICORE inline void FillUrmaGatherFinalNopScalar(
-    __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, uint32_t bbSequence)
-{
-    constexpr uint32_t kWordsPerBb = 8U;
-    __gm__ uint64_t* sqWords = reinterpret_cast<__gm__ uint64_t*>(workQueue->bufAddr);
-    for (uint32_t word = 0U; word < kWordsPerBb; ++word) {
-        sqWords[(bbSequence * kWordsPerBb + word) & (workQueue->depth * kWordsPerBb - 1U)] = 0U;
-    }
-    __gm__ uint8_t* firstBb = reinterpret_cast<__gm__ uint8_t*>(
-        workQueue->bufAddr + static_cast<uint64_t>(bbSequence & (workQueue->depth - 1U)) * 64U);
-    FillSqeCtx(
-        reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb), remoteMem, nullptr, UrmaOpcode::NOP, bbSequence,
-        workQueue->depth);
-    __gm__ UrmaSqeCtx* header = reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb);
-    header->flag = kUrmaGatherFinalFlags;
-    header->sgeNum = 0U;
-    DcciCachelines(firstBb, 64U);
 }
 
 // Runs the counting pass and turns its per-stage totals into the per-queue

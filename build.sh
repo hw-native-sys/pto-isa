@@ -37,6 +37,7 @@ usage() {
   echo "    --pkg-type=<TYPE>  Specify package type (TYPE option: run/rpm/deb/all), Default: run"
   echo "    --run_all run all st on sim"
   echo "    --run_simple run some st on board"
+  echo "    -n, --npu-count=<N>  Number of NPUs (cards) used by --run_simple; default: auto-detect (alias: --cards)"
   echo "    --cpu_bf16 Enable BF16 CPU-SIM STs with a C++23 std::bfloat16_t toolchain"
   echo ""
 }
@@ -116,8 +117,9 @@ checkopts() {
   INST_NAME=""
   AUTO_MODE=FALSE
   PACKAGE_TYPE="run"
+  NPU_COUNT=""
 
-  parsed_args=$(getopt -a -o j:hvuO: -l help,verbose,cov,make_clean,noexec,pkg,pkg-type:,run_all,a3,a5,sim,npu,comm,cpu,cpu_bf16,auto_mode,run_simple,build,cann_3rd_lib_path: -- "$@") || {
+  parsed_args=$(getopt -a -o j:hvuO:n: -l help,verbose,cov,make_clean,noexec,pkg,pkg-type:,run_all,a3,a5,sim,npu,comm,cpu,cpu_bf16,auto_mode,run_simple,build,cann_3rd_lib_path:,npu-count:,cards: -- "$@") || {
   usage
   exit 1
   }
@@ -137,6 +139,15 @@ checkopts() {
       --run_simple)
         ENABLE_SIMPLE_ST=TRUE
         shift
+        ;;
+      -n | --npu-count | --cards)
+        if ! [[ "$2" =~ ^[0-9]+$ ]] || [ "$2" -lt 1 ]; then
+          echo "Invalid value $2 for option --npu-count (expect a positive integer)"
+          usage
+          exit 1
+        fi
+        NPU_COUNT="$2"
+        shift 2
         ;;
       --pkg)
         ENABLE_PACKAGE=TRUE
@@ -234,6 +245,9 @@ run_simple_st() {
   ARGS+="--$RUN_TYPE --simple "
   if [ "$AUTO_MODE" == "TRUE" ]; then
     ARGS+="--auto_mode "
+  fi
+  if [ -n "$NPU_COUNT" ]; then
+    export PTO_SLOTS="$NPU_COUNT"
   fi
   ./tests/run_st.sh ${ARGS}
   echo "execute samples success"

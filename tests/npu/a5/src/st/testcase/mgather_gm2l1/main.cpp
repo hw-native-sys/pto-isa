@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -34,8 +35,6 @@ void run_gm2l1_test(size_t tableCount, size_t idxCount, size_t outCount, Launche
     size_t idxByteSize = idxCount * sizeof(TIdx);
     size_t outByteSize = outCount * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -78,8 +77,6 @@ void run_gm2l1_test(size_t tableCount, size_t idxCount, size_t outCount, Launche
     aclrtFreeHost(idxHost);
     aclrtFreeHost(outHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(outCount);
     std::vector<T> devFinal(outCount);
@@ -182,3 +179,10 @@ ELEM_TEST(elem_simt_uint8_32x32_1024size, uint8_t, int32_t, 32, 32, 1024)
 ELEM_TEST(elem_simt_float_clamp_16x16_64size, float, int32_t, 16, 16, 64)
 ELEM_TEST(elem_simt_int32_wrap_16x8_32size, int32_t, int32_t, 16, 8, 32)
 ELEM_TEST(elem_simt_half_zero_16x16_64size, aclFloat16, int32_t, 16, 16, 64)
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}

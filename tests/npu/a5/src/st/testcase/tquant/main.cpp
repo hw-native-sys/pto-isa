@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/type.hpp>
 #include "acl/acl.h"
 #include "test_common.h"
+#include "acl_env.h"
 
 #define DIV_ROUNDUP(a, b) (((a) + (b) - 1) / (b))
 
@@ -92,8 +93,6 @@ struct MxQuantBuffers {
 template <typename SrcT>
 void InitMxQuantBuffers(MxQuantBuffers<SrcT>& buffers, size_t srcFileSize, size_t dstFileSize, size_t dstExpFileSize)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtCreateStream(&buffers.stream);
 
     aclrtMallocHost((void**)(&buffers.dstHost), dstFileSize);
@@ -140,8 +139,6 @@ void ReleaseMxQuantBuffers(MxQuantBuffers<SrcT>& buffers)
     aclrtFreeHost((void*)buffers.dstExpHost);
     aclrtFreeHost((void*)buffers.srcHost);
     aclrtDestroyStream(buffers.stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 }
 
 void CompareMxFp8Outputs(size_t dstFileSize, size_t dstExpFileSize)
@@ -311,8 +308,6 @@ void test_tquant_int8_sym()
     int8_t *dstHost, *dstDevice;
     float *srcHost, *srcDevice, *scaleHost, *scaleDevice;
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
     aclrtMallocHost((void**)(&dstHost), dstFileSize);
@@ -341,8 +336,6 @@ void test_tquant_int8_sym()
     aclrtFreeHost(srcHost);
     aclrtFreeHost(scaleHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<int8_t> golden_s8(dstFileSize);
     std::vector<int8_t> dev_s8(dstFileSize);
@@ -359,8 +352,6 @@ void test_tquant_int8_asym()
     size_t dstSize = validRows * validCols * sizeof(uint8_t);
     size_t scaleSize = validRows * sizeof(float);
     size_t offSize = validRows * sizeof(float);
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
     uint8_t *dstHost, *dstDev;
@@ -394,8 +385,6 @@ void test_tquant_int8_asym()
     aclrtFreeHost(scaleHost);
     aclrtFreeHost(offHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
     std::vector<uint8_t> golden_u8(dstSize), dev_u8(dstSize);
     ReadFile(GetGoldenDir() + "/golden_u8.bin", dstSize, golden_u8.data(), dstSize);
     ReadFile(GetGoldenDir() + "/output_u8.bin", dstSize, dev_u8.data(), dstSize);
@@ -580,3 +569,10 @@ TEST_F(TQUANTTEST, case_int8_asym_fp32_64x128_nd) { test_tquant_int8_asym<64, 12
 TEST_F(TQUANTTEST, case_int8_asym_fp32_128x128_nd) { test_tquant_int8_asym<128, 128, 0>(); }
 TEST_F(TQUANTTEST, case_int8_asym_fp32_256x128_nd) { test_tquant_int8_asym<256, 128, 0>(); }
 } // namespace TQuantTest
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}
