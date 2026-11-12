@@ -13,7 +13,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifdef PTO_URMA_SUPPORTED
 
-#if __has_include(<simt_api/device_functions.h>)
+// The SIMT declarations in <simt_api/device_functions.h> include a global
+// atomicAdd<ST_L2CacheType> template that can win overload resolution for the
+// classic 64-bit atomicAdd in callers of the common <pto/pto-inst.hpp> chain,
+// leaving an unresolved SIMT template at self-contained incore links. Callers
+// that only use the scalar gather path do not need them, so require an
+// explicit opt-in (the gather ST target defines it).
+#if defined(PTO_URMA_GATHER_ENABLE_SIMT) && __has_include(<simt_api/device_functions.h>)
 #include <simt_api/device_functions.h>
 #define PTO_URMA_GATHER_SIMT_AVAILABLE
 #endif
