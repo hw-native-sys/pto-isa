@@ -143,6 +143,27 @@ void TREMSTestFramework()
 
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
 
+    // input-preservation checker (issue #422): the __in__ src tile must come
+    // back bitwise unchanged - all scratch (including the int path's
+    // float-domain conversions) lives in tmp, so nothing ever writes src.
+    std::vector<T> srcAfter(srcByteSize / sizeof(T));
+    aclrtMemcpy(srcAfter.data(), srcByteSize, srcDevice, srcByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    size_t preserveErr = 0;
+    for (size_t i = 0; i < srcAfter.size(); ++i) {
+        T expected = srcHost[i];
+        bool same = srcAfter[i] == expected;
+        if constexpr (std::is_floating_point<T>::value) {
+            same = same || (std::isnan(srcAfter[i]) && std::isnan(expected)); // NaN == NaN
+        }
+        if (!same) {
+            if (preserveErr < 5) {
+                std::cout << "PRESERVE MISMATCH idx " << i << ": src was " << srcHost[i] << ", after op " << srcAfter[i]
+                          << ", expected " << expected << std::endl;
+            }
+            ++preserveErr;
+        }
+    }
+
     // src copy mapped to dst-tile layout for the comparator's per-element slack
     std::vector<T> srcVec(dstByteSize / sizeof(T), T(0));
     for (int r = 0; r < (int)validRow; ++r) {
@@ -168,6 +189,7 @@ void TREMSTestFramework()
 
     bool ret = ResultCmpRemStrict<T>(golden, devFinal, srcVec, scalar);
     EXPECT_TRUE(ret);
+    EXPECT_EQ(preserveErr, 0u) << "input tile not preserved";
 }
 
 // In-place aliasing probe: the dst GM buffer also feeds src, and the kernel
@@ -269,6 +291,25 @@ void TREMSTestDisjFramework()
 
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstByteSize);
 
+    // input-preservation checker (issue #422): the __in__ src tile must come
+    // back bitwise unchanged - all scratch lives in tmp, nothing writes src.
+    std::vector<T> srcAfter(srcByteSize / sizeof(T));
+    aclrtMemcpy(srcAfter.data(), srcByteSize, srcDevice, srcByteSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    size_t preserveErr = 0;
+    for (size_t i = 0; i < srcAfter.size(); ++i) {
+        bool same = srcAfter[i] == srcHost[i];
+        if constexpr (std::is_floating_point<T>::value) {
+            same = same || (std::isnan(srcAfter[i]) && std::isnan(srcHost[i])); // NaN == NaN
+        }
+        if (!same) {
+            if (preserveErr < 5) {
+                std::cout << "PRESERVE MISMATCH idx " << i << ": src was " << srcHost[i] << ", after op " << srcAfter[i]
+                          << std::endl;
+            }
+            ++preserveErr;
+        }
+    }
+
     std::vector<T> srcVec(dstByteSize / sizeof(T), T(0));
     for (int r = 0; r < (int)validRow; ++r) {
         for (int c = 0; c < srcValidCol; ++c) {
@@ -293,6 +334,7 @@ void TREMSTestDisjFramework()
 
     bool ret = ResultCmpRemStrict<T>(golden, devFinal, srcVec, scalar);
     EXPECT_TRUE(ret);
+    EXPECT_EQ(preserveErr, 0u) << "input tile not preserved";
 }
 
 TEST_F(TREMSTest, case1) { TREMSTestFramework<1, float, 32, 64, 32, 32, 64, 64>(); }

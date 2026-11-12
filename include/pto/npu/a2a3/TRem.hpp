@@ -750,62 +750,63 @@ struct RemOp {
         pipe_barrier(PIPE_V);
     }
 
+    // INT32 remainder in a strictly read-only-src form: the float-domain
+    // dividend (row [0,R)), divisor (row [R,2R), reused by the epilogue probe)
+    // and the quotient/rint chain (row [2R,3R)) all live in tmp. Neither src
+    // tile is ever written; dst receives rint(a) as src0's last read
+    // completes. tmp contract: 3*dstRowStride + maskF + 8 floats.
     PTO_INTERNAL static void RemInt32Instr(
         __ubuf__ int32_t* dst, __ubuf__ int32_t* src0, __ubuf__ int32_t* src1, __ubuf__ int32_t* tmp,
         unsigned repeatTimes, unsigned validCols)
     {
         __ubuf__ float* dst_f = reinterpret_cast<__ubuf__ float*>(dst);
-        __ubuf__ float* src0_f = reinterpret_cast<__ubuf__ float*>(src0);
-        __ubuf__ float* src1_f = reinterpret_cast<__ubuf__ float*>(src1);
-        __ubuf__ float* tmp_f = reinterpret_cast<__ubuf__ float*>(tmp);
+        __ubuf__ float* rowA_f = reinterpret_cast<__ubuf__ float*>(tmp);
+        __ubuf__ float* rowY_f = rowA_f + dstRowStride;
+        __ubuf__ float* rowQ_f = rowY_f + dstRowStride;
+        __ubuf__ int32_t* rowA_i = reinterpret_cast<__ubuf__ int32_t*>(rowA_f);
+        __ubuf__ int32_t* rowQ_i = reinterpret_cast<__ubuf__ int32_t*>(rowQ_f);
 
         set_mask_count();
         set_vector_mask(0, validCols);
 
-        vconv_s322f32(src0_f, src0, 1, 1, 1, 8, 8);
-        vconv_s322f32(src1_f, src1, 1, 1, 1, 8, 8);
+        vconv_s322f32(rowA_f, src0, 1, 1, 1, 8, 8); // rowA = float(a); src0 untouched
+        vconv_s322f32(rowY_f, src1, 1, 1, 1, 8, 8); // rowY = float(y); src1 untouched
         pipe_barrier(PIPE_V);
 
-        vdiv(tmp_f, src0_f, src1_f, 1, 1, 1, 1, 8, 8, 8);
+        vconv_f322s32r(dst, rowA_f, 1, 1, 1, 8, 8); // dst = rint(a) (src0's last read above)
         pipe_barrier(PIPE_V);
 
-        vconv_f322s32f(tmp, tmp_f, 1, 1, 1, 8, 8);
+        vdiv(rowQ_f, rowA_f, rowY_f, 1, 1, 1, 1, 8, 8, 8); // rowQ = q_f
+        pipe_barrier(PIPE_V);
+        vconv_f322s32f(rowQ_i, rowQ_f, 1, 1, 1, 8, 8); // floor quotient q (int)
+        pipe_barrier(PIPE_V);
+        vconv_f322s32r(rowA_i, rowY_f, 1, 1, 1, 8, 8); // y' = rint(y) int into rowA (a_f dead)
+        pipe_barrier(PIPE_V);
+        vmul(rowA_i, rowQ_i, rowA_i, 1, 1, 1, 1, 8, 8, 8); // rowA = q * y'
         pipe_barrier(PIPE_V);
 
-        // round-reconvert the dividend into dst (tmp keeps q): dst may alias
-        // src0, and this is src0's last read, so dst is safe to write from
-        // here on. src1 never aliases dst, so its in-place reconvert is fine.
-        vconv_f322s32r(dst, src0_f, 1, 1, 1, 8, 8);
-        vconv_f322s32r(src1, src1_f, 1, 1, 1, 8, 8);
-        pipe_barrier(PIPE_V);
-        vmul(tmp, tmp, src1, 1, 1, 1, 1, 8, 8, 8);
-        pipe_barrier(PIPE_V);
-
-        vsub(dst, dst, tmp, 1, 1, 1, 1, 8, 8, 8); // r = rint(src0) - q*y'
+        vsub(dst, dst, rowA_i, 1, 1, 1, 1, 8, 8, 8); // r = rint(a) - q*y'
         pipe_barrier(PIPE_V);
 
         vconv_s322f32(dst_f, dst, 1, 1, 1, 8, 8);
-        vconv_s322f32(src1_f, src1, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
-        vmul(tmp_f, dst_f, src1_f, 1, 1, 1, 1, 8, 8, 8);
+        vmul(rowQ_f, dst_f, rowY_f, 1, 1, 1, 1, 8, 8, 8); // sign probe: r * float(y)
         pipe_barrier(PIPE_V);
 
-        // Same norm-mode compare with explicit repeatTimes as the f32 path.
-        __ubuf__ uint8_t* cmpMask = reinterpret_cast<__ubuf__ uint8_t*>(tmp + dstRowStride);
+        __ubuf__ uint8_t* cmpMask = reinterpret_cast<__ubuf__ uint8_t*>(rowQ_f + dstRowStride);
         set_mask_norm();
         set_vector_mask(-1, -1);
-        vcmpvs_lt(cmpMask, tmp_f, 0.0f, repeatTimes, 1, 1, 8, 8);
+        vcmpvs_lt(cmpMask, rowQ_f, 0.0f, repeatTimes, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
         set_mask_count();
         set_vector_mask(0, validCols);
 
-        vadd(tmp_f, dst_f, src1_f, 1, 1, 1, 1, 8, 8, 8);
+        vadd(rowQ_f, dst_f, rowY_f, 1, 1, 1, 1, 8, 8, 8); // candidate r + y
         pipe_barrier(PIPE_V);
 
-        // VSEL_TENSOR_TENSOR_MODE (2): same true 64-bit address store as the f32 path.
         unsigned maskByte = CeilDivision(dstRowStride, BIT_TO_BYTE); // shape
         unsigned maskFloat = CeilDivision(maskByte, BLOCK_BYTE_SIZE) * BIT_TO_BYTE;
-        __ubuf__ uint32_t* addrBufs = reinterpret_cast<__ubuf__ uint32_t*>(tmp + dstRowStride + maskFloat);
+        __ubuf__ uint32_t* addrBufs = reinterpret_cast<__ubuf__ uint32_t*>(rowQ_f + dstRowStride + maskFloat);
         set_flag(PIPE_V, PIPE_S, EVENT_ID0);
         wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
         *(reinterpret_cast<__ubuf__ uint64_t*>(addrBufs)) = static_cast<uint64_t>(reinterpret_cast<int64_t>(cmpMask));
@@ -814,7 +815,7 @@ struct RemOp {
         set_cmpmask(addrBufs);
         pipe_barrier(PIPE_V);
         set_vector_mask(0, validCols);
-        vsel(dst_f, tmp_f, dst_f, 1, 1, 1, 1, 8, 8, 8, 2);
+        vsel(dst_f, rowQ_f, dst_f, 1, 1, 1, 1, 8, 8, 8, 2);
         pipe_barrier(PIPE_V);
 
         vconv_f322s32z(dst, dst_f, 1, 1, 1, 8, 8);
@@ -910,7 +911,11 @@ PTO_INTERNAL void TRemCheck(
     // packed bitmask (32-byte aligned), then an 8-element (32-byte) address buffer.
     unsigned maskBytes = CeilDivision(TileDataDst::RowStride, BIT_TO_BYTE);
     unsigned maskFloats = CeilDivision(maskBytes, BLOCK_BYTE_SIZE) * BIT_TO_BYTE;
-    unsigned tmpRequiredCols = TileDataDst::RowStride + maskFloats + BIT_TO_BYTE;
+    // the int path keeps the float-domain dividend, divisor and quotient
+    // chain in tmp (both src tiles are read-only), so it needs two rows more
+    // than the float path
+    unsigned tmpRequiredCols =
+        (std::is_same_v<T, int32_t> ? 3 * TileDataDst::RowStride : TileDataDst::RowStride) + maskFloats + BIT_TO_BYTE;
     PTO_ASSERT(
         tmp.GetValidRow() >= 1 && tmp.GetValidCol() >= tmpRequiredCols,
         "Fix: TREM tmp tile must have at least 1 row and enough columns for candidate, mask and address buffer.");

@@ -176,6 +176,31 @@ Design checklist:
 - Column-block anything larger: each call processes one tile.
 - The DEFAULT path's tmp contract is much smaller (`dstRowStride + maskF + 8` floats), so a tile can be legal for DEFAULT and illegal for HIGH_PRECISION; check the budget for the precision mode you dispatch.
 
+## Supported Tile Sizes (A2/A3)
+
+The DEFAULT `tmp` width, with $R$ the dst row stride in elements and $\mathit{maskF} = 8\lceil R/256\rceil$ (the int path keeps its float-domain dividend and quotient chain in `tmp` — input tiles are read-only):
+
+$$
+\mathit{tmpCols}_{\text{DEFAULT}}(N)=
+\begin{cases}
+R+8\lceil R/256\rceil+8, & \texttt{float} \\[2pt]
+2R+8\lceil R/256\rceil+8, & \texttt{int32\_t}
+\end{cases}
+$$
+
+The HIGH_PRECISION path needs the larger contract from the [tiling budget](#high-precision-tiling-budget) above. With the 192 KB unified-buffer budget and `validCols/64 <= 255` (8-bit repeat count), the widest valid `N` per row count is:
+
+| rows | TREMS float | TREMS int32 | TREMS HP |
+|---|---|---|---|
+| 1 | 16192 | 12160 | 11136 |
+| 2 | 9728 | 8128 | 7424 |
+| 4 | 5440 | 4864 | 4480 |
+| 8 | 2880 | 2688 | 2496 |
+| 16 | 1472 | 1408 | 1280 |
+| 32 | 704 | 704 | 640 |
+
+Rule of thumb: `N \lesssim 23500/(rows+1)` (float), `N \lesssim 17500/(rows+1)` (int32), and the staged-HP caps from the budget section. Wider tiles must be split into multiple calls. In-place `dst == src` is supported in both precision modes.
+
 ## Constraints
 
 - **Implementation Checks (A2A3)**:
@@ -186,10 +211,10 @@ Design checklist:
     - Runtime: `dst.GetValidRow() == src.GetValidRow() > 0` and `dst.GetValidCol() == src.GetValidCol() > 0`.
     - In-place operation (`dst` assigned over `src`) is supported in both precision modes.
     - **tmp Buffer Requirements**:
-      - `tmp.GetValidCol() >= dst.GetValidCol()` (at least as many columns as dst)
+      - `tmp.GetValidCol() >= dstRowStride + maskF + 8` for `float`, or `>= 2*dstRowStride + maskF + 8` for `int32_t` (the int path keeps its float-domain dividend and quotient chain in `tmp`; input tiles are read-only), where `maskF = 8*ceil(dstRowStride/256)`
       - `tmp.GetValidRow() >= 1` (at least 1 row)
       - Data type must match `TileDataDst::DType`.
-      - The HIGH_PRECISION path needs the larger scratch contract from the [High Precision Tiling Budget](#high-precision-tiling-budget) section (`tmpCols` floats instead of `dstRowStride + maskF + 8`).
+      - The HIGH_PRECISION path needs the larger scratch contract from the [High Precision Tiling Budget](#high-precision-tiling-budget) section.
 - **Implementation Checks (A5)**:
     - `dst` and `src` must use the same element type.
     - Supported element types: `float`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`, `half`, `int16_t`, and `uint16_t`.

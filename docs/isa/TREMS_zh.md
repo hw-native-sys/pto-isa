@@ -172,6 +172,31 @@ TREM（$W \lesssim 14852/(R+1)$）：相同行数下最大 W 分别为 7424 / 49
 - 超出预算的按列分块：每次调用处理一个 tile。
 - DEFAULT 路径的 tmp 契约小得多（`dstRowStride + maskF + 8` 个 float），同一 tile 可能对 DEFAULT 合法而对 HIGH_PRECISION 非法；请按实际分发的精度模式核对预算。
 
+## 支持的 Tile 尺寸（A2/A3）
+
+DEFAULT 路径的 `tmp` 列数，其中 $R$ 为 dst 行跨度（元素数）、$\mathit{maskF} = 8\lceil R/256\rceil$（int 路径将被除数的 float 域中间量与商链保存在 `tmp` —— 输入 tile 只读）：
+
+$$
+\mathit{tmpCols}_{\text{DEFAULT}}(N)=
+\begin{cases}
+R+8\lceil R/256\rceil+8, & \texttt{float} \\[2pt]
+2R+8\lceil R/256\rceil+8, & \texttt{int32\_t}
+\end{cases}
+$$
+
+HIGH_PRECISION 路径需满足上文[高精度切分预算](#高精度切分预算)中更大的契约。在 192 KB 统一缓冲预算与 `validCols/64 <= 255`（8 位 repeat 计数）限制下，各行数对应的最宽合法 `N`：
+
+| 行数 | TREMS float | TREMS int32 | TREMS HP |
+|---|---|---|---|
+| 1 | 16192 | 12160 | 11136 |
+| 2 | 9728 | 8128 | 7424 |
+| 4 | 5440 | 4864 | 4480 |
+| 8 | 2880 | 2688 | 2496 |
+| 16 | 1472 | 1408 | 1280 |
+| 32 | 704 | 704 | 640 |
+
+经验公式：float 约 `N \lesssim 23500/(行数+1)`，int32 约 `N \lesssim 17500/(行数+1)`，staged-HP 上限见预算章节。更宽的 tile 需拆分为多次调用。两种精度模式均支持原地 `dst == src`。
+
 ## 约束
 
 - **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
@@ -182,7 +207,7 @@ TREM（$W \lesssim 14852/(R+1)$）：相同行数下最大 W 分别为 7424 / 49
     - 运行时：`dst.GetValidRow() == src.GetValidRow() > 0` 且 `dst.GetValidCol() == src.GetValidCol() > 0`。
     - 原地操作（`dst` 与 `src` 分配到同一UB区域）在两种精度模式下均支持。
     - **tmp缓冲区要求**：
-      - `tmp.GetValidCol() >= dst.GetValidCol()`（至少与dst相同的列数）
+      - `tmp.GetValidCol() >= dstRowStride + maskF + 8`（float），或 `>= 2*dstRowStride + maskF + 8`（int32_t —— int 路径将被除数的 float 域中间量与商链保存在 `tmp`，输入 tile 只读），其中 `maskF = 8*ceil(dstRowStride/256)`
       - `tmp.GetValidRow() >= 1`（至少1行）
       - 数据类型必须与 `TileDataDst::DType` 匹配。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**:
