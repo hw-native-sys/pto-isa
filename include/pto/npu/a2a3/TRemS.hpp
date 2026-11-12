@@ -482,49 +482,49 @@ struct RemSOp {
         pipe_barrier(PIPE_V);
     }
 
+    // INT32 remainder in a strictly read-only-src form: the float-domain
+    // dividend and the divisor/quotient chain live in tmp (rows [0,R) and
+    // [R,2R)), src is never written, and dst receives rint(a) as src's last
+    // read completes. tmp contract: 2*dstRowStride + maskF + 8 floats.
     PTO_INTERNAL static void RemSInt32Instr(
         __ubuf__ int32_t* dst, __ubuf__ int32_t* src, int32_t x, __ubuf__ int32_t* tmp, unsigned dstRowStride,
         unsigned repeatTimes, unsigned validCols)
     {
         __ubuf__ float* dst_f = reinterpret_cast<__ubuf__ float*>(dst);
-        __ubuf__ float* src_f = reinterpret_cast<__ubuf__ float*>(src);
-        __ubuf__ float* tmp_f = reinterpret_cast<__ubuf__ float*>(tmp);
+        __ubuf__ float* rowA_f = reinterpret_cast<__ubuf__ float*>(tmp);
+        __ubuf__ float* rowQ_f = rowA_f + dstRowStride;
+        __ubuf__ int32_t* rowQ_i = reinterpret_cast<__ubuf__ int32_t*>(rowQ_f);
 
-        vconv_s322f32(src_f, src, 1, 1, 1, 8, 8);
-        vector_dup(tmp_f, (float)x, 1, 1, 1, 8, 8);
+        vconv_s322f32(rowA_f, src, 1, 1, 1, 8, 8); // rowA = float(a); src untouched
+        vector_dup(rowQ_f, (float)x, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
 
-        vdiv(tmp_f, src_f, tmp_f, 1, 1, 1, 1, 8, 8, 8);
+        vconv_f322s32r(dst, rowA_f, 1, 1, 1, 8, 8); // dst = rint(a) (src's last read above)
         pipe_barrier(PIPE_V);
 
-        vconv_f322s32f(tmp, tmp_f, 1, 1, 1, 8, 8); // floor quotient
-        // round-reconvert dividend into dst (tmp keeps q): dst may alias src,
-        // and this is src's last read, so dst is safe to write from here on
-        vconv_f322s32r(dst, src_f, 1, 1, 1, 8, 8);
+        vdiv(rowQ_f, rowA_f, rowQ_f, 1, 1, 1, 1, 8, 8, 8); // rowQ = q_f (divisor consumed)
         pipe_barrier(PIPE_V);
-
-        vmuls(tmp, tmp, x, 1, 1, 1, 8, 8); // floor(src/x) * x (int)
+        vconv_f322s32f(rowQ_i, rowQ_f, 1, 1, 1, 8, 8); // floor quotient q (int)
         pipe_barrier(PIPE_V);
-
-        vsub(dst, dst, tmp, 1, 1, 1, 1, 8, 8, 8); // r = rint(src) - q*x
+        vmuls(rowQ_i, rowQ_i, x, 1, 1, 1, 8, 8); // q * x (int)
+        pipe_barrier(PIPE_V);
+        vsub(dst, dst, rowQ_i, 1, 1, 1, 1, 8, 8, 8); // r = rint(a) - q*x
         pipe_barrier(PIPE_V);
 
         vconv_s322f32(dst_f, dst, 1, 1, 1, 8, 8);
-        vconv_s322f32(tmp_f, tmp, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
-
-        vmuls(tmp_f, dst_f, (float)x, 1, 1, 1, 8, 8); // sign probe: r * s
+        vmuls(rowQ_f, dst_f, (float)x, 1, 1, 1, 8, 8); // sign probe: r * x
         pipe_barrier(PIPE_V);
 
         unsigned maskBytes = CeilDivision(dstRowStride, BIT_TO_BYTE);
         unsigned maskFloats = CeilDivision(maskBytes, BLOCK_BYTE_SIZE) * BIT_TO_BYTE;
-        __ubuf__ uint8_t* cmpMask = reinterpret_cast<__ubuf__ uint8_t*>(tmp_f + dstRowStride);
+        __ubuf__ uint8_t* cmpMask = reinterpret_cast<__ubuf__ uint8_t*>(rowQ_f + dstRowStride);
         set_mask_norm();
         set_vector_mask(-1, -1);
-        vcmpvs_lt(cmpMask, tmp_f, 0.0f, repeatTimes, 1, 1, 8, 8);
+        vcmpvs_lt(cmpMask, rowQ_f, 0.0f, repeatTimes, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
 
-        __ubuf__ uint32_t* addrBuf = reinterpret_cast<__ubuf__ uint32_t*>(tmp_f + dstRowStride + maskFloats);
+        __ubuf__ uint32_t* addrBuf = reinterpret_cast<__ubuf__ uint32_t*>(rowQ_f + dstRowStride + maskFloats);
         set_flag(PIPE_V, PIPE_S, EVENT_ID0);
         wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
         *(reinterpret_cast<__ubuf__ uint64_t*>(addrBuf)) = static_cast<uint64_t>(reinterpret_cast<int64_t>(cmpMask));
@@ -535,10 +535,10 @@ struct RemSOp {
 
         set_mask_count();
         set_vector_mask(0, validCols);
-        vadds(tmp_f, dst_f, (float)x, 1, 1, 1, 8, 8); // candidate r + s
+        vadds(rowQ_f, dst_f, (float)x, 1, 1, 1, 8, 8); // candidate r + x
         pipe_barrier(PIPE_V);
 
-        vsel(dst_f, tmp_f, dst_f, 1, 1, 1, 1, 8, 8, 8, 2);
+        vsel(dst_f, rowQ_f, dst_f, 1, 1, 1, 1, 8, 8, 8, 2);
         pipe_barrier(PIPE_V);
 
         vconv_f322s32z(dst, dst_f, 1, 1, 1, 8, 8);
@@ -644,7 +644,10 @@ PTO_INTERNAL void TREMS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDa
     // BIT_TO_BYTE bits per byte, packed mask rounded up to BLOCK_BYTE_SIZE bytes
     constexpr unsigned maskBytes = (dstRowStride + BIT_TO_BYTE - 1) / BIT_TO_BYTE;
     constexpr unsigned maskFloats = ((maskBytes + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE) * (BLOCK_BYTE_SIZE / 4);
-    constexpr unsigned tmpRequiredCols = dstRowStride + maskFloats + BIT_TO_BYTE;
+    // the int path keeps the float-domain dividend and the quotient chain in
+    // tmp (src is read-only), so it needs one row more than the float path
+    constexpr unsigned tmpRequiredCols =
+        (std::is_same_v<T, int32_t> ? 2 * dstRowStride : dstRowStride) + maskFloats + BIT_TO_BYTE;
     // The high precision path needs the larger scratch contract from
     // HpScratchRequiredCols above, sized for the staged capacity (full vectors per
     // row, at least 1 for the per-vector fallback).

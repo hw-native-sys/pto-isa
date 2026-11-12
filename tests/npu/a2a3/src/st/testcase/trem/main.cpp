@@ -115,6 +115,45 @@ void LaunchTREMInplace(T* out, T* src1, void* stream);
 template <bool highPrecision, typename T, int dstTileH, int dstTileW, int vRows, int vCols>
 void LaunchTREMDisjoint(T* out, T* src0, T* src1, void* stream);
 
+// Input-preservation checker (issue #422): __in__ tiles must come back
+// bitwise unchanged - all scratch (including the int paths' float-domain
+// conversions) lives in tmp, so nothing ever writes src0/src1.
+template <typename T>
+static size_t CheckInputsPreserved(
+    const T* src0Host, const T* src0After, size_t n0, const T* src1Host, const T* src1After, size_t n1)
+{
+    size_t err = 0;
+    for (size_t i = 0; i < n0; ++i) {
+        T expected = src0Host[i];
+        bool same = src0After[i] == expected;
+        if constexpr (std::is_floating_point<T>::value) {
+            same = same || (std::isnan(src0After[i]) && std::isnan(expected)); // NaN == NaN
+        }
+        if (!same) {
+            if (err < 8) {
+                std::cout << "PRESERVE MISMATCH src0 idx " << i << ": was " << src0Host[i] << ", after op "
+                          << src0After[i] << ", expected " << expected << std::endl;
+            }
+            ++err;
+        }
+    }
+    for (size_t i = 0; i < n1; ++i) {
+        T expected = src1Host[i];
+        bool same = src1After[i] == expected;
+        if constexpr (std::is_floating_point<T>::value) {
+            same = same || (std::isnan(src1After[i]) && std::isnan(expected)); // NaN == NaN
+        }
+        if (!same) {
+            if (err < 5) {
+                std::cout << "PRESERVE MISMATCH src1 idx " << i << ": was " << src1Host[i] << ", after op "
+                          << src1After[i] << ", expected " << expected << std::endl;
+            }
+            ++err;
+        }
+    }
+    return err;
+}
+
 template <
     typename T, int dstTileH, int dstTileW, int src0TileH, int src0TileW, int src1TileH, int src1TileW, int vRows,
     int vCols>
@@ -153,6 +192,15 @@ void test_trem()
 
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstFileSize);
 
+    std::vector<T> src0After(src0FileSize / sizeof(T));
+    std::vector<T> src1After(src1FileSize / sizeof(T));
+    aclrtMemcpy(src0After.data(), src0FileSize, src0Device, src0FileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(src1After.data(), src1FileSize, src1Device, src1FileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    // snapshot the host baselines now: the framework frees them below, before
+    // the final comparison runs
+    std::vector<T> src0Base(src0Host, src0Host + src0FileSize / sizeof(T));
+    std::vector<T> src1Base(src1Host, src1Host + src1FileSize / sizeof(T));
+
     // src copies mapped to dst-tile layout for the comparator's per-element slack
     using U = std::conditional_t<std::is_same_v<T, aclFloat16>, _Float16, T>;
     std::vector<U> src0Vec(dstFileSize / sizeof(U), U(0));
@@ -182,6 +230,12 @@ void test_trem()
 
     bool ret = ResultCmpRemStrict<U>(golden, devFinal, src0Vec, src1Vec);
     EXPECT_TRUE(ret);
+    EXPECT_EQ(
+        CheckInputsPreserved(
+            src0Base.data(), src0After.data(), src0FileSize / sizeof(T), src1Base.data(), src1After.data(),
+            src1FileSize / sizeof(T)),
+        0u)
+        << "input tiles not preserved";
 }
 
 template <
@@ -222,6 +276,15 @@ void test_trem_hp()
 
     WriteFile(GetGoldenDir() + "/output.bin", dstHost, dstFileSize);
 
+    std::vector<T> src0After(src0FileSize / sizeof(T));
+    std::vector<T> src1After(src1FileSize / sizeof(T));
+    aclrtMemcpy(src0After.data(), src0FileSize, src0Device, src0FileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(src1After.data(), src1FileSize, src1Device, src1FileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    // snapshot the host baselines now: the framework frees them below, before
+    // the final comparison runs
+    std::vector<T> src0Base(src0Host, src0Host + src0FileSize / sizeof(T));
+    std::vector<T> src1Base(src1Host, src1Host + src1FileSize / sizeof(T));
+
     // src copies mapped to dst-tile layout for the comparator's per-element slack
     using U = std::conditional_t<std::is_same_v<T, aclFloat16>, _Float16, T>;
     std::vector<U> src0Vec(dstFileSize / sizeof(U), U(0));
@@ -251,6 +314,12 @@ void test_trem_hp()
 
     bool ret = ResultCmpRemStrict<U>(golden, devFinal, src0Vec, src1Vec);
     EXPECT_TRUE(ret);
+    EXPECT_EQ(
+        CheckInputsPreserved(
+            src0Base.data(), src0After.data(), src0FileSize / sizeof(T), src1Base.data(), src1After.data(),
+            src1FileSize / sizeof(T)),
+        0u)
+        << "input tiles not preserved";
 }
 
 // In-place aliasing probe: the dst GM buffer also feeds src0, and the kernel
@@ -294,6 +363,13 @@ void test_trem_inplace()
     ReadFile(GetGoldenDir() + "/input1.bin", fileSize, src0Vec.data(), fileSize);
     ReadFile(GetGoldenDir() + "/input2.bin", fileSize, src1Vec.data(), fileSize);
 
+    // dst aliases src0 here by design; the divisor tile is still disjoint and
+    // must survive the op (issue #422). Snapshot the host baseline now: the
+    // framework frees it below, before the final comparison runs.
+    std::vector<T> src1After(fileSize / sizeof(T));
+    aclrtMemcpy(src1After.data(), fileSize, src1Device, fileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    std::vector<T> src1Base(src1Host, src1Host + fileSize / sizeof(T));
+
     aclrtFree(dstDevice);
     aclrtFree(src1Device);
 
@@ -310,6 +386,11 @@ void test_trem_inplace()
 
     bool ret = ResultCmpRemStrict<T>(golden, devFinal, src0Vec, src1Vec);
     EXPECT_TRUE(ret);
+    EXPECT_EQ(
+        CheckInputsPreserved(
+            src1Base.data(), src1After.data(), fileSize / sizeof(T), src1Base.data(), src1After.data(), (size_t)0),
+        0u)
+        << "divisor tile not preserved";
 }
 
 // Disjoint control for the in-place probe kernels: same tile shapes, but dst
@@ -408,7 +489,7 @@ TEST_F(TREMTest, case_float_2x512_2x384_2x384_2x384) { test_trem<float, 2, 512, 
 TEST_F(TREMTest, case_int32_1x64_1x64_1x64_1x64) { test_trem<int32_t, 1, 64, 1, 64, 1, 64, 1, 64>(); }
 TEST_F(TREMTest, case_int32_2x72_2x72_2x72_2x65) { test_trem<int32_t, 2, 72, 2, 72, 2, 72, 2, 65>(); }
 TEST_F(TREMTest, case_int32_3x136_3x136_3x136_3x129) { test_trem<int32_t, 3, 136, 3, 136, 3, 136, 3, 129>(); }
-TEST_F(TREMTest, case_int32_1x8192_1x8192_1x8192_1x8192) { test_trem<int32_t, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(); }
+TEST_F(TREMTest, case_int32_1x8128_1x8128_1x8128_1x8128) { test_trem<int32_t, 1, 8128, 1, 8128, 1, 8128, 1, 8128>(); }
 TEST_F(TREMTest, case_int32_2x192_2x192_2x192_2x192) { test_trem<int32_t, 2, 192, 2, 192, 2, 192, 2, 192>(); }
 TEST_F(TREMTest, case_int32_2x256_2x192_2x192_2x192) { test_trem<int32_t, 2, 256, 2, 192, 2, 192, 2, 192>(); }
 

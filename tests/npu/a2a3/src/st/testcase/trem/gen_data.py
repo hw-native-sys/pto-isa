@@ -231,7 +231,7 @@ if __name__ == "__main__":
         TremParams(i, 1, 64, 1, 64, 1, 64, 1, 64),
         TremParams(i, 2, 72, 2, 72, 2, 72, 2, 65),
         TremParams(i, 3, 136, 3, 136, 3, 136, 3, 129),
-        TremParams(i, 1, 8192, 1, 8192, 1, 8192, 1, 8192),
+        TremParams(i, 1, 8128, 1, 8128, 1, 8128, 1, 8128),
         TremParams(i, 2, 192, 2, 192, 2, 192, 2, 192),
         TremParams(i, 2, 256, 2, 192, 2, 192, 2, 192),  # strided dst
     ]

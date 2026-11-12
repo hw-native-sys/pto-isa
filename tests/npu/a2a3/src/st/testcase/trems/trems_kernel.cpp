@@ -27,7 +27,9 @@ PTO_INTERNAL void runTREMS(__gm__ T* out, __gm__ T* src, T scalar)
     GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileCol));
 
     constexpr unsigned maskFloats = ((dstTileCol + 255) / 256) * 8;
-    constexpr unsigned tmpTileCol = dstTileCol + maskFloats + 8;
+    // int keeps its float-domain dividend + quotient chain in tmp (src is
+    // read-only), so it needs one more row than float
+    constexpr unsigned tmpTileCol = (std::is_same<T, int32_t>::value ? 2 * dstTileCol : dstTileCol) + maskFloats + 8;
 
     using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
     using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, -1, -1>;
@@ -182,7 +184,10 @@ PTO_INTERNAL void runTREMSInplace(__gm__ T* out, T scalar)
     GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileCol));
 
     constexpr unsigned maskFloatsDef = ((dstTileCol + 255) / 256) * 8;
-    constexpr unsigned tmpTileColDef = dstTileCol + maskFloatsDef + 8;
+    // int keeps its float-domain dividend + quotient chain in tmp (src is
+    // read-only), so it needs one more row than float
+    constexpr unsigned tmpTileColDef =
+        (std::is_same<T, int32_t>::value ? 2 * dstTileCol : dstTileCol) + maskFloatsDef + 8;
     constexpr unsigned elemsPerRepeat = 256 / sizeof(T);
     constexpr unsigned capVecs = validCol / elemsPerRepeat > 0 ? validCol / elemsPerRepeat : 1;
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
@@ -232,7 +237,10 @@ PTO_INTERNAL void runTREMSDisjoint(__gm__ T* out, __gm__ T* src, T scalar)
     GlobalData dstGlobal(out, DynDim2Shape(validRow, validCol), DynDim2Stride(dstTileCol));
 
     constexpr unsigned maskFloatsDef = ((dstTileCol + 255) / 256) * 8;
-    constexpr unsigned tmpTileColDef = dstTileCol + maskFloatsDef + 8;
+    // int keeps its float-domain dividend + quotient chain in tmp (src is
+    // read-only), so it needs one more row than float
+    constexpr unsigned tmpTileColDef =
+        (std::is_same<T, int32_t>::value ? 2 * dstTileCol : dstTileCol) + maskFloatsDef + 8;
     constexpr unsigned elemsPerRepeat = 256 / sizeof(T);
     constexpr unsigned capVecs = validCol / elemsPerRepeat > 0 ? validCol / elemsPerRepeat : 1;
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
