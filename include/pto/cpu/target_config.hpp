@@ -11,16 +11,35 @@
 #ifndef PTO_CPU_TARGET_CONFIG_HPP
 #define PTO_CPU_TARGET_CONFIG_HPP
 
-#if defined(PTO_CPU_SIM_TARGET_A2A3) && defined(PTO_CPU_SIM_TARGET_A5)
+#if defined(__linx) && !defined(PTO_NPU_ARCH_LINX)
+#define PTO_NPU_ARCH_LINX
+#endif
+
+#if defined(PTO_NPU_ARCH_LINX) || defined(PTO_CPU_SIM_TARGET_LINX)
+#if defined(__NPU_ARCH__) || defined(__CCE_AICORE__) || defined(__COSTMODEL) || defined(PTO_NPU_ARCH_A2A3) || \
+    defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) ||                \
+    defined(PTO_NPU_ARCH_KIRINX90) || defined(PTO_NPU_ARCH_KIRIN9050)
+#error "Linx and Ascend target flags cannot be combined"
+#endif
+#if defined(PTO_NPU_ARCH_LINX) && defined(__CPU_SIM)
+#error "Use PTO_CPU_SIM_TARGET_LINX with __CPU_SIM; do not define a device target"
+#endif
+#if defined(PTO_NPU_ARCH_LINX) && !defined(__linx)
+#error "The Linx device backend requires the native Linx compiler target"
+#endif
+#endif
+
+#if (defined(PTO_CPU_SIM_TARGET_A2A3) + defined(PTO_CPU_SIM_TARGET_A5) + defined(PTO_CPU_SIM_TARGET_LINX)) > 1
 #error "Select exactly one PTO CPU simulator target family"
 #endif
 
-#if defined(PTO_CPU_SIM_TARGET_A2A3) || defined(PTO_CPU_SIM_TARGET_A5)
+#if defined(PTO_CPU_SIM_TARGET_A2A3) || defined(PTO_CPU_SIM_TARGET_A5) || defined(PTO_CPU_SIM_TARGET_LINX)
 #ifndef __CPU_SIM
 #error "PTO CPU simulator target flags require __CPU_SIM"
 #endif
 #if defined(__NPU_ARCH__) || defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
-    defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90) || defined(PTO_NPU_ARCH_KIRIN9050)
+    defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90) || defined(PTO_NPU_ARCH_KIRIN9050) ||        \
+    defined(PTO_NPU_ARCH_LINX)
 #error "PTO CPU simulator target flags cannot be combined with NPU target flags"
 #endif
 #endif
@@ -38,9 +57,11 @@
 #endif
 
 namespace pto {
-enum class NPUArch { A2A3, A5 };
-enum class CpuSimTarget { Legacy, A2A3, A5 };
-#if defined(PTO_CPU_SIM_TARGET_A5)
+enum class NPUArch { A2A3, A5, Linx };
+enum class CpuSimTarget { Legacy, A2A3, A5, Linx };
+#if defined(PTO_CPU_SIM_TARGET_LINX)
+static constexpr CpuSimTarget CPU_SIM_TARGET = CpuSimTarget::Linx;
+#elif defined(PTO_CPU_SIM_TARGET_A5)
 static constexpr CpuSimTarget CPU_SIM_TARGET = CpuSimTarget::A5;
 #elif defined(PTO_CPU_SIM_TARGET_A2A3)
 static constexpr CpuSimTarget CPU_SIM_TARGET = CpuSimTarget::A2A3;

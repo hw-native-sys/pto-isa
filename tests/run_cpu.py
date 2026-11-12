@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Tuple
 
 STANDALONE_TESTS = {
     "tile_compact_storage": "test_tile_compact_storage.py",
+    "linx_native": "test_linx_native.py",
 }
 
 def _format_cmd(command: List[str]) -> str:

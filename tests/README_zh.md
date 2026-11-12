@@ -7,6 +7,7 @@ PTO Tile Lib 的测试与示例，覆盖 CPU 仿真与 NPU（`sim` 和板上 `np
 常见测试入口如下：
 
 - CPU Simulator 全量运行：`python3 tests/run_cpu.py --clean --verbose`
+- Linx 原生 API CPU 执行：`CXX=g++ python3 tests/run_cpu.py --testcase linx_native --verbose`（standalone，不依赖 CANN/GTest）；指令计数与受限范围见[支持矩阵](../docs/linx-tile-instruction-support_zh.md)，详见[后端验证说明](../include/pto/npu/linx/README_zh.md)。
 - GEMM demo：`python3 tests/run_cpu.py --demo gemm --verbose`
 - Flash Attention demo：`python3 tests/run_cpu.py --demo flash_attn --verbose`
 - 单个 ST 用例：`python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] -t [TEST_CASE] -g [GTEST_FILTER_CASE]`
