@@ -323,7 +323,8 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
 
     CostModelTileInfo modelTileInfo;
     if constexpr (sizeof...(rest_tiles) > 0) {
-        if (UsesSourceWorkShape(opcode)) {
+        // Comparison destinations pack bits; their width is not the input work size.
+        if (UsesSourceWorkShape(opcode) || std::string_view(opcode) == "TCMPS") {
             if constexpr (sizeof...(rest_tiles) >= 3) {
                 if (IsIndexReductionOpcode(opcode)) {
                     auto restTuple = std::forward_as_tuple(rest_tiles...);
@@ -361,6 +362,32 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
         }
     }
     (UpdateLightweightEstimateOptions(estimateOptions, rest_tiles), ...);
+    if constexpr (sizeof...(rest_tiles) == 3) {
+        if (std::string_view(opcode) == "TCMPS") {
+            auto sources = std::forward_as_tuple(rest_tiles...);
+            CostModelTileInfo scalarTile;
+            if (TryCostModelTileInfo(scalarTile, std::get<1>(sources))) {
+                // A scalar tile requires a broadcast load absent from the immediate-scalar fit.
+                estimateOptions.a5_op_params = "scalar_tile";
+            }
+        }
+    }
+    if constexpr (sizeof...(rest_tiles) == 2) {
+        if (std::string_view(opcode) == "TCONCAT") {
+            auto sources = std::forward_as_tuple(rest_tiles...);
+            CostModelTileInfo source0;
+            CostModelTileInfo source1;
+            if (TryCostModelTileInfo(source0, std::get<0>(sources)) &&
+                TryCostModelTileInfo(source1, std::get<1>(sources))) {
+                estimateOptions.concat_src0_cols = source0.valid_cols;
+                estimateOptions.concat_src1_cols = source1.valid_cols;
+                estimateOptions.concat_dense_sources =
+                    source0.physical_cols == source0.valid_cols && source1.physical_cols == source1.valid_cols &&
+                    source0.physical_rows == source0.valid_rows && source1.physical_rows == source1.valid_rows &&
+                    source0.valid_rows == modelTileInfo.valid_rows && source1.valid_rows == modelTileInfo.valid_rows;
+            }
+        }
+    }
     if (estimateOptions.has_mask_pattern) {
         CostModelTileInfo sourceInfo;
         CostModelTileInfo destinationInfo;

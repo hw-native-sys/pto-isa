@@ -111,4 +111,18 @@ TEST(A5TselFit, fp32_2D_default_TSel_b32)
     }
 }
 
+TEST(A5TselFit, DefaultKeyUsesNpuOperandWidth)
+{
+    namespace a5 = pto::mocker::lightweight::a5;
+    for (DType dtype : {DType::Float, DType::Int32, DType::Uint32}) {
+        EXPECT_EQ(a5::TselOpParams(dtype, a5::fit::ShapePath::Path1D, 1), "TSel_b32_odd");
+        EXPECT_EQ(a5::TselOpParams(dtype, a5::fit::ShapePath::Path1D, 2), "TSel_b32_even");
+        EXPECT_EQ(a5::TselOpParams(dtype, a5::fit::ShapePath::Path2D, 1), "TSel_b32");
+    }
+    for (DType dtype : {DType::Half, DType::BFloat16, DType::Int16, DType::Uint16, DType::Int8, DType::Uint8}) {
+        EXPECT_EQ(a5::TselOpParams(dtype, a5::fit::ShapePath::Path1D, 1), "TSel_b16_8");
+        EXPECT_EQ(a5::TselOpParams(dtype, a5::fit::ShapePath::Path2D, 2), "TSel_b16_8");
+    }
+}
+
 } // namespace

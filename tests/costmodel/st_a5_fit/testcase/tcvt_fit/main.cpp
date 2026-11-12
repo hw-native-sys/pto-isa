@@ -554,4 +554,30 @@ TEST(A5TcvtFit, hif8_to_fp32_2D_POST_UPDATE_full)
     }
 }
 
+TEST(A5TcvtFit, FloatToInt32TwoDimensionalHardwareProfiles)
+{
+    struct Profile {
+        int64_t rows;
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile profiles[] = {
+        {16, 128, 130}, {16, 16, 114}, {16, 256, 146}, {16, 64, 114}, {32, 32, 210},
+        {4, 128, 46},   {4, 256, 53},  {64, 128, 466}, {64, 64, 402}, {7, 96, 67},
+    };
+    for (const auto& profile : profiles) {
+        CostModelInput input{};
+        input.op = PtoOpcode::TCVT;
+        input.dtype = DType::Float;
+        input.dst_dtype = DType::Int32;
+        input.rows = profile.rows;
+        input.cols = profile.cols;
+        input.arch = CostModelArch::A5;
+        input.a5_shape_path = pto::mocker::lightweight::A5ShapePathHint::Path2D;
+        pto::mocker::lightweight::CostModelResult result{};
+        ASSERT_TRUE(pto::mocker::lightweight::EstimateCycles(input, result));
+        EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10);
+    }
+}
+
 } // namespace

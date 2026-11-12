@@ -200,6 +200,9 @@ struct CostModelInput {
     ScatterAxis scatter_axis = ScatterAxis::SCATTER_ROW;
     int64_t dst_valid_rows = 0;
     int64_t dst_valid_cols = 0;
+    int64_t concat_src0_cols = 0;
+    int64_t concat_src1_cols = 0;
+    bool concat_dense_sources = false;
 };
 
 struct CostModelResult {

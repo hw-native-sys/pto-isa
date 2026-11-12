@@ -40,8 +40,12 @@ void CheckPatternPublicCalls()
     constexpr auto scatterAxis = Column ? ScatterAxis::SCATTER_COL : ScatterAxis::SCATTER_ROW;
     constexpr auto gatherAxis = Column ? GatherAxis::GATHER_COL : GatherAxis::GATHER_ROW;
     TSCATTER<Pattern, scatterAxis>(large, small);
-    // These fp32 pattern keys (including the fp32 TMOV alias) are not calibrated.
-    EXPECT_EQ(pto::mocker::GetLastPtoInstrCycles(), 0);
+    if constexpr (!Column && (Pattern == MaskPattern::P0001 || Pattern == MaskPattern::P0101)) {
+        EXPECT_GT(pto::mocker::GetLastPtoInstrCycles(), 0);
+    } else {
+        // Other masks and the column axis still have no calibrated fp32 curve.
+        EXPECT_EQ(pto::mocker::GetLastPtoInstrCycles(), 0);
+    }
     TGATHER<Small, Large, Pattern, gatherAxis>(small, large);
     EXPECT_EQ(pto::mocker::GetLastPtoInstrCycles(), 0);
 }
@@ -327,6 +331,384 @@ TEST(A5ComparisonLayoutFit, LongSingleRowIndexAndColumnArgPaths)
         };
         pto::test::ExpectA5CycleNear("TCOLARG/row1", colArgInput, 1723.0, kRequiredPrecision);
     }
+}
+
+TEST(A5SupplementalProfiles, ExactTwoDimensionalHardwareProfiles)
+{
+    struct Profile {
+        PtoOpcode op;
+        DType dtype;
+        int64_t rows;
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile profiles[] = {
+        {PtoOpcode::TCMP, DType::BFloat16, 16, 128, 114.0},  {PtoOpcode::TCMP, DType::BFloat16, 16, 256, 130.0},
+        {PtoOpcode::TCMP, DType::BFloat16, 229, 32, 1392.0}, {PtoOpcode::TCMP, DType::BFloat16, 32, 32, 210.0},
+        {PtoOpcode::TCMP, DType::BFloat16, 4, 128, 42.0},    {PtoOpcode::TCMP, DType::BFloat16, 4, 256, 46.0},
+        {PtoOpcode::TCMP, DType::BFloat16, 7, 96, 60.0},     {PtoOpcode::TTRI, DType::Int16, 16, 128, 261.0},
+        {PtoOpcode::TTRI, DType::Int16, 16, 16, 261.0},      {PtoOpcode::TTRI, DType::Int16, 16, 256, 293.0},
+        {PtoOpcode::TTRI, DType::Int16, 362, 16, 5451.0},    {PtoOpcode::TTRI, DType::Int16, 4, 128, 81.0},
+        {PtoOpcode::TTRI, DType::Int16, 4, 256, 89.0},       {PtoOpcode::TTRI, DType::Int16, 64, 64, 981.0},
+        {PtoOpcode::TTRI, DType::Int16, 7, 96, 126.0},
+    };
+    for (const auto& profile : profiles) {
+        const CostModelInput input{
+            .op = profile.op,
+            .dtype = profile.dtype,
+            .rows = profile.rows,
+            .cols = profile.cols,
+            .arch = CostModelArch::A5,
+            .a5_shape_path = A5ShapePathHint::Path2D,
+        };
+        CostModelResult result{};
+        ASSERT_TRUE(EstimateCycles(input, result));
+        EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10)
+            << static_cast<int>(profile.op) << " " << profile.rows << "x" << profile.cols;
+    }
+}
+
+TEST(A5ScatterPatternProfiles, HeldOutDtypesDenseDestinations)
+{
+    struct Profile {
+        DType dtype;
+        pto::MaskPattern pattern;
+        int64_t rows;
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile profiles[] = {
+        {DType::BFloat16, pto::MaskPattern::P0001, 1023, 16, 8728.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 4, 128, 97.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 16, 128, 228.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 1, 16368, 1343.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 16, 64, 198.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 16, 256, 398.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 7, 96, 120.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 1, 128, 73.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 1, 16, 70.0},
+        {DType::BFloat16, pto::MaskPattern::P0001, 1, 1024, 143.0},
+        {DType::Float, pto::MaskPattern::P0001, 16, 128, 398.0},
+        {DType::Float, pto::MaskPattern::P0001, 7, 96, 191.0},
+        {DType::Float, pto::MaskPattern::P0001, 1, 8184, 1343.0},
+        {DType::Float, pto::MaskPattern::P0001, 4, 128, 141.0},
+        {DType::Float, pto::MaskPattern::P0001, 16, 256, 727.0},
+        {DType::Float, pto::MaskPattern::P0001, 1, 128, 81.0},
+        {DType::Float, pto::MaskPattern::P0001, 1, 8, 70.0},
+        {DType::Float, pto::MaskPattern::P0001, 16, 64, 228.0},
+        {DType::Float, pto::MaskPattern::P0001, 1023, 8, 8728.0},
+        {DType::Float, pto::MaskPattern::P0001, 1, 1024, 223.0},
+        {DType::Int16, pto::MaskPattern::P0001, 4, 128, 97.0},
+        {DType::Int16, pto::MaskPattern::P0001, 16, 128, 228.0},
+        {DType::Int16, pto::MaskPattern::P0001, 1023, 16, 8728.0},
+        {DType::Int16, pto::MaskPattern::P0001, 1, 16, 70.0},
+        {DType::Int16, pto::MaskPattern::P0001, 1, 1024, 143.0},
+        {DType::Int16, pto::MaskPattern::P0001, 1, 16368, 1343.0},
+        {DType::Int16, pto::MaskPattern::P0001, 1, 128, 73.0},
+        {DType::Int16, pto::MaskPattern::P0001, 16, 64, 198.0},
+        {DType::Int16, pto::MaskPattern::P0001, 7, 96, 120.0},
+        {DType::Int16, pto::MaskPattern::P0001, 16, 256, 398.0},
+        {DType::Int32, pto::MaskPattern::P0001, 16, 256, 727.0},
+        {DType::Int32, pto::MaskPattern::P0001, 4, 128, 141.0},
+        {DType::Int32, pto::MaskPattern::P0001, 7, 96, 191.0},
+        {DType::Int32, pto::MaskPattern::P0001, 16, 64, 228.0},
+        {DType::Int32, pto::MaskPattern::P0001, 1, 1024, 223.0},
+        {DType::Int32, pto::MaskPattern::P0001, 1023, 8, 8728.0},
+        {DType::Int32, pto::MaskPattern::P0001, 1, 8, 70.0},
+        {DType::Int32, pto::MaskPattern::P0001, 1, 128, 81.0},
+        {DType::Int32, pto::MaskPattern::P0001, 16, 128, 398.0},
+        {DType::Int32, pto::MaskPattern::P0001, 1, 8184, 1343.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 16, 256, 398.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 1, 128, 73.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 1023, 16, 8728.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 16, 64, 198.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 1, 1024, 143.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 1, 16, 70.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 4, 128, 97.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 16, 128, 228.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 7, 96, 120.0},
+        {DType::Uint16, pto::MaskPattern::P0001, 1, 16368, 1343.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 4, 128, 141.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 1, 8184, 1343.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 16, 128, 398.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 7, 96, 191.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 1, 1024, 223.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 1, 8, 70.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 1023, 8, 8728.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 16, 64, 228.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 1, 128, 81.0},
+        {DType::Uint32, pto::MaskPattern::P0001, 16, 256, 727.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 4, 128, 73.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 1, 16, 60.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 16, 128, 146.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 16, 64, 130.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 16, 256, 198.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 7, 96, 82.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 1, 32736, 1203.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 1, 128, 61.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 1, 1024, 89.0},
+        {DType::BFloat16, pto::MaskPattern::P0101, 2046, 16, 12807.0},
+        {DType::Float, pto::MaskPattern::P0101, 1, 16368, 1203.0},
+        {DType::Float, pto::MaskPattern::P0101, 16, 128, 198.0},
+        {DType::Float, pto::MaskPattern::P0101, 16, 64, 146.0},
+        {DType::Float, pto::MaskPattern::P0101, 7, 96, 106.0},
+        {DType::Float, pto::MaskPattern::P0101, 1, 8, 60.0},
+        {DType::Float, pto::MaskPattern::P0101, 4, 128, 89.0},
+        {DType::Float, pto::MaskPattern::P0101, 16, 256, 348.0},
+        {DType::Float, pto::MaskPattern::P0101, 1, 128, 65.0},
+        {DType::Float, pto::MaskPattern::P0101, 2046, 8, 12807.0},
+        {DType::Float, pto::MaskPattern::P0101, 1, 1024, 121.0},
+        {DType::Int16, pto::MaskPattern::P0101, 4, 128, 73.0},
+        {DType::Int16, pto::MaskPattern::P0101, 16, 64, 130.0},
+        {DType::Int16, pto::MaskPattern::P0101, 16, 128, 146.0},
+        {DType::Int16, pto::MaskPattern::P0101, 1, 16, 60.0},
+        {DType::Int16, pto::MaskPattern::P0101, 1, 1024, 89.0},
+        {DType::Int16, pto::MaskPattern::P0101, 1, 32736, 1203.0},
+        {DType::Int16, pto::MaskPattern::P0101, 2046, 16, 12807.0},
+        {DType::Int16, pto::MaskPattern::P0101, 1, 128, 61.0},
+        {DType::Int16, pto::MaskPattern::P0101, 7, 96, 82.0},
+        {DType::Int16, pto::MaskPattern::P0101, 16, 256, 198.0},
+        {DType::Int32, pto::MaskPattern::P0101, 16, 256, 348.0},
+        {DType::Int32, pto::MaskPattern::P0101, 4, 128, 89.0},
+        {DType::Int32, pto::MaskPattern::P0101, 2046, 8, 12807.0},
+        {DType::Int32, pto::MaskPattern::P0101, 7, 96, 106.0},
+        {DType::Int32, pto::MaskPattern::P0101, 1, 16368, 1203.0},
+        {DType::Int32, pto::MaskPattern::P0101, 1, 1024, 121.0},
+        {DType::Int32, pto::MaskPattern::P0101, 1, 8, 60.0},
+        {DType::Int32, pto::MaskPattern::P0101, 16, 64, 146.0},
+        {DType::Int32, pto::MaskPattern::P0101, 1, 128, 65.0},
+        {DType::Int32, pto::MaskPattern::P0101, 16, 128, 198.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 16, 256, 198.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 1, 128, 61.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 1, 16, 60.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 1, 1024, 89.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 16, 64, 130.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 2046, 16, 12807.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 1, 32736, 1203.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 4, 128, 73.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 16, 128, 146.0},
+        {DType::Uint16, pto::MaskPattern::P0101, 7, 96, 82.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 4, 128, 89.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 16, 128, 198.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 7, 96, 106.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 16, 64, 146.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 1, 8, 60.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 1, 16368, 1203.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 1, 1024, 121.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 2046, 8, 12807.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 1, 128, 65.0},
+        {DType::Uint32, pto::MaskPattern::P0101, 16, 256, 348.0},
+    };
+    for (const auto& profile : profiles) {
+        CostModelInput input{};
+        input.op = PtoOpcode::TSCATTER;
+        input.dtype = profile.dtype;
+        input.arch = CostModelArch::A5;
+        input.rows = profile.rows;
+        input.cols = profile.cols;
+        input.dst_rows = profile.rows;
+        const int64_t expansion = profile.pattern == pto::MaskPattern::P0001 ? 4 : 2;
+        input.dst_cols = profile.cols * expansion;
+        input.has_mask_pattern = true;
+        input.mask_pattern = profile.pattern;
+        CostModelResult result{};
+        ASSERT_TRUE(EstimateCycles(input, result));
+        EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10)
+            << static_cast<int>(profile.dtype) << " " << profile.rows << "x" << profile.cols;
+        input.dst_rows += 1;
+        EXPECT_FALSE(EstimateCycles(input, result));
+    }
+}
+
+TEST(A5ValidatedProfiles, IdentifiableCrossValidatedHardwareProfiles)
+{
+    struct Profile {
+        PtoOpcode op;
+        DType dtype;
+        int64_t rows;
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile profiles[] = {
+        {PtoOpcode::TCMP, DType::BFloat16, 1, 128, 37.0}, {PtoOpcode::TCMP, DType::BFloat16, 1, 224, 38.0},
+        {PtoOpcode::TCMP, DType::BFloat16, 1, 32, 37.0},  {PtoOpcode::TTRI, DType::Float, 16, 128, 293.0},
+        {PtoOpcode::TTRI, DType::Float, 16, 16, 261.0},   {PtoOpcode::TTRI, DType::Float, 16, 256, 341.0},
+        {PtoOpcode::TTRI, DType::Float, 16, 64, 261.0},   {PtoOpcode::TTRI, DType::Float, 1, 128, 39.0},
+        {PtoOpcode::TTRI, DType::Float, 1, 256, 41.0},    {PtoOpcode::TTRI, DType::Float, 1, 8, 37.0},
+        {PtoOpcode::TTRI, DType::Float, 256, 8, 3861.0},  {PtoOpcode::TTRI, DType::Float, 32, 32, 501.0},
+        {PtoOpcode::TTRI, DType::Float, 4, 128, 89.0},    {PtoOpcode::TTRI, DType::Float, 4, 256, 101.0},
+        {PtoOpcode::TTRI, DType::Float, 64, 128, 1109.0}, {PtoOpcode::TTRI, DType::Float, 64, 64, 981.0},
+        {PtoOpcode::TTRI, DType::Float, 7, 96, 140.0},    {PtoOpcode::TTRI, DType::Int32, 16, 128, 293.0},
+        {PtoOpcode::TTRI, DType::Int32, 16, 16, 261.0},   {PtoOpcode::TTRI, DType::Int32, 16, 256, 341.0},
+        {PtoOpcode::TTRI, DType::Int32, 1, 128, 39.0},    {PtoOpcode::TTRI, DType::Int32, 1, 256, 41.0},
+        {PtoOpcode::TTRI, DType::Int32, 1, 8, 37.0},      {PtoOpcode::TTRI, DType::Int32, 256, 8, 3861.0},
+        {PtoOpcode::TTRI, DType::Int32, 4, 128, 89.0},    {PtoOpcode::TTRI, DType::Int32, 4, 256, 101.0},
+        {PtoOpcode::TTRI, DType::Int32, 64, 64, 981.0},   {PtoOpcode::TTRI, DType::Int32, 7, 96, 140.0},
+        {PtoOpcode::TMOV, DType::Float, 16, 128, 130.0},  {PtoOpcode::TMOV, DType::Float, 16, 16, 114.0},
+        {PtoOpcode::TMOV, DType::Float, 16, 256, 146.0},  {PtoOpcode::TMOV, DType::Float, 16, 64, 114.0},
+        {PtoOpcode::TMOV, DType::Float, 32, 32, 210.0},   {PtoOpcode::TMOV, DType::Float, 4, 128, 46.0},
+        {PtoOpcode::TMOV, DType::Float, 4, 256, 50.0},    {PtoOpcode::TMOV, DType::Float, 64, 128, 466.0},
+        {PtoOpcode::TMOV, DType::Float, 64, 64, 402.0},   {PtoOpcode::TMOV, DType::Float, 7, 96, 67.0},
+    };
+    for (const auto& profile : profiles) {
+        CostModelInput input{};
+        input.op = profile.op;
+        input.dtype = profile.dtype;
+        input.rows = profile.rows;
+        input.cols = profile.cols;
+        input.arch = CostModelArch::A5;
+        input.a5_shape_path = profile.rows == 1 ? A5ShapePathHint::Path1D : A5ShapePathHint::Path2D;
+        CostModelResult result{};
+        ASSERT_TRUE(EstimateCycles(input, result));
+        EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10)
+            << static_cast<int>(profile.op) << " " << profile.rows << "x" << profile.cols;
+    }
+}
+
+template <int Rows, int SourceCols>
+void CheckConcatPublicHardwareProfile(double measuredCycles)
+{
+    using Source = pto::Tile<pto::TileType::Vec, float, Rows, SourceCols, pto::BLayout::RowMajor, -1, -1>;
+    using Destination = pto::Tile<pto::TileType::Vec, float, Rows, SourceCols * 2, pto::BLayout::RowMajor, -1, -1>;
+    Source source0(Rows, SourceCols), source1(Rows, SourceCols);
+    Destination destination(Rows, SourceCols * 2);
+    std::vector<float> source0Data(Source::Numel), source1Data(Source::Numel);
+    std::vector<float> destinationData(Destination::Numel);
+    pto::TASSIGN(source0, reinterpret_cast<uintptr_t>(source0Data.data()));
+    pto::TASSIGN(source1, reinterpret_cast<uintptr_t>(source1Data.data()));
+    pto::TASSIGN(destination, reinterpret_cast<uintptr_t>(destinationData.data()));
+    pto::TCONCAT(destination, source0, source1);
+    EXPECT_NEAR(pto::mocker::GetLastPtoInstrCycles(), measuredCycles, measuredCycles * 0.10);
+}
+
+TEST(A5ComparisonLayoutFit, ConcatPublicSourceGeometryProfiles)
+{
+    auto& context = pto::perf_sim::GetCostModelCtx();
+    const auto previousArch = context.npu_arch;
+    context.npu_arch = pto::perf_sim::kAscend950Arch;
+    CheckConcatPublicHardwareProfile<16, 128>(1317);
+    CheckConcatPublicHardwareProfile<16, 256>(2149);
+    CheckConcatPublicHardwareProfile<1, 128>(102);
+    CheckConcatPublicHardwareProfile<4, 128>(345);
+    CheckConcatPublicHardwareProfile<4, 256>(553);
+    CheckConcatPublicHardwareProfile<64, 128>(5205);
+    CheckConcatPublicHardwareProfile<64, 64>(3605);
+    CheckConcatPublicHardwareProfile<7, 96>(588);
+    context.npu_arch = previousArch;
+}
+
+TEST(A5ComparisonLayoutFit, ConcatRejectsUncalibratedGeometry)
+{
+    CostModelInput input{};
+    input.op = PtoOpcode::TCONCAT;
+    input.dtype = DType::Float;
+    input.arch = CostModelArch::A5;
+    input.rows = 4;
+    input.cols = 256;
+    input.concat_src0_cols = 128;
+    input.concat_src1_cols = 128;
+    input.concat_dense_sources = true;
+    CostModelResult result{};
+    ASSERT_TRUE(EstimateCycles(input, result));
+    input.concat_src0_cols = 64;
+    input.concat_src1_cols = 192;
+    EXPECT_FALSE(EstimateCycles(input, result));
+    input.concat_src0_cols = 128;
+    input.concat_src1_cols = 128;
+    input.concat_dense_sources = false;
+    EXPECT_FALSE(EstimateCycles(input, result));
+    input.concat_dense_sources = true;
+    input.valid_cols = 128;
+    EXPECT_FALSE(EstimateCycles(input, result));
+}
+
+TEST(A5ComparisonLayoutFit, ScalarCompareSinglePackedIteration)
+{
+    struct Case {
+        DType dtype;
+        int64_t rows;
+        int64_t cols;
+        double measured;
+    };
+    const Case cases[] = {
+        {DType::BFloat16, 16, 128, 114.0}, {DType::BFloat16, 295, 32, 1788.0}, {DType::BFloat16, 32, 32, 210.0},
+        {DType::BFloat16, 4, 128, 42.0},   {DType::BFloat16, 7, 96, 60.0},     {DType::Float, 16, 128, 130.0},
+        {DType::Float, 16, 64, 130.0},     {DType::Float, 229, 32, 1621.0},    {DType::Float, 32, 32, 242.0},
+        {DType::Float, 4, 128, 50.0},      {DType::Float, 64, 128, 466.0},     {DType::Float, 64, 64, 466.0},
+        {DType::Float, 7, 96, 67.0},       {DType::Int32, 16, 128, 130.0},     {DType::Int32, 16, 64, 130.0},
+        {DType::Int32, 229, 32, 1621.0},   {DType::Int32, 32, 32, 242.0},      {DType::Int32, 4, 128, 50.0},
+        {DType::Int32, 64, 128, 466.0},    {DType::Int32, 64, 64, 466.0},      {DType::Int32, 7, 96, 67.0},
+        {DType::Uint32, 16, 128, 130.0},   {DType::Uint32, 229, 32, 1621.0},   {DType::Uint32, 32, 32, 242.0},
+        {DType::Uint32, 4, 128, 50.0},     {DType::Uint32, 7, 96, 67.0},       {DType::Uint16, 16, 128, 114.0},
+        {DType::Uint16, 295, 32, 1788.0},  {DType::Uint16, 32, 32, 210.0},     {DType::Uint16, 4, 128, 42.0},
+        {DType::Uint16, 7, 96, 60.0},      {DType::Int8, 16, 128, 114.0},      {DType::Int8, 16, 256, 114.0},
+        {DType::Int8, 32, 32, 210.0},      {DType::Int8, 362, 32, 2190.0},     {DType::Int8, 4, 128, 42.0},
+        {DType::Int8, 4, 256, 42.0},       {DType::Int8, 7, 96, 60.0},         {DType::Uint8, 16, 128, 114.0},
+        {DType::Uint8, 16, 256, 114.0},    {DType::Uint8, 32, 32, 210.0},      {DType::Uint8, 362, 32, 2190.0},
+        {DType::Uint8, 4, 128, 42.0},      {DType::Uint8, 4, 256, 42.0},       {DType::Uint8, 7, 96, 60.0},
+    };
+    for (const auto& item : cases) {
+        CostModelInput input{
+            .op = PtoOpcode::TCMPS,
+            .dtype = item.dtype,
+            .rows = item.rows,
+            .cols = item.cols,
+            .arch = CostModelArch::A5,
+            .a5_shape_path = A5ShapePathHint::Path2D};
+        CostModelResult result{};
+        ASSERT_TRUE(EstimateCycles(input, result));
+        EXPECT_LE(std::abs(result.cycles - item.measured) / item.measured, 0.10);
+        input.cols = 512;
+        EXPECT_FALSE(EstimateCycles(input, result));
+        input.cols = item.cols;
+        input.valid_cols = item.cols - 1;
+        EXPECT_FALSE(EstimateCycles(input, result));
+        input.valid_cols = item.cols;
+        input.rows = 1;
+        EXPECT_FALSE(EstimateCycles(input, result));
+    }
+}
+TEST(A5ComparisonLayoutFit, ScalarComparePublicOverloadBoundary)
+{
+    using namespace pto;
+    using Src = Tile<TileType::Vec, float, 16, 128, BLayout::RowMajor, -1, -1>;
+    using Dst = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
+    using Scalar = Tile<TileType::Vec, float, 1, 8, BLayout::RowMajor, 1, 1>;
+    Src src(16, 128);
+    Dst dst(16, 16);
+    Scalar scalar;
+    std::vector<float> srcData(Src::Numel), scalarData(Scalar::Numel);
+    std::vector<uint8_t> dstData(Dst::Numel);
+    TASSIGN(src, reinterpret_cast<uintptr_t>(srcData.data()));
+    TASSIGN(dst, reinterpret_cast<uintptr_t>(dstData.data()));
+    TASSIGN(scalar, reinterpret_cast<uintptr_t>(scalarData.data()));
+    auto& context = perf_sim::GetCostModelCtx();
+    const auto previousArch = context.npu_arch;
+    context.npu_arch = perf_sim::kAscend950Arch;
+    TCMPS(dst, src, 1.0f, CmpMode::EQ);
+    EXPECT_NEAR(mocker::GetLastPtoInstrCycles(), 130, 13);
+    TCMPS(dst, src, scalar, CmpMode::EQ);
+    EXPECT_EQ(mocker::GetLastPtoInstrCycles(), 0);
+    context.npu_arch = previousArch;
+}
+
+TEST(A5ComparisonLayoutFit, DenseRowScalarComparePublicInterface)
+{
+    using namespace pto;
+    using Src = Tile<TileType::Vec, float, 1, 192, BLayout::RowMajor, -1, -1>;
+    using Dst = Tile<TileType::Vec, uint8_t, 1, 32, BLayout::RowMajor, -1, -1>;
+    Src src(1, 192);
+    Dst dst(1, 24);
+    std::vector<float> srcData(Src::Numel);
+    std::vector<uint8_t> dstData(Dst::Numel);
+    TASSIGN(src, reinterpret_cast<uintptr_t>(srcData.data()));
+    TASSIGN(dst, reinterpret_cast<uintptr_t>(dstData.data()));
+    auto& context = perf_sim::GetCostModelCtx();
+    const auto previousArch = context.npu_arch;
+    context.npu_arch = perf_sim::kAscend950Arch;
+    TCMPS(dst, src, 1.0f, CmpMode::EQ);
+    EXPECT_NEAR(mocker::GetLastPtoInstrCycles(), 46.0, 4.6);
+    context.npu_arch = previousArch;
 }
 
 } // namespace
