@@ -222,6 +222,61 @@ void launchTRowExpandMulValid(T* out, T* src0, T* src1, void* stream)
 
 template void launchTRowExpandMulValid<float, 24, 16, 21>(float* out, float* src0, float* src1, void* stream);
 
+// Dynamic-valid-extent cases for the runtime packed-path guard: tiles keep the DYNAMIC (-1) valid
+// dimensions with runtime valid extents, as PyPTO generates. Full runtime columns enter
+// TRowExpandBinOps_1D_PackedShortRows through the guard (including row tails: 1021 % 4 == 1,
+// 509 % 2 == 1 on the C1A model shapes); runtime partial columns keep the strided 2D path.
+template <typename T, uint32_t physRow, uint32_t physCol, uint32_t validRow, uint32_t validCol>
+__global__ AICORE void runROWEXPANDMUL_DYNVALID(__gm__ T __out__* out, __gm__ T __in__* src0, __gm__ T __in__* src1)
+{
+    using DynShapeDim5 = Shape<1, 1, 1, validRow, 1>;
+    using DynStridDim5 = pto::Stride<1, 1, 1, 1, 1>;
+    using GlobalData = GlobalTensor<T, DynShapeDim5, DynStridDim5, Layout::DN>;
+    using TileData = Tile<TileType::Vec, T, physRow, 1, BLayout::ColMajor, -1, -1>;
+
+    using DstDynShapeDim5 = Shape<1, 1, 1, validRow, validCol>;
+    using DstDynStridDim5 = pto::Stride<1, 1, 1, physCol, 1>;
+    using DstGlobalData = GlobalTensor<T, DstDynShapeDim5, DstDynStridDim5>;
+    using DstTileData = Tile<TileType::Vec, T, physRow, physCol, BLayout::RowMajor, -1, -1>;
+
+    DstTileData src0Tile(validRow, validCol);
+    TileData src1Tile(validRow, 1);
+    DstTileData dstTile(validRow, validCol);
+    size_t size = physRow * physCol * sizeof(T);
+    TASSIGN(src0Tile, 0x0);
+    TASSIGN(src1Tile, size);
+    TASSIGN(dstTile, 0x0);
+
+    DstGlobalData src0Global(src0);
+    GlobalData src1Global(src1);
+    DstGlobalData dstGlobal(out);
+
+    TLOAD(src0Tile, src0Global);
+    TLOAD(src1Tile, src1Global);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    TROWEXPANDMUL(dstTile, src0Tile, src1Tile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, dstTile);
+    out = dstGlobal.data();
+}
+
+template <typename T, uint32_t physRow, uint32_t physCol, uint32_t validRow, uint32_t validCol>
+void launchTRowExpandMulDynValid(T* out, T* src0, T* src1, void* stream)
+{
+    runROWEXPANDMUL_DYNVALID<T, physRow, physCol, validRow, validCol><<<1, nullptr, stream>>>(out, src0, src1);
+}
+
+template void launchTRowExpandMulDynValid<float, 1024, 16, 1021, 16>(
+    float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandMulDynValid<float, 512, 32, 509, 32>(float* out, float* src0, float* src1, void* stream);
+template void launchTRowExpandMulDynValid<float, 24, 32, 21, 30>(float* out, float* src0, float* src1, void* stream);
+
 // Static-valid-extent cases for the packed short-row path: tiles omit the DYNAMIC (-1) valid
 // dimensions, so TileData::ValidCol == TileData::Cols makes isContiguous true and the dispatch
 // enters TRowExpandBinOps_1D_PackedShortRows. Covers groupRows = 2 (16x32), 4 (16x16) and
