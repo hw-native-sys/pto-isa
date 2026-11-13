@@ -36,13 +36,22 @@ void LaunchTDeInterleave(T* out0, T* out1, T* src0, T* src1, void* stream);
 template <int tileH, int tileW, int vRows, int vCols>
 void LaunchTDeInterleaveHalf(aclFloat16* out0, aclFloat16* out1, aclFloat16* src0, aclFloat16* src1, void* stream);
 
+void LaunchTDeInterleaveFp8E4M3(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
+void LaunchTDeInterleaveFp8E5M2(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
+void LaunchTDeInterleaveFp8E8M0(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
+
 template <typename T, int tileH, int tileW, int vRows, int vCols>
 void LaunchTDeInterleaveSingleSrc(T* out0, T* out1, T* src, void* stream);
 
 template <int tileH, int tileW, int vRows, int vCols>
 void LaunchTDeInterleaveSingleSrcHalf(aclFloat16* out0, aclFloat16* out1, aclFloat16* src, void* stream);
 
-template <typename T, int tileH, int tileW, int vRows, int vCols, bool isHalf = false>
+void LaunchTDeInterleaveSingleSrcFp8E4M3(uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream);
+void LaunchTDeInterleaveSingleSrcFp8E5M2(uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream);
+void LaunchTDeInterleaveSingleSrcFp8E8M0(uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream);
+
+// fp8Mode: 0 = generic T launcher, 1 = fp8_e4m3, 2 = fp8_e5m2, 3 = fp8_e8m0 (host type is uint8_t)
+template <typename T, int tileH, int tileW, int vRows, int vCols, bool isHalf = false, int fp8Mode = 0>
 void test_tdeinterleave()
 {
     size_t fileSizeTile = tileH * tileW * sizeof(T);
@@ -77,6 +86,12 @@ void test_tdeinterleave()
 
     if constexpr (isHalf) {
         LaunchTDeInterleaveHalf<tileH, tileW, vRows, vCols>(dst0Device, dst1Device, src0Device, src1Device, stream);
+    } else if constexpr (fp8Mode == 1) {
+        LaunchTDeInterleaveFp8E4M3(dst0Device, dst1Device, src0Device, src1Device, stream);
+    } else if constexpr (fp8Mode == 2) {
+        LaunchTDeInterleaveFp8E5M2(dst0Device, dst1Device, src0Device, src1Device, stream);
+    } else if constexpr (fp8Mode == 3) {
+        LaunchTDeInterleaveFp8E8M0(dst0Device, dst1Device, src0Device, src1Device, stream);
     } else {
         LaunchTDeInterleave<T, tileH, tileW, vRows, vCols>(dst0Device, dst1Device, src0Device, src1Device, stream);
     }
@@ -119,7 +134,7 @@ void test_tdeinterleave()
     EXPECT_TRUE(ret1);
 }
 
-template <typename T, int tileH, int tileW, int vRows, int vCols, bool isHalf = false>
+template <typename T, int tileH, int tileW, int vRows, int vCols, bool isHalf = false, int fp8Mode = 0>
 void test_tdeinterleave_single_src()
 {
     size_t fileSizeTile = tileH * tileW * sizeof(T);
@@ -150,6 +165,12 @@ void test_tdeinterleave_single_src()
 
     if constexpr (isHalf) {
         LaunchTDeInterleaveSingleSrcHalf<tileH, tileW, vRows, vCols>(dst0Device, dst1Device, srcDevice, stream);
+    } else if constexpr (fp8Mode == 1) {
+        LaunchTDeInterleaveSingleSrcFp8E4M3(dst0Device, dst1Device, srcDevice, stream);
+    } else if constexpr (fp8Mode == 2) {
+        LaunchTDeInterleaveSingleSrcFp8E5M2(dst0Device, dst1Device, srcDevice, stream);
+    } else if constexpr (fp8Mode == 3) {
+        LaunchTDeInterleaveSingleSrcFp8E8M0(dst0Device, dst1Device, srcDevice, stream);
     } else {
         LaunchTDeInterleaveSingleSrc<T, tileH, tileW, vRows, vCols>(dst0Device, dst1Device, srcDevice, stream);
     }
@@ -213,4 +234,20 @@ TEST_F(TDEINTERLEAVETest, case_half_16x256_16x256_single_src)
 TEST_F(TDEINTERLEAVETest, case_uint8_8x512_8x512_single_src)
 {
     test_tdeinterleave_single_src<uint8_t, 8, 512, 8, 512>();
+}
+// fp8 cases (host buffers are byte-agnostic uint8_t; the kernel uses fp8 device types)
+TEST_F(TDEINTERLEAVETest, case_fp8e4m3_32x256_32x256) { test_tdeinterleave<uint8_t, 32, 256, 32, 256, false, 1>(); }
+TEST_F(TDEINTERLEAVETest, case_fp8e5m2_32x256_32x256) { test_tdeinterleave<uint8_t, 32, 256, 32, 256, false, 2>(); }
+TEST_F(TDEINTERLEAVETest, case_fp8e8m0_32x256_32x256) { test_tdeinterleave<uint8_t, 32, 256, 32, 256, false, 3>(); }
+TEST_F(TDEINTERLEAVETest, case_fp8e4m3_8x512_8x512_single_src)
+{
+    test_tdeinterleave_single_src<uint8_t, 8, 512, 8, 512, false, 1>();
+}
+TEST_F(TDEINTERLEAVETest, case_fp8e5m2_8x512_8x512_single_src)
+{
+    test_tdeinterleave_single_src<uint8_t, 8, 512, 8, 512, false, 2>();
+}
+TEST_F(TDEINTERLEAVETest, case_fp8e8m0_8x512_8x512_single_src)
+{
+    test_tdeinterleave_single_src<uint8_t, 8, 512, 8, 512, false, 3>();
 }
