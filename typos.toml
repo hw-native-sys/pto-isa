@@ -28,7 +28,9 @@ alog = "alog"            # ascendalog tool / algorithm-log
 mis = "mis"          # mis- prefix (mis-counts, mis-typed)
 vitaliy = "vitaliy"  # author name (Vitaliy Manushkin, in Third_Party_Open_Source_Software_Notice)
 compatiable = "compatiable"  # external cann-cmake filename version_compatiable.inc — must match dependency spelling
+rto = "rto"          # Linx round-to-odd hardware rounding mode (LINX_RTO)
 
 [default.extend-identifiers]
 SUBTILE = "SUBTILE"
 SUBTILES = "SUBTILES"
+countr_zero = "countr_zero"  # C++20 count-trailing-zero function

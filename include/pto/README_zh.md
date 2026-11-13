@@ -23,6 +23,7 @@
 - `npu/`：NPU 侧实现（按 SoC 版本拆分）
   - `npu/a2a3/`：Ascend A2/A3 系列
   - `npu/a5/`：Ascend A5 系列
+  - `npu/linx/`：[Linx 受限实验原生 API 与 CPU-SIM](npu/linx/README_zh.md)，通过 Linx 目标配置选择并保留原生调用形式
 - `comm/`：通信指令库
   - `pto_comm_inst.hpp`：通信指令统一入口头文件
   - `comm_types.hpp`：通信指令的核心类型定义

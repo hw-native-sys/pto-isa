@@ -12,10 +12,15 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
+        # Pinned native import and mechanically generated declarations retain source whitespace.
+        exclude: ^include/pto/npu/linx/impl/|^include/pto/cpu/linx/(native_api|region|predicate)\.hpp$
       - id: end-of-file-fixer
+        exclude: ^include/pto/npu/linx/impl/|^include/pto/cpu/linx/(native_api|region|predicate)\.hpp$
       - id: check-yaml
         args: ["--allow-multiple-documents"]
       - id: check-added-large-files
+        # The native monolithic emitter and its generated CPU counterpart are source, not binaries.
+        exclude: ^include/pto/npu/linx/impl/jcore/template_asm\.hpp$|^include/pto/cpu/linx/native_api\.hpp$
       - id: check-merge-conflict
       - id: detect-private-key
       - id: check-json
@@ -29,7 +34,7 @@ repos:
         args:
           - "--verbose"
           - "-i"
-        exclude: ^build/|tests/third_party/
+        exclude: ^build/|tests/third_party/|^include/pto/npu/linx/impl/
 
   # Python 代码检查
   - repo: https://gitcode.com/gh_mirrors/ru/ruff-pre-commit
@@ -59,6 +64,7 @@ repos:
     hooks:
       - id: typos
         args: ["--force-exclude"]
+        exclude: ^include/pto/npu/linx/impl/|^include/pto/cpu/linx/(native_api|region|predicate)\.hpp$
 
   # OAT 合规性检查 (Open Source Audit Tool) — 远程 Python hook
   - repo: https://gitcode.com/HiAgent/compliance

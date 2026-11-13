@@ -11,6 +11,7 @@ Tests and examples for PTO Tile Lib, covering both CPU simulation and NPU (inclu
 Common test entry points:
 
 - Full CPU Simulator run: `python3 tests/run_cpu.py --clean --verbose`
+- Linx native API CPU execution: `CXX=g++ python3 tests/run_cpu.py --testcase linx_native --verbose` (standalone; no CANN/GTest dependency). Instruction counts and native admission boundaries are in the [support matrix](../docs/linx-tile-instruction-support.md). See the [backend validation guide](../include/pto/npu/linx/README.md).
 - GEMM demo: `python3 tests/run_cpu.py --demo gemm --verbose`
 - Flash Attention demo: `python3 tests/run_cpu.py --demo flash_attn --verbose`
 - Single ST testcase: `python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] -t [TEST_CASE] -g [GTEST_FILTER_CASE]`
