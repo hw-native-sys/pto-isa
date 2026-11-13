@@ -37,6 +37,7 @@ endfunction()
 find_package(Threads REQUIRED)
 
 set(ALL_TESTCASES
+cpu_atomic_reset
 cpu_target
 ffts
 ffts_hooks
