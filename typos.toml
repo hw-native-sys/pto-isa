@@ -11,6 +11,7 @@
 # (false positives). Real misspellings in source were fixed; misspelled identifiers
 # were renamed. Remaining entries below are legitimate terms, not typos.
 [default.extend-words]
+RTO = "RTO" # Linx rounding toward odd mnemonic
 nd = "nd"            # ND layout (N-dimensional), e.g. tnd / ND tensor format
 cann = "cann"        # Huawei CANN toolkit
 clos = "clos"        # CLOS network topology level used by HCCL rootinfo

@@ -170,6 +170,7 @@ This example shows how PTO communication primitives can be fused with compute ke
 - Ascend A2 (Ascend 910B)
 - Ascend A3 (Ascend 910C)
 - Ascend A5 (Ascend 950)
+- Linx target (Linx compiler and TileOP CPU simulator)
 - CPU (x86_64 / AArch64)
 
 For more details, see [include/README.md](include/README.md).
