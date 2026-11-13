@@ -56,13 +56,15 @@ Golden 独立于 CPU 输出构造；模型诊断、guest 完成标志、输出�
 
 CPU 检查单 Tile 容量、有效 shape、范围、索引对齐及 Shared 发布/组装。全芯片资源、调度/cache、页表、完整未定义值跟踪和硬件竞争顺序不在模拟范围内。原生 TPUSH/TPOP 不可用。完整约束见[后端说明](../include/pto/npu/linx/README_zh.md)。
 
+[SuperNPUBench 验证](linx-supernpubench-validation_zh.md) 对照原生后端逐项执行 544 条 one-level-arch 配置，说明多 PE 启动、显式 GM 映射、Shared slot 有序发布、BF16 转换、CUBE 物理容量、动态视图与 RowMajor/CUBE TileArray 行为，以及必要的主机源码适配。数值通过和仅执行完成分开统计。
+
 开放受限 NPU 路径需要固定 API/编译器/模型组合，并通过对应的独立数值与内存检查，再同步调整该路径的诊断和中英文支持矩阵。
 
 ## 本地验证与复现
 
 | 检查项 | 结果 |
 | --- | --- |
-| Standalone 回归，包含 NDEBUG 和 ASan/UBSan | 62/62 通过 |
+| Standalone 回归（NDEBUG 和 device 编译）；独立 ASan/UBSan 回归 | 64/64；40/40 通过 |
 | CPU 目标选择 | 5/5 通过 |
 | 受限场景在 `-O0/-O2`、NDEBUG、公共/内部头入口下编译 | 428/428 明确拒绝，无编译器内部崩溃 |
 | 185 个上游编译 fixture | 91 个原生语法检查通过、57 个实验范围明确拒绝、37 个上游拒绝 |

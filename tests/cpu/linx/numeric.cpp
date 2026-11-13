@@ -118,7 +118,9 @@ int main()
     check(number(blkv_bf16_max(a, b)) == 3, "BF16 fmax");
     __bf16 zero{};
     check(number(blkv_bf16_exp(zero)) == 1, "BF16 exp");
-    __bf16 one{0x3f80}, tiny{1}, minusOne{0xbf80};
+    auto one = std::bit_cast<__bf16>(uint16_t{0x3f80});
+    auto tiny = std::bit_cast<__bf16>(uint16_t{1});
+    auto minusOne = std::bit_cast<__bf16>(uint16_t{0xbf80});
     check(blkv_bf16_add<BLKV_RUP>(one, tiny).data == 0x3f81, "BF16 directed rounding retains tiny addend");
     check(blkv_bf16_add<BLKV_RNE>(one, tiny).data == 0x3f80, "BF16 nearest ignores distant addend");
     check(blkv_bf16_add<BLKV_RDN>(one, minusOne).data == 0x8000, "BF16 exact cancellation in RTM");

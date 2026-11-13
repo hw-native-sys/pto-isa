@@ -47,6 +47,23 @@ template <typename T>
 using dtype_t = typename plain_t<T>::DType;
 
 template <typename T>
+int validRows(const T& tile)
+{
+    if constexpr (requires { typename T::reduction_prefix_parent; })
+        return T::ValidRow == DYNAMIC ? tile.parent().GetValidRow() : T::ValidRow;
+    else
+        return tile.GetValidRow();
+}
+template <typename T>
+int validCols(const T& tile)
+{
+    if constexpr (requires { typename T::reduction_prefix_parent; })
+        return T::ValidCol == DYNAMIC ? tile.parent().GetValidCol() : T::ValidCol;
+    else
+        return tile.GetValidCol();
+}
+
+template <typename T>
 constexpr std::size_t capacity()
 {
     if constexpr (requires { T::CapacityBytes; })
@@ -146,12 +163,29 @@ auto bytes(T& tile)
     }
 }
 template <typename T>
+constexpr int physicalRows()
+{
+    if constexpr (requires { T::PhysicalRows; })
+        return T::PhysicalRows;
+    else
+        return T::Rows;
+}
+template <typename T>
+constexpr int physicalCols()
+{
+    if constexpr (requires { T::PhysicalCols; })
+        return T::PhysicalCols;
+    else
+        return T::Cols;
+}
+template <typename T>
 void shape(const T& tile)
 {
-    require(
-        tile.GetValidRow() >= 0 && tile.GetValidRow() <= T::Rows && tile.GetValidCol() >= 0 &&
-            tile.GetValidCol() <= T::Cols,
-        "Linx valid shape exceeds physical tile shape");
+    if (validRows(tile) < 0 || validRows(tile) > physicalRows<T>() || validCols(tile) < 0 ||
+        validCols(tile) > physicalCols<T>())
+        throw std::invalid_argument(
+            "Linx valid shape " + std::to_string(validRows(tile)) + "x" + std::to_string(validCols(tile)) +
+            " exceeds physical tile " + std::to_string(physicalRows<T>()) + "x" + std::to_string(physicalCols<T>()));
 }
 template <typename T>
 void checkAccess(const T& tile, std::size_t offset, std::size_t length)
@@ -282,7 +316,7 @@ void produce(
         return;
     if (skipSharedProducer(dst, peMask, publish, associated))
         return;
-    require(columns <= T::Cols && rows <= T::Rows, "Linx operation shape exceeds destination");
+    require(columns <= physicalCols<T>() && rows <= physicalRows<T>(), "Linx operation shape exceeds destination");
     // Every instruction consumes its complete input generation before publishing output.
     std::vector<uint64_t> result(rows * columns);
     for (std::size_t r = 0; r < rows; ++r)
@@ -385,8 +419,8 @@ void binary(D& dst, A& a, B& b, unsigned columns = 0, unsigned rows = 0)
 {
     shape(a);
     shape(b);
-    columns = columns ? columns : a.GetValidCol();
-    rows = rows ? rows : a.GetValidRow();
+    columns = columns ? columns : validCols(a);
+    rows = rows ? rows : validRows(a);
     produce(dst, columns, rows, [&](auto r, auto c) {
         if constexpr (Op == 29) {
             // Widening forms subtract in FP32; same-type forms round the
@@ -401,7 +435,7 @@ template <int Op, typename D, typename S>
 void unary(D& dst, S& src)
 {
     shape(src);
-    produce(dst, src.GetValidCol(), src.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(src), validRows(src), [&](auto r, auto c) {
         auto raw = readBits(src, r, c);
         if constexpr (Op == 17 && integral<dtype_t<S>>)
             return uint64_t{0} - raw;
@@ -452,7 +486,7 @@ template <int Op, typename D, typename S, typename V>
 void scalar(D& dst, S& src, V value)
 {
     shape(src);
-    produce(dst, src.GetValidCol(), src.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(src), validRows(src), [&](auto r, auto c) {
         return scalarBits(calculate<Op>(read(src, r, c), value));
     });
 }
@@ -460,7 +494,7 @@ template <typename D, typename V>
 void fill(D& dst, V value)
 {
     shape(dst);
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto, auto) { return scalarBits(value); });
+    produce(dst, validCols(dst), validRows(dst), [&](auto, auto) { return scalarBits(value); });
 }
 template <typename D, typename S>
 void copy(D& dst, const S& src, unsigned mask = 15, bool publish = true)
@@ -470,8 +504,7 @@ void copy(D& dst, const S& src, unsigned mask = 15, bool publish = true)
     if (skipSharedProducer(dst, mask, publish))
         return;
     shape(src);
-    produce(
-        dst, src.GetValidCol(), src.GetValidRow(), [&](auto r, auto c) { return readBits(src, r, c); }, mask, publish);
+    produce(dst, validCols(src), validRows(src), [&](auto r, auto c) { return readBits(src, r, c); }, mask, publish);
 }
 template <int Mask = 15, int Pad = 0, bool Associated = false, typename D, typename G>
 void load(D& dst, const G& src)
@@ -480,10 +513,10 @@ void load(D& dst, const G& src)
         return;
     shape(dst);
     produce(
-        dst, dst.GetValidCol(), dst.GetValidRow(),
+        dst, validCols(dst), validRows(dst),
         [&](auto r, auto c) {
             uint64_t value = 0;
-            auto* p = reinterpret_cast<const std::byte*>(src.data()) + r * src.GetStrideBytes(3);
+            auto* p = globalAddress(src.data(), r * src.GetStrideBytes(3), (validCols(dst) * bits<dtype_t<G>> + 7) / 8);
             if constexpr (bits<dtype_t<G>> == 4)
                 value = (std::to_integer<unsigned>(p[c / 2]) >> ((c % 2) * 4)) & 15;
             else
@@ -514,7 +547,7 @@ void load(D& dst, const G& src)
         }();
         for (int r = 0; r < physicalRows; ++r)
             for (int c = 0; c < physicalCols; ++c)
-                if (r >= dst.GetValidRow() || c >= dst.GetValidCol())
+                if (r >= validRows(dst) || c >= validCols(dst))
                     writeBits(dst, r, c, value);
     }
 }
@@ -524,10 +557,10 @@ void store(G& dst, const S& src)
     if (!(Mask & (8u >> threadIndex())))
         return;
     shape(src);
-    for (int r = 0; r < src.GetValidRow(); ++r)
-        for (int c = 0; c < src.GetValidCol(); ++c) {
+    for (int r = 0; r < validRows(src); ++r)
+        for (int c = 0; c < validCols(src); ++c) {
             auto value = readBits(src, r, c);
-            auto* p = reinterpret_cast<std::byte*>(dst.data()) + r * dst.GetStrideBytes(3);
+            auto* p = globalAddress(dst.data(), r * dst.GetStrideBytes(3), (validCols(src) * bits<dtype_t<S>> + 7) / 8);
             if constexpr (bits<dtype_t<S>> == 4) {
                 unsigned shift = (c % 2) * 4;
                 p[c / 2] = std::byte((std::to_integer<unsigned>(p[c / 2]) & ~(15u << shift)) | ((value & 15) << shift));
@@ -538,35 +571,35 @@ void store(G& dst, const S& src)
 template <int RMode, typename D, typename S>
 void convert(D& dst, const S& src)
 {
-    produce(dst, src.GetValidCol(), src.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(src), validRows(src), [&](auto r, auto c) {
         return convertRaw(code<dtype_t<D>>, code<dtype_t<S>>, readBits(src, r, c), RMode, false);
     });
 }
 template <int Descending, typename D, typename V>
 void sequence(D& dst, V value)
 {
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto, auto c) {
         return scalarBits(encode<dtype_t<D>>(number(value) + (Descending ? -1.L : 1.L) * c));
     });
 }
 template <int RowStep, int ColStep, typename D, typename V>
 void sequence2d(D& dst, V value)
 {
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         return scalarBits(encode<dtype_t<D>>(number(value) + RowStep * int64_t(r) + ColStep * int64_t(c)));
     });
 }
 template <typename D>
 void triangle(D& dst)
 {
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         return scalarBits(encode<dtype_t<D>>(c <= r ? 1 : 0));
     });
 }
 template <typename D, typename A, typename B, typename C>
 void fma(D& dst, A& a, B& b, C& c)
 {
-    produce(dst, a.GetValidCol(), a.GetValidRow(), [&](auto r, auto col) {
+    produce(dst, validCols(a), validRows(a), [&](auto r, auto col) {
         if constexpr (integral<dtype_t<A>>)
             return readBits(a, r, col) * readBits(b, r, col) + readBits(c, r, col);
         else if constexpr (std::is_same_v<dtype_t<A>, float> || std::is_same_v<dtype_t<A>, double>)
@@ -581,8 +614,8 @@ void reduce(D& dst, S& src)
 {
     constexpr bool rowWise = Op < 80;
     constexpr int kind = rowWise ? Op - 64 : Op - 80;
-    const int count = rowWise ? src.GetValidCol() : src.GetValidRow();
-    produce(dst, rowWise ? 1 : src.GetValidCol(), rowWise ? src.GetValidRow() : 1, [&](auto r, auto c) {
+    const int count = rowWise ? validCols(src) : validRows(src);
+    produce(dst, rowWise ? 1 : validCols(src), rowWise ? validRows(src) : 1, [&](auto r, auto c) {
         require(count > 0, "empty reduction");
         auto acc = (kind == 0) ? encode<dtype_t<S>>(0) : (kind == 3) ? encode<dtype_t<S>>(1) : read(src, r, c);
         unsigned index = 0;
@@ -608,14 +641,14 @@ void reduce(D& dst, S& src)
 template <bool RowWise, int ByteOffset = 0, typename D, typename S>
 void expand(D& dst, S& src)
 {
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         return readBits(src, RowWise ? r : 0, RowWise ? ByteOffset / sizeof(dtype_t<S>) : c);
     });
 }
 template <int Op, bool RowWise, int ByteOffset = 0, typename D, typename A, typename B>
 void broadcast(D& dst, A& a, B& b)
 {
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         return scalarBits(
             calculate<Op>(read(a, r, c), read(b, RowWise ? r : 0, RowWise ? ByteOffset / sizeof(dtype_t<B>) : c)));
     });
@@ -670,8 +703,8 @@ void predicate(D& dst, const Basis& src, Fn fn)
             return capacity<D>();
     }();
     std::vector<std::byte> result(extent);
-    for (int r = 0; r < src.GetValidRow(); ++r)
-        for (int c = 0; c < src.GetValidCol(); ++c) {
+    for (int r = 0; r < validRows(src); ++r)
+        for (int c = 0; c < validCols(src); ++c) {
             if constexpr (Basis::BFractal == BLayout::RowMajor) {
                 const auto i = r * Basis::Cols + c;
                 require(i / 8 < result.size(), "predicate exceeds destination capacity");
@@ -708,23 +741,23 @@ void assignCompareGpr(uint64_t& result, S& src, V value)
     constexpr int fields = width == 32 ? 2 : (bits<dtype_t<S>> == 32 ? 2 : 4);
     result = 0;
     for (int c = 0; c < fields; ++c)
-        for (int r = 0; r < src.GetValidRow(); ++r) {
+        for (int r = 0; r < validRows(src); ++r) {
             const int col = c + (High ? fields : 0);
-            if (col < src.GetValidCol() && compareValue<Mode>(read(src, r, col), value))
+            if (col < validCols(src) && compareValue<Mode>(read(src, r, col), value))
                 result |= uint64_t{1} << (c * width + r);
         }
 }
 template <typename D, typename M, typename A, typename B>
 void select(D& dst, M& mask, A& a, B& b)
 {
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         return maskBit<D>(mask, r, c) ? readBits(a, r, c) : readBits(b, r, c);
     });
 }
 template <typename D, typename M, typename A, typename V>
 void selectScalar(D& dst, M& mask, A& a, V value)
 {
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         return maskBit<D>(mask, r, c) ? readBits(a, r, c) : scalarBits(value);
     });
 }
@@ -735,10 +768,10 @@ void prefetch(const G&, unsigned, unsigned)
 template <typename D, typename S, typename I>
 void gather(D& dst, S& src, I& off)
 {
-    produce(dst, off.GetValidCol(), off.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(off), validRows(off), [&](auto r, auto c) {
         auto i = static_cast<uint64_t>(number(read(off, r, c)));
         require(
-            i < std::size_t(src.GetValidRow()) && c < std::size_t(src.GetValidCol()),
+            i < std::size_t(validRows(src)) && c < std::size_t(validCols(src)),
             "TGATHER source row exceeds valid shape");
         return readBits(src, i, c);
     });
@@ -747,19 +780,18 @@ template <typename D, typename S, typename I>
 void scatter(D& dst, S& src, I& off)
 {
     std::vector<std::pair<uint64_t, uint64_t>> writes;
-    for (int r = 0; r < off.GetValidRow(); ++r)
-        for (int c = 0; c < off.GetValidCol(); ++c) {
+    for (int r = 0; r < validRows(off); ++r)
+        for (int c = 0; c < validCols(off); ++c) {
             auto i = static_cast<uint64_t>(number(read(off, r, c)));
             require(
-                i < std::size_t(dst.GetValidRow()) && c < dst.GetValidCol(),
-                "TSCATTER destination row exceeds valid shape");
-            writes.emplace_back(i * dst.GetValidCol() + c, readBits(src, r, c));
+                i < std::size_t(validRows(dst)) && c < validCols(dst), "TSCATTER destination row exceeds valid shape");
+            writes.emplace_back(i * validCols(dst) + c, readBits(src, r, c));
         }
-    for (int r = 0; r < dst.GetValidRow(); ++r)
-        for (int c = 0; c < dst.GetValidCol(); ++c)
+    for (int r = 0; r < validRows(dst); ++r)
+        for (int c = 0; c < validCols(dst); ++c)
             writeBits(dst, r, c, 0);
     for (auto [i, v] : writes)
-        writeBits(dst, i / dst.GetValidCol(), i % dst.GetValidCol(), v);
+        writeBits(dst, i / validCols(dst), i % validCols(dst), v);
 }
 inline std::uintptr_t indexedAddress(const void* base, int64_t displacement, IndexedByteRange range, std::size_t width)
 {
@@ -776,7 +808,50 @@ inline std::uintptr_t indexedAddress(const void* base, int64_t displacement, Ind
         address += displacement;
     }
     require(address <= std::numeric_limits<std::uintptr_t>::max() - (width - 1), "indexed access wraps address space");
-    return address;
+    return reinterpret_cast<uintptr_t>(globalAddress(reinterpret_cast<const void*>(address), 0, width));
+}
+// GPR predicate forms used by native inline emitters. Disabled lanes do not
+// access GM; selections snapshot both sources before an aliased destination.
+template <typename D, typename I>
+void gatherGpr(D& dst, const void* base, const I& offsets, uint64_t mask)
+{
+    produce(dst, validCols(offsets), validRows(offsets), [&](auto r, auto c) {
+        const auto bit =
+            (I::BFractal == BLayout::RowMajor ? r * I::Cols + c : c * (I::BFractal == BLayout::CubeM16 ? 16 : 32) + r);
+        require(bit < 64, "GPR gather mask exceeds one carrier");
+        uint64_t raw = 0;
+        if (mask & (uint64_t{1} << bit)) {
+            auto address =
+                indexedAddress(base, int64_t(number(read(offsets, r, c))), unboundedRange, sizeof(dtype_t<D>));
+            std::memcpy(&raw, reinterpret_cast<const void*>(address), sizeof(dtype_t<D>));
+        }
+        return raw;
+    });
+}
+template <typename D, typename A, typename B>
+void selectGpr(D& dst, uint64_t mask, const A& yes, const B& no)
+{
+    produce(dst, validCols(yes), validRows(yes), [&](auto r, auto c) {
+        const auto bit =
+            (A::BFractal == BLayout::RowMajor ? r * A::Cols + c : c * (A::BFractal == BLayout::CubeM16 ? 16 : 32) + r);
+        require(bit < 64, "GPR select mask exceeds one carrier");
+        return mask & (uint64_t{1} << bit) ? readBits(yes, r, c) : readBits(no, r, c);
+    });
+}
+template <CmpMode Mode, typename A, typename B>
+uint64_t compareGpr(const A& a, const B& b)
+{
+    uint64_t result = 0;
+    for (int r = 0; r < validRows(a); ++r)
+        for (int c = 0; c < validCols(a); ++c) {
+            const auto bit =
+                (A::BFractal == BLayout::RowMajor ? r * A::Cols + c :
+                                                    c * (A::BFractal == BLayout::CubeM16 ? 16 : 32) + r);
+            require(bit < 64, "GPR compare mask exceeds one carrier");
+            if (compareValue<Mode>(read(a, r, c), read(b, r, c)))
+                result |= uint64_t{1} << bit;
+        }
+    return result;
 }
 template <typename M>
 bool indexedMaskActive(const M& mask, std::size_t row, std::size_t col)
@@ -792,7 +867,7 @@ bool indexedMaskActive(const M& mask, std::size_t row, std::size_t col)
 template <int Pad, typename D, typename G, typename I, typename M>
 void memoryGather(D& dst, const G& src, const I& offset, const M& mask, IndexedByteRange range)
 {
-    produce(dst, offset.GetValidCol(), offset.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(offset), validRows(offset), [&](auto r, auto c) {
         bool active = true;
         if constexpr (!std::is_same_v<M, NoOperand>)
             active = indexedMaskActive(mask, r, c);
@@ -817,8 +892,8 @@ template <typename G, typename S, typename I, typename M>
 void memoryScatter(G& dst, const S& src, const I& offset, const M& mask, IndexedByteRange range)
 {
     std::vector<std::pair<std::uintptr_t, uint64_t>> writes;
-    for (int r = 0; r < offset.GetValidRow(); ++r)
-        for (int c = 0; c < offset.GetValidCol(); ++c) {
+    for (int r = 0; r < validRows(offset); ++r)
+        for (int c = 0; c < validCols(offset); ++c) {
             if constexpr (!std::is_same_v<M, NoOperand>)
                 if (!indexedMaskActive(mask, r, c))
                     continue;
@@ -916,8 +991,8 @@ void matrix(
     constexpr int accumulatorType =
         floating ? __type_fp32 : (code<dtype_t<A>> >= 24 && code<dtype_t<B>> >= 24 ? __type_uint32 : __type_int32);
     const std::size_t shard = (sharedA || sharedB) ? threadIndex() * (M <= 64 ? 16 : 32) : 0;
-    const std::size_t rows = shard < M ? std::min<std::size_t>(dst.GetValidRow(), M - shard) : 0;
-    require(N <= std::size_t(dst.GetValidCol()), "matrix N exceeds destination valid columns");
+    const std::size_t rows = shard < M ? std::min<std::size_t>(validRows(dst), M - shard) : 0;
+    require(N <= std::size_t(validCols(dst)), "matrix N exceeds destination valid columns");
     std::vector<uint64_t> intermediates(rows * N), output(rows * N), rowResults(rows), groupResults;
     constexpr unsigned groupN = Attr.GroupNCode == 0 ? 0 : Attr.GroupNCode == 1 ? 8 : (Attr.GroupNCode - 1) * 16;
     constexpr int groups = Attr.GroupMaxEn ? (D::ValidCol + groupN - 1) / groupN : 0;
@@ -1063,7 +1138,7 @@ uint8_t cellByte(const T& tile, std::size_t row, std::size_t index)
 template <typename D, typename F>
 void produceBytes(D& dst, F fn, unsigned columns = 0)
 {
-    produce(dst, columns ? columns : dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, columns ? columns : validCols(dst), validRows(dst), [&](auto r, auto c) {
         if constexpr (bits<dtype_t<D>> == 4)
             return uint64_t((fn(r, c / 2) >> (c % 2 * 4)) & 15);
         else {
@@ -1093,14 +1168,14 @@ void shuffle(D& dst, S& src, C& controls, uint64_t control)
     const unsigned width = 2u << segment;
     constexpr unsigned cellRows = S::BFractal == BLayout::CubeM16 ? 16 : 32;
     require(width <= cellRows, "TSHUF segment exceeds CELL rows");
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         const unsigned shift = readBits(controls, r, c * bits<dtype_t<S>> / 32) & 31;
         const unsigned lane = r % cellRows, local = lane % width, base = r - local;
         int selected = mode == 0 ? int(local) - int(shift) :
                        mode == 1 ? local + shift :
                        mode == 2 ? local ^ shift :
                                    shift % width;
-        bool valid = selected >= 0 && selected < int(width) && base + selected < unsigned(src.GetValidRow());
+        bool valid = selected >= 0 && selected < int(width) && base + selected < unsigned(validRows(src));
         return valid ? readBits(src, base + selected, c) : boundary == 0 ? readBits(src, r, c) : uint64_t{0};
     });
 }
@@ -1113,7 +1188,7 @@ void pack(D& dst, A& a, B& b, uint64_t control)
         "invalid TPACK byte selection");
     // An assembled destination describes the parent; only this source's raw
     // words belong to the current writer. Do not read/write the next fragment.
-    const unsigned columns = ((a.GetValidCol() * sizeof(dtype_t<A>) + 3) / 4) * (4 / sizeof(dtype_t<D>));
+    const unsigned columns = ((validCols(a) * sizeof(dtype_t<A>) + 3) / 4) * (4 / sizeof(dtype_t<D>));
     produceBytes(
         dst,
         [&](auto r, auto i) -> uint8_t {
@@ -1136,7 +1211,7 @@ void gprToTile(D& dst, uint64_t g0, uint64_t g1, uint64_t g2, uint64_t g3)
 {
     const uint64_t words[] = {g0, g1, g2, g3};
     constexpr unsigned rows = D::BFractal == BLayout::CubeM16 ? 16 : 32;
-    produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+    produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
         uint64_t v = 0;
         if (c >= 32 / rows)
             return v;
@@ -1243,14 +1318,14 @@ void atomicStore(G& dst, const S& src, const M& mask = noOperand)
     constexpr std::string_view names[] = {"ADD", "MIN", "MAX", "AND", "OR", "XOR", "INC", "DEC"};
     using E = dtype_t<S>;
     std::vector<std::pair<void*, uint64_t>> writes;
-    for (int r = 0; r < src.GetValidRow(); ++r)
-        for (int c = 0; c < src.GetValidCol(); ++c) {
+    for (int r = 0; r < validRows(src); ++r)
+        for (int c = 0; c < validCols(src); ++c) {
             if constexpr (!std::is_same_v<M, NoOperand>) {
                 const auto* p = reinterpret_cast<const std::byte*>(&mask);
                 if ((std::to_integer<unsigned>(p[predicateIndex<S>(r, c)]) != 0) == Invert)
                     continue;
             }
-            auto* address = reinterpret_cast<std::byte*>(dst.data()) + r * dst.GetStrideBytes(3) + c * sizeof(E);
+            auto* address = globalAddress(dst.data(), r * dst.GetStrideBytes(3) + c * sizeof(E), sizeof(E));
             require(reinterpret_cast<uintptr_t>(address) % sizeof(E) == 0, "atomic TSTORE address is misaligned");
             writes.emplace_back(address, readBits(src, r, c));
         }
@@ -1266,10 +1341,10 @@ template <typename G, typename S>
 void storeCount(G& dst, const S& src, unsigned count)
 {
     for (unsigned i = 0; i < count; ++i) {
-        const auto r = i / src.GetValidCol(), c = i % src.GetValidCol();
+        const auto r = i / validCols(src), c = i % validCols(src);
         auto v = readBits(src, r, c);
         std::memcpy(
-            reinterpret_cast<std::byte*>(dst.data()) + r * dst.GetStrideBytes(3) + c * sizeof(dtype_t<S>), &v,
+            globalAddress(dst.data(), r * dst.GetStrideBytes(3) + c * sizeof(dtype_t<S>), sizeof(dtype_t<S>)), &v,
             sizeof(dtype_t<S>));
     }
 }
@@ -1282,6 +1357,7 @@ struct CarrierTile {
     static constexpr auto SFractal = Descriptor::SFractal;
     static constexpr bool IsCubeLayout = Descriptor::IsCubeLayout;
     static constexpr int Rows = Descriptor::Rows, Cols = Descriptor::Cols;
+    static constexpr int PhysicalRows = physicalRows<Descriptor>(), PhysicalCols = physicalCols<Descriptor>();
     static constexpr int InnerRows = Descriptor::InnerRows, InnerCols = Descriptor::InnerCols;
     static constexpr int LogicalTileBytes = Descriptor::LogicalTileBytes;
     static constexpr int ValidRow = Descriptor::ValidRow, ValidCol = Descriptor::ValidCol;
@@ -1314,11 +1390,10 @@ template <typename E>
 uint64_t globalElement(const void* base, std::size_t index)
 {
     uint64_t raw = 0;
-    auto p = static_cast<const std::byte*>(base);
     if constexpr (bits<E> == 4)
-        return (std::to_integer<unsigned>(p[index / 2]) >> (index % 2 * 4)) & 15;
+        return (std::to_integer<unsigned>(*globalAddress(base, index / 2, 1)) >> (index % 2 * 4)) & 15;
     else {
-        std::memcpy(&raw, p + index * sizeof(E), sizeof(E));
+        std::memcpy(&raw, globalAddress(base, index * sizeof(E), sizeof(E)), sizeof(E));
         return raw;
     }
 }
@@ -1334,11 +1409,11 @@ void weightLoad(D& dst, const G& src, WeightTLOADParams params)
     const unsigned channels = (ci + c0 - 1) / c0 * c0;
     require((params.shape_word >> 48) == 0 && ci && co && kh && kw, "invalid weight TLOAD shape word");
     require(
-        nstart + dst.GetValidRow() <= co && kstart + dst.GetValidCol() <= uint64_t(kh) * kw * channels,
+        nstart + validRows(dst) <= co && kstart + validCols(dst) <= uint64_t(kh) * kw * channels,
         "weight TLOAD window exceeds source shape");
-    require(kstart % c0 == 0 && dst.GetValidCol() % c0 == 0, "weight TLOAD K window is not C0 aligned");
+    require(kstart % c0 == 0 && validCols(dst) % c0 == 0, "weight TLOAD K window is not C0 aligned");
     produce(
-        dst, dst.GetValidCol(), dst.GetValidRow(),
+        dst, validCols(dst), validRows(dst),
         [&](auto r, auto c) {
             auto k = kstart + c, n = nstart + r;
             auto channel = k % channels, spatial = k / channels;
@@ -1354,6 +1429,7 @@ inline thread_local std::array<unsigned long, 64> sharedSlots{};
 template <unsigned Slot, int Mask, typename T>
 void publishSlot(SharedTile<T>& dst)
 {
+    static_assert(Slot < 64 && std::popcount(unsigned(Mask)) == 1, "Shared slot requires one producer PE");
     sharedSlots[Slot] = dst.handle();
     if (!currentCore || !(Mask & (8u >> threadIndex())))
         return;
@@ -1361,33 +1437,43 @@ void publishSlot(SharedTile<T>& dst)
     resolveShared(storage);
     require(storage.published, "Shared slot producer did not publish its parent");
     std::lock_guard lock(currentCore->mutex);
-    currentCore->sharedSlots[Slot] = storage.payload;
+    auto& core = *currentCore;
+    core.sharedSlots[{Slot, core.slotPublished[Slot]++}] = storage.payload;
     currentCore->changed.notify_all();
 }
 template <unsigned Slot, typename T>
 void acquireSlot(SharedTile<T>& dst)
 {
+    static_assert(Slot < 64, "Shared slot requires S0..S63");
     if (!currentCore) {
         dst.handle_ref() = sharedSlots[Slot];
         return;
     }
     auto& core = *currentCore;
     std::unique_lock lock(core.mutex);
+    const auto key = std::make_pair(Slot, core.slotConsumed[Slot][threadIndex()]);
     core.slotWaiters |= 1u << threadIndex();
     core.changed.notify_all();
     core.changed.wait(lock, [&] {
-        return core.sharedSlots.contains(Slot) || core.error || (core.finished | core.slotWaiters) == 15;
+        return core.sharedSlots.contains(key) || core.error || (core.finished | core.slotWaiters) == core.activeMask;
     });
     core.slotWaiters &= ~(1u << threadIndex());
     if (core.error)
         std::rethrow_exception(core.error);
-    require(core.sharedSlots.contains(Slot), "Shared slot has no producer");
-    const auto& payload = core.sharedSlots.at(Slot);
+    require(core.sharedSlots.contains(key), "Shared slot has no producer generation");
+    const auto& payload = core.sharedSlots.at(key);
     require(payload.size() == capacity<SharedTile<T>>(), "Shared slot capacity differs from its consumer");
     dst.handle_ref() = nextSharedHandle++;
     auto& storage = sharedStorage[dst.handle()];
     storage.payload = payload;
     storage.published = true;
+    ++core.slotConsumed[Slot][threadIndex()];
+    bool consumed = true;
+    for (unsigned pe = 0; pe < 4; ++pe)
+        if ((core.activeMask & (1u << pe)) && core.slotConsumed[Slot][pe] <= key.second)
+            consumed = false;
+    if (consumed)
+        core.sharedSlots.erase(key);
 }
 template <WeightLayoutEnum Layout, unsigned Slot, int Mask, typename T, typename G>
 void weightLoadSlot(const G& src, WeightTLOADParams params)
@@ -1420,7 +1506,7 @@ void imageToColumn(D& dst, const G& src, TIMG2COLParams params, std::size_t grou
     constexpr unsigned c0 = 256 / bits<dtype_t<G>>;
     const uint64_t channels = (p.cin + c0 - 1) / c0 * c0;
     const unsigned shardRows = D::BFractal == BLayout::CubeM16 ? 16 : 32;
-    std::size_t offset = 0, rows = dst.GetValidRow();
+    std::size_t offset = 0, rows = validRows(dst);
     const auto total = groupRows ? groupRows : rows;
     if constexpr (D::Loc != Location::Shared) {
         offset = threadIndex() * shardRows;
@@ -1428,11 +1514,11 @@ void imageToColumn(D& dst, const G& src, TIMG2COLParams params, std::size_t grou
     }
     require(
         p.row_start + total <= uint64_t(hout) * wout &&
-            p.col_start + dst.GetValidCol() <= p.kernel_h * p.kernel_w * channels,
+            p.col_start + validCols(dst) <= p.kernel_h * p.kernel_w * channels,
         "TIMG2COL requested rectangle exceeds output shape");
-    require(p.col_start % c0 == 0 && dst.GetValidCol() % c0 == 0, "TIMG2COL K window is not C0 aligned");
+    require(p.col_start % c0 == 0 && validCols(dst) % c0 == 0, "TIMG2COL K window is not C0 aligned");
     produce(
-        dst, dst.GetValidCol(), rows,
+        dst, validCols(dst), rows,
         [&](auto r, auto c) {
             uint64_t expandedRow = p.row_start + offset + r, expandedCol = p.col_start + c;
             auto kernel = expandedCol / channels, channel = expandedCol % channels;
@@ -1458,17 +1544,16 @@ void loadMultiple(const G& src, D&... destinations)
 {
     std::size_t offset = 0;
     auto one = [&](auto& dst) {
-        produce(dst, dst.GetValidCol(), dst.GetValidRow(), [&](auto r, auto c) {
+        produce(dst, validCols(dst), validRows(dst), [&](auto r, auto c) {
             auto rr = r + (Columns ? 0 : offset), cc = c + (Columns ? offset : 0);
             uint64_t v = 0;
             std::memcpy(
                 &v,
-                reinterpret_cast<const std::byte*>(src.data()) + rr * src.GetStrideBytes(3) +
-                    cc * src.GetStrideBytes(4),
+                globalAddress(src.data(), rr * src.GetStrideBytes(3) + cc * src.GetStrideBytes(4), sizeof(dtype_t<G>)),
                 sizeof(dtype_t<G>));
             return convertRaw(code<dtype_t<plain_t<decltype(dst)>>>, code<dtype_t<G>>, v, 0, false);
         });
-        offset += Columns ? dst.GetValidCol() : dst.GetValidRow();
+        offset += Columns ? validCols(dst) : validRows(dst);
     };
     (one(destinations), ...);
 }
@@ -1477,15 +1562,16 @@ void storeMultiple(G& dst, const S&... sources)
 {
     std::size_t offset = 0;
     auto one = [&](const auto& src) {
-        for (unsigned r = 0; r < unsigned(src.GetValidRow()); ++r)
-            for (unsigned c = 0; c < unsigned(src.GetValidCol()); ++c) {
+        for (unsigned r = 0; r < unsigned(validRows(src)); ++r)
+            for (unsigned c = 0; c < unsigned(validCols(src)); ++c) {
                 auto v = readBits(src, r, c);
                 std::memcpy(
-                    reinterpret_cast<std::byte*>(dst.data()) + (r + offset) * dst.GetStrideBytes(3) +
-                        c * dst.GetStrideBytes(4),
+                    globalAddress(
+                        dst.data(), (r + offset) * dst.GetStrideBytes(3) + c * dst.GetStrideBytes(4),
+                        sizeof(dtype_t<G>)),
                     &v, sizeof(dtype_t<G>));
             }
-        offset += src.GetValidRow();
+        offset += validRows(src);
     };
     (one(sources), ...);
 }
@@ -1501,7 +1587,15 @@ void groupMove(D& dst, uint64_t peer, const S& src)
         return;
     }
     auto& core = *currentCore;
+    // A one-PE model launch admits self movement without a Core4 rendezvous.
+    if (core.activeMask == 1) {
+        require(peer == 0, "GMOV peer is not active");
+        if (Mask & 8)
+            copy(dst, src);
+        return;
+    }
     std::unique_lock lock(core.mutex);
+    require(core.activeMask == 15, "GMOV requires all four PEs");
     if (core.error)
         std::rethrow_exception(core.error);
     require(core.finished == 0, "GMOV participant exited before the collective");
@@ -1563,8 +1657,8 @@ template <bool Atomic, bool Invert, typename G, typename I, typename V, typename
 void predicateScatter(G& dst, const I& indices, const V& values, const M& active, IndexedByteRange range)
 {
     std::vector<std::pair<uintptr_t, uint64_t>> writes;
-    for (int r = 0; r < values.GetValidRow(); ++r)
-        for (int c = 0; c < values.GetValidCol(); ++c) {
+    for (int r = 0; r < validRows(values); ++r)
+        for (int c = 0; c < validCols(values); ++c) {
             if (maskBit<V>(active, r, c) == Invert)
                 continue;
             auto address = indexedAddress(dst.data(), int64_t(number(read(indices, r, c))), range, sizeof(dtype_t<V>));

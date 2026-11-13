@@ -83,10 +83,14 @@ using multiple PE contexts, Shared matrix operands, or peer `GMOV` with:
 pto::linx_cpu::runCore([&] { kernel(input, output); });
 ```
 
-This host launcher executes four PE contexts; the kernel calls remain identical
-to device calls. Shared producers rendezvous with the PEs selected by their
+The default host launcher executes four PE contexts. `CoreConfig{peCount, memory}`
+selects one to four workers and optional GM address mappings. `syncCore()` is a
+reusable barrier across the active workers; worker exceptions and divergent
+barriers wake waiting peers and propagate to the caller after all workers join.
+Shared producers rendezvous with the PEs selected by their
 mask; singleton producers do not wait for nonselected PEs. `GMOV` requires all
-four source participants even with a subset destination mask. Participating PEs
+four source participants even with a subset destination mask; a single-PE launch
+also admits self movement. Participating PEs
 must issue the corresponding operations in the same order. Per-PE GM pointers
 use the original `get_thread_idx()` API. A missing selected participant causes
 a CPU error; there is no arbitrary execution-time limit. Shared allocations live
@@ -94,6 +98,27 @@ for the worker's invocation; prefer `runCore` for repeated Shared kernels.
 Absolute Shared slots are visible to every PE, including consumers that did not
 execute their producer. A plain Shared load uses a singleton producer; multiple
 producers require explicit assembly ranges under the native contract.
+
+Explicit slots retain ordered publications separately from each PE's consumption
+position. Acquiring a slot selects the next publication for that PE, so a fast
+producer cannot overwrite a delayed consumer's input. Copy a Shared handle to
+reuse an acquired generation. Publications are reclaimed after all active PEs
+consume them, or when the launch ends. This models the tested producer/consumer
+protocol; it does not add TPUSH/TPOP or model bounded hardware FIFO backpressure.
+
+Device-address examples must supply backing storage explicitly:
+
+```cpp
+std::vector<std::byte> storage(4096);
+std::array<pto::linx_cpu::MemoryRegion, 1> regions{{{0x10000, storage}}};
+pto::linx_cpu::runCore([&] { kernel(); }, {4, regions});
+```
+
+Tile GM accesses translate mapped addresses and check access bounds. Unmapped
+ordinary host pointers retain host semantics; low addresses require a mapping.
+Mappings and their storage must outlive `runCore`. Overlapping or wrapped address
+ranges are rejected. Scalar C++ dereferences do not undergo automatic translation;
+use `globalAddress(pointer, offset, length)` in a host adapter for those accesses.
 
 ## Simulation contract
 

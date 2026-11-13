@@ -56,13 +56,15 @@ Experimental CPU-SIM `TRSQRT` follows the pinned model's typed SQRT→DIV contra
 
 CPU validates per-Tile capacity, valid shape, ranges, indexed alignment and Shared publication/assembly. Chip-wide resources, scheduling/cache, page tables, full undefined-value tracking and hardware race ordering are outside its simulation scope. Native TPUSH/TPOP are unavailable. See the [backend contract](../include/pto/npu/linx/README.md).
 
+The [SuperNPUBench validation](linx-supernpubench-validation.md) covers 544 one-level-arch configuration records against the original native backend. It documents multi-PE launch, explicit GM mapping, ordered Shared slots, BF16 conversion, capacity-derived CUBE geometry, dynamic views and RowMajor/CUBE TileArray behavior, together with the required host source adapters. Numerical and execution-only results are counted separately.
+
 Enabling a restricted NPU path requires a pinned API/compiler/model combination that passes its independent numerical and memory checks. Its diagnostic and both language versions of the support matrix can then be updated together.
 
 ## Local validation and reproduction
 
 | Check | Result |
 | --- | --- |
-| Standalone regression, including NDEBUG and ASan/UBSan | 62/62 passed |
+| Standalone regression with NDEBUG and device compilation; separate ASan/UBSan run | 64/64; 40/40 passed |
 | CPU target selection | 5/5 passed |
 | Restricted profiles at `-O0/-O2`, with NDEBUG, through public/direct includes | 428/428 explicit rejections, without compiler internal crashes |
 | 185 upstream compilation fixtures | 91 native syntax passes, 57 explicit experimental restrictions, 37 upstream rejections |

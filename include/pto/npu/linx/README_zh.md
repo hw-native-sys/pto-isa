@@ -40,7 +40,19 @@ CPU-SIM 要求 little-endian LP64 主机，关闭 fast-math 和浮点融合。Li
 pto::linx_cpu::runCore([&] { kernel(input, output); });
 ```
 
-该启动器创建四个 PE 上下文，内核指令调用保持相同。Shared 生产者按 mask 等待参与 PE；单生产者不等待其他 PE，消费者按 generation 等待发布。GMOV 需要四个源参与者。参与线程必须按相同顺序调用对应操作，缺少选定参与者会触发 CPU 错误。绝对 Shared slot 对未执行生产指令的消费者也可见。普通 Shared load 使用单生产者，多生产者须遵守显式组装协议。
+启动器默认创建四个 PE 上下文；`CoreConfig{peCount, memory}` 可选择 1–4 个 PE 和显式 GM 映射。`syncCore()` 是可复用的参与者屏障，worker 异常和分歧屏障会唤醒等待线程，在所有 worker join 后向调用方传播异常。Shared 生产者按 mask 等待参与 PE；单生产者不等待其他 PE，消费者按 generation 等待发布。GMOV 需要四个源参与者；单 PE 启动也支持自拷贝。参与线程必须按相同顺序调用对应操作，缺少选定参与者会触发 CPU 错误。绝对 Shared slot 对未执行生产指令的消费者也可见。普通 Shared load 使用单生产者，多生产者须遵守显式组装协议。
+
+显式 slot 为每个 PE 保存消费位置，每次 acquire 取得下一次发布，避免快生产者覆盖慢消费者的数据。重复使用已取得的 generation 应复制 Shared handle。所有活跃 PE 消费后或启动结束时回收发布记录。这覆盖已测生产/消费协议，不表示实现了 TPUSH/TPOP 或有界硬件 FIFO 背压。
+
+设备地址需要显式提供 backing storage：
+
+```cpp
+std::vector<std::byte> storage(4096);
+std::array<pto::linx_cpu::MemoryRegion, 1> regions{{{0x10000, storage}}};
+pto::linx_cpu::runCore([&] { kernel(); }, {4, regions});
+```
+
+Tile GM 访问转换映射地址并检查范围；未映射的普通主机指针保持主机语义，低地址必须有映射。映射及存储需保持有效直至 `runCore` 返回，重叠及溢出的地址区间会被拒绝。普通 C++ 标量解引用不会自动转换，host adapter 应显式调用 `globalAddress(pointer, offset, length)`。
 
 ## 仿真契约
 

@@ -965,7 +965,11 @@ auto TASSEMBLY(region::TileArray<SubTile, Rows, Cols> &&array) -> Parent {
                                typename region::TileArray<SubTile, Rows,
                                                           Cols>::ParentCarrier>,
                 "TASSEMBLY parent and TileArray carriers must match");
+#if defined(PTO_CPU_SIM_TARGET_LINX)
+  result.assignData(linx_cpu::assembleTileArray<SubTile, Rows, Cols>(array.carrier()));
+#else
   result.assignData(array.carrier());
+#endif
 #endif
   return result;
 }

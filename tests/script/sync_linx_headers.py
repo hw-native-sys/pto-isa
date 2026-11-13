@@ -485,6 +485,13 @@ def relocate_native(relative, source):
             + "#if defined(PTO_CPU_SIM_TARGET_LINX)\n#include <pto/cpu/linx/type.hpp>\n#else\n#include <pto/npu/linx/impl/jcore/type.hpp>\n#endif\n"
             + s[end:]
         )
+    if relative == "jcore/linx_compat_types.hpp":
+        s = s.replace(
+            "PTO_LINX_STORAGE_TYPE(__blkc_bf16, uint16_t);",
+            "#if defined(PTO_CPU_SIM_TARGET_LINX)\n"
+            "#include <pto/cpu/linx/bfloat16.hpp>\n"
+            "#else\nPTO_LINX_STORAGE_TYPE(__blkc_bf16, uint16_t);\n#endif",
+        )
     if relative == "common/tileop_api_impl.hpp":
         s = "#ifndef PTO_LINX_NATIVE_TILEOP_API_IMPL_HPP\n#define PTO_LINX_NATIVE_TILEOP_API_IMPL_HPP\n#if defined(PTO_CPU_SIM_TARGET_LINX)\n#include <pto/cpu/linx/native_api.hpp>\n#else\n#include <pto/npu/linx/impl/jcore/template_asm.hpp>\n#endif\n#endif\n"
     if relative == "common/debug_utils.hpp":
@@ -492,6 +499,13 @@ def relocate_native(relative, source):
         s = s.replace("defined(__linx)", "(defined(__linx) || defined(PTO_CPU_SIM_TARGET_LINX))")
     if relative in {"common/pto_tile.hpp", "common/pto_tile_region.hpp", "common/pto_local_cube_assembly.hpp"}:
         s = s.replace("#ifdef __linx", "#if defined(__linx) || defined(PTO_CPU_SIM_TARGET_LINX)")
+    if relative == "common/pto_tile_region.hpp":
+        s = s.replace(
+            "  result.assignData(array.carrier());",
+            "#if defined(PTO_CPU_SIM_TARGET_LINX)\n"
+            "  result.assignData(linx_cpu::assembleTileArray<SubTile, Rows, Cols>(array.carrier()));\n"
+            "#else\n  result.assignData(array.carrier());\n#endif",
+        )
     if relative == "common/pto_local_cube_assembly.hpp":
         # GCC eagerly instantiates an unrelated Local assembly candidate for
         # TLOAD<Shape, PEMask>(SharedTile&, GM&), whereas native Clang discards

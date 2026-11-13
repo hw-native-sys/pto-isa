@@ -43,7 +43,11 @@ using __half = _Float16;
 
 PTO_LINX_STORAGE_TYPE(__tf32, uint32_t);
 PTO_LINX_STORAGE_TYPE(__hf32, uint32_t);
+#if defined(PTO_CPU_SIM_TARGET_LINX)
+#include <pto/cpu/linx/bfloat16.hpp>
+#else
 PTO_LINX_STORAGE_TYPE(__blkc_bf16, uint16_t);
+#endif
 PTO_LINX_STORAGE_TYPE(__hif8, uint8_t);
 PTO_LINX_STORAGE_TYPE(__fp8_e4m3, uint8_t);
 PTO_LINX_STORAGE_TYPE(__fp8_e5m2, uint8_t);

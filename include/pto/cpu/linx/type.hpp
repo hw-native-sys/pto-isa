@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <array>
 #include <bit>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 // The native Linx compiler publishes this same spelling for its BF16 carrier.
 #define __bf16 __blkc_bf16
@@ -31,4 +32,31 @@ struct linx_tile_carrier {
     using RegisterType = std::array<Scalar, kElements>;
     RegisterType Register{};
 };
+
+namespace pto::linx_cpu {
+template <typename Fragment, int ArrayRows, int ArrayCols, typename Carrier>
+Carrier assembleTileArray(const Carrier& source)
+{
+    // CUBE fragments are already ordered by physical CELLs. Repacking them as
+    // logical rows would corrupt M16/M32/N8 storage and borrowed range views.
+    if constexpr (!Fragment::isRowMajor || Fragment::isBoxedLayout)
+        return source;
+    Carrier result{};
+    const auto* in = reinterpret_cast<const unsigned char*>(&source);
+    auto* out = reinterpret_cast<unsigned char*>(&result);
+    // TileArray slots are compact fragments; the resulting RowMajor parent
+    // concatenates columns within each row, rather than concatenating buffers.
+    constexpr int width = Fragment::CubeElementBits;
+    for (int ar = 0; ar < ArrayRows; ++ar)
+        for (int ac = 0; ac < ArrayCols; ++ac)
+            for (int r = 0; r < Fragment::Rows; ++r)
+                for (int c = 0; c < Fragment::Cols * width; ++c) {
+                    const auto src =
+                        (ar * ArrayCols + ac) * Fragment::LogicalTileBytes * 8 + r * Fragment::Cols * width + c;
+                    const auto dst = ((ar * Fragment::Rows + r) * ArrayCols + ac) * Fragment::Cols * width + c;
+                    out[dst / 8] |= ((in[src / 8] >> (src % 8)) & 1U) << (dst % 8);
+                }
+    return result;
+}
+} // namespace pto::linx_cpu
 #endif
