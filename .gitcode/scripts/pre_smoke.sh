@@ -61,9 +61,9 @@ slog_name="slog.tar.gz"
 tar -zcf slog.tar.gz -C /root/ascend log
 OBS_KEY="${obs_smoke_path}/plog/${slog_name}"
 # Upload slog
-if python3 /home/upload.py --bucket-name "ascend-ci" --action upload --local-file "slog.tar.gz" --obs-object-key "${OBS_KEY}"; then
-    echo "::set-output var=plog_url:https://ascend-ci.obs.cn-north-4.myhuaweicloud.com/${OBS_KEY}"
-fi
+# if python3 /home/upload.py --bucket-name "ascend-ci" --action upload --local-file "slog.tar.gz" --obs-object-key "${OBS_KEY}"; then
+#     echo "::set-output var=plog_url:https://ascend-ci.obs.cn-north-4.myhuaweicloud.com/${OBS_KEY}"
+# fi
 
 npu-smi info
 echo "4. checking test results ..."
