@@ -121,6 +121,21 @@ enum class PtoOpcode {
     TTRI,
     TDEQUANT,
     TRESHAPE,
+    TSHL,
+    TSHR,
+    TSHLS,
+    TSHRS,
+    TPARTARGMAX,
+    TPARTARGMIN,
+    TCI,
+    TINTERLEAVE,
+    TDEINTERLEAVE,
+    TMATMUL_ACC,
+    TMATMUL_BIAS,
+    TMATMUL_MX,
+    TGEMV_ACC,
+    TGEMV_BIAS,
+    TGEMV_MX,
     COUNT,
 };
 
@@ -158,6 +173,22 @@ enum class A5ShapePathHint : uint8_t {
     Path2D,
 };
 
+// Explicit source/destination geometry: transpose dispatch uses physical source
+// dimensions, while its loops use valid dimensions and its indices use strides.
+struct TransposeGeometry {
+    bool ordinary_row_major = false;
+    int64_t src_rows = 0;
+    int64_t src_cols = 0;
+    int64_t src_valid_rows = 0;
+    int64_t src_valid_cols = 0;
+    int64_t src_row_stride = 0;
+    int64_t dst_rows = 0;
+    int64_t dst_cols = 0;
+    int64_t dst_valid_rows = 0;
+    int64_t dst_valid_cols = 0;
+    int64_t dst_row_stride = 0;
+};
+
 struct CostModelInput {
     PtoOpcode op;
     DType dtype;
@@ -193,6 +224,7 @@ struct CostModelInput {
     VFImplKind vf_impl_kind = VFImplKind::VFIMPL_DEFAULT;
     SaturationMode saturation_mode = SaturationMode::ON;
     std::string_view a5_op_params{};
+    TransposeGeometry transpose{};
     // Pattern overloads are distinct from indexed gather/scatter, including P1111.
     bool has_mask_pattern = false;
     MaskPattern mask_pattern = MaskPattern::P1111;
@@ -219,6 +251,8 @@ namespace a5 {
 inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles);
 inline bool TryEstimateA5ReductionCycles(const CostModelInput& input, uint64_t& cycles);
 inline bool TryEstimateA5MatrixTransferCycles(const CostModelInput& input, uint64_t& cycles);
+inline bool TryEstimateA5SequenceCycles(const CostModelInput& input, uint64_t& cycles);
+inline bool TryEstimateA5TransposeCycles(const CostModelInput& input, uint64_t& cycles);
 } // namespace a5
 
 inline constexpr const char* DTypeToString(DType dtype)
@@ -357,6 +391,21 @@ inline constexpr const char* PtoOpcodeToString(PtoOpcode op)
         "TTRI",
         "TDEQUANT",
         "TRESHAPE",
+        "TSHL",
+        "TSHR",
+        "TSHLS",
+        "TSHRS",
+        "TPARTARGMAX",
+        "TPARTARGMIN",
+        "TCI",
+        "TINTERLEAVE",
+        "TDEINTERLEAVE",
+        "TMATMUL_ACC",
+        "TMATMUL_BIAS",
+        "TMATMUL_MX",
+        "TGEMV_ACC",
+        "TGEMV_BIAS",
+        "TGEMV_MX",
     };
     static_assert(names.size() == static_cast<size_t>(PtoOpcode::COUNT));
     static_assert(std::string_view(names[static_cast<size_t>(PtoOpcode::TNOT)]) == "TNOT");
@@ -537,7 +586,8 @@ inline bool TryEstimateA5Cycles(
     const CostModelInput& input, const PredictRuntimeConfig& predict_config, CostModelResult& result)
 {
     uint64_t cycles = 0;
-    if (!a5::TryEstimateA5ReductionCycles(input, cycles) && !a5::TryEstimateA5MatrixTransferCycles(input, cycles) &&
+    if (!a5::TryEstimateA5TransposeCycles(input, cycles) && !a5::TryEstimateA5SequenceCycles(input, cycles) &&
+        !a5::TryEstimateA5ReductionCycles(input, cycles) && !a5::TryEstimateA5MatrixTransferCycles(input, cycles) &&
         !a5::TryEstimateA5VfCycles(input, cycles)) {
         return WarnAndFallbackToZero(input, result, "unsupported A5 costmodel key");
     }
@@ -630,5 +680,7 @@ inline CostModelResult EstimateCycles(const CostModelInput& input)
 #include <pto/costmodel/a5/vf_costmodel.hpp>
 #include <pto/costmodel/a5/reduction_costmodel.hpp>
 #include <pto/costmodel/a5/matrix_transfer_costmodel.hpp>
+#include <pto/costmodel/a5/sequence_costmodel.hpp>
+#include <pto/costmodel/a5/transpose_costmodel.hpp>
 
 #endif

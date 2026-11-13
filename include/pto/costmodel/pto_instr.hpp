@@ -172,11 +172,127 @@ inline bool IsIndexReductionOpcode(std::string_view opcode)
     return opcode == "TROWARGMAX" || opcode == "TROWARGMIN" || opcode == "TCOLARGMAX" || opcode == "TCOLARGMIN";
 }
 
+struct A5SequenceFitTag {
+    std::string_view key;
+};
+
+template <typename D, typename S>
+inline lightweight::TransposeGeometry TransposeFitGeometry(const D& dst, const S& src)
+{
+    lightweight::TransposeGeometry geometry;
+    // Convolution Tiles have a separate implementation and must not be treated
+    // as ordinary two-dimensional transposes.
+    if constexpr (!is_conv_tile_v<D> && !is_conv_tile_v<S> && requires {
+                      D::RowStride;
+                      S::RowStride;
+                  }) {
+        geometry = {
+            D::Loc == TileType::Vec && S::Loc == TileType::Vec && D::isRowMajor && S::isRowMajor &&
+                std::is_same_v<typename D::DType, typename S::DType>,
+            S::Rows,
+            S::Cols,
+            src.GetValidRow(),
+            src.GetValidCol(),
+            S::RowStride,
+            D::Rows,
+            D::Cols,
+            dst.GetValidRow(),
+            dst.GetValidCol(),
+            D::RowStride};
+    }
+    return geometry;
+}
+
+inline bool IsA5SequenceFit()
+{
+    const auto arch = perf_sim::GetCostModelCtx().npu_arch;
+    return arch == perf_sim::kAscend950Arch || arch == perf_sim::kAscend950UrmaArch;
+}
+
+template <typename T>
+inline lightweight::DType MatrixFitDType()
+{
+    using D = typename T::DType;
+    using lightweight::DType;
+    static_assert(
+        std::is_same_v<D, half> || std::is_same_v<D, bfloat16_t> || std::is_same_v<D, float> ||
+            std::is_same_v<D, int8_t> || std::is_same_v<D, int32_t> || std::is_same_v<D, float8_e4m3_t> ||
+            std::is_same_v<D, float8_e5m2_t> || std::is_same_v<D, hifloat8_t> || std::is_same_v<D, float4_e1m2x2_t> ||
+            std::is_same_v<D, float4_e2m1x2_t>,
+        "Unsupported matrix costmodel operand dtype");
+    if constexpr (std::is_same_v<D, float8_e4m3_t>)
+        return DType::Float8E4M3;
+    if constexpr (std::is_same_v<D, float8_e5m2_t>)
+        return DType::Float8E5M2;
+    if constexpr (std::is_same_v<D, hifloat8_t>)
+        return DType::HFloat8;
+    if constexpr (std::is_same_v<D, float4_e1m2x2_t>)
+        return DType::Float4E1M2;
+    if constexpr (std::is_same_v<D, float4_e2m1x2_t>)
+        return DType::Float4E2M1;
+    return perf_sim::MapDType(CostModelTileDTypeString<T>());
+}
+
+template <typename C, typename A, typename B>
+inline perf_sim::MatrixFitGeometry MatrixFitShape(const C&, const A& left, const B& right, bool gemv, bool mx = false)
+{
+    // Ordinary GEMV reads K from B; MX GEMV reads K from A, as on device.
+    return {
+        true,
+        gemv ? 1 : left.GetValidRow(),
+        gemv && !mx ? right.GetValidRow() : left.GetValidCol(),
+        right.GetValidCol(),
+        MatrixFitDType<A>(),
+        MatrixFitDType<B>(),
+        MatrixFitDType<C>()};
+}
+
+template <typename A, typename B>
+inline constexpr bool kLegacyMadTypes =
+    std::is_same_v<typename A::DType, typename B::DType> &&
+    (std::is_same_v<typename A::DType, half> || std::is_same_v<typename A::DType, float> ||
+     std::is_same_v<typename A::DType, bfloat16_t> || std::is_same_v<typename A::DType, int8_t>);
+
+template <typename D, typename S>
+inline bool HasSameDenseGeometry(const D& dst, const S& src)
+{
+    return D::Loc == TileType::Vec && S::Loc == TileType::Vec && D::isRowMajor && S::isRowMajor && D::Rows == S::Rows &&
+           D::Cols == S::Cols && dst.GetValidRow() == D::Rows && dst.GetValidCol() == D::Cols &&
+           src.GetValidRow() == S::Rows && src.GetValidCol() == S::Cols;
+}
+
+template <typename D, typename... S>
+inline A5SequenceFitTag DenseSequenceTag(const D& dst, const S&... src)
+{
+    const bool types = (std::is_same_v<typename D::DType, typename S::DType> && ...);
+    return {
+        types && HasSameDenseGeometry(dst, dst) && (HasSameDenseGeometry(dst, src) && ...) ? "dense" : "unsupported"};
+}
+
+template <typename D, typename S0, typename S1, typename I, typename I0, typename I1>
+inline A5SequenceFitTag PartialArgSequenceTag(
+    const D& dst, const S0& s0, const S1& s1, const I& idx, const I0& idx0, const I1& idx1)
+{
+    const bool indices = std::is_same_v<typename I::DType, int32_t> && std::is_same_v<typename I0::DType, int32_t> &&
+                         std::is_same_v<typename I1::DType, int32_t>;
+    return {
+        indices && DenseSequenceTag(dst, s0, s1).key == "dense" && HasSameDenseGeometry(dst, idx) &&
+                HasSameDenseGeometry(dst, idx0) && HasSameDenseGeometry(dst, idx1) ?
+            "dense_index32" :
+            "unsupported"};
+}
+
 template <typename T>
 inline void UpdateLightweightEstimateOptions(perf_sim::LightweightEstimateOptions& options, T&& value)
 {
     using Value = std::remove_cvref_t<T>;
-    if constexpr (std::is_same_v<Value, RoundMode>) {
+    if constexpr (std::is_same_v<Value, perf_sim::MatrixFitGeometry>) {
+        options.matrix = value;
+    } else if constexpr (std::is_same_v<Value, lightweight::TransposeGeometry>) {
+        options.transpose = value;
+    } else if constexpr (std::is_same_v<Value, A5SequenceFitTag>) {
+        options.a5_op_params = value.key;
+    } else if constexpr (std::is_same_v<Value, RoundMode>) {
         options.round_mode = value;
     } else if constexpr (std::is_same_v<Value, MaskPattern>) {
         options.has_mask_pattern = true;
@@ -905,7 +1021,11 @@ template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, type
 PTO_INST RecordEvent TTRANS(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TTRANS, dst, src, tmp);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(TTRANS, dst, src, tmp, ::pto::mocker::TransposeFitGeometry(dst, src));
+    } else {
+        MAP_INSTR_IMPL(TTRANS, dst, src, tmp);
+    }
     return RecordEvent{};
 }
 
@@ -1215,7 +1335,11 @@ PTO_INST RecordEvent
 TSHLS(TileDataDst& dst, TileDataSrc& src, typename TileDataDst::DType scalar, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TSHLS, dst, src, scalar);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(TSHLS, dst, src, scalar, ::pto::mocker::DenseSequenceTag(dst, src));
+    } else {
+        MAP_INSTR_IMPL(TSHLS, dst, src, scalar);
+    }
     return RecordEvent{};
 }
 
@@ -1224,7 +1348,11 @@ PTO_INST RecordEvent
 TSHRS(TileDataDst& dst, TileDataSrc& src, typename TileDataDst::DType scalar, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TSHRS, dst, src, scalar);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(TSHRS, dst, src, scalar, ::pto::mocker::DenseSequenceTag(dst, src));
+    } else {
+        MAP_INSTR_IMPL(TSHRS, dst, src, scalar);
+    }
     return RecordEvent{};
 }
 
@@ -1685,7 +1813,11 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, ty
 PTO_INST RecordEvent TSHL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TSHL, dst, src0, src1);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(TSHL, dst, src0, src1, ::pto::mocker::DenseSequenceTag(dst, src0, src1));
+    } else {
+        MAP_INSTR_IMPL(TSHL, dst, src0, src1);
+    }
     return RecordEvent{};
 }
 
@@ -1693,7 +1825,11 @@ template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, ty
 PTO_INST RecordEvent TSHR(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TSHR, dst, src0, src1);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(TSHR, dst, src0, src1, ::pto::mocker::DenseSequenceTag(dst, src0, src1));
+    } else {
+        MAP_INSTR_IMPL(TSHR, dst, src0, src1);
+    }
     return RecordEvent{};
 }
 
@@ -1773,6 +1909,175 @@ PTO_INST RecordEvent TMATMUL(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMa
     return RecordEvent{};
 }
 
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TGEMV_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true, true));
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TGEMV_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true, true));
+    return {};
+}
+
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TGEMV_MX, cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, true, true));
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TGEMV_MX, cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, true, true));
+    return {};
+}
+
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename TileBias, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    TileBias& biasData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TGEMV_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, biasData,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true, true));
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename TileBias, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    TileBias& biasData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TGEMV_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, biasData,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true, true));
+    return {};
+}
+
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TMATMUL_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, false, true));
+    return {};
+}
+
+// UF-aware overload enabling unit-flag selection via AccPhase while retaining the TMATMUL name.
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TMATMUL_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, false));
+    return {};
+}
+
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TMATMUL_MX, cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, false));
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TMATMUL_MX, cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, false));
+    return {};
+}
+
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename TileBias, typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    TileBias& biasData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TMATMUL_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, biasData,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, false));
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename TileBias, typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix, TileRightScale& bScaleMatrix,
+    TileBias& biasData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(
+        TMATMUL_MX, cMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, biasData,
+        ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, false));
+    return {};
+}
+
 // UF-aware overload enabling unit-flag selection via AccPhase while retaining the TMATMUL name.
 template <AccPhase Phase, typename TileRes, typename TileLeft, typename TileRight, typename... WaitEvents>
 PTO_INST RecordEvent TMATMUL(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
@@ -1787,7 +2092,15 @@ PTO_INST RecordEvent
 TMATMUL_ACC(TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMATMUL_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TMATMUL_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix,
+            ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, false));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL(TMATMUL_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    } else {
+        RECORD_INSTR_ONLY(TMATMUL_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    }
     return RecordEvent{};
 }
 
@@ -1797,7 +2110,15 @@ PTO_INST RecordEvent
 TMATMUL_ACC(TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TMATMUL_ACC, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TMATMUL_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix,
+            ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, false));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL_T(TMATMUL_ACC, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    } else {
+        RECORD_INSTR_ONLY(TMATMUL_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    }
     return RecordEvent{};
 }
 
@@ -1807,7 +2128,14 @@ template <
 PTO_INST RecordEvent TMATMUL_ACC(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TMATMUL_ACC, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TMATMUL_ACC, cMatrix, aMatrix, bMatrix, ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, false));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL_T(TMATMUL_ACC, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix);
+    } else {
+        RECORD_INSTR_ONLY(TMATMUL_ACC, cMatrix, aMatrix, bMatrix);
+    }
     return RecordEvent{};
 }
 
@@ -1816,7 +2144,15 @@ PTO_INST RecordEvent
 TMATMUL_BIAS(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileBias& biasData, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMATMUL_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TMATMUL_BIAS, cMatrix, aMatrix, bMatrix, biasData,
+            ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, false));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL(TMATMUL_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    } else {
+        RECORD_INSTR_ONLY(TMATMUL_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    }
     return RecordEvent{};
 }
 
@@ -1827,7 +2163,15 @@ PTO_INST RecordEvent
 TMATMUL_BIAS(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileBias& biasData, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TMATMUL_BIAS, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix, biasData);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TMATMUL_BIAS, cMatrix, aMatrix, bMatrix, biasData,
+            ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, false));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL_T(TMATMUL_BIAS, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix, biasData);
+    } else {
+        RECORD_INSTR_ONLY(TMATMUL_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    }
     return RecordEvent{};
 }
 
@@ -1835,7 +2179,14 @@ template <typename TileRes, typename TileLeft, typename TileRight, typename... W
 PTO_INST RecordEvent TGEMV(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TGEMV, cMatrix, aMatrix, bMatrix);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TGEMV, cMatrix, aMatrix, bMatrix, ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL(TGEMV, cMatrix, aMatrix, bMatrix);
+    } else {
+        RECORD_INSTR_ONLY(TGEMV, cMatrix, aMatrix, bMatrix);
+    }
     return RecordEvent{};
 }
 
@@ -1843,7 +2194,14 @@ template <AccPhase Phase, typename TileRes, typename TileLeft, typename TileRigh
 PTO_INST RecordEvent TGEMV(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TGEMV, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TGEMV, cMatrix, aMatrix, bMatrix, ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL_T(TGEMV, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix);
+    } else {
+        RECORD_INSTR_ONLY(TGEMV, cMatrix, aMatrix, bMatrix);
+    }
     return RecordEvent{};
 }
 
@@ -1852,7 +2210,15 @@ PTO_INST RecordEvent
 TGEMV_ACC(TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TGEMV_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TGEMV_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix,
+            ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, true));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL(TGEMV_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    } else {
+        RECORD_INSTR_ONLY(TGEMV_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    }
     return RecordEvent{};
 }
 
@@ -1861,7 +2227,15 @@ PTO_INST RecordEvent
 TGEMV_ACC(TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TGEMV_ACC, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TGEMV_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix,
+            ::pto::mocker::MatrixFitShape(cOutMatrix, aMatrix, bMatrix, true));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL_T(TGEMV_ACC, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    } else {
+        RECORD_INSTR_ONLY(TGEMV_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix);
+    }
     return RecordEvent{};
 }
 
@@ -1870,7 +2244,15 @@ PTO_INST RecordEvent
 TGEMV_BIAS(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileBias& biasData, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TGEMV_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TGEMV_BIAS, cMatrix, aMatrix, bMatrix, biasData,
+            ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL(TGEMV_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    } else {
+        RECORD_INSTR_ONLY(TGEMV_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    }
     return RecordEvent{};
 }
 
@@ -1880,7 +2262,15 @@ PTO_INST RecordEvent
 TGEMV_BIAS(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileBias& biasData, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TGEMV_BIAS, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix, biasData);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TGEMV_BIAS, cMatrix, aMatrix, bMatrix, biasData,
+            ::pto::mocker::MatrixFitShape(cMatrix, aMatrix, bMatrix, true));
+    } else if constexpr (::pto::mocker::kLegacyMadTypes<TileLeft, TileRight>) {
+        MAP_INSTR_IMPL_T(TGEMV_BIAS, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix, biasData);
+    } else {
+        RECORD_INSTR_ONLY(TGEMV_BIAS, cMatrix, aMatrix, bMatrix, biasData);
+    }
     return RecordEvent{};
 }
 
@@ -2320,7 +2710,42 @@ template <typename TileData, typename T, int descending, typename... WaitEvents>
 PTO_INST RecordEvent TCI(TileData& dst, T start, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TCI, PTO_TEMPLATE_ARGS(TileData, T, descending), dst, start);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        const bool supported = (descending == 0 || descending == 1) && std::is_same_v<typename TileData::DType, T> &&
+                               ::pto::mocker::DenseSequenceTag(dst).key == "dense";
+        RECORD_INSTR_ONLY(TCI, dst, start, (::pto::mocker::A5SequenceFitTag{supported ? "ci_scalar" : "unsupported"}));
+    } else {
+        RECORD_INSTR_ONLY(TCI, dst, start, (::pto::mocker::A5SequenceFitTag{"unsupported"}));
+    }
+    return RecordEvent{};
+}
+
+template <typename TileData, typename TileDataTmp, typename T, int descending, typename... WaitEvents>
+PTO_INST RecordEvent TCI(TileData& dst, T start, TileDataTmp& tmp, WaitEvents&... events)
+{
+    ::pto::detail::PtoWaitEvents(events...);
+    const bool supported = ::pto::mocker::IsA5SequenceFit() && (descending == 0 || descending == 1) &&
+                           std::is_same_v<typename TileData::DType, T> &&
+                           ::pto::mocker::DenseSequenceTag(dst, tmp).key == "dense";
+    RECORD_INSTR_ONLY(TCI, dst, start, tmp, (::pto::mocker::A5SequenceFitTag{supported ? "ci_vector" : "unsupported"}));
+    return RecordEvent{};
+}
+
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent
+TINTERLEAVE(TileDataDst& dst1, TileDataDst& dst0, TileDataSrc& src1, TileDataSrc& src0, WaitEvents&... events)
+{
+    ::pto::detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(TINTERLEAVE, dst1, dst0, src1, src0, ::pto::mocker::DenseSequenceTag(dst1, dst0, src1, src0));
+    return RecordEvent{};
+}
+
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent
+TDEINTERLEAVE(TileDataDst& dst1, TileDataDst& dst0, TileDataSrc& src1, TileDataSrc& src0, WaitEvents&... events)
+{
+    ::pto::detail::PtoWaitEvents(events...);
+    RECORD_INSTR_ONLY(TDEINTERLEAVE, dst1, dst0, src1, src0, ::pto::mocker::DenseSequenceTag(dst1, dst0, src1, src0));
     return RecordEvent{};
 }
 
@@ -2694,7 +3119,13 @@ PTO_INST RecordEvent TPARTARGMAX(
     TileDataSrc1Idx& src1Idx, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TPARTARGMAX, dst, src0, src1, dstIdx, src0Idx, src1Idx);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TPARTARGMAX, dst, src0, src1, dstIdx, src0Idx, src1Idx,
+            ::pto::mocker::PartialArgSequenceTag(dst, src0, src1, dstIdx, src0Idx, src1Idx));
+    } else {
+        MAP_INSTR_IMPL(TPARTARGMAX, dst, src0, src1, dstIdx, src0Idx, src1Idx);
+    }
     return RecordEvent{};
 }
 
@@ -2706,7 +3137,13 @@ PTO_INST RecordEvent TPARTARGMIN(
     TileDataSrc1Idx& src1Idx, WaitEvents&... events)
 {
     ::pto::detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TPARTARGMIN, dst, src0, src1, dstIdx, src0Idx, src1Idx);
+    if (::pto::mocker::IsA5SequenceFit()) {
+        RECORD_INSTR_ONLY(
+            TPARTARGMIN, dst, src0, src1, dstIdx, src0Idx, src1Idx,
+            ::pto::mocker::PartialArgSequenceTag(dst, src0, src1, dstIdx, src0Idx, src1Idx));
+    } else {
+        MAP_INSTR_IMPL(TPARTARGMIN, dst, src0, src1, dstIdx, src0Idx, src1Idx);
+    }
     return RecordEvent{};
 }
 

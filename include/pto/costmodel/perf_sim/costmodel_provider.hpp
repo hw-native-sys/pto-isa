@@ -80,7 +80,10 @@ inline CostModelRuntimeCtx& GetCostModelCtx()
         X(TROWEXPANDADD) X(TROWEXPANDSUB) X(TROWEXPANDMUL) X(TROWEXPANDDIV) X(TROWEXPANDMAX)                         \
             X(TROWEXPANDMIN) X(TROWEXPANDEXPDIF) X(TCOLEXPANDADD) X(TCOLEXPANDSUB) X(TCOLEXPANDMUL)                  \
                 X(TCOLEXPANDDIV) X(TCOLEXPANDMAX) X(TCOLEXPANDMIN) X(TCOLEXPANDEXPDIF) X(TEXPANDS) X(TSELS)          \
-                    X(TCONCAT) X(TGATHER) X(TGATHERB) X(TFILLPAD) X(TFILLPAD_EXPAND) X(TTRI) X(TDEQUANT) X(TRESHAPE)
+                    X(TCONCAT) X(TGATHER) X(TGATHERB) X(TFILLPAD) X(TFILLPAD_EXPAND) X(TTRI) X(TDEQUANT) X(TRESHAPE) \
+                    X(TSHL) X(TSHR) X(TSHLS) X(TSHRS) X(TPARTARGMAX) X(TPARTARGMIN) X(TCI) \
+                    X(TINTERLEAVE) X(TDEINTERLEAVE) X(TMATMUL_ACC) X(TMATMUL_BIAS) X(TMATMUL_MX) \
+                    X(TGEMV_ACC) X(TGEMV_BIAS) X(TGEMV_MX)
 // clang-format on
 
 inline bool TryMapOpcode(const std::string& opcode, ::pto::mocker::lightweight::PtoOpcode& out)
@@ -105,6 +108,17 @@ inline bool TryMapOpcode(const std::string& opcode, ::pto::mocker::lightweight::
 
 inline ::pto::mocker::lightweight::DType MapDType(const std::string& dtype)
 {
+    using DType = ::pto::mocker::lightweight::DType;
+    if (dtype == "fp8_e4m3")
+        return DType::Float8E4M3;
+    if (dtype == "fp8_e5m2")
+        return DType::Float8E5M2;
+    if (dtype == "hif8")
+        return DType::HFloat8;
+    if (dtype == "fp4_e1m2")
+        return DType::Float4E1M2;
+    if (dtype == "fp4_e2m1")
+        return DType::Float4E2M1;
 #define X(str, enum_val)                                    \
     if (dtype == str) {                                     \
         return ::pto::mocker::lightweight::DType::enum_val; \
@@ -116,7 +130,18 @@ inline ::pto::mocker::lightweight::DType MapDType(const std::string& dtype)
 
 // ── LightweightFormula backend ──
 
+struct MatrixFitGeometry {
+    bool present = false;
+    int64_t m = 0;
+    int64_t k = 0;
+    int64_t n = 0;
+    ::pto::mocker::lightweight::DType left{};
+    ::pto::mocker::lightweight::DType right{};
+    ::pto::mocker::lightweight::DType accumulator{};
+};
+
 struct LightweightEstimateOptions {
+    MatrixFitGeometry matrix{};
     int physical_rows = 0;
     int physical_cols = 0;
     int valid_rows = 0;
@@ -128,6 +153,7 @@ struct LightweightEstimateOptions {
     ::pto::RoundMode round_mode = ::pto::RoundMode::CAST_NONE;
     ::pto::SaturationMode saturation_mode = ::pto::SaturationMode::ON;
     std::string_view a5_op_params{};
+    ::pto::mocker::lightweight::TransposeGeometry transpose{};
     bool has_mask_pattern = false;
     ::pto::MaskPattern mask_pattern = ::pto::MaskPattern::P1111;
     ::pto::GatherAxis gather_axis = ::pto::GatherAxis::GATHER_ROW;
@@ -166,8 +192,7 @@ inline uint64_t EstimateLightweightCycles(
     }
     // A5 vector paths use physical strides to select their implementation.
     // Legacy formulas and matrix M/N dimensions describe valid work instead.
-    const bool usePhysicalShape =
-        input.arch == CostModelArch::A5 && pto_op != PtoOpcode::TMATMUL && pto_op != PtoOpcode::TGEMV;
+    const bool usePhysicalShape = input.arch == CostModelArch::A5 && !a5::IsMatrixOpcode(pto_op);
     input.rows = usePhysicalShape && options.physical_rows > 0 ? options.physical_rows : rows;
     input.cols = usePhysicalShape && options.physical_cols > 0 ? options.physical_cols : cols;
     input.valid_rows = options.valid_rows > 0 ? options.valid_rows : rows;
@@ -177,6 +202,7 @@ inline uint64_t EstimateLightweightCycles(
     input.round_mode = options.round_mode;
     input.saturation_mode = options.saturation_mode;
     input.a5_op_params = options.a5_op_params;
+    input.transpose = options.transpose;
     input.has_mask_pattern = options.has_mask_pattern;
     input.mask_pattern = options.mask_pattern;
     input.gather_axis = options.gather_axis;
@@ -191,10 +217,19 @@ inline uint64_t EstimateLightweightCycles(
     input.data_size = static_cast<int64_t>(input.valid_rows) * input.valid_cols;
     input.tile_type = tile_type;
 
-    if (pto_op == PtoOpcode::TMATMUL || pto_op == PtoOpcode::TGEMV) {
+    if (a5::IsMatrixOpcode(pto_op)) {
         input.k = inner_dimension > 0 ? inner_dimension : cols;
     }
 
+    if (input.arch == CostModelArch::A5 && a5::IsMatrixOpcode(pto_op) && options.matrix.present) {
+        input.rows = options.matrix.m;
+        input.k = options.matrix.k;
+        input.cols = options.matrix.n;
+        input.dtype = options.matrix.left;
+        input.dtype2 = options.matrix.right;
+        input.has_dtype2 = true;
+        input.dst_dtype = options.matrix.accumulator;
+    }
     CostModelResult result = EstimateCycles(input);
     if (result.cycles > 0.0)
         return static_cast<uint64_t>(result.cycles);

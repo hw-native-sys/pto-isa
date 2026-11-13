@@ -17,6 +17,63 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto::mocker::lightweight::a5 {
 
+inline bool IsMatrixOpcode(PtoOpcode op)
+{
+    return op == PtoOpcode::TMATMUL || op == PtoOpcode::TMATMUL_ACC || op == PtoOpcode::TMATMUL_BIAS ||
+           op == PtoOpcode::TMATMUL_MX || op == PtoOpcode::TGEMV || op == PtoOpcode::TGEMV_ACC ||
+           op == PtoOpcode::TGEMV_BIAS || op == PtoOpcode::TGEMV_MX;
+}
+
+// Single MAD completion model; excludes operand transfers and inter-instruction overlap.
+// GEMV, accumulation and bias reuse its compute baseline, without an unmeasured surcharge.
+inline bool TryEstimateA5MadCompletionCycles(const CostModelInput& input, uint64_t& cycles)
+{
+    constexpr int64_t kMaxMadDimension = 4095;
+    constexpr uint64_t kFractalSide = 16;
+    constexpr uint64_t kMinimumLongSideFractals = 3;
+    constexpr uint64_t kStartupCycles = 25;
+    constexpr uint64_t kMxKAlignment = 64;
+    constexpr uint64_t kHalfWorkElements = 16;
+    constexpr uint64_t kByteWorkElements = 32;
+    constexpr uint64_t kNibbleWorkElements = 64;
+    if (!IsMatrixOpcode(input.op) || input.rows <= 0 || input.cols <= 0 || input.k <= 0 ||
+        input.rows > kMaxMadDimension || input.cols > kMaxMadDimension || input.k > kMaxMadDimension) {
+        return false;
+    }
+    const bool mx = input.op == PtoOpcode::TMATMUL_MX || input.op == PtoOpcode::TGEMV_MX;
+    const bool gemv = input.op == PtoOpcode::TGEMV || input.op == PtoOpcode::TGEMV_ACC ||
+                      input.op == PtoOpcode::TGEMV_BIAS || input.op == PtoOpcode::TGEMV_MX;
+    const auto fp8 = [](DType t) { return t == DType::Float8E4M3 || t == DType::Float8E5M2; };
+    const auto fp4 = [](DType t) { return t == DType::Float4E1M2 || t == DType::Float4E2M1; };
+    const DType rhs = input.has_dtype2 ? input.dtype2 : input.dtype;
+    uint64_t workElements = 0;
+    if (fp8(input.dtype) && fp8(rhs) && input.dst_dtype == DType::Float) {
+        workElements = kByteWorkElements;
+    } else if (mx && fp4(input.dtype) && fp4(rhs) && input.dst_dtype == DType::Float) {
+        workElements = kNibbleWorkElements;
+    } else if (!mx && input.dtype == rhs) {
+        if (input.dtype == DType::Int8 && input.dst_dtype == DType::Int32) {
+            workElements = kByteWorkElements;
+        } else if (input.dst_dtype == DType::Float) {
+            if (input.dtype == DType::Half || input.dtype == DType::BFloat16)
+                workElements = kHalfWorkElements;
+            if (input.dtype == DType::HFloat8)
+                workElements = kByteWorkElements;
+            if (input.dtype == DType::Float)
+                workElements = 1; // Full-precision FP32, not HF32.
+        }
+    }
+    if (workElements == 0)
+        return false;
+    const auto ceilDiv = [](uint64_t value, uint64_t divisor) { return (value - 1) / divisor + 1; };
+    const uint64_t m = ceilDiv(gemv ? 1 : input.rows, kFractalSide);
+    const uint64_t n = ceilDiv(input.cols, kFractalSide);
+    const uint64_t timingK = mx ? ceilDiv(input.k, kMxKAlignment) * kMxKAlignment : input.k;
+    cycles =
+        kStartupCycles + std::min(m, n) * std::max({m, n, kMinimumLongSideFractals}) * ceilDiv(timingK, workElements);
+    return true;
+}
+
 inline constexpr double kMatmulMacsPerCycleFp16 = 4096.0;
 inline constexpr double kMatmulMinM = 48.0;
 inline constexpr double kMatmulMinK = 32.0;
@@ -160,6 +217,10 @@ inline bool TryEstimateA5StoreCycles(const CostModelInput& input, uint64_t& cycl
 
 inline bool TryEstimateA5MatrixTransferCycles(const CostModelInput& input, uint64_t& cycles)
 {
+    // Preserve the existing measured TMATMUL curves; new variants use the completion model.
+    if (IsMatrixOpcode(input.op) && input.op != PtoOpcode::TMATMUL) {
+        return TryEstimateA5MadCompletionCycles(input, cycles);
+    }
     return TryEstimateA5MatmulCycles(input, cycles) || TryEstimateA5LoadCycles(input, cycles) ||
            TryEstimateA5StoreCycles(input, cycles) || TryEstimateA5ReshapeCycles(input, cycles);
 }
