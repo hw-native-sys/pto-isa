@@ -227,6 +227,10 @@ A5 的 Vec→Vec 移动当前不支持 `int64_t` / `uint64_t`；其他传输路�
     - `TileType::Vec -> TileType::Vec/TileType::Mat`
     - `TileType::Acc -> TileType::Vec/TileType::Mat`
     - 特定的 `ND -> ZZ` 等内部路径变体由Ascend 950PR/Ascend 950DT实现处理
+- 当源为 ConvTile 时，A2A3/A5 均支持 `FRACTAL_Z -> TileType::Right`（L0B）路径。
+- A5 还支持 `NC1HWC0 -> TileType::Left`（L0A）路径。该路径复用 A5 `TEXTRACT` 的 ConvTile 搬运 helper，
+  源 ConvTile 的 `SetTranspose()` 配置会传入底层搬运；目的布局须满足 [TEXTRACT](TEXTRACT_zh.md) 中
+  A5 新增 ConvTile 提取路径的对应检查。`TMOV` 固定从源窗口起点 0 开始，不提供 `indexRow` / `indexCol` 偏移。
 - 对于 `TileType::Mat -> TileType::Bias`：
     - 支持的dtype对为 `int32_t -> int32_t`、`float -> float`、`half -> float`、`bfloat16_t -> float`
     - 源行数必须为 `1`

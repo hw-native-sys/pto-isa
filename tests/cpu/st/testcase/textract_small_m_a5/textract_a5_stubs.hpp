@@ -78,6 +78,18 @@ void set_loop3_para(Args&&...);
 template <typename... Args>
 void set_channel_para(Args&&...);
 template <typename... Args>
+void set_fmatrix(Args&&...);
+template <typename... Args>
+void set_fmatrix_b(Args&&...);
+template <typename... Args>
+void set_l3d_rpt(Args&&...);
+template <typename... Args>
+void set_l3d_rpt_b(Args&&...);
+template <typename... Args>
+void set_padding(Args&&...);
+template <typename... Args>
+void set_padding_b(Args&&...);
+template <typename... Args>
 void pto_copy_ubuf_to_ubuf(Args&&...);
 template <typename... Args>
 void set_fpc(Args&&...);

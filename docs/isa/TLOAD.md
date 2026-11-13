@@ -134,6 +134,15 @@ On A5 all listed values are passed through to DMA. CPU / costmodel accept the te
       element strides above `INT32_MAX` and byte distances of 4 GiB or more are not truncated to 32 bits.
       Form large stride expressions with 64-bit operands before passing them to `Stride`, and provide GM storage
       covering all accessed addresses.
+    - A5 ConvTile `NCHW -> NC1HWC0` and `NCDHW -> NDC1HWC0` loads read the destination ConvTile `strideH` / `strideW`
+      configuration fields (set by `SetStrideH` / `SetStrideW`). The configuration expresses input expansion for
+      backward-convolution dx: the source GlobalTensor H/W still describes the compact input, while the destination
+      ConvTile H/W describes expanded space, normally `(H - 1) * strideH + 1` and `(W - 1) * strideW + 1`. The caller
+      must keep source shape, destination shape, and stride configuration consistent.
+    - In these A5 expansion paths, `TLOAD` writes only positions covered by source data. Holes produced by stride expansion
+      are not written and are not automatically zero-filled. Initialize the destination ConvTile backing storage first if a
+      later computation requires the holes to be zero. When both `strideH` and `strideW` are 1, expansion placement is disabled
+      and the existing load semantics are retained.
     - `TileType::Mat` loads also handle loads for mx format, which include `MX_A_ZZ/MX_A_ND/MX_A_DN` to ZZ for scalarA and `MX_B_NN/MX_B_ND/MX_B_DN` to NN for scalarB.
     - for `MX_A_ZZ/MX_B_NN`: `(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.
     - for `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`: `(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` and `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` and `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`.

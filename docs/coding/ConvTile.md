@@ -58,6 +58,27 @@ Instruction pages in `docs/isa/` specify which locations are legal for each inst
 
 The constructors enforce “number of runtime parameters equals number of dynamic dimensions” via `static_assert`, so mismatched construction fails at compile time.
 
+## Convolution configuration fields
+
+A `ConvTile` object also carries runtime configuration fields consumed by convolution-related instructions.
+By default, these fields describe ordinary convolution semantics: no padding, no dilation, stride 1, and no transpose.
+
+| Field | Setter | Primary use |
+| --- | --- | --- |
+| `fmapH` / `fmapW` | `SetFmapH()` / `SetFmapW()` | FMATRIX source feature-map shape |
+| `padList` | `SetPadListArray()` or per-element `SetPadList()` | left, right, top, and bottom padding |
+| `filterH` / `filterW` | `SetFilterH()` / `SetFilterW()` | spatial filter size |
+| `dilationH` / `dilationW` | `SetDilationH()` / `SetDilationW()` | filter dilation |
+| `strideH` / `strideW` | `SetStrideH()` / `SetStrideW()` | IMG2COL convolution stride; the A5 `NCHW -> NC1HWC0` and `NCDHW -> NDC1HWC0` `TLOAD` paths also use these fields to express dx input expansion |
+| `transpose` | `SetTranspose()` | IMG2COL ConvTile conversion; the A5 `TEXTRACT` / `TMOV` ConvTile paths also read this field. The A5 `TIMG2COL` `Right` path ignores it |
+| `channelSize` | `SetChannelSize()` | IMG2COL channel configuration |
+| `padValue` | `SetPadValue()` | padding value in automatic mode |
+| `repeatStride` / `repeatTime` / `repeatMode` | corresponding `Set*` methods | IMG2COL repeat configuration |
+| `dstStride` / `dstMposition` | corresponding `Set*` methods | A5 IMG2COL destination-placement configuration |
+
+These fields do not change the physical shape declared by `ConvTileShape`. When expansion, padding, or transpose is required,
+declare a shape and buffer size that still cover the actual physical storage.
+
 
 ## Address binding (`TASSIGN`)
 
@@ -84,3 +105,34 @@ void example(__gm__ half* in, __gm__ half* out) {
   TLOAD(tile5d, gin);
 }
 ```
+
+### A5 backward-convolution dx input-expansion example
+
+The function below loads a compact `NCHW` input into an expanded `NC1HWC0` ConvTile. With source H/W of 7 and
+stride 2, the destination H/W is 13:
+
+```cpp
+#include <pto/pto-inst.hpp>
+using namespace pto;
+
+constexpr uint32_t H = 7, W = 7;
+constexpr uint32_t strideH = 2, strideW = 2;
+constexpr uint32_t expandedH = (H - 1) * strideH + 1;
+constexpr uint32_t expandedW = (W - 1) * strideW + 1;
+
+using DstTile = ConvTile<TileType::Mat, bfloat16_t, 1 * 2 * expandedH * expandedW * 16,
+                         Layout::NC1HWC0, ConvTileShape<1, 2, expandedH, expandedW, 16>>;
+using SrcTensor = GlobalTensor<
+    bfloat16_t, Shape<1, 1, 32, H, W>,
+    Stride<1 * 32 * H * W, 32 * H * W, H * W, W, 1>, Layout::NCHW>;
+
+void example(__gm__ bfloat16_t* dyInput) {
+  DstTile dy;
+  SrcTensor src(dyInput);
+  TASSIGN(dy, 0x0);
+
+  // Initialize dy's backing storage first if the expansion holes must contain zero.
+  dy.SetStrideH(strideH);
+  dy.SetStrideW(strideW);
+  TLOAD(dy, src);
+}
