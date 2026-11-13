@@ -75,6 +75,21 @@ TEST(TWait, SubRegion_4x8_of_16)
     SKIP_IF_RANKS_LT(2);
     ASSERT_TRUE((RunTWaitSubRegion<16, 4, 8>(2, 2, 0, 0)));
 }
+
+// Device-side cycle measurements for 2 and 16 ready signals sharing one cache line.
+TEST(TWaitPerformance, ReadySignals_2Ranks)
+{
+    SKIP_IF_RANKS_LT(2);
+    ASSERT_TRUE(RunTWaitReadyPerformance(2, 2, 0, 0));
+}
+
+// Dynamic 5-D wake-up latency when two int32 signals sharing one cache line are notified with a controlled delay.
+TEST(TWaitPerformance, DelayedSameCacheLine_2Ranks)
+{
+    SKIP_IF_RANKS_LT(2);
+    ASSERT_TRUE(RunTWaitDelayedPerformance(2, 2, 0, 0));
+}
+
 int main(int argc, char** argv)
 {
     CommMpiInit(&argc, &argv);

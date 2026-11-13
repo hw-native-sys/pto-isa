@@ -33,3 +33,9 @@ bool RunTWaitSubRegion(int n_ranks, int n_devices, int first_rank_id, int first_
 
 // TWAIT Multi-Phase: rank 0 updates signal in phases, rank 1 waits in phases
 bool RunTWaitMultiPhase(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+
+// TWAIT Performance: measure 2 and 16 ready signals sharing one cache line
+bool RunTWaitReadyPerformance(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
+
+// TWAIT Performance: measure dynamic 5-D wake-up latency for two same-line signals arriving at different times
+bool RunTWaitDelayedPerformance(int n_ranks, int n_devices, int first_rank_id, int first_device_id);
