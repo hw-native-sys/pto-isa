@@ -63,7 +63,7 @@ The constructors enforce “number of runtime parameters equals number of dynami
 
 In manual placement flows, `TASSIGN(tile, addr)` binds a convtile object to an implementation-defined address. In auto flows, `TASSIGN(tile, addr)` may be a no-op depending on build configuration.
 
-See [TASSIGN](../isa/tile/ops/sync-and-config/tassign.md) for details.
+See `docs/isa/TASSIGN.md` for details.
 
 ## Minimal example
 
