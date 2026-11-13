@@ -41,6 +41,22 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
 - **实现检查 (Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品)**：`TileData::DType` 必须是以下之一：`int8_t`、`half`、`bfloat16_t`、`float`。
 - **实现检查 (Ascend 950PR/Ascend 950DT)**：`TileData::DType` 必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
 
+### ConvTile 转换路径
+
+ConvTile 路径要求 `ConvTileData::Loc == TileType::Mat`，源布局为 `NC1HWC0` 或 `NDC1HWC0`。
+目的路径和布局要求如下：
+
+| 架构 | 目的 | 片上存储 | 布局要求 |
+| --- | --- | --- | --- |
+| A2A3 | `TileType::Left` | L0A | `SFractal == SLayout::RowMajor` 且 `BLayout == RowMajor` |
+| A5 | `TileType::Left` | L0A | `SFractal == SLayout::RowMajor` 且 `BLayout == ColMajor` |
+| A5 | `TileType::Right` | L0B | `SFractal == SLayout::ColMajor` 且 `BLayout == RowMajor` |
+
+该路径要求目的与源 dtype 完全相同；卷积配置字段仍从源 ConvTile 读取。
+
+当前 A5 的 `Right` 路径不使用源 ConvTile 的 `transpose` 配置；该字段不会改变 `Right`
+目的的输出排列。A2A3 实现仍只接受 `Left` 目的。
+
 ## 示例
 
 参见 `docs/isa/` 和 `docs/coding/tutorials/` 中的相关示例。

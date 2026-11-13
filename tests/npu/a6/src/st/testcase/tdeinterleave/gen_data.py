@@ -13,20 +13,24 @@
 import os
 
 import numpy as np
+from ml_dtypes import float8_e4m3fn, float8_e5m2
 
 np.random.seed(19)
 
 
 class TDeInterleaveParams:
-    def __init__(self, dtype, tileH, tileW, vRow, vCol):
+    def __init__(self, dtype, tileH, tileW, vRow, vCol, name=None):
         self.dtype = dtype
         self.tile_h = tileH
         self.tile_w = tileW
         self.valid_row = vRow
         self.valid_col = vCol
+        self.name = name
 
 
 def generate_case_name(param):
+    if param.name is not None:
+        return f"TDEINTERLEAVETest.case_{param.name}_{param.tile_h}x{param.tile_w}_{param.valid_row}x{param.valid_col}"
     dtype_str = {
         np.float32: "float",
         np.float16: "half",
@@ -105,6 +109,10 @@ case_params_list = [
     TDeInterleaveParams(np.uint8, 32, 256, 32, 256),
     # unaligned valid column cases
     TDeInterleaveParams(np.float32, 64, 64, 64, 56),
+    # fp8 (byte-agnostic data move; the kernel uses fp8 device types)
+    TDeInterleaveParams(float8_e4m3fn, 32, 256, 32, 256, name="fp8e4m3"),
+    TDeInterleaveParams(float8_e5m2, 32, 256, 32, 256, name="fp8e5m2"),
+    TDeInterleaveParams(np.uint8, 32, 256, 32, 256, name="fp8e8m0"),
 ]
 
 single_src_case_params_list = [
@@ -112,6 +120,10 @@ single_src_case_params_list = [
     TDeInterleaveParams(np.int32, 16, 128, 16, 128),
     TDeInterleaveParams(np.float16, 16, 256, 16, 256),
     TDeInterleaveParams(np.uint8, 8, 512, 8, 512),
+    # fp8 single-src cases
+    TDeInterleaveParams(float8_e4m3fn, 8, 512, 8, 512, name="fp8e4m3"),
+    TDeInterleaveParams(float8_e5m2, 8, 512, 8, 512, name="fp8e5m2"),
+    TDeInterleaveParams(np.uint8, 8, 512, 8, 512, name="fp8e8m0"),
 ]
 
 if __name__ == "__main__":

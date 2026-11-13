@@ -66,6 +66,27 @@ pto::ConvTile<
 
 构造函数会通过 `static_assert` 检查“运行时传入参数个数是否与动态维度数量一致”，因此若构造参数不匹配，会在编译期报错。
 
+## 卷积配置字段
+
+`ConvTile` 对象还携带一组运行时配置字段，供卷积相关指令读取。字段默认值通常对应
+无 padding、无 dilation、stride 为 1、无转置的普通卷积语义。
+
+| 字段 | 设置接口 | 主要用途 |
+| --- | --- | --- |
+| `fmapH` / `fmapW` | `SetFmapH()` / `SetFmapW()` | FMATRIX 源图形状 |
+| `padList` | `SetPadListArray()` 或逐项 `SetPadList()` | 左、右、上、下 padding |
+| `filterH` / `filterW` | `SetFilterH()` / `SetFilterW()` | 卷积核空间尺寸 |
+| `dilationH` / `dilationW` | `SetDilationH()` / `SetDilationW()` | 卷积核空洞率 |
+| `strideH` / `strideW` | `SetStrideH()` / `SetStrideW()` | IMG2COL 卷积 stride；A5 的 `NCHW -> NC1HWC0`、`NCDHW -> NDC1HWC0` `TLOAD` 路径还使用它表达 dx 输入扩张 |
+| `transpose` | `SetTranspose()` | IMG2COL ConvTile 转换路径；A5 `TEXTRACT` / `TMOV` 的 ConvTile 路径也读取该字段，A5 `TIMG2COL` 的 `Right` 路径忽略 |
+| `channelSize` | `SetChannelSize()` | IMG2COL 通道配置 |
+| `padValue` | `SetPadValue()` | 自动模式下的 padding 值 |
+| `repeatStride` / `repeatTime` / `repeatMode` | 对应 `Set*` 接口 | IMG2COL repeat 配置 |
+| `dstStride` / `dstMposition` | 对应 `Set*` 接口 | A5 IMG2COL 目标摆放配置 |
+
+这些字段不会改变 `ConvTileShape` 声明的物理形状。需要扩张、padding 或转置时，
+调用方仍应声明能够覆盖实际物理存储的 shape 和 buffer size。
+
 ## 地址绑定（`TASSIGN`）
 
 在手动放置流程中，`TASSIGN(tile, addr)` 用于把一个 `ConvTile` 对象绑定到实现定义的地址。
@@ -91,5 +112,37 @@ void example(__gm__ half* in, __gm__ half* out) {
   TASSIGN(tile5d, 0x0);
 
   TLOAD(tile5d, gin);
+}
+```
+
+### A5 反向卷积 dx 输入扩张示例
+
+下面的函数展示 `NCHW` 紧凑输入加载到扩张后的 `NC1HWC0` ConvTile。源 H/W 为 7，
+stride 为 2 时，目的 H/W 应为 13：
+
+```cpp
+#include <pto/pto-inst.hpp>
+using namespace pto;
+
+constexpr uint32_t H = 7, W = 7;
+constexpr uint32_t strideH = 2, strideW = 2;
+constexpr uint32_t expandedH = (H - 1) * strideH + 1;
+constexpr uint32_t expandedW = (W - 1) * strideW + 1;
+
+using DstTile = ConvTile<TileType::Mat, bfloat16_t, 1 * 2 * expandedH * expandedW * 16,
+                         Layout::NC1HWC0, ConvTileShape<1, 2, expandedH, expandedW, 16>>;
+using SrcTensor = GlobalTensor<
+    bfloat16_t, Shape<1, 1, 32, H, W>,
+    Stride<1 * 32 * H * W, 32 * H * W, H * W, W, 1>, Layout::NCHW>;
+
+void example(__gm__ bfloat16_t* dyInput) {
+  DstTile dy;
+  SrcTensor src(dyInput);
+  TASSIGN(dy, 0x0);
+
+  // 如需空洞为 0，先初始化 dy 所在存储。
+  dy.SetStrideH(strideH);
+  dy.SetStrideW(strideW);
+  TLOAD(dy, src);
 }
 ```

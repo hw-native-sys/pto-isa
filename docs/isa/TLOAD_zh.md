@@ -130,6 +130,14 @@ A5 上表内取值均透传给 DMA。CPU / costmodel 接受该模板并忽略。
       对支持的 b8/b16/b32 类型，字节间距为 `stride * sizeof(DType)`，使用 64 位计算；
       超过 `INT32_MAX` 的元素步长以及 4 GiB 及以上的字节间距不会被截断为 32 位。
       传入 `Stride` 前，应使用 64 位操作数计算大步长表达式，并确保 GM 存储覆盖所有访问地址。
+    - A5 ConvTile 的 `NCHW -> NC1HWC0` 与 `NCDHW -> NDC1HWC0` 加载会读取目的 ConvTile 的
+      `strideH` / `strideW` 配置字段（通过 `SetStrideH` / `SetStrideW` 设置）。
+      该配置用于反向卷积 dx 场景的输入扩张：源 GlobalTensor 的 H/W 仍描述紧凑输入，
+      目的 ConvTile 的 H/W 应描述扩张后的空间，通常为 `(H - 1) * strideH + 1` 和
+      `(W - 1) * strideW + 1`。调用方须自行保证源形状、目的形状和 stride 配置一致。
+    - 在上述 A5 扩张路径中，`TLOAD` 只写源数据覆盖的位置；stride 扩张产生的空洞不会被写入，
+      也不会被自动清零。若后续计算要求空洞为 0，须先初始化目的 ConvTile 所在存储。
+      `strideH` / `strideW` 均为 1 时不启用扩张摆放，保持既有加载语义。
     - `TileType::Mat` 加载还处理mx格式的加载，包括 `MX_A_ZZ/MX_A_ND/MX_A_DN` 到ZZ（用于scalarA）和 `MX_B_NN/MX_B_ND/MX_B_DN` 到NN（用于scalarB）。
     - 对于 `MX_A_ZZ/MX_B_NN`：`(GlobalData::staticShape[3] == 16 || GlobalData::staticShape[3] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。
     - 对于 `MX_A_ND/MX_A_DN/MX_B_ND/MX_B_DN`：`(GlobalData::staticShape[0] == 1 || GlobalData::staticShape[0] == -1)` 且 `(GlobalData::staticShape[1] == 1 || GlobalData::staticShape[1] == -1)` 且 `(GlobalData::staticShape[4] == 2 || GlobalData::staticShape[4] == -1)`。

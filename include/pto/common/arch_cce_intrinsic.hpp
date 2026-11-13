@@ -105,11 +105,26 @@ PTO_INTERNAL void pto_create_cbuf_matrix(__cbuf__ T* dst, int64_t repeatConfig, 
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
     defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90)
+// Detects f16 registers: either a raw vector_f16 or any wrapper whose
+// RegType member is vector_f16 (e.g. RegTensor<half>).
+template <typename T, typename = void>
+struct IsF16Reg : std::is_same<T, vector_f16> {};
+
+template <typename T>
+struct IsF16Reg<T, std::void_t<typename T::RegType>> : std::is_same<typename T::RegType, vector_f16> {};
+
 template <typename T, typename U, typename S>
 PTO_INTERNAL void pto_vexpdif(T& dst, U& src0, U& src1, vector_bool mask, S part)
 {
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6)
     vexpdif(dst, src0, src1, mask, part);
+#elif defined(PTO_NPU_ARCH_A5)
+    if constexpr (IsF16Reg<U>::value) {
+        vsub(dst, src0, src1, mask, MODE_ZEROING);
+        vexp(dst, dst, mask, MODE_ZEROING);
+    } else {
+        vexpdif(dst, src0, src1, mask, part);
+    }
 #elif defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90)
     vsub(dst, src0, src1, mask, MODE_ZEROING);
     vexp(dst, dst, mask, MODE_ZEROING);

@@ -198,6 +198,11 @@ PTO_INTERNAL void TDeInterleaveCheckSingleSrc(const TileDataDst& dst1, const Til
     unsigned validRows = src.GetValidRow();
     unsigned validCols = src.GetValidCol();
     uint32_t halfValidCols = validCols >> 1;
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+    PTO_ASSERT(
+        validCols >= 2 * elementsPerRepeat,
+        "Fix: TDEINTERLEAVE single-source src validCols must be >= 2*ElementsPerRepeat so that the first "
+        "repeat's two adjacent register loads stay within the same row.");
     PTO_ASSERT(
         dst0.GetValidRow() == validRows && dst0.GetValidCol() == halfValidCols,
         "Fix: TDEINTERLEAVE dst0 tile valid shape should be half of input tile src shape.");

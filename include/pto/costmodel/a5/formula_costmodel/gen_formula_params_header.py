@@ -41,6 +41,7 @@ TAIL_KIND_MAP = {"full": "TailKind::Full", "tail": "TailKind::Tail"}
 
 FORMULA_KIND_MAP = {
     "linear": "FormulaKind::Linear",
+    "cube_throughput_floor": "FormulaKind::CubeThroughputFloor",
     "linear_small_loop": "FormulaKind::LinearSmallLoop",
     "linear_two_startup": "FormulaKind::LinearTwoStartup",
     "continuous_piecewise_linear": "FormulaKind::ContinuousPiecewiseLinear",
@@ -169,6 +170,7 @@ def _render_type_defs() -> list[str]:
         "enum class FormulaKind : uint8_t",
         "{",
         "    Linear,",
+        "    CubeThroughputFloor,",
         "    LinearSmallLoop,",
         "    LinearTwoStartup,",
         "    ContinuousPiecewiseLinear,",

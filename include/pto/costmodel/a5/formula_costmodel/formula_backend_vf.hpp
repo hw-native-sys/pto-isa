@@ -61,6 +61,17 @@ inline uint64_t EvalVfFormula(
 {
     double value = 0.0;
     switch (param.formula_kind) {
+        case FormulaKind::CubeThroughputFloor:
+            // Cube callers supply padded M, K and N, not vector loop counts.
+            // Parameters: cycles/MAC, minimum effective M*N area, cycle floor, startup.
+            // The utilization floor applies to the output tile, not to every
+            // M row independently; increasing M can compensate for a small N.
+            value = std::max(
+                        param.param2,
+                        param.param0 * static_cast<double>(outer_iter) *
+                            std::max(param.param1, static_cast<double>(loop_count) * static_cast<double>(inner_iter))) +
+                    param.param3;
+            break;
         case FormulaKind::ScatterPatternRow:
             // The destination clear and the source row/repeat expansion are separate VFs.
             value = param.param0 + param.param1 * static_cast<double>(outer_iter) +

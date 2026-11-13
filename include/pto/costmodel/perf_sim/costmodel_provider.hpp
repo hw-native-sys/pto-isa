@@ -62,6 +62,7 @@ inline CostModelRuntimeCtx& GetCostModelCtx()
     X(TSUB)                                                                                                           \
     X(TMUL)                                                                                                           \
     X(TDIV)                                                                                                           \
+    X(TRECIP)                                                                                                         \
     X(TMAX)                                                                                                           \
     X(TMIN)                                                                                                           \
     X(TAND)                                                                                                           \
@@ -135,6 +136,9 @@ struct LightweightEstimateOptions {
     int dst_cols = 0;
     int dst_valid_rows = 0;
     int dst_valid_cols = 0;
+    int concat_src0_cols = 0;
+    int concat_src1_cols = 0;
+    bool concat_dense_sources = false;
 };
 
 inline uint64_t EstimateLightweightCycles(
@@ -181,6 +185,9 @@ inline uint64_t EstimateLightweightCycles(
     input.dst_cols = options.dst_cols;
     input.dst_valid_rows = options.dst_valid_rows;
     input.dst_valid_cols = options.dst_valid_cols;
+    input.concat_src0_cols = options.concat_src0_cols;
+    input.concat_src1_cols = options.concat_src1_cols;
+    input.concat_dense_sources = options.concat_dense_sources;
     input.data_size = static_cast<int64_t>(input.valid_rows) * input.valid_cols;
     input.tile_type = tile_type;
 

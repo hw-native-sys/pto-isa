@@ -42,11 +42,16 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut& dst, TileDataIn& src)
     // 2. Byte size must match
     static_assert(sizeof(DType) * Numel == sizeof(NewElement) * NewNumel, "TRESHAPE: Total byte size must match.");
 
-    // 3. reshape between non-boxed and boxed tile is not allowed.
+    // MX E8M0 scales are byte payloads. A5 quantization uses flat Vec views
+    // over boxed scale tiles, so this specific reshape must preserve bytes.
+    constexpr bool isPackedE8M0ScaleView = Loc == TileType::Vec &&
+                                           std::is_same_v<std::remove_cv_t<DType>, float8_e8m0_t> &&
+                                           ((SFractal != SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
+                                            (SFractal == SLayout::NoneBox && NewSFractal != SLayout::NoneBox));
     static_assert(
         (SFractal == SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
-            (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox),
-        "TRESHAPE: Cannot reshape between boxed and non-boxed layouts.");
+            (SFractal != SLayout::NoneBox && NewSFractal != SLayout::NoneBox) || isPackedE8M0ScaleView,
+        "TRESHAPE: Cannot reshape between boxed and non-boxed layouts except MX E8M0 scale views.");
 
     TASSIGN_IMPL(dst, reinterpret_cast<uintptr_t>(src.data()));
 #else

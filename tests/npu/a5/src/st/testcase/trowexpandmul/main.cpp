@@ -191,9 +191,9 @@ void test_trowexpandmul_bf16()
 }
 
 TEST_F(TRowExpandMulTest, case_bf16_16_32) { test_trowexpandmul_bf16<16, 32, 16, 1>(); }
-// Short-row cases (issue #406) with dynamic valid extents: these tiles use DYNAMIC (-1) valid
-// dimensions, so isContiguous is false and the dispatch keeps the pre-existing per-row 2D path;
-// they act as regression coverage for it. dst aliases src0 in all cases (in-place), scales and
+// Short-row cases (issue #406) with dynamic valid extents and full runtime columns: these tiles
+// use DYNAMIC (-1) valid dimensions, as PyPTO generates, and enter the packed short-row path
+// through the runtime full-width guard. dst aliases src0 in all cases (in-place), scales and
 // values are nonuniform; bigscale uses f32 scales beyond the fp16 range.
 TEST_F(TRowExpandMulTest, case_fp32_8_8) { test_trowexpandmul<float, 8, 8, 8, 1, true, false>(); }
 TEST_F(TRowExpandMulTest, case_fp32_16_16) { test_trowexpandmul<float, 16, 16, 16, 1, true, false>(); }
@@ -329,4 +329,74 @@ TEST_F(TRowExpandMulTest, case_fp32_16_16_static) { test_trowexpandmul_static<fl
 TEST_F(TRowExpandMulTest, case_fp32_8_8_static) { test_trowexpandmul_static<float, 8, 8>(); }
 TEST_F(TRowExpandMulTest, case_fp32_16_16_bigscale_static) { test_trowexpandmul_static<float, 16, 16>(); }
 TEST_F(TRowExpandMulTest, case_fp16_16_16_static) { test_trowexpandmul_static<aclFloat16, 16, 16>(); }
+
+template <typename T, uint32_t physRow, uint32_t physCol, uint32_t validRow, uint32_t validCol>
+void launchTRowExpandMulDynValid(T* out, T* src0, T* src1, void* stream);
+
+template <typename T, uint32_t physRow, uint32_t physCol, uint32_t validRow, uint32_t validCol>
+void test_trowexpandmul_dynvalid()
+{
+    size_t inputFileSize = validRow * sizeof(T);
+    size_t outputFileSize = validRow * physCol * sizeof(T);
+
+    aclInit(nullptr);
+    aclrtSetDevice(0);
+    aclrtStream stream;
+    aclrtCreateStream(&stream);
+
+    T *dstHost, *src0Host, *src1Host;
+    T *dstDevice, *src0Device, *src1Device;
+
+    aclrtMallocHost((void**)(&dstHost), outputFileSize);
+    aclrtMallocHost((void**)(&src0Host), outputFileSize);
+    aclrtMallocHost((void**)(&src1Host), inputFileSize);
+
+    aclrtMalloc((void**)&dstDevice, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src0Device, outputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&src1Device, inputFileSize, ACL_MEM_MALLOC_HUGE_FIRST);
+
+    memset(dstHost, 0, outputFileSize);
+    ReadFile(GetGoldenDir() + "/input0.bin", outputFileSize, src0Host, outputFileSize);
+    ReadFile(GetGoldenDir() + "/input1.bin", inputFileSize, src1Host, inputFileSize);
+
+    aclrtMemcpy(dstDevice, outputFileSize, dstHost, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src0Device, outputFileSize, src0Host, outputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    aclrtMemcpy(src1Device, inputFileSize, src1Host, inputFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    launchTRowExpandMulDynValid<T, physRow, physCol, validRow, validCol>(dstDevice, src0Device, src1Device, stream);
+
+    aclrtSynchronizeStream(stream);
+    aclrtMemcpy(dstHost, outputFileSize, dstDevice, outputFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+
+    WriteFile(GetGoldenDir() + "/output.bin", dstHost, outputFileSize);
+
+    aclrtFree(dstDevice);
+    aclrtFree(src0Device);
+    aclrtFree(src1Device);
+
+    aclrtFreeHost(dstHost);
+    aclrtFreeHost(src0Host);
+    aclrtFreeHost(src1Host);
+
+    aclrtDestroyStream(stream);
+    aclrtResetDevice(0);
+    aclFinalize();
+
+    std::vector<float> golden(outputFileSize / sizeof(float));
+    std::vector<float> devFinal(outputFileSize / sizeof(float));
+    ReadFile(GetGoldenDir() + "/golden.bin", outputFileSize, golden.data(), outputFileSize);
+    ReadFile(GetGoldenDir() + "/output.bin", outputFileSize, devFinal.data(), outputFileSize);
+    bool ret = ResultCmp(golden, devFinal, 0.001f);
+
+    EXPECT_TRUE(ret);
+}
+
+// Dynamic-valid-extent cases (issue #406 follow-up): tiles keep the DYNAMIC valid dimensions with
+// runtime extents, as PyPTO generates. Full runtime columns enter the packed short-row path through
+// the runtime guard, including row tails on the C1A model shapes (1021 % 4 == 1, 509 % 2 == 1);
+// runtime partial columns keep the strided 2D path, with untouched columns left zeroed.
+TEST_F(TRowExpandMulTest, case_fp32_1021_16_dyntail) { test_trowexpandmul_dynvalid<float, 1024, 16, 1021, 16>(); }
+
+TEST_F(TRowExpandMulTest, case_fp32_509_32_dyntail) { test_trowexpandmul_dynvalid<float, 512, 32, 509, 32>(); }
+
+TEST_F(TRowExpandMulTest, case_fp32_21_32_dynpartial) { test_trowexpandmul_dynvalid<float, 24, 32, 21, 30>(); }
 } // namespace TRowExpandMulTest

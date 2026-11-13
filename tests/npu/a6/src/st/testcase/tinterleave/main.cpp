@@ -36,7 +36,12 @@ void LaunchTInterleave(T* out0, T* out1, T* src0, T* src1, void* stream);
 template <int tileH, int tileW, int vRows, int vCols>
 void LaunchTInterleaveHalf(aclFloat16* out0, aclFloat16* out1, aclFloat16* src0, aclFloat16* src1, void* stream);
 
-template <typename T, int tileH, int tileW, int vRows, int vCols, bool isHalf = false>
+void LaunchTInterleaveFp8E4M3(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
+void LaunchTInterleaveFp8E5M2(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
+void LaunchTInterleaveFp8E8M0(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
+
+// fp8Mode: 0 = generic T launcher, 1 = fp8_e4m3, 2 = fp8_e5m2, 3 = fp8_e8m0 (host type is uint8_t)
+template <typename T, int tileH, int tileW, int vRows, int vCols, bool isHalf = false, int fp8Mode = 0>
 void test_tinterleave()
 {
     size_t fileSizeTile = tileH * tileW * sizeof(T);
@@ -71,6 +76,12 @@ void test_tinterleave()
 
     if constexpr (isHalf) {
         LaunchTInterleaveHalf<tileH, tileW, vRows, vCols>(dst0Device, dst1Device, src0Device, src1Device, stream);
+    } else if constexpr (fp8Mode == 1) {
+        LaunchTInterleaveFp8E4M3(dst0Device, dst1Device, src0Device, src1Device, stream);
+    } else if constexpr (fp8Mode == 2) {
+        LaunchTInterleaveFp8E5M2(dst0Device, dst1Device, src0Device, src1Device, stream);
+    } else if constexpr (fp8Mode == 3) {
+        LaunchTInterleaveFp8E8M0(dst0Device, dst1Device, src0Device, src1Device, stream);
     } else {
         LaunchTInterleave<T, tileH, tileW, vRows, vCols>(dst0Device, dst1Device, src0Device, src1Device, stream);
     }
@@ -122,3 +133,7 @@ TEST_F(TINTERLEAVETest, case_uint8_32x256_32x256) { test_tinterleave<uint8_t, 32
 // odd valid column cases
 TEST_F(TINTERLEAVETest, case_float_64x64_64x63) { test_tinterleave<float, 64, 64, 64, 63>(); }
 TEST_F(TINTERLEAVETest, case_uint8_32x256_32x255) { test_tinterleave<uint8_t, 32, 256, 32, 255>(); }
+// fp8 cases (host buffers are byte-agnostic uint8_t; the kernel uses fp8 device types)
+TEST_F(TINTERLEAVETest, case_fp8e4m3_32x256_32x256) { test_tinterleave<uint8_t, 32, 256, 32, 256, false, 1>(); }
+TEST_F(TINTERLEAVETest, case_fp8e5m2_32x256_32x256) { test_tinterleave<uint8_t, 32, 256, 32, 256, false, 2>(); }
+TEST_F(TINTERLEAVETest, case_fp8e8m0_32x256_32x256) { test_tinterleave<uint8_t, 32, 256, 32, 256, false, 3>(); }

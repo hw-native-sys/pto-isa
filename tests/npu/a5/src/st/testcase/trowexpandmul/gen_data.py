@@ -42,10 +42,17 @@ def gen_golden_data(params):
             return np.random.uniform(low=60000.0, high=120000.0, size=shape).astype(dtype)
         return rand_array(shape)
 
+    valid_col = getattr(param, "valid_col", None)
     if param.src0eqdst:
         src0 = rand_array((src0_row, src0_col))
-        src0.tofile("input0.bin")
         src1 = rand_scale_array((src1_row, src1_col))
+        if valid_col is not None and valid_col < dst_col:
+            # Runtime partial columns: data lives in the first valid_col columns of each strided
+            # physical row; the remaining columns are neither read nor written (dst pre-zeroed).
+            masked = np.zeros((src0_row, src0_col), dtype)
+            masked[:, :valid_col] = src0[:, :valid_col]
+            src0 = masked
+        src0.tofile("input0.bin")
         src1.tofile("input1.bin")
 
         reps = (dst_col + src1_col - 1) // src1_col
@@ -107,6 +114,7 @@ class TrowexpandParams:
         suffix="",
         big_scale=False,
         bf16=False,
+        valid_col=None,
     ):
         self.dtype = dtype
         self.dst_row = dst_row
@@ -120,6 +128,7 @@ class TrowexpandParams:
         self.suffix = suffix
         self.big_scale = big_scale
         self.bf16 = bf16
+        self.valid_col = valid_col
 
 
 def generate_case_name(param):
@@ -167,9 +176,9 @@ if __name__ == "__main__":
         TrowexpandParams(np.uint64, 16, 32, 16, 32, 16, 1, True, False),
         # issue #828: bf16 was never exercised on A5
         TrowexpandParams(np.float32, 16, 32, 16, 32, 16, 1, True, False, bf16=True),
-        # Short-row cases (issue #406) with dynamic valid extents: these take the pre-existing
-        # per-row 2D path (isContiguous is false for DYNAMIC valid dimensions). Widths 8/16/32,
-        # the model shapes (1024x16 FP4 groups, 512x32 FP8 groups), a half variant and f32 scales
+        # Short-row cases (issue #406) with dynamic valid extents and full runtime columns: these
+        # enter the packed short-row path through the runtime full-width guard. Widths 8/16/32, the
+        # model shapes (1024x16 FP4 groups, 512x32 FP8 groups), a half variant and f32 scales
         # beyond the fp16 range.
         TrowexpandParams(np.float32, 8, 8, 8, 8, 8, 1, True, False),
         TrowexpandParams(np.float32, 16, 16, 16, 16, 16, 1, True, False),
@@ -187,6 +196,14 @@ if __name__ == "__main__":
         TrowexpandParams(np.float32, 8, 8, 8, 8, 8, 1, True, False, suffix="_static"),
         TrowexpandParams(np.float32, 16, 16, 16, 16, 16, 1, True, False, suffix="_bigscale_static", big_scale=True),
         TrowexpandParams(np.float16, 16, 16, 16, 16, 16, 1, True, False, suffix="_static"),
+        # Dynamic-valid-extent cases (issue #406 follow-up): tiles keep DYNAMIC valid dimensions
+        # with runtime extents, as PyPTO generates. Full runtime columns enter the packed path via
+        # the runtime guard, including row tails on the C1A model shapes (1021 % 4 == 1,
+        # 509 % 2 == 1); runtime partial columns (30 of 32) keep the strided 2D path with the
+        # untouched columns left zeroed.
+        TrowexpandParams(np.float32, 1021, 16, 1021, 16, 1021, 1, True, False, suffix="_dyntail"),
+        TrowexpandParams(np.float32, 509, 32, 509, 32, 509, 1, True, False, suffix="_dyntail"),
+        TrowexpandParams(np.float32, 21, 32, 21, 32, 21, 1, True, False, suffix="_dynpartial", valid_col=30),
     ]
 
     for _, param in enumerate(case_params_list):

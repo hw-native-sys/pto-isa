@@ -17,10 +17,14 @@ target_include_directories(syncall PRIVATE
     ${PROJECT_SOURCE_DIR}/../../../../common
 )
 
-target_link_directories(syncall PUBLIC
-    ${ASCEND_HOME_PATH}/lib64
-    ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
-)
+target_link_directories(syncall PUBLIC ${ASCEND_HOME_PATH}/lib64)
+foreach(simdir
+        ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
+        ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/camodel)
+    if(EXISTS ${simdir})
+        target_link_directories(syncall PUBLIC ${simdir})
+    endif()
+endforeach()
 
 target_link_libraries(syncall PRIVATE
     $<BUILD_INTERFACE:$<$<STREQUAL:${RUN_MODE},sim>:runtime_camodel>>

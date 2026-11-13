@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include "common.hpp"
 #include "utils.hpp"
+#include "TImg2col.hpp"
 
 namespace pto {
 
@@ -690,8 +691,9 @@ __tf__ PTO_INTERNAL void TExtractToBConv(
     __cb__ DataType* dstAddr = (__cb__ DataType*)__cce_get_tile_ptr(dst);
     uint16_t dstValidColAlign = CeilDivision(dstValidCol, FRACTAL_NZ_ROW) * FRACTAL_NZ_ROW;
     uint16_t dstValidRowAlign = CeilDivision(dstValidRow, c0Size) * c0Size;
+    uint16_t srcColAlign = CeilDivision(srcCol, FRACTAL_NZ_ROW) * FRACTAL_NZ_ROW;
 
-    uint16_t srcStride = srcCol >> SHIFT_BLOCK_LEN;
+    uint16_t srcStride = srcColAlign >> SHIFT_BLOCK_LEN;
     uint16_t dstStride = dstValidColAlign >> SHIFT_BLOCK_LEN;
     uint16_t mStartPosition = indexCol >> SHIFT_BLOCK_LEN;
     uint16_t kStartPosition = (indexRow * sizeof(DataType)) >> SHIFT_BLOCK_BYTE;
@@ -733,12 +735,13 @@ __tf__ PTO_INTERNAL void TExtractToAConv(
     __ca__ DataType* dstAddr = (__ca__ DataType*)__cce_get_tile_ptr(dst);
     uint16_t dstValidColAlign = CeilDivision(dstValidCol, c0Size) * c0Size;
     uint16_t dstValidRowAlign = CeilDivision(dstValidRow, FRACTAL_NZ_ROW) * FRACTAL_NZ_ROW;
+    uint16_t srcRowAlign = CeilDivision(srcRow, FRACTAL_NZ_ROW) * FRACTAL_NZ_ROW;
 
     uint16_t mStartPosition = indexRow >> SHIFT_BLOCK_LEN;
     uint16_t kStartPosition = (indexCol * sizeof(DataType)) >> SHIFT_BLOCK_BYTE;
     uint16_t mStep = 0;
     uint16_t kStep = 0;
-    uint16_t srcStride = srcRow >> SHIFT_BLOCK_LEN;
+    uint16_t srcStride = srcRowAlign >> SHIFT_BLOCK_LEN;
     uint16_t dstStride = dstValidRowAlign >> SHIFT_BLOCK_LEN;
     if constexpr (Transpose) {
         mStep = dstValidColAlign >> SHIFT_BLOCK_LEN;
@@ -809,28 +812,69 @@ PTO_INTERNAL void TextractConvTileCheck(DstTileData& dst, SrcTileData& src)
 }
 
 template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TExtractToAConvUnaligned(
+    DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol, bool isTranspose)
+{
+    // `load_cbuf_to_ca` requires the source row extent (H*W) to be 16-aligned. For an unaligned
+    // NC1HWC0 ConvTile, use a 1x1/no-padding/no-stride/no-dilation IMG2COL move: channelSize is
+    // the source channel extent, and posM/posK preserve the extraction window.
+    uint8_t padList[4] = {0};
+    constexpr uint32_t c0Size = BLOCK_BYTE_SIZE / sizeof(typename DstTileData::DType);
+    SetFmatrix<SetFmatrixMode::FMATRIX_A_AUTO>(
+        static_cast<uint16_t>(src.GetShape(2)), static_cast<uint16_t>(src.GetShape(3)), padList); // set H W
+    SetRepeat<SetFmatrixMode::FMATRIX_A_AUTO>(0, 1, 0, DstTileData::Rows / FRACTAL_NZ_ROW, 0);
+    SetPadding<SetFmatrixMode::FMATRIX_A_AUTO, typename DstTileData::DType>(typename DstTileData::DType{0});
+
+    const auto alignedRow = CeilDivision(dst.GetValidRow(), FRACTAL_NZ_ROW) * FRACTAL_NZ_ROW;
+    const auto alignedCol = CeilDivision(dst.GetValidCol(), c0Size) * c0Size;
+    const auto stepM = isTranspose ? alignedCol : alignedRow;
+    const auto stepK = isTranspose ? alignedRow : alignedCol;
+    const auto srcCol = src.GetShape(1) * src.GetShape(4);
+    TImg2colToA<DstTileData, SrcTileData, SetFmatrixMode::FMATRIX_A_AUTO>(
+        dst.data(), src.data(), stepM, stepK, indexRow, indexCol, 1, 1, 1, 1, 1, 1, isTranspose, srcCol);
+}
+
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TExtractToAConv(
+    DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol, bool isTranspose)
+{
+    const auto srcRow = src.GetShape(2) * src.GetShape(3); // H*W is row
+    if (srcRow % FRACTAL_NZ_ROW == 0) {
+        TExtractToAConvDispatch<DstTileData, SrcTileData>(
+            dst.data(), src.data(), srcRow, dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol, isTranspose);
+    } else {
+        TExtractToAConvUnaligned<DstTileData, SrcTileData>(dst, src, indexRow, indexCol, isTranspose);
+    }
+}
+
+template <typename DstTileData, typename SrcTileData>
+PTO_INTERNAL void TExtractToBConv(
+    DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol, bool isTranspose)
+{
+    if constexpr (SrcTileData::totalDimCount == 4) { // right ConvTile layout is [C1HW,N/16,16,C0] FRACTAL_Z
+        constexpr uint32_t c0ElemCount = C0_SIZE_BYTE / sizeof(typename SrcTileData::DType);
+        static_assert(
+            SrcTileData::staticShape[2] == FRACTAL_NZ_ROW && SrcTileData::staticShape[3] == c0ElemCount,
+            "Fix: The SrcTileData last 2 dim must be static and satisfy [16, 32 / sizeof(DataType)]");
+        const auto srcCol = src.GetShape(1) * src.GetShape(2);
+        TExtractToBConvDispatch<DstTileData, SrcTileData>(
+            dst.data(), src.data(), srcCol, dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol, isTranspose);
+    } else { // [C1,H,W,N,C0] FRACTAL_Z_3D
+        TExtractToBConvDispatch<DstTileData, SrcTileData>(
+            dst.data(), src.data(), src.GetShape(3), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol,
+            isTranspose);
+    }
+}
+
+template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TEXTRACT_CONVTILE_IMPL(DstTileData& dst, SrcTileData& src, uint16_t indexRow, uint16_t indexCol)
 {
     TextractConvTileCheck<DstTileData, SrcTileData>(dst, src);
     const bool isTranspose = src.GetTranspose();
     if constexpr (DstTileData::Loc == pto::TileType::Left) { // left ConvTile layout is [N,C1,H,W,C0]
-        uint16_t srcRow = src.GetShape(2) * src.GetShape(3); // H*W is row
-        TExtractToAConvDispatch<DstTileData, SrcTileData>(
-            dst.data(), src.data(), srcRow, dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol, isTranspose);
+        TExtractToAConv<DstTileData, SrcTileData>(dst, src, indexRow, indexCol, isTranspose);
     } else {
-        if constexpr (SrcTileData::totalDimCount == 4) { // right ConvTile layout is [C1HW,N/16,16,C0] FRACTAL_Z
-            constexpr uint32_t c0ElemCount = C0_SIZE_BYTE / sizeof(typename SrcTileData::DType);
-            static_assert(
-                SrcTileData::staticShape[2] == FRACTAL_NZ_ROW && SrcTileData::staticShape[3] == c0ElemCount,
-                "Fix: The SrcTileData last 2 dim must be static and satisfy [16, 32 / sizeof(DataType)]");
-            uint16_t srcCol = src.GetShape(1) * src.GetShape(2);
-            TExtractToBConvDispatch<DstTileData, SrcTileData>(
-                dst.data(), src.data(), srcCol, dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol, isTranspose);
-        } else { // [C1,H,W,N,C0] FRACTAL_Z_3D
-            TExtractToBConvDispatch<DstTileData, SrcTileData>(
-                dst.data(), src.data(), src.GetShape(3), dst.GetValidRow(), dst.GetValidCol(), indexRow, indexCol,
-                isTranspose);
-        }
+        TExtractToBConv<DstTileData, SrcTileData>(dst, src, indexRow, indexCol, isTranspose);
     }
 }
 

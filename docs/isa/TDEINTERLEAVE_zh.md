@@ -53,7 +53,7 @@ $$ \mathrm{dst1}_{i, k} = \mathrm{src}_{i, 2k+1}, \quad 0 \le k < \mathrm{halfVa
 
 其中 `halfValidCols = src.GetValidCol() / 2`。
 
-> **注意**：单源形式要求源Tile的行宽至少为 `2 × ElementsPerRepeat` 个元素（其中 `ElementsPerRepeat = 256 / sizeof(T)`，即 `2 × sregLower`），以确保每次重复中加载的两个相邻寄存器大小的数据块不会跨越行边界。
+> **注意**：单源形式要求源Tile的行宽至少为 `2 × ElementsPerRepeat` 个元素（其中 `ElementsPerRepeat = 256 / sizeof(T)`），以确保首个重复中加载的两个相邻寄存器大小的数据块不会跨越行边界。
 
 ## C++内建接口
 
@@ -76,8 +76,10 @@ PTO_INST RecordEvent TDEINTERLEAVE(TileDataDst &dst1, TileDataDst &dst0, TileDat
 
 ## 约束
 
-- **实现检查 (Ascend 950PR/Ascend 950DT)**:
-    - `TileData::DType` 必须是以下之一：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
+- **实现检查**:
+    - 支持的 `TileData::DType`：
+        - Ascend 950PR/Ascend 950DT系列产品：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`。
+        - Ascend 960系列产品：`int32_t`、`uint32_t`、`float`、`int16_t`、`uint16_t`、`half`、`bfloat16_t`、`uint8_t`、`int8_t`、`float8_e4m3_t`、`float8_e5m2_t`、`float8_e8m0_t`。
     - Tile布局必须是行主序（`TileData::isRowMajor`）。
     - 所有Tile必须具有相同的 `DType`。
     - 双源形式：`src0`、`src1`、`dst0`、`dst1` 必须具有相同的有效形状， 且他们的validCols必须为偶数。

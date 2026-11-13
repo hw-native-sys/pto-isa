@@ -11,6 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_COMM_TTEST_HPP
 #define PTO_COMM_TTEST_HPP
 
+#include <cstdint>
+
 #include "pto/common/type.hpp"
 #include "pto/common/utils.hpp"
 #include "pto/comm/comm_types.hpp"
@@ -71,23 +73,59 @@ PTO_INTERNAL bool TTEST_IMPL(GlobalSignalData& signalData, int32_t cmpValue, Wai
 
     volatile __gm__ int32_t* basePtr = (volatile __gm__ int32_t*)signalData.data();
 
-    // Test if all signals satisfy the condition (full 5-D traversal)
-    for (int d0 = 0; d0 < s0; ++d0) {
-        for (int d1 = 0; d1 < s1; ++d1) {
-            for (int d2 = 0; d2 < s2; ++d2) {
-                for (int d3 = 0; d3 < s3; ++d3) {
-                    for (int d4 = 0; d4 < s4; ++d4) {
-                        const int64_t idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
-                        __asm__ __volatile__("");
-                        dcci((__gm__ void*)(basePtr + idx), cache_line_t::SINGLE_CACHE_LINE);
-                        __asm__ __volatile__("");
-                        if (!detail::TestCompareSignal(basePtr[idx], cmpValue, cmp)) {
-                            return false;
+    if (s0 == 1 && s1 == 1 && s2 == 1 && s3 == 1 && s4 == 1) {
+        __asm__ __volatile__("");
+        dcci((__gm__ void*)basePtr, cache_line_t::SINGLE_CACHE_LINE);
+        __asm__ __volatile__("");
+        dsb(DSB_DDR);
+        return detail::TestCompareSignal(basePtr[0], cmpValue, cmp);
+    }
+
+    // Test one consecutive cache-line group at a time: invalidate the line once, then compare every logical
+    // signal that belongs to it. A non-monotonic tensor may revisit a line and invalidate it again.
+    int d0 = 0;
+    int d1 = 0;
+    int d2 = 0;
+    int d3 = 0;
+    int d4 = 0;
+    bool hasSignal = s0 > 0 && s1 > 0 && s2 > 0 && s3 > 0 && s4 > 0;
+    constexpr uintptr_t kCacheLineShift = 6;
+    while (hasSignal) {
+        int64_t idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
+        volatile __gm__ int32_t* signalPtr = basePtr + idx;
+        const uintptr_t cacheLineTag = reinterpret_cast<uintptr_t>(signalPtr) >> kCacheLineShift;
+        __asm__ __volatile__("");
+        dcci((__gm__ void*)signalPtr, cache_line_t::SINGLE_CACHE_LINE);
+        __asm__ __volatile__("");
+        dsb(DSB_DDR);
+
+        do {
+            if (!detail::TestCompareSignal(*signalPtr, cmpValue, cmp)) {
+                return false;
+            }
+            // Advance to the next logical signal in the 5-D tensor.
+            hasSignal = true;
+            if (++d4 >= s4) {
+                d4 = 0;
+                if (++d3 >= s3) {
+                    d3 = 0;
+                    if (++d2 >= s2) {
+                        d2 = 0;
+                        if (++d1 >= s1) {
+                            d1 = 0;
+                            if (++d0 >= s0) {
+                                hasSignal = false;
+                            }
                         }
                     }
                 }
             }
-        }
+            if (!hasSignal) {
+                break;
+            }
+            idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
+            signalPtr = basePtr + idx;
+        } while ((reinterpret_cast<uintptr_t>(signalPtr) >> kCacheLineShift) == cacheLineTag);
     }
     return true;
 }

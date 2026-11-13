@@ -11,6 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef PTO_COMM_TWAIT_HPP
 #define PTO_COMM_TWAIT_HPP
 
+#include <cstdint>
+
 #include "pto/common/type.hpp"
 #include "pto/common/utils.hpp"
 #include "pto/comm/comm_types.hpp"
@@ -45,6 +47,30 @@ PTO_INTERNAL bool CompareSignalRuntime(int32_t sigVal, int32_t cmpVal, WaitCmp c
     return false;
 }
 
+PTO_INTERNAL void HandleWaitRetry(uint32_t& spin)
+{
+    constexpr uint32_t kFenceInterval = 64;
+    constexpr uint32_t kMaxSpinCount = 100000000;
+    PTO_ASSERT(spin < kMaxSpinCount, "TWAIT: possible deadlock detected, spin count exceeded maximum limit");
+    if ((++spin % kFenceInterval) == 0) {
+        pipe_barrier(PIPE_ALL);
+    }
+}
+
+PTO_INTERNAL void WaitSingleSignal(volatile __gm__ int32_t* signalPtr, int32_t cmpValue, WaitCmp cmp, uint32_t& spin)
+{
+    while (true) {
+        __asm__ __volatile__("");
+        dcci((__gm__ void*)signalPtr, cache_line_t::SINGLE_CACHE_LINE);
+        __asm__ __volatile__("");
+        dsb(DSB_DDR);
+        if (CompareSignalRuntime(signalPtr[0], cmpValue, cmp)) {
+            return;
+        }
+        HandleWaitRetry(spin);
+    }
+}
+
 } // namespace detail
 
 template <typename GlobalSignalData>
@@ -67,36 +93,65 @@ PTO_INTERNAL void TWAIT_IMPL(GlobalSignalData& signalData, int32_t cmpValue, Wai
 
     volatile __gm__ int32_t* basePtr = reinterpret_cast<volatile __gm__ int32_t*>(signalData.data());
 
+    uint32_t spin = 0;
+    if (s0 == 1 && s1 == 1 && s2 == 1 && s3 == 1 && s4 == 1) {
+        detail::WaitSingleSignal(basePtr, cmpValue, cmp, spin);
+        return;
+    }
+
     // Wait until all signals satisfy the condition (full 5-D traversal)
     bool allSatisfied = false;
-    uint32_t spin = 0;
-    constexpr uint32_t kFenceInterval = 64;
-    constexpr uint32_t kMaxSpinCount = 100000000; // Deadlock detection threshold
     while (!allSatisfied) {
+        // Process one consecutive cache-line group at a time: invalidate the line once, then check every logical
+        // signal that belongs to it. A non-monotonic tensor may revisit a line and invalidate it again.
         allSatisfied = true;
-        for (int d0 = 0; d0 < s0 && allSatisfied; ++d0) {
-            for (int d1 = 0; d1 < s1 && allSatisfied; ++d1) {
-                for (int d2 = 0; d2 < s2 && allSatisfied; ++d2) {
-                    for (int d3 = 0; d3 < s3 && allSatisfied; ++d3) {
-                        for (int d4 = 0; d4 < s4; ++d4) {
-                            const int64_t idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
-                            __asm__ __volatile__("");
-                            dcci((__gm__ void*)(basePtr + idx), cache_line_t::SINGLE_CACHE_LINE);
-                            __asm__ __volatile__("");
-                            if (!detail::CompareSignalRuntime(basePtr[idx], cmpValue, cmp)) {
-                                allSatisfied = false;
-                                break;
+        int d0 = 0;
+        int d1 = 0;
+        int d2 = 0;
+        int d3 = 0;
+        int d4 = 0;
+        bool hasSignal = s0 > 0 && s1 > 0 && s2 > 0 && s3 > 0 && s4 > 0;
+        constexpr uintptr_t kCacheLineShift = 6;
+        while (hasSignal && allSatisfied) {
+            int64_t idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
+            volatile __gm__ int32_t* signalPtr = basePtr + idx;
+            const uintptr_t cacheLineTag = reinterpret_cast<uintptr_t>(signalPtr) >> kCacheLineShift;
+            __asm__ __volatile__("");
+            dcci((__gm__ void*)signalPtr, cache_line_t::SINGLE_CACHE_LINE);
+            __asm__ __volatile__("");
+            dsb(DSB_DDR);
+
+            do {
+                if (!detail::CompareSignalRuntime(*signalPtr, cmpValue, cmp)) {
+                    allSatisfied = false;
+                    break;
+                }
+                // Advance to the next logical signal in the 5-D tensor.
+                hasSignal = true;
+                if (++d4 >= s4) {
+                    d4 = 0;
+                    if (++d3 >= s3) {
+                        d3 = 0;
+                        if (++d2 >= s2) {
+                            d2 = 0;
+                            if (++d1 >= s1) {
+                                d1 = 0;
+                                if (++d0 >= s0) {
+                                    hasSignal = false;
+                                }
                             }
                         }
                     }
                 }
-            }
+                if (!hasSignal) {
+                    break;
+                }
+                idx = d0 * st0 + d1 * st1 + d2 * st2 + d3 * st3 + d4 * st4;
+                signalPtr = basePtr + idx;
+            } while ((reinterpret_cast<uintptr_t>(signalPtr) >> kCacheLineShift) == cacheLineTag);
         }
         if (!allSatisfied) {
-            PTO_ASSERT(spin < kMaxSpinCount, "TWAIT: possible deadlock detected, spin count exceeded maximum limit");
-            if ((++spin % kFenceInterval) == 0) {
-                pipe_barrier(PIPE_ALL);
-            }
+            detail::HandleWaitRetry(spin);
         }
     }
 }
