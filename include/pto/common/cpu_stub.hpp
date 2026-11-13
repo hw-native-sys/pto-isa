@@ -123,6 +123,8 @@ inline int aclFinalize() { return 0; }
 inline void set_flag(pipe_t, pipe_t, int) {}
 inline void wait_flag(pipe_t, pipe_t, int) {}
 #if !defined(__COSTMODEL)
+// CPU TSTORE selects atomic behavior through its AtomicType template argument.
+inline void set_atomic_none() {}
 using mem_dsb_t = int;
 struct cache_line_t {
     static constexpr int SINGLE_CACHE_LINE = 0;
