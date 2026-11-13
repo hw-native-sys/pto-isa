@@ -17,8 +17,32 @@
 # tree call the A6 low-level DMA intrinsics (copy_gm_to_ubuf_align_v2 /
 # copy_ubuf_to_gm_align_v2) directly instead of the TLoad/TStore wrappers.
 
+# Shared testcases are identical to their a5 twins and have NO directory in
+# this tree: their targets compile the a5 sources directly for the a6 core
+# (PTO_NPU_ARCH_A6 comes from pto-inst.hpp as usual). A local testcase dir
+# always wins — put genuinely-a6 implementations (tquant, tshl family, ...)
+# in their own directory as before.
+# Root of the a5 testcase tree — resolved once here so pto_st_sources works
+# from both this directory and per-testcase subdirectories.
+set(A5_TESTCASE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../a5/src/st/testcase)
+
+macro(pto_st_sources NAME)
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${NAME}_kernel.cpp)
+        set(PTO_KSRC ${NAME}_kernel.cpp)
+        set(PTO_MSRC main.cpp)
+    else()
+        set(PTO_A5_TC ${A5_TESTCASE_ROOT}/${NAME})
+        if(NOT EXISTS ${PTO_A5_TC}/${NAME}_kernel.cpp)
+            message(FATAL_ERROR "testcase ${NAME}: no local dir and no a5 twin under ${PTO_A5_TC}")
+        endif()
+        set(PTO_KSRC ${PTO_A5_TC}/${NAME}_kernel.cpp)
+        set(PTO_MSRC ${PTO_A5_TC}/main.cpp)
+    endif()
+endmacro()
+
 function(pto_vec_st NAME)
-    add_library(${NAME}_kernel SHARED ${NAME}_kernel.cpp)
+    pto_st_sources(${NAME})
+    add_library(${NAME}_kernel SHARED ${PTO_KSRC})
     target_compile_options(${NAME}_kernel PRIVATE
         ${CMAKE_CCE_COMPILE_OPTIONS}
         --cce-aicore-arch=dav-920r1-vec
@@ -30,14 +54,20 @@ function(pto_vec_st NAME)
         ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime)
     target_link_options(${NAME}_kernel PRIVATE --cce-fatobj-link)
 
-    add_executable(${NAME} main.cpp)
+    add_executable(${NAME} ${PTO_MSRC})
     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
     target_include_directories(${NAME} PRIVATE
         ${PROJECT_SOURCE_DIR}/../../../../common)
 
-    target_link_directories(${NAME} PUBLIC
-        ${ASCEND_HOME_PATH}/lib64
-        ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib)
+
+    target_link_directories(${NAME} PUBLIC ${ASCEND_HOME_PATH}/lib64)
+    foreach(simdir
+            ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
+            ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/camodel)
+        if(EXISTS ${simdir})
+            target_link_directories(${NAME} PUBLIC ${simdir})
+        endif()
+    endforeach()
 
     target_link_libraries(${NAME} PRIVATE
         ${NAME}_kernel
@@ -47,7 +77,8 @@ function(pto_vec_st NAME)
 endfunction()
 
 function(pto_cube_st NAME)
-    add_library(${NAME}_kernel SHARED ${NAME}_kernel.cpp)
+    pto_st_sources(${NAME})
+    add_library(${NAME}_kernel SHARED ${PTO_KSRC})
     target_compile_options(${NAME}_kernel PRIVATE
         ${CMAKE_CCE_COMPILE_OPTIONS}
         --cce-aicore-arch=dav-920r1-cube
@@ -58,14 +89,20 @@ function(pto_cube_st NAME)
         ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime)
     target_link_options(${NAME}_kernel PRIVATE --cce-fatobj-link)
 
-    add_executable(${NAME} main.cpp)
+    add_executable(${NAME} ${PTO_MSRC})
     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
     target_include_directories(${NAME} PRIVATE
         ${PROJECT_SOURCE_DIR}/../../../../common)
 
-    target_link_directories(${NAME} PUBLIC
-        ${ASCEND_HOME_PATH}/lib64
-        ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib)
+
+    target_link_directories(${NAME} PUBLIC ${ASCEND_HOME_PATH}/lib64)
+    foreach(simdir
+            ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
+            ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/camodel)
+        if(EXISTS ${simdir})
+            target_link_directories(${NAME} PUBLIC ${simdir})
+        endif()
+    endforeach()
 
     target_link_libraries(${NAME} PRIVATE
         ${NAME}_kernel
@@ -75,7 +112,8 @@ function(pto_cube_st NAME)
 endfunction()
 
 function(pto_mix_st NAME)
-    add_library(${NAME}_kernel_mix SHARED ${NAME}_kernel.cpp)
+    pto_st_sources(${NAME})
+    add_library(${NAME}_kernel_mix SHARED ${PTO_KSRC})
     target_compile_options(${NAME}_kernel_mix PRIVATE
         ${CMAKE_CCE_COMPILE_OPTIONS}
         --cce-aicore-arch=dav-920r1
@@ -86,14 +124,20 @@ function(pto_mix_st NAME)
         ${ASCEND_HOME_PATH}/pkg_inc/runtime/runtime)
     target_link_options(${NAME}_kernel_mix PRIVATE --cce-fatobj-link)
 
-    add_executable(${NAME} main.cpp)
+    add_executable(${NAME} ${PTO_MSRC})
     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS})
     target_include_directories(${NAME} PRIVATE
         ${PROJECT_SOURCE_DIR}/../../../../common)
 
-    target_link_directories(${NAME} PUBLIC
-        ${ASCEND_HOME_PATH}/lib64
-        ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib)
+
+    target_link_directories(${NAME} PUBLIC ${ASCEND_HOME_PATH}/lib64)
+    foreach(simdir
+            ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/lib
+            ${ASCEND_HOME_PATH}/tools/simulator/${SOC_VERSION}/camodel)
+        if(EXISTS ${simdir})
+            target_link_directories(${NAME} PUBLIC ${simdir})
+        endif()
+    endforeach()
 
     target_link_libraries(${NAME} PRIVATE
         ${NAME}_kernel_mix
@@ -107,7 +151,6 @@ endfunction()
 # copy_ubuf_to_gm_align_v2) directly, since PTO's TLOAD/TSTORE wrappers do not
 # lower correctly for dav-920r1-vec yet (see arch_cce_intrinsic.hpp:114-123).
 set(ALL_TESTCASES
-    tload_large_stride
     mgather_gm2l1
     mscatter
     textract_ndto2xnz
@@ -125,9 +168,75 @@ set(ALL_TESTCASES
     tmov_nd2nz
     tmov_zz
     tquant_dn
+    tload_large_stride
     tpushpop_cv_nosplit
     tpushpop_vc_nosplit
     tpushpop_subtile
+    tmins
+    tmaxs
+    txors
+    tors
+    tmuls
+    tsubs
+    tands
+    tadds
+    tadd
+    tand
+    tassign
+    taxpy
+    tci
+    tcmp
+    tcmps
+    tcolexpand
+    tcolexpandadd
+    tcolexpanddiv
+    tcolexpandexpdif
+    tcolexpandmax
+    tcolexpandmin
+    tcolexpandmul
+    tcolexpandsub
+    tcolmax
+    tcolmin
+    tcolprod
+    tcolsum
+    tconcat
+    tdequant
+    tdiv
+    tdivs
+    texpands
+    tfmod
+    tfmods
+    tgather
+    tgatherb
+    thistogram
+    tlrelu
+    tmadd
+    tmatmul
+    tmax
+    tmin
+    tmov
+    tmrgsort
+    tmul
+    tmula
+    tor
+    tpartargmax
+    tpartargmin
+    tpartmin
+    tpartmul
+    tpow
+    tprelu
+    trandom
+    trem
+    trems
+    trsqrt
+    tscatter
+    tsel
+    tsels
+    tstore
+    tsub
+    ttrans
+    ttri
+    txor
 )
 
 if (AUTO_MODE)
@@ -145,8 +254,18 @@ else()
     message(FATAL_ERROR "not found TEST_CASE: ${TEST_CASE}, support case is : ${ALL_TESTCASES}")
 endif()
 
+# Shared cases that need the cube core (their a5 sources use cube-pipe
+# intrinsics): everything else shared defaults to vec.
+set(A6_SHARED_CUBE_CASES tmov tmatmul)
+
 foreach(TESTCASE ${ALL_TESTCASES})
     if((DEFINED TEST_CASE AND TEST_CASE STREQUAL TESTCASE) OR (NOT DEFINED TEST_CASE) OR (TEST_CASE STREQUAL "all"))
-        add_subdirectory(${TESTCASE})
+        if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${TESTCASE}/CMakeLists.txt)
+            add_subdirectory(${TESTCASE})
+        elseif(${TESTCASE} IN_LIST A6_SHARED_CUBE_CASES)
+            pto_cube_st(${TESTCASE})
+        else()
+            pto_vec_st(${TESTCASE})
+        endif()
     endif()
 endforeach()

@@ -443,8 +443,10 @@ def main():
         else:
             build_project(args.run_mode, default_soc_version, testcase, args.debug_enable, args.auto_mode_enable)
 
-        # 生成标杆
+        # 生成标杆（a6 共享用例无本地目录，回落到 a5孪生用例的 gen_data.py）
         golden_path = "testcase/" + testcase + "/gen_data.py"
+        if not os.path.exists(golden_path):
+            golden_path = "../../../a5/src/st/testcase/" + testcase + "/gen_data.py"
         run_gen_data(golden_path)
 
         # 执行二进制文件
