@@ -44,8 +44,7 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut& dst, TileDataIn& src)
 
     // MX E8M0 scales are byte payloads. A5 quantization uses flat Vec views
     // over boxed scale tiles, so this specific reshape must preserve bytes.
-    constexpr bool isPackedE8M0ScaleView = Loc == TileType::Vec &&
-                                           std::is_same_v<std::remove_cv_t<DType>, float8_e8m0_t> &&
+    constexpr bool isPackedE8M0ScaleView = Loc == TileType::Vec && caps::IsFP8E8M0<DType>() &&
                                            ((SFractal != SLayout::NoneBox && NewSFractal == SLayout::NoneBox) ||
                                             (SFractal == SLayout::NoneBox && NewSFractal != SLayout::NoneBox));
     static_assert(
