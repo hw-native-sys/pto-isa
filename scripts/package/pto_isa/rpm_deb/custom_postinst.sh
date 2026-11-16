@@ -90,7 +90,8 @@ if [ -d "${INSTALL_ROOT}" ]; then
         "${INSTALL_ROOT}/${ARCH_DIR}/include/pto/cpu" \
         "${INSTALL_ROOT}/${ARCH_DIR}/include/pto/npu" \
         "${INSTALL_ROOT}/${ARCH_DIR}/include/pto/npu/a2a3" \
-        "${INSTALL_ROOT}/${ARCH_DIR}/include/pto/npu/a5"; do
+        "${INSTALL_ROOT}/${ARCH_DIR}/include/pto/npu/a5" \
+        "${INSTALL_ROOT}/${ARCH_DIR}/include/pto/npu/linx"; do
         [ -d "$d" ] && chmod 755 "$d" 2>/dev/null || true
     done
 

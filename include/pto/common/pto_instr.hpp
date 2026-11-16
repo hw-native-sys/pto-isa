@@ -103,6 +103,8 @@ PTO_INTERNAL void PtoWaitEvents(WaitEvents&... events)
 
 PTO_CPU_TARGET_NAMESPACE_BEGIN
 
+#include "pto/common/pto_instr_basic.hpp"
+
 template <typename T, typename AddrType>
 PTO_INST void TASSIGN(T& obj, AddrType addr)
 {
@@ -177,74 +179,10 @@ PTO_INST void TPRINT(TileData& src, GlobalData& tmp)
 #endif
 
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TADD(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TADD, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TABS(TileDataDst& dst, TileDataSrc& src, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TABS, dst, src);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TAND(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TAND, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TOR(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TOR, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TSUB(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TSUB, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TMUL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMUL, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TMADD(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
 {
     detail::PtoWaitEvents(events...);
     MAP_INSTR_IMPL(TMADD, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TMIN(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMIN, dst, src0, src1);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent TMAX(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMAX, dst, src0, src1);
     return {};
 }
 
@@ -253,19 +191,6 @@ PTO_INST RecordEvent TEXPANDS(TileData& dst, typename TileData::DType scalar, Wa
 {
     detail::PtoWaitEvents(events...);
     MAP_INSTR_IMPL(TEXPANDS, dst, scalar);
-    return {};
-}
-
-template <typename TileData, typename GlobalData, typename... WaitEvents>
-PTO_INST RecordEvent TLOAD(TileData& dst, GlobalData& src, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-#if PTO_FORWARD_L2HINT_TO_IMPL
-    MAP_INSTR_IMPL_T(TLOAD, PTO_TEMPLATE_ARGS(TLoadL2Hint::NormalFirstVictim), dst, src);
-#else
-    // Kirin IMPLs keep pre-L2-hint signatures.
-    MAP_INSTR_IMPL(TLOAD, dst, src);
-#endif
     return {};
 }
 
@@ -329,15 +254,6 @@ TCMPS(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, CmpMode mode, Wa
 {
     detail::PtoWaitEvents(events...);
     MAP_INSTR_IMPL(TCMPS, dst, src0, src1, mode);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
-PTO_INST RecordEvent
-TCMP(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, CmpMode cmpMode, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TCMP, dst, src0, src1, cmpMode);
     return {};
 }
 
@@ -709,16 +625,6 @@ PTO_INST RecordEvent TSTORE(GlobalData& dst, TileData& src, FpTileData& fp, Wait
 }
 #endif
 
-template <
-    auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
-    typename... WaitEvents>
-PTO_INST RecordEvent TDIV(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TDIV, PTO_TEMPLATE_ARGS(PrecisionType), dst, src0, src1);
-    return {};
-}
-
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TSHL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
 {
@@ -950,14 +856,6 @@ PTO_INST RecordEvent TRANDOM(DstTile& dst, TRandomKey& key, TRandomCounter& coun
     return {};
 }
 #endif
-
-template <typename TileRes, typename TileLeft, typename TileRight, typename... WaitEvents>
-PTO_INST RecordEvent TMATMUL(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TMATMUL, cMatrix, aMatrix, bMatrix);
-    return {};
-}
 
 // UF-aware overload enabling unit-flag selection via AccPhase while retaining the TMATMUL name.
 template <AccPhase Phase, typename TileRes, typename TileLeft, typename TileRight, typename... WaitEvents>
@@ -2199,15 +2097,6 @@ PTO_INST RecordEvent TSELS(
     return {};
 }
 
-template <typename TileData, typename MaskTile, typename TmpTile, typename... WaitEvents>
-PTO_INST RecordEvent
-TSEL(TileData& dst, MaskTile& selMask, TileData& src0, TileData& src1, TmpTile& tmp, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TSEL, dst, selMask, src0, src1, tmp);
-    return {};
-}
-
 template <
     typename TileDataDst, typename MaskTile, typename TileDataSrc0, typename TileDataSrc1, typename TmpTile,
     typename... WaitEvents>
@@ -2216,14 +2105,6 @@ PTO_INST RecordEvent TPARTSEL(
 {
     detail::PtoWaitEvents(events...);
     MAP_INSTR_IMPL(TSEL, dst, selMask, src0, src1, tmp);
-    return {};
-}
-
-template <typename TileDataDst, typename TileDataSrc, typename TileDataTmp, typename... WaitEvents>
-PTO_INST RecordEvent TTRANS(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL(TTRANS, dst, src, tmp);
     return {};
 }
 
@@ -2390,24 +2271,6 @@ PTO_INST RecordEvent TRSQRT(TileDataDst& dst, TileDataSrc& src, TileDataTmp& tmp
 {
     detail::PtoWaitEvents(events...);
     MAP_INSTR_IMPL_T(TRSQRT, PTO_TEMPLATE_ARGS(PrecisionType), dst, src, tmp);
-    return {};
-}
-
-template <
-    auto PrecisionType = SqrtAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TSQRT(TileDataDst& dst, TileDataSrc& src, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TSQRT, PTO_TEMPLATE_ARGS(PrecisionType), dst, src);
-    return {};
-}
-
-template <
-    auto PrecisionType = ExpAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
-PTO_INST RecordEvent TEXP(TileDataDst& dst, TileDataSrc& src, WaitEvents&... events)
-{
-    detail::PtoWaitEvents(events...);
-    MAP_INSTR_IMPL_T(TEXP, PTO_TEMPLATE_ARGS(PrecisionType), dst, src);
     return {};
 }
 

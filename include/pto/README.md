@@ -23,6 +23,7 @@ In CPU simulation scenarios, this header can include CPU stubs (for example, whe
 - `npu/`: NPU-side implementations, split by SoC version
   - `npu/a2a3/`: Ascend A2/A3 series
   - `npu/a5/`: Ascend A5 series
+  - `npu/linx/`: Linx target (Linx compiler and TileOP implementation)
 - `comm/`: Communication instruction library
   - `pto_comm_inst.hpp`: Unified entry header for communication instructions
   - `comm_types.hpp`: Core type definitions for communication instructions

@@ -11,6 +11,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef EVENT_HPP
 #define EVENT_HPP
 
+#include <pto/common/record_event.hpp>
+
 #define EVENT_ID_MAX 8
 
 #include <type_traits>
@@ -295,8 +297,6 @@ PTO_DEFINE_OP_PIPE(Op::TINTERLEAVE, PIPE_V);
 PTO_DEFINE_OP_PIPE(Op::TDEINTERLEAVE, PIPE_V);
 
 #undef PTO_DEFINE_OP_PIPE
-
-struct RecordEvent {};
 
 template <pipe_t SrcPipe, pipe_t DstPipe>
 class EventIdCounter {

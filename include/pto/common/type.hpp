@@ -10,6 +10,14 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef _PTO_INCLUDE_NPU_TYPE_H_
 #define _PTO_INCLUDE_NPU_TYPE_H_
+
+#include <pto/cpu/target_config.hpp>
+#include <pto/common/math_algorithm.hpp>
+#include <pto/common/comparison.hpp>
+#if defined(PTO_NPU_ARCH_LINX)
+#include <pto/npu/linx/target.hpp>
+#include <pto/npu/linx/impl/common/pto_tile.hpp>
+#else
 #include <cstdint>
 #if !defined(__CPU_SIM) && !defined(__COSTMODEL)
 #define AICORE [aicore]
@@ -190,15 +198,6 @@ enum class Layout {
     FRACTAL_Z_S16S8,
     FRACTAL_Z_3D,
     MAX,
-};
-
-enum class CmpMode : uint8_t {
-    EQ = 0,
-    NE = 1,
-    LT = 2,
-    LE = 3,
-    GT = 4,
-    GE = 5,
 };
 
 enum class QuantType {
@@ -409,15 +408,9 @@ using HalfUnion = FloatIntUnion<half>;
 
 enum class PowAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
-enum class DivAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
-
-enum class SqrtAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
-
 enum class RsqrtAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
 enum class RecipAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
-
-enum class ExpAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
 enum class LogAlgorithm : uint8_t { DEFAULT, HIGH_PRECISION };
 
@@ -500,4 +493,5 @@ typedef _Float16 bfloat16_t;
 #endif
 #endif
 
+#endif // PTO_NPU_ARCH_LINX
 #endif

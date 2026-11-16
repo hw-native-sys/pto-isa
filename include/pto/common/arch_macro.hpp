@@ -13,7 +13,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/cpu/target_config.hpp>
 
-#if defined(__CPU_SIM) && !defined(__DAV_CUBE__) && !defined(__DAV_VEC__)
+#if defined(PTO_NPU_ARCH_LINX)
+#define PTO_COMPILE_CUBE
+#define PTO_COMPILE_VEC
+#elif defined(__CPU_SIM) && !defined(__DAV_CUBE__) && !defined(__DAV_VEC__)
 #define PTO_COMPILE_CUBE
 #define PTO_COMPILE_VEC
 #else
@@ -25,9 +28,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #endif
 #endif
 
-#if __NPU_ARCH__ == 2201
+#if defined(PTO_NPU_ARCH_LINX)
+// Linx is a peer target. Its compiler and lowering are selected by the Linx
+// backend; this marker only exposes the target identity to shared PTO code.
+#define PTO_COMM_NOT_SUPPORTED
+#elif defined(__NPU_ARCH__) && (__NPU_ARCH__ == 2201)
 #define PTO_NPU_ARCH_A2A3
-#elif (__NPU_ARCH__ == 3101) || (__NPU_ARCH__ == 3510)
+#elif defined(__NPU_ARCH__) && ((__NPU_ARCH__ == 3101) || (__NPU_ARCH__ == 3510))
 #define PTO_NPU_ARCH_A5
 #if __NPU_ARCH__ == 3510
 #define PTO_URMA_SUPPORTED
