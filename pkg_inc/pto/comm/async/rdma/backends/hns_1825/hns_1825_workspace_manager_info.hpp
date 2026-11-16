@@ -388,12 +388,14 @@ inline bool WorkspaceManager::ValidateSqContext(const host::SqContext& sq, uint3
     const auto context = DecodeRoceSqContext(sq);
     if (sq.type != host::SQ_CONTEXT_TYPE_ROCE || !IsPowerOfTwo(context.depth) ||
         context.depth <= kHns1825PollCqThreshold || context.sqVa == 0 || context.headAddr == 0 ||
-        context.tailAddr == 0 || context.dbHwVa == 0 || context.dbSwVa == 0 || !IsCacheLineAligned(context.sqVa) ||
-        !IsU32Aligned(context.headAddr) || !IsU32Aligned(context.tailAddr) || !IsU32Aligned(context.dbSwVa) ||
+        context.tailAddr == 0 || context.dbHwVa == 0 || context.dbHwVa % kSqDoorbellWindowSize != 0 ||
+        !IsCacheLineAligned(context.sqVa) || !IsU32Aligned(context.headAddr) || !IsU32Aligned(context.tailAddr) ||
         context.mtuShift > kDbVendorFieldMask || context.dbCos > kDbVendorFieldMask) {
         PTO_HOST_LOG_ERROR(
             "RDMA", "[RoCE] peer " << peer << " has an unusable RoCE SQ context: type=" << static_cast<int>(sq.type)
-                                   << " depth=" << context.depth << " wqeSize=" << context.wqeSize
+                                   << " depth=" << context.depth << " wqeSize=" << context.wqeSize << " dbHwVa=0x"
+                                   << std::hex << context.dbHwVa << std::dec
+                                   << " (requires a 2 KB-aligned PI-on-chip window)"
                                    << " abi=" << context.abiName << " mtuShift=" << static_cast<int>(context.mtuShift)
                                    << " dbCos=" << static_cast<int>(context.dbCos));
         return false;
@@ -427,12 +429,12 @@ inline void WorkspaceManager::CopyRoceSq(RoceSqCtx& destination, const host::SqC
     destination.depth = context.depth;
     destination.headAddr = context.headAddr;
     destination.tailAddr = context.tailAddr;
-    destination.dbMode = RdmaDbMode::SW_DB;
+    destination.dbMode = RdmaDbMode::HW_DB;
     destination.dbAddr = context.dbHwVa;
     destination.sl = context.sl;
     destination.amoAddr = 0;
     destination.amoLkey = 0;
-    destination.dbSwAddr = context.dbSwVa;
+    destination.dbSwAddr = 0; // PI-on-chip does not use the SQ software doorbell.
     destination.mtuShift = context.mtuShift;
     destination.dbCos = context.dbCos;
 }

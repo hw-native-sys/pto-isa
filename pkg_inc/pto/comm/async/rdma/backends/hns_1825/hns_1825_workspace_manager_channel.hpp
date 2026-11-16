@@ -20,6 +20,23 @@ namespace comm {
 namespace rdma {
 namespace hns_1825 {
 
+inline bool WorkspaceManager::SetCommAddress(const std::string& text, CommAddr& address)
+{
+    net::IpAddress ip;
+    if (!net::parseIp(text, ip)) {
+        return false;
+    }
+    address = {};
+    if (ip.family == AF_INET) {
+        address.type = COMM_ADDR_TYPE_IP_V4;
+        address.addr = ip.v4;
+    } else {
+        address.type = COMM_ADDR_TYPE_IP_V6;
+        address.addr6 = ip.v6;
+    }
+    return true;
+}
+
 inline bool WorkspaceManager::CreateEndpoint()
 {
     EndpointDesc description{};
@@ -32,8 +49,7 @@ inline bool WorkspaceManager::CreateEndpoint()
     // sentinels before setting the attributes used by PTO.
     SetEndpointDescDefaults(description);
     description.protocol = COMM_PROTOCOL_ROCE;
-    description.commAddr.type = COMM_ADDR_TYPE_IP_V4;
-    if (inet_pton(AF_INET, localIp_.c_str(), &description.commAddr.addr) != 1) {
+    if (!SetCommAddress(localIp_, description.commAddr)) {
         PTO_HOST_LOG_ERROR("RDMA", "[RoCE] invalid local ip: " << localIp_);
         return false;
     }
@@ -44,7 +60,9 @@ inline bool WorkspaceManager::CreateEndpoint()
         PTO_HOST_LOG_ERROR("RDMA", "[RoCE] HcommEndpointCreate failed: " << result);
         return false;
     }
-    Trace("CREATE endpoint handle=", endpoint_, " phyId=", phyId_, " ip=", localIp_);
+    Trace(
+        "CREATE endpoint handle=", endpoint_, " phyId=", phyId_,
+        " family=", description.commAddr.type == COMM_ADDR_TYPE_IP_V6 ? "IPv6" : "IPv4", " ip=", localIp_);
     if (Verbose()) {
         PTO_HOST_LOG_INFO(
             "RDMA", "[RoCE][rank " << rankId_ << "] (1/4) endpoint created (ROCE, phyId=" << phyId_
@@ -96,8 +114,7 @@ inline bool WorkspaceManager::ConfigureChannelDescription(
     uint8_t tc, uint8_t sl) const
 {
     description.remoteEndpoint.protocol = COMM_PROTOCOL_ROCE;
-    description.remoteEndpoint.commAddr.type = COMM_ADDR_TYPE_IP_V4;
-    if (inet_pton(AF_INET, peerIps_[remoteRank].c_str(), &description.remoteEndpoint.commAddr.addr) != 1) {
+    if (!SetCommAddress(peerIps_[remoteRank], description.remoteEndpoint.commAddr)) {
         PTO_HOST_LOG_ERROR("RDMA", "[RoCE] invalid peer ip[" << remoteRank << "]: " << peerIps_[remoteRank]);
         return false;
     }
@@ -129,12 +146,14 @@ inline bool WorkspaceManager::ConfigureChannelDescription(
         basePort_ + (serverRank % kMaxRanksPerNic) * kMaxRanksPerNic + (clientRank % kMaxRanksPerNic));
     if (Verbose()) {
         PTO_HOST_LOG_INFO(
-            "RDMA", "[RoCE][rank " << rankId_ << "]   channel[" << channelIndex << "] -> peer " << remoteRank
-                                   << " ip=" << peerIps_[remoteRank] << " role=" << (isServer ? "SERVER" : "CLIENT")
-                                   << " phyId=" << peerPhyIds_[remoteRank] << " port=" << description.port
-                                   << " tc=" << static_cast<int>(tc) << " sl=" << static_cast<int>(sl)
-                                   << " retryCnt=" << description.roceAttr.retryCnt
-                                   << " retryIntervalMs=" << description.roceAttr.retryInterval);
+            "RDMA",
+            "[RoCE][rank " << rankId_ << "]   channel[" << channelIndex << "] -> peer " << remoteRank << " family="
+                           << (description.remoteEndpoint.commAddr.type == COMM_ADDR_TYPE_IP_V6 ? "IPv6" : "IPv4")
+                           << " ip=" << peerIps_[remoteRank] << " role=" << (isServer ? "SERVER" : "CLIENT")
+                           << " phyId=" << peerPhyIds_[remoteRank] << " port=" << description.port
+                           << " tc=" << static_cast<int>(tc) << " sl=" << static_cast<int>(sl)
+                           << " retryCnt=" << description.roceAttr.retryCnt
+                           << " retryIntervalMs=" << description.roceAttr.retryInterval);
     }
     return true;
 }

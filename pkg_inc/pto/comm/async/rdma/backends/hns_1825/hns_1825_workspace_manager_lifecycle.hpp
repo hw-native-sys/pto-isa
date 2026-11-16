@@ -20,6 +20,33 @@ namespace comm {
 namespace rdma {
 namespace hns_1825 {
 
+inline bool WorkspaceManager::NormalizeRoceAddresses(
+    const std::string& localIp, const std::vector<std::string>& peerIps, std::string& local,
+    std::vector<std::string>& peers, std::string& error)
+{
+    int family = AF_UNSPEC;
+    if (!net::readFamily(family, error)) {
+        return false;
+    }
+    net::IpAddress ip;
+    if (!net::parseIp(localIp, ip) || !net::matchesFamily(ip, family)) {
+        error = "invalid local RoCE IP or address-family mismatch: " + localIp;
+        return false;
+    }
+    local = ip.text;
+    const int localFamily = ip.family;
+    peers.clear();
+    for (size_t rank = 0; rank < peerIps.size(); ++rank) {
+        if (!net::parseIp(peerIps[rank], ip) || ip.family != localFamily) {
+            error = "invalid RoCE peer IP or address-family mismatch at rank " + std::to_string(rank) + ": " +
+                    peerIps[rank];
+            return false;
+        }
+        peers.push_back(ip.text);
+    }
+    return true;
+}
+
 inline WorkspaceManager::~WorkspaceManager() { (void)Finalize(); }
 
 inline bool WorkspaceManager::Init(
@@ -36,8 +63,15 @@ inline bool WorkspaceManager::Init(
         PTO_HOST_LOG_ERROR("RDMA", "[RoCE] invalid QP count or queue index overflow");
         return false;
     }
+    std::string canonicalLocal;
+    std::vector<std::string> canonicalPeers;
+    std::string addressError;
+    if (!NormalizeRoceAddresses(localIp, peerIps, canonicalLocal, canonicalPeers, addressError)) {
+        PTO_HOST_LOG_ERROR("RDMA", "[RoCE] " << addressError);
+        return false;
+    }
     if (!ValidateInitArguments(
-            rankId, rankCount, phyId, localIp, basePort, peerIps, peerPhyIds, peerSymAddrs, symmetricAddr,
+            rankId, rankCount, phyId, canonicalLocal, basePort, canonicalPeers, peerPhyIds, peerSymAddrs, symmetricAddr,
             symmetricSize)) {
         return false;
     }
@@ -47,7 +81,8 @@ inline bool WorkspaceManager::Init(
         return false;
     }
     AssignInitArguments(
-        rankId, rankCount, phyId, localIp, basePort, peerIps, peerPhyIds, peerSymAddrs, symmetricAddr, symmetricSize);
+        rankId, rankCount, phyId, canonicalLocal, basePort, canonicalPeers, peerPhyIds, peerSymAddrs, symmetricAddr,
+        symmetricSize);
     qpNum_ = qpNum;
     rdmaInfoDevice_ = workspaceAddr;
     workspaceBytes_ = layout.totalBytes;
@@ -178,6 +213,7 @@ inline void WorkspaceManager::LogInitConfiguration() const
     }
     PTO_HOST_LOG_INFO(
         "RDMA", "[RoCE][rank " << rankId_ << "/" << rankCount_ << "] connect start: phyId=" << phyId_
+                               << " family=" << (localIp_.find(':') == std::string::npos ? "IPv4" : "IPv6")
                                << " localIp=" << localIp_ << " basePort=" << basePort_ << " symAddr=0x" << std::hex
                                << reinterpret_cast<uint64_t>(symmetricAddr_) << std::dec
                                << " symSize=" << symmetricSize_);

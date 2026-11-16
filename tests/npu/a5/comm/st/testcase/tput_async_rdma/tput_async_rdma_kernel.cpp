@@ -439,9 +439,9 @@ template <bool IsGet>
         // The initial burst leaves CQ progress to the backend's capacity checks.
         const bool mixedCompletion = operation >= burstOperations;
         if (mixedCompletion && (operation % 17) == 0) {
-            const uint64_t start = AscendC::GetSystemCycle();
+            const uint64_t start = pto::comm::rdma::ReadSystemCycle();
             const uint64_t delay = 256U * (1U + ((operation / 17 + block) % kRdmaConcurrentBlocks));
-            while (AscendC::GetSystemCycle() - start < delay) {
+            while (pto::comm::rdma::ReadSystemCycle() - start < delay) {
             }
         }
         const int slot = block * operationsPerBlock + operation;

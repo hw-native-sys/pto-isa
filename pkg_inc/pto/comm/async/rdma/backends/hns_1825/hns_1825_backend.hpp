@@ -25,12 +25,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/async_common/async_types.hpp"
 #include "pto/comm/async/rdma/rdma_device_common.hpp"
 #include "pto/comm/async/rdma/backends/hns_1825/hns_1825_types.hpp"
-// AscendC::GetSystemCycle only — do NOT include full kernel_operator.h here.
-// That pulls adv_api/hccl (`using namespace HcclApi`) and collides with ST
-// common.hpp symbols (MAX_CC_TILING_NUM / GROUP_NAME_SIZE / ALG_CONFIG_SIZE).
-#if !defined(__CPU_SIM) && !defined(__COSTMODEL)
-#include "kernel_operator_sys_var_intf.h"
-#endif
 
 namespace pto {
 namespace comm {
@@ -111,19 +105,19 @@ AICORE inline uint32_t FailQueue(__gm__ QueueState* state, uint32_t status)
 
 AICORE inline bool QueueTimedOut(uint64_t startCycles)
 {
-    return static_cast<uint64_t>(AscendC::GetSystemCycle()) - startCycles >= kHns1825PollCqTimeoutCycles;
+    return ReadSystemCycle() - startCycles >= kHns1825PollCqTimeoutCycles;
 }
 
-AICORE inline bool TryPostSend(__gm__ RoceSqCtx* sq, uint64_t end, __ubuf__ uint8_t* ub, uint32_t syncId);
+AICORE inline bool TryPostSend(__gm__ RoceSqCtx* sq, uint64_t end);
 
 // Completion and capacity waits can flush a ready prefix whose producer returned
 // before ringing the doorbell. Never wait for the doorbell lock while progressing.
-AICORE inline void SubmitReady(__gm__ RoceSqCtx* sq, __ubuf__ uint8_t* ub, uint32_t syncId)
+AICORE inline void SubmitReady(__gm__ RoceSqCtx* sq)
 {
     __gm__ QueueState* state = GetQueueState(sq);
     const uint64_t ready = AtomicLoad(&state->readyHead);
     if (ready > AtomicLoad(&state->postedHead)) {
-        (void)TryPostSend(sq, ready, ub, syncId);
+        (void)TryPostSend(sq, ready);
     }
 }
 
@@ -245,7 +239,7 @@ AICORE inline uint32_t PollCq(
     __gm__ RoceSqCtx* sq =
         reinterpret_cast<__gm__ RoceSqCtx*>(info->sqPtr) + static_cast<uint64_t>(pe) * info->qpNum + qpIdx;
     __gm__ QueueState* state = GetQueueState(sq);
-    const uint64_t startCycles = static_cast<uint64_t>(AscendC::GetSystemCycle());
+    const uint64_t startCycles = ReadSystemCycle();
     while (true) {
         if (AtomicLoad(&state->completedHead) >= targetIdx) {
             QueueFence();
@@ -261,7 +255,7 @@ AICORE inline uint32_t PollCq(
         if (QueueTimedOut(startCycles)) {
             return FailQueue(state, kHns1825PollCqTimeoutError);
         }
-        SubmitReady(sq, ub, syncId);
+        SubmitReady(sq);
         ProgressCq(info, pe, qpIdx, ub, syncId);
     }
 }
@@ -339,8 +333,9 @@ AICORE inline __ubuf__ uint8_t* FillWqeTaskSeg(
     }
     task->va = Htobe64((uint64_t)wr.remote_addr);
     task->rkey = Htobe32(wr.rkey);
-    // Write Reduce keeps the WRITE opcode and adds SUM (0xA) / INT32 (0x2) to ULP.
-    task->ulp = Htobe32((wr.lkey & 0xffffU) | (reduce ? kReduceSumInt32 : 0U));
+    // ULP carries lkey[31:8]; its low byte contains operation flags, not key bits.
+    // Write Reduce keeps the WRITE opcode and adds SUM (0xA) / INT32 (0x2).
+    task->ulp = Htobe32((wr.lkey & 0xffffff00U) | (reduce ? kReduceSumInt32 : 0U));
     return addr + sizeof(Hns1825WqeRdmaTaskSeg);
 }
 
@@ -383,8 +378,8 @@ AICORE inline void FillWqeInlineNotify(
     WriteUbToGmWithSync(reinterpret_cast<uint64_t>(wqeAddr), ub, kHns1825WriteReadWqeSize, syncId);
 }
 
-// Ring the SQ doorbell: update PI mirror, publish software doorbell, write hardware doorbell via st_dev.
-AICORE inline void RingSqDoorbell(__gm__ RoceSqCtx* sqCtx, uint32_t curHead, __ubuf__ uint8_t* ub, uint32_t syncId)
+// PI-on-chip: retain the host-order PI mirror and publish PI through the hardware doorbell only.
+AICORE inline void RingSqDoorbell(__gm__ RoceSqCtx* sqCtx, uint32_t curHead)
 {
     constexpr uint32_t kPiHighShift = 8;
     constexpr uint32_t kPiFieldShift = 32;
@@ -393,10 +388,6 @@ AICORE inline void RingSqDoorbell(__gm__ RoceSqCtx* sqCtx, uint32_t curHead, __u
     constexpr uint32_t kCntxSize = 1;
     WriteU32Gm(sqCtx->headAddr, curHead);
 
-    // Software shadow doorbell (big-endian PI).
-    *reinterpret_cast<__ubuf__ uint32_t*>(ub) = Htobe32(curHead);
-    WriteUbToGmWithSync(sqCtx->dbSwAddr, ub, sizeof(uint32_t), syncId);
-    dcci((__gm__ void*)sqCtx->dbSwAddr, SINGLE_CACHE_LINE);
     QueueFence();
 
     // Hardware doorbell register: single 64-bit st_dev write.
@@ -415,13 +406,16 @@ AICORE inline void RingSqDoorbell(__gm__ RoceSqCtx* sqCtx, uint32_t curHead, __u
     db.bs.cos = sqCtx->dbCos;
     uint64_t dbValue = db.value | ((((uint64_t)curHead >> kPiHighShift) & 0xffULL) << kPiFieldShift);
 
-    st_dev(dbValue, (__gm__ uint64_t*)sqCtx->dbAddr, 0);
+    // The low PI byte selects an 8-byte slot in HCOMM's 2 KB-aligned window;
+    // bits 39:32 of the payload carry the high byte. Keep dbAddr as the base.
+    const uint64_t dbAddr = sqCtx->dbAddr + (static_cast<uint64_t>(curHead & 0xffU) << 3);
+    st_dev(dbValue, (__gm__ uint64_t*)dbAddr, 0);
     pipe_barrier(PIPE_ALL);
 }
 
 // Only elected submitters and completion helpers contend for this lock. An older
 // target can arrive after a newer one; it must not repeat owners or regress PI.
-AICORE inline bool TryPostSend(__gm__ RoceSqCtx* sq, uint64_t end, __ubuf__ uint8_t* ub, uint32_t syncId)
+AICORE inline bool TryPostSend(__gm__ RoceSqCtx* sq, uint64_t end)
 {
     __gm__ QueueState* state = GetQueueState(sq);
     if (AtomicLoad(&state->postedHead) >= end) {
@@ -439,7 +433,7 @@ AICORE inline bool TryPostSend(__gm__ RoceSqCtx* sq, uint64_t end, __ubuf__ uint
             WriteU32Gm(address, ReadU32Gm(address) ^ 0x80U);
         }
         QueueFence();
-        RingSqDoorbell(sq, static_cast<uint32_t>(end), ub, syncId);
+        RingSqDoorbell(sq, static_cast<uint32_t>(end));
         QueueFence();
         (void)atomicCAS(&state->postedHead, posted, end);
     }
@@ -447,16 +441,16 @@ AICORE inline bool TryPostSend(__gm__ RoceSqCtx* sq, uint64_t end, __ubuf__ uint
     return true;
 }
 
-AICORE inline uint32_t PostSend(__gm__ RoceSqCtx* sq, uint64_t end, __ubuf__ uint8_t* ub, uint32_t syncId)
+AICORE inline uint32_t PostSend(__gm__ RoceSqCtx* sq, uint64_t end)
 {
     __gm__ QueueState* state = GetQueueState(sq);
-    const uint64_t startCycles = static_cast<uint64_t>(AscendC::GetSystemCycle());
+    const uint64_t startCycles = ReadSystemCycle();
     while (true) {
         const uint32_t status = QueueError(state);
         if (status != 0) {
             return status;
         }
-        if (TryPostSend(sq, end, ub, syncId)) {
+        if (TryPostSend(sq, end)) {
             return QueueError(state);
         }
         if (QueueTimedOut(startCycles)) {
@@ -509,11 +503,10 @@ AICORE inline uint32_t ReserveWqes(const RdmaExecContext& ctx, uint32_t count, u
 // Hand off readiness after the MTE copies complete, in reservation order.
 // As in IBGDA, only the reservation tail or a batch boundary must post-send;
 // other producers can return early.
-AICORE inline uint32_t SubmitReadyWqes(
-    __gm__ RoceSqCtx* sq, __gm__ RoceCqCtx* cq, uint64_t start, uint64_t end, __ubuf__ uint8_t* ub, uint32_t syncId)
+AICORE inline uint32_t SubmitReadyWqes(__gm__ RoceSqCtx* sq, __gm__ RoceCqCtx* cq, uint64_t start, uint64_t end)
 {
     __gm__ QueueState* state = GetQueueState(sq);
-    const uint64_t startCycles = static_cast<uint64_t>(AscendC::GetSystemCycle());
+    const uint64_t startCycles = ReadSystemCycle();
     QueueFence();
     while (true) {
         const uint32_t status = QueueError(state);
@@ -537,7 +530,7 @@ AICORE inline uint32_t SubmitReadyWqes(
     const uint64_t mask = ~(static_cast<uint64_t>(batch) - 1U);
     const bool batchLimitReached = (start & mask) != (end & mask);
     const bool noConcurrentSubmissions = end == AtomicLoad(&state->reserveHead);
-    return batchLimitReached || noConcurrentSubmissions ? PostSend(sq, end, ub, syncId) : QueueError(state);
+    return batchLimitReached || noConcurrentSubmissions ? PostSend(sq, end) : QueueError(state);
 }
 
 // Post one WRITE/READ WQE. The event's index is this reservation's end, even
@@ -568,7 +561,7 @@ AICORE inline PostSendResult PostSendReadWrite(const RdmaExecContext& ctx, RdmaS
 
     __gm__ uint8_t* wqeAddr = GetSendWqe(sqCtx, curHead & (sqCtx->depth - 1));
     (void)FillWqeWriteRead(wr, sqCtx, wqeAddr, curHead, OP, ub, syncId);
-    return {curHead + 1U, SubmitReadyWqes(sqCtx, cqCtx, start, start + 1U, ub, syncId)};
+    return {curHead + 1U, SubmitReadyWqes(sqCtx, cqCtx, start, start + 1U)};
 }
 
 // Post payload WRITE followed by a fenced inline Set or SGE Write Reduce. Both WQEs are
@@ -591,8 +584,8 @@ AICORE inline PostSendResult PostSendWriteNotify(
     const uint32_t depth = sqCtx->depth;
     __gm__ RdmaMemInfo* localMem = reinterpret_cast<__gm__ RdmaMemInfo*>(info->memPtr + sizeof(RdmaMemInfo) * ctx.myPe);
     const bool isAdd = notifyOp == NotifyOp::AtomicAdd;
-    // Reject keys that would change the requested Reduce operation before reserving SQ slots.
-    if (isAdd && (sqCtx->amoAddr == 0 || ((sqCtx->amoLkey & 0xffU) | kReduceSumInt32) != kReduceSumInt32)) {
+    // Write Reduce requires a registered operand ring before reserving SQ slots.
+    if (isAdd && sqCtx->amoAddr == 0) {
         return {0, kRdmaUnsupportedOperationError};
     }
     uint64_t start = 0;
@@ -638,7 +631,7 @@ AICORE inline PostSendResult PostSendWriteNotify(
     }
 
     ++curHead;
-    return {curHead, SubmitReadyWqes(sqCtx, cqCtx, start, start + 2U, ub, syncId)};
+    return {curHead, SubmitReadyWqes(sqCtx, cqCtx, start, start + 2U)};
 }
 
 AICORE inline bool IsRangeInsideMr(uint64_t address, uint64_t length, __gm__ const RdmaMemInfo* mem)
@@ -878,7 +871,7 @@ AICORE inline bool TestEvent(uint64_t handle, const RdmaEventContext& ctx)
         reinterpret_cast<__gm__ RoceSqCtx*>(info->sqPtr) + static_cast<uint64_t>(destRankId) * info->qpNum + qpIdx;
     __gm__ QueueState* state = detail::GetQueueState(sq);
     if (detail::AtomicLoad(&state->completedHead) < curHead && detail::QueueError(state) == 0) {
-        detail::SubmitReady(sq, ctx.tmpBuf.addr, ctx.syncId);
+        detail::SubmitReady(sq);
         detail::ProgressCq(info, destRankId, qpIdx, ctx.tmpBuf.addr, ctx.syncId);
     }
     const bool terminal = detail::AtomicLoad(&state->completedHead) >= curHead || detail::QueueError(state) != 0;
