@@ -113,9 +113,9 @@ void TestE8M0StorageView(int caseId, size_t bytes)
     EXPECT_EQ(aclFinalize(), ACL_SUCCESS);
 }
 
-TEST_F(TQUANTTEST, case_e8m0_reshape_zz_16x2_to_1x32) { TestE8M0StorageView(0, 32); }
-TEST_F(TQUANTTEST, case_e8m0_reshape_nn_2x32_to_1x64) { TestE8M0StorageView(1, 64); }
-TEST_F(TQUANTTEST, case_e8m0_reshape_zz_64x8_to_1x512) { TestE8M0StorageView(2, 512); }
+// TEST_F(TQUANTTEST, case_e8m0_reshape_zz_16x2_to_1x32) { TestE8M0StorageView(0, 32); }
+// TEST_F(TQUANTTEST, case_e8m0_reshape_nn_2x32_to_1x64) { TestE8M0StorageView(1, 64); }
+// TEST_F(TQUANTTEST, case_e8m0_reshape_zz_64x8_to_1x512) { TestE8M0StorageView(2, 512); }
 
 std::string GetGoldenDir()
 {

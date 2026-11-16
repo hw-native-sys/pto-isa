@@ -65,7 +65,7 @@ PTO_INST AsyncEvent TPUT_ASYNC(
     WaitEvents &... events);
 ```
 
-该重载将多个非连续本地GM段聚合后写入一个或多个远端连续区间，仅支持 `DmaEngine::URMA`。每个目标描述符自带 `peer`，因此一次调用可写入多个rank，且只返回一个 `AsyncEvent`。参数校验或资源预留失败时返回失败Event，`Wait`/`Test` 前须先检查 `event.valid()`。
+该重载将多个非连续本地GM段聚合后写入一个或多个远端连续区间，仅支持 `DmaEngine::URMA`。每个目标描述符自带 `peer`，因此一次调用可写入多个rank，且只返回一个 `AsyncEvent`。参数校验或资源预留失败时返回失败Event，其 `Wait`/`Test` 返回 `false`。须以 `Wait`/`Test` 的返回值判断结果，不能用 `event.valid()`：失败Event与空调用的 `valid()` 均为 `false`；含负载的 `NoCqe` Event 的 `valid()` 为 `true`，但其 `Wait`/`Test` 恒返回 `false`，须由后续 `Final` 调用确认。
 
 `AsyncSession` 是引擎无关的会话对象。使用 `BuildAsyncSession<engine>()` 构建一次后，传递给所有异步调用和事件等待。模板参数 `engine` 在编译期选择DMA后端，使代码对未来引擎（CCU等）保持前向兼容。
 
@@ -232,8 +232,9 @@ destinations[1] <- sourceSegments[2]
 URMA Gather重载：
 
 - `destinations`、`sourceSegments` 位于GM；非零数量必须对应非空指针
-- 每个源段的 `addr` 非空且 `length > 0`
-- 所有本地源范围和远端目标范围必须位于Host初始化阶段注册的MR内
+- 每个源段的 `addr` 非空且 `0 < length <= 256MB`。源段不会被拆分，超过256MB时本次调用返回失败Event
+- 本地源范围必须位于本地MR（`UrmaInfo::localMrBase` / `localMrLength`）内，远端目标范围必须位于对端MR内，二者均在Host初始化阶段注册；否则本次调用返回失败Event
+- 同一目标的源段按每个SQE最多12段、最多256MB打包，超出部分自动拆成多个SQE提交
 - 每个 `peer` 必须小于Host配置的rank数量
 - `sum(destinations[i].segCount) == sourceSegmentCount`
 - 同一Session中未结束的连续Tensor batch和Gather batch不能混用
@@ -470,9 +471,7 @@ __global__ AICORE void GatherPutUrma(
     session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
 
     auto event = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(dsts, 2, segs, 4, session);
-    if (event.valid()) {
-        (void)event.Wait(session);
-    }
+    (void)event.Wait(session);
 }
 ```
 
@@ -494,9 +493,7 @@ session.submitMode = comm::AsyncSubmitMode::DEFER_AND_SUBMIT;
 session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
 auto finalEvent = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(
     nullptr, 0, nullptr, 0, session);
-if (finalEvent.valid()) {
-    (void)finalEvent.Wait(session);
-}
+(void)finalEvent.Wait(session);
 ```
 
 `DEFER` 会根据 `batchSize` 自动提交已累积的操作；若需由调用方完全控制提交时机，可将 `batchSize` 设为 `UINT32_MAX`，再用 `DEFER_AND_SUBMIT` 提交。

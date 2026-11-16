@@ -41,7 +41,7 @@ PTO_INST RecordEvent TGET(GlobalDstData &dstGlobalData, GlobalSrcData &srcGlobal
 
 ### 乒乓双缓冲
 
-使用两个暂存Tile，将相邻块的TGET与TSTORE重叠执行，隐藏DMA传输延迟。
+使用两个暂存Tile，将相邻块的TLOAD与TSTORE重叠执行，隐藏DMA传输延迟。
 
 ```cpp
 template <typename GlobalDstData, typename GlobalSrcData, typename TileData, typename... WaitEvents>
@@ -95,12 +95,14 @@ void example_tget(__gm__ T* local_data, __gm__ T* remote_addr) {
 ### 乒乓双缓冲
 
 ```cpp
-constexpr size_t tileUBBytes = ((64 * 64 * sizeof(float) + 1023) / 1024) * 1024;
-TileT pingTile(64, 64);
-TileT pongTile(64, 64);
+// (rows, cols) 构造函数要求 ValidRow/ValidCol 为 DYNAMIC
+using PingPongTileT = Tile<TileType::Vec, T, 64, 64, BLayout::RowMajor, DYNAMIC, DYNAMIC>;
+constexpr size_t tileUBBytes = ((64 * 64 * sizeof(T) + 1023) / 1024) * 1024;
+PingPongTileT pingTile(64, 64);
+PingPongTileT pongTile(64, 64);
 TASSIGN(pingTile, 0);
 TASSIGN(pongTile, tileUBBytes);  // 不重叠的 UB 区域
 
-// 将相邻块的 TGET 操作重叠执行以提升流水线利用率
+// 将 TLOAD[i+1] 与 TSTORE[i] 重叠执行以提升流水线利用率
 comm::TGET(dstG, srcG, pingTile, pongTile);
 ```

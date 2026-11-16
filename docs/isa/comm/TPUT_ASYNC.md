@@ -71,7 +71,10 @@ PTO_INST AsyncEvent TPUT_ASYNC(
 This overload gathers non-contiguous local GM segments into one or more contiguous remote ranges and
 supports only `DmaEngine::URMA`. Each destination descriptor carries its own `peer`, so one call may
 target multiple ranks and still returns a single `AsyncEvent`. Validation or resource-reservation
-failure returns a failed event; check `event.valid()` before `Wait` or `Test`.
+failure returns a failed event, whose `Wait` and `Test` return `false`. Judge the outcome by the
+return value of `Wait` or `Test`, not by `event.valid()`: a failed event and an empty call both have
+`valid() == false`, while a non-empty `NoCqe` event has `valid() == true` but its `Wait` and `Test`
+always return `false` and it must be confirmed by a later `Final` call.
 
 `AsyncSession` is an engine-agnostic session object. Build once with
 `BuildAsyncSession<engine>()`, then pass to all async calls and event waits.
@@ -257,8 +260,9 @@ Contiguous tensor overload:
 URMA Gather overload:
 
 - `destinations` and `sourceSegments` reside in GM; a nonzero count requires a non-null pointer
-- Each source segment has a non-null `addr` and `length > 0`
-- Every local source range and remote destination range lies within an MR registered during host initialization
+- Each source segment has a non-null `addr` and `0 < length <= 256MB`. Source segments are never split; a segment larger than 256MB makes the call return a failed event
+- Every local source range lies within the local MR (`UrmaInfo::localMrBase` / `localMrLength`), and every remote destination range lies within the peer's MR, both registered during host initialization; otherwise the call returns a failed event
+- Source segments of one destination are packed into SQEs of at most 12 segments and at most 256MB each; longer destinations are submitted as multiple SQEs automatically
 - Every `peer` is less than the host-configured rank count
 - `sum(destinations[i].segCount) == sourceSegmentCount`
 - Do not mix an unfinished contiguous-tensor batch with a Gather batch in one session
@@ -504,9 +508,7 @@ __global__ AICORE void GatherPutUrma(
     session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
 
     auto event = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(dsts, 2, segs, 4, session);
-    if (event.valid()) {
-        (void)event.Wait(session);
-    }
+    (void)event.Wait(session);
 }
 ```
 
@@ -531,9 +533,7 @@ session.submitMode = comm::AsyncSubmitMode::DEFER_AND_SUBMIT;
 session.cfg.urma.cqePolicy = comm::urma::UrmaCqePolicy::Final;
 auto finalEvent = comm::TPUT_ASYNC<comm::DmaEngine::URMA>(
     nullptr, 0, nullptr, 0, session);
-if (finalEvent.valid()) {
-    (void)finalEvent.Wait(session);
-}
+(void)finalEvent.Wait(session);
 ```
 
 `DEFER` automatically submits accumulated operations according to `batchSize`. Set `batchSize`

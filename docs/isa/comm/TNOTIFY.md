@@ -45,7 +45,7 @@ PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp o
     - `dstSignalData` should be 4-byte aligned.
 - **Operation semantics**:
     - `NotifyOp::Set`: Direct store to remote memory.
-    - `NotifyOp::AtomicAdd`: Hardware atomic add using `st_atomic` instruction.
+    - `NotifyOp::AtomicAdd`: Hardware atomic add. A2/A3 use the `st_atomic` instruction; Ascend 950 and A6 use `atomicAdd`.
 
 ## Examples
 
