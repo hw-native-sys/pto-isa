@@ -682,12 +682,51 @@ struct TPipe {
     Producer prod;
     Consumer cons;
 
+    PTO_INTERNAL void HandShake4MixC2VMode()
+    {
+        // Mixed task need wait AIV-only task finished before start to push data to UB FIFO
+        constexpr uint8_t FlagIDCWaitV = 14;
+#ifdef PTO_COMPILE_VEC
+        // set before TPOP
+        set_intra_block(PIPE_V, FlagIDCWaitV);
+#endif
+#ifdef PTO_COMPILE_CUBE
+        // wait before TPUSH
+        wait_intra_block(PIPE_FIX, FlagIDCWaitV);
+        wait_intra_block(PIPE_FIX, FlagIDCWaitV + VEC_CORE_ID_OFFSET);
+#endif
+    }
+
+    PTO_INTERNAL void HandShake4MixV2CMode()
+    {
+        // Mixed task need wait AIC-only task finished before start to push data to L1 FIFO
+        constexpr uint8_t FlagIDVWaitC = 15;
+#ifdef PTO_COMPILE_VEC
+        // wait before TINSERT
+        wait_intra_block(PIPE_MTE3, FlagIDVWaitC);
+#endif
+#ifdef PTO_COMPILE_CUBE
+        // set before TPOP
+        set_intra_block(PIPE_MTE2, FlagIDVWaitC);
+        set_intra_block(PIPE_MTE2, FlagIDVWaitC + VEC_CORE_ID_OFFSET);
+#endif
+    }
+
     // The first SlotNum pushes already occupy empty slots. FreeCredit::kInitialFreeCredits
     // is 0, including for split local pipes: SyncPeriod constructor credits would satisfy
     // the first wrap wait before the consumer retires that tile (issue 390).
     PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
         : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
     {
+        if constexpr (is_c2v_ub) {
+            HandShake4MixC2VMode();
+        } else if constexpr (is_v2c_mat) {
+            HandShake4MixV2CMode();
+        } else if constexpr (is_both) {
+            HandShake4MixC2VMode();
+            HandShake4MixV2CMode();
+        }
+
         if constexpr (FreeCredit::kInitialFreeCredits > 0) {
             for (uint32_t credit = 0; credit < FreeCredit::kInitialFreeCredits; ++credit) {
                 if constexpr (IsNoSplit) {
