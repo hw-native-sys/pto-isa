@@ -184,6 +184,58 @@ PTO_INTERNAL void TGEMV_BIAS_IMPL(TileRes& cMatrix, TileLeft& aMatrix, TileRight
         cMatrix.data(), aMatrix.data(), bMatrix.data(), nullptr, btAddr, 1, k, n, cfg.Build());
 }
 
+template <AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight>
+PTO_INTERNAL void TGEMV_MACRO_IMPL(
+    TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, const MatmulMacroConfig& cfg)
+{
+    CheckMadValid<TileRes, TileLeft, TileRight>();
+    uint16_t k = bMatrix.GetValidRow();
+    uint16_t n = bMatrix.GetValidCol();
+    PTO_ASSERT(k >= 1 && k <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid aMatrixCol is [1, 4095].");
+    PTO_ASSERT(n >= 1 && n <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid bMatrixCol is [1, 4095].");
+    MatmulMacroConfig gemvCfg = cfg;
+    gemvCfg.gemvCtrl = true;
+    TMatmulMacro<TileRes, TileLeft, TileRight, false, false, false>(
+        cMatrix.data(), aMatrix.data(), bMatrix.data(), nullptr, 0, 1, k, n, gemvCfg);
+}
+
+template <
+    AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight,
+    bool isClear = false>
+PTO_INTERNAL void TGEMV_MACRO_ACC_IMPL(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, const MatmulMacroConfig& cfg)
+{
+    CheckMadValid<TileRes, TileLeft, TileRight>();
+    uint16_t k = bMatrix.GetValidRow();
+    uint16_t n = bMatrix.GetValidCol();
+    PTO_ASSERT(k >= 1 && k <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid aMatrixCol is [1, 4095].");
+    PTO_ASSERT(n >= 1 && n <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid bMatrixCol is [1, 4095].");
+    MatmulMacroConfig gemvCfg = cfg;
+    gemvCfg.gemvCtrl = true;
+    TMatmulMacroAcc<TileRes, TileLeft, TileRight, false, false, isClear>(
+        cOutMatrix.data(), aMatrix.data(), bMatrix.data(), nullptr, 0, 1, k, n, gemvCfg);
+}
+
+template <
+    AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight, typename TileBias>
+PTO_INTERNAL void TGEMV_MACRO_BIAS_IMPL(
+    TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileBias& biasData, const MatmulMacroConfig& cfg)
+{
+    CheckMadValid<TileRes, TileLeft, TileRight>();
+    static_assert(std::is_same_v<typename TileRes::DType, typename TileBias::DType>, "No supported bias data type.");
+    static_assert(
+        (TileBias::Loc == TileType::Bias || TileBias::Loc == TileType::Mat) && (TileBias::Rows == 1),
+        "TileBias must be a single-row Bias/Mat tile.");
+    uint16_t k = bMatrix.GetValidRow();
+    uint16_t n = bMatrix.GetValidCol();
+    PTO_ASSERT(k >= 1 && k <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid aMatrixCol is [1, 4095].");
+    PTO_ASSERT(n >= 1 && n <= MMAD_MAX_SUPPORT_LENGTH, "ERROR: The range of valid bMatrixCol is [1, 4095].");
+    MatmulMacroConfig gemvCfg = cfg;
+    gemvCfg.gemvCtrl = true;
+    TMatmulMacro<TileRes, TileLeft, TileRight, true, true, false>(
+        cMatrix.data(), aMatrix.data(), bMatrix.data(), nullptr, (uint64_t)biasData.data(), 1, k, n, gemvCfg);
+}
+
 template <
     AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight,
     typename TileBias = void, bool isClear = false>

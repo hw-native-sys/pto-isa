@@ -1085,10 +1085,10 @@ TGEMV_BIAS(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileBias& bi
 
 #if defined(PTO_NPU_ARCH_KIRIN9050)
 // ============================================================================
-// kirin9050 TMATMUL / TMATMUL_ACC with MatmulMacroConfig overloads
-//   These overloads delegate to TMATMUL_MACRO_IMPL / TMATMUL_MACRO_ACC_IMPL,
-//   providing the full FixPipe capabilities (preQuant, preRelu, clipRelu, gemvCtrl)
-//   through the unified TMATMUL / TMATMUL_ACC interface names.
+// kirin9050 TMATMUL / TMATMUL_ACC / TGEMV with MatmulMacroConfig overloads
+//   These overloads delegate to TMATMUL_MACRO_IMPL / TMATMUL_MACRO_ACC_IMPL /
+//   TGEMV_MACRO_IMPL, providing the full FixPipe capabilities (preQuant,
+//   preRelu, clipRelu, gemvCtrl) through the unified TMATMUL / TGEMV names.
 //   Only compiled for kirin9050, does not affect other architectures.
 // ============================================================================
 
@@ -1151,6 +1151,52 @@ PTO_INST RecordEvent TMATMUL(
     MAP_INSTR_IMPL_T(
         TMATMUL_MACRO, PTO_TEMPLATE_ARGS(Phase, TileRes, TileLeft, TileRight, TileBias, isAcc), cMatrix, aMatrix,
         bMatrix, biasData, cfg);
+    return {};
+}
+
+// --- TGEMV: no bias, with cfg ---
+// M is fixed to 1 and gemvCtrl is forced on; cfg provides the FixPipe vector
+// quant / relu / clip settings, with the same semantics as the TMATMUL overloads.
+template <
+    AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight,
+    typename... WaitEvents>
+PTO_INST RecordEvent
+TGEMV(TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, MatmulMacroConfig& cfg, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(TGEMV_MACRO, PTO_TEMPLATE_ARGS(Phase), cMatrix, aMatrix, bMatrix, cfg);
+    return {};
+}
+
+// --- TGEMV_ACC: no bias, with cfg ---
+// Mirrors TMATMUL_ACC: accumulates S32 into the accumulator, so cfg quant/relu
+// are not applied here; use a final non-ACC TGEMV/TMATMUL for the quantized output.
+template <
+    AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight,
+    bool isClear = false, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_ACC(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, MatmulMacroConfig& cfg,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(
+        TGEMV_MACRO_ACC, PTO_TEMPLATE_ARGS(Phase, TileRes, TileLeft, TileRight, isClear), cOutMatrix, cInMatrix,
+        aMatrix, bMatrix, cfg);
+    return {};
+}
+
+// --- TGEMV_BIAS: broadcast bias, with cfg ---
+template <
+    AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight, typename TileBias,
+    typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_BIAS(
+    TileRes& cMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileBias& biasData, MatmulMacroConfig& cfg,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(
+        TGEMV_MACRO_BIAS, PTO_TEMPLATE_ARGS(Phase, TileRes, TileLeft, TileRight, TileBias), cMatrix, aMatrix, bMatrix,
+        biasData, cfg);
     return {};
 }
 
