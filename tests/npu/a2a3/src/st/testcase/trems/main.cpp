@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <gtest/gtest.h>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 
 using namespace std;
@@ -408,6 +409,14 @@ TEST_F(TREMSTest, ip_hp_float_32x64) { TREMSTestIpFramework<65, float, 32, 64, 3
 // disjoint control validating the probe kernel on the stock layout
 TEST_F(TREMSTest, ctrl_disj_def_float_33x64) { TREMSTestDisjFramework<66, float, 33, 64, 33, 33, 64, 64>(); }
 
+static bool HpSameBits(float a, float b)
+{
+    uint32_t ua, ub;
+    std::memcpy(&ua, &a, sizeof(ua));
+    std::memcpy(&ub, &b, sizeof(ub));
+    return ua == ub; // NaN-aware: identical bit patterns only
+}
+
 // ===== HP exactness repro: 4580025 % -7.25 (returned -3.25 before the
 // compensated final iteration). The HP path must be bit-exact here - both
 // operands, the quotient and the true remainder are exactly representable,
@@ -430,24 +439,31 @@ TEST_F(TREMSTest, hp_exact_repro)
 
     size_t fileSize = 64 * sizeof(float);
     float *hostOut, *devSrc0, *devSrc1, *devOut;
-    aclrtMallocHost((void**)&hostOut, fileSize * 4);
+    aclrtMallocHost((void**)&hostOut, fileSize * 6);
     aclrtMalloc((void**)&devSrc0, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void**)&devSrc1, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&devOut, fileSize * 4, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&devOut, fileSize * 6, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(devSrc0, fileSize, src.data(), fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(devSrc1, fileSize, src1.data(), fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
 
     LaunchTREMHpExactRepro(devOut, devSrc0, devSrc1, scalar, stream);
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(hostOut, fileSize * 4, devOut, fileSize * 4, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(hostOut, fileSize * 6, devOut, fileSize * 6, ACL_MEMCPY_DEVICE_TO_HOST);
 
     // rows: 0 TREMS DEFAULT | 1 TREMS HP | 2 TREM DEFAULT | 3 TREM HP
+    //       4 src0 probe | 5 src1 probe
     bool ok = true;
     for (int c = 0; c < 8; ++c) {
         if (hostOut[64 + c] != expectedHp[c] || hostOut[192 + c] != expectedHp[c]) {
             printf(
                 "HP exactness MISMATCH col %d: TREMS %.9g TREM %.9g expected %.9g\n", c, hostOut[64 + c],
                 hostOut[192 + c], expectedHp[c]);
+            ok = false;
+        }
+    }
+    for (int c = 0; c < 64; ++c) {
+        if (!HpSameBits(hostOut[256 + c], src[c]) || !HpSameBits(hostOut[320 + c], src1[c])) {
+            printf("UB src preservation MISMATCH col %d\n", c);
             ok = false;
         }
     }
@@ -476,7 +492,13 @@ static float HpOracleRem(float x, float y)
         return std::numeric_limits<float>::quiet_NaN();
     }
     if (std::isinf(y)) {
-        return x; // fmod semantics: x % +-inf = x
+        // floored semantics (numpy): +-0 -> +-0 (sign of y; the comparator
+        // sees 0 == -0 either way), same-sign finite x -> x, opposite-sign
+        // -> copysign(inf, y)
+        if (x == 0.0f) {
+            return x;
+        }
+        return (std::signbit(x) == std::signbit(y)) ? x : std::copysign(std::numeric_limits<float>::infinity(), y);
     }
     double xd = (double)x;
     double yd = (double)y;
@@ -494,7 +516,8 @@ static float HpUlp(float v)
     return next > v ? next - v : (v > 0.0f ? v : std::numeric_limits<float>::denorm_min());
 }
 
-// Runs the 1x64 repro kernel and asserts both HP outputs (rows 1 and 3).
+// Runs the 1x64 repro kernel, asserts both HP outputs (rows 1 and 3) and
+// the UB-side input-preservation probes (rows 4 and 5).
 static void HpExactMatrixRun(const std::vector<float>& xv, const std::vector<float>& yv, float scalar)
 {
     ASSERT_EQ(xv.size(), 64u);
@@ -505,15 +528,15 @@ static void HpExactMatrixRun(const std::vector<float>& xv, const std::vector<flo
     aclrtCreateStream(&stream);
     size_t fileSize = 64 * sizeof(float);
     float *hostOut, *devSrc0, *devSrc1, *devOut;
-    aclrtMallocHost((void**)&hostOut, fileSize * 4);
+    aclrtMallocHost((void**)&hostOut, fileSize * 6);
     aclrtMalloc((void**)&devSrc0, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMalloc((void**)&devSrc1, fileSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    aclrtMalloc((void**)&devOut, fileSize * 4, ACL_MEM_MALLOC_HUGE_FIRST);
+    aclrtMalloc((void**)&devOut, fileSize * 6, ACL_MEM_MALLOC_HUGE_FIRST);
     aclrtMemcpy(devSrc0, fileSize, xv.data(), fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(devSrc1, fileSize, yv.data(), fileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     LaunchTREMHpExactRepro(devOut, devSrc0, devSrc1, scalar, stream);
     aclrtSynchronizeStream(stream);
-    aclrtMemcpy(hostOut, fileSize * 4, devOut, fileSize * 4, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclrtMemcpy(hostOut, fileSize * 6, devOut, fileSize * 6, ACL_MEMCPY_DEVICE_TO_HOST);
     aclrtFree(devSrc0);
     aclrtFree(devSrc1);
     aclrtFree(devOut);
@@ -551,6 +574,15 @@ static void HpExactMatrixRun(const std::vector<float>& xv, const std::vector<flo
                 printf("%s lane %u: x=%.9g y=%.9g expected %.9g actual %.9g\n", opName, i, x, y, exp, act);
                 ok = false;
             }
+        }
+    }
+    // rows 4/5: the src tiles as the ops left them in UB; must be bitwise
+    // unchanged (NaN-aware). Catches writes into the read-only inputs that
+    // the GM-side src comparison cannot see (TSTORE never writes GM src).
+    for (unsigned i = 0; i < 64; ++i) {
+        if (!HpSameBits(hostOut[256 + i], xv[i]) || !HpSameBits(hostOut[320 + i], yv[i])) {
+            printf("UB src preservation MISMATCH lane %u\n", i);
+            ok = false;
         }
     }
     EXPECT_TRUE(ok);
@@ -779,6 +811,63 @@ TEST_F(TREMSTest, hp_val_mixed_lanes) // one of each class in one vector (V-heav
     yv.resize(64, 7.25f);
     HpExactMatrixRun(xv, yv, 7.25f);
 }
+// Issue #435: k*b near FLT_MAX overflowed the old 12/12 split to NaN, and
+// |b| > FLT_MAX/4097 lost the remainder entirely (fallback rounds k*b back
+// onto x). Both lanes are exact-regime (|x/y| < 2^24) and must be bit-exact.
+TEST_F(TREMSTest, hp_val_435_fused_overflow)
+{
+    float fm = std::numeric_limits<float>::max();
+    float inf = std::numeric_limits<float>::infinity();
+    auto xv = FillLanes({fm, fm, 1.1973794540310817e38f, 4580025.0f, -3.0f});
+    auto yv = FillLanes({fm / 8388608.0f, fm / 8192.0f, 9.21061140425554e35f, 7.25f, 7.25f});
+    xv.resize(64, 1.0f);
+    yv.resize(64, 7.25f);
+    HpExactMatrixRun(xv, yv, 7.25f);
+}
+
+// Issue #435 comment 2: rich-mantissa divisor whose exact k*b needs 48 bits;
+// the residual accumulation must stay compensated (golden 520.7925 exactly).
+TEST_F(TREMSTest, hp_val_435_residual_drift)
+{
+    auto xv = FillLanes({88099250176.0f, 88099250176.0f + 1.0f, 4580025.0f});
+    auto yv = FillLanes({5491.25830078125f, 5491.25830078125f, 7.25f});
+    xv.resize(64, 4580025.0f);
+    yv.resize(64, 7.25f);
+    HpExactMatrixRun(xv, yv, 7.25f);
+}
+
+// Issue #435 comment 3: floored inf-divisor semantics (numpy): opposite-sign
+// finite x -> copysign(inf, y), same-sign -> x, +-inf x -> NaN, +-0 -> x.
+TEST_F(TREMSTest, hp_val_inf_floor_semantics)
+{
+    float inf = std::numeric_limits<float>::infinity();
+    auto xv = FillLanes({2.0f, -2.0f, 0.0f, -0.0f, 4580025.0f, -3.0f, inf, -inf});
+    auto yv = FillLanes({inf});
+    HpExactMatrixRun(xv, yv, inf);
+    auto yvn = FillLanes({-inf});
+    HpExactMatrixRun(xv, yvn, -inf);
+}
+
+// Issue #435, TREMS-scalar side: the matrix above exercises the exotic
+// divisors only through the TREM vector lanes (TREMS asserts lanes where
+// y == scalar). Run the same lanes with the exotic divisor AS the scalar so
+// the TREMS per-vector and staged paths see k*b near FLT_MAX too.
+TEST_F(TREMSTest, hp_val_435_fused_overflow_scalar)
+{
+    float fm = std::numeric_limits<float>::max();
+    auto xv = FillLanes({fm, fm, fm, fm, 1.0f, 2.5f});
+    // divisors: FLT_MAX/2^23, /2^13, FLT_MAX/257 boundary, rich-mantissa 9.2e35 (all exact regime)
+    float b0 = fm / 8388608.0f;
+    HpExactMatrixRun(xv, FillLanes({b0}), b0);
+    float b1 = fm / 8192.0f;
+    HpExactMatrixRun(xv, FillLanes({b1}), b1);
+    float b2 = fm / 9.21061140425554e35f;
+    HpExactMatrixRun(xv, FillLanes({b2}), b2);
+    // finding-1 exact pair: k=130, k*b rounds back onto x (golden 9.210583e+35)
+    float b3 = 9.21061140425554e35f;
+    HpExactMatrixRun(FillLanes({1.1973794540310817e38f}), FillLanes({b3}), b3);
+}
+
 // ===== end HP exhaustive exactness matrix =====
 
 // ---- HP size matrix (compensated final iteration): staged row counts, the
@@ -802,7 +891,7 @@ TEST_F(TREMSTest, hp_sz_1x320) { TREMSTestFramework<81, float, 1, 320, 1, 1, 320
 TEST_F(TREMSTest, hp_sz_1x576) { TREMSTestFramework<82, float, 1, 576, 1, 1, 576, 576>(); }
 TEST_F(TREMSTest, hp_sz_1x4096) { TREMSTestFramework<83, float, 1, 4096, 1, 1, 4096, 4096>(); }
 TEST_F(TREMSTest, hp_sz_1x6400) { TREMSTestFramework<84, float, 1, 6400, 1, 1, 6400, 6400>(); }
-TEST_F(TREMSTest, hp_sz_1x11136) { TREMSTestFramework<85, float, 1, 11136, 1, 1, 11136, 11136>(); }
+TEST_F(TREMSTest, hp_sz_1x10880) { TREMSTestFramework<85, float, 1, 10880, 1, 1, 10880, 10880>(); }
 TEST_F(TREMSTest, hp_sz_str_2x256_192) { TREMSTestFramework<86, float, 2, 256, 2, 2, 192, 192>(); }
 TEST_F(TREMSTest, hp_sz_str_4x128_65) { TREMSTestFramework<87, float, 4, 128, 4, 4, 72, 65>(); }
 TEST_F(TREMSTest, ip_hp_2x2048) { TREMSTestIpFramework<88, float, 2, 2048, 2, 2, 2048, 2048>(); }

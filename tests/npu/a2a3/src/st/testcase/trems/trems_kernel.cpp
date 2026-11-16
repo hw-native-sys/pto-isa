@@ -82,7 +82,7 @@ PTO_INTERNAL void runTREMSHP(__gm__ T* out, __gm__ T* src, T scalar)
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
     constexpr unsigned tmpTileCol =
         128 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
-        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
+        640 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
 
     using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
     using srcTileData = Tile<TileType::Vec, T, row, col, BLayout::RowMajor, -1, -1>;
@@ -193,7 +193,7 @@ PTO_INTERNAL void runTREMSInplace(__gm__ T* out, T scalar)
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
     constexpr unsigned tmpTileColHp =
         128 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
-        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
+        640 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     constexpr unsigned tmpTileCol = highPrecision ? tmpTileColHp : tmpTileColDef;
 
     using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
@@ -246,7 +246,7 @@ PTO_INTERNAL void runTREMSDisjoint(__gm__ T* out, __gm__ T* src, T scalar)
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
     constexpr unsigned tmpTileColHp =
         128 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
-        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
+        640 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     constexpr unsigned tmpTileCol = highPrecision ? tmpTileColHp : tmpTileColDef;
 
     using dstTileData = Tile<TileType::Vec, T, dstTileRow, dstTileCol, BLayout::RowMajor, -1, -1>;
@@ -318,7 +318,7 @@ DEF_TREMS_CASE_HP(81, float, 1, 320, 1, 1, 320, 320)
 DEF_TREMS_CASE_HP(82, float, 1, 576, 1, 1, 576, 576)
 DEF_TREMS_CASE_HP(83, float, 1, 4096, 1, 1, 4096, 4096)
 DEF_TREMS_CASE_HP(84, float, 1, 6400, 1, 1, 6400, 6400)
-DEF_TREMS_CASE_HP(85, float, 1, 11136, 1, 1, 11136, 11136)
+DEF_TREMS_CASE_HP(85, float, 1, 10880, 1, 1, 10880, 10880)
 DEF_TREMS_CASE_HP(86, float, 2, 256, 2, 2, 192, 192) // strided dst
 DEF_TREMS_CASE_HP(87, float, 4, 128, 4, 4, 72, 65)   // strided dst
 DEF_TREMS_IP_CASE(88, true, float, 2, 2048, 2, 2, 2048, 2048)
@@ -544,14 +544,14 @@ extern "C" __global__ AICORE void runTREMHpExactRepro(
 
     using Row64 = Tile<TileType::Vec, float, 1, 64, BLayout::RowMajor, -1, -1>;
     using TmpDef = Tile<TileType::Vec, float, 1, 80, BLayout::RowMajor, -1, -1>;
-    using TmpHpS = Tile<TileType::Vec, float, 1, 720, BLayout::RowMajor, -1, -1>; // 128 + 8 + 8 + 64 + 512
-    using TmpHpV = Tile<TileType::Vec, float, 1, 784, BLayout::RowMajor, -1, -1>; // 192 + 8 + 8 + 64 + 512
+    using TmpHpS = Tile<TileType::Vec, float, 1, 848, BLayout::RowMajor, -1, -1>; // 128 + 8 + 8 + 64 + 640
+    using TmpHpV = Tile<TileType::Vec, float, 1, 912, BLayout::RowMajor, -1, -1>; // 192 + 8 + 8 + 64 + 640
 
     Row64 src0Tile(1, 64), src1Tile(1, 64);
     Row64 dstSDef(1, 64), dstSHp(1, 64), dstVDef(1, 64), dstVHp(1, 64);
     TmpDef tmpDef(1, 80);
-    TmpHpS tmpHpS(1, 720);
-    TmpHpV tmpHpV(1, 784);
+    TmpHpS tmpHpS(1, 848);
+    TmpHpV tmpHpV(1, 912);
 
     constexpr unsigned B = 256;
     TASSIGN(src0Tile, 0x0);
@@ -561,8 +561,8 @@ extern "C" __global__ AICORE void runTREMHpExactRepro(
     TASSIGN(dstVHp, 4 * B);
     TASSIGN(tmpDef, 5 * B);
     TASSIGN(tmpHpS, 5 * B + 320);
-    TASSIGN(tmpHpV, 5 * B + 320 + 2880);
-    TASSIGN(src1Tile, 5 * B + 320 + 2880 + 3136);
+    TASSIGN(tmpHpV, 5 * B + 320 + 848 * 4);
+    TASSIGN(src1Tile, 5 * B + 320 + 848 * 4 + 912 * 4);
 
     TLOAD(src0Tile, src0Global);
     TLOAD(src1Tile, src1Global);
@@ -586,6 +586,13 @@ extern "C" __global__ AICORE void runTREMHpExactRepro(
     TSTORE(g2, dstVDef);
     GlobalData g3(out + 192, DynDim2Shape(1, 64), DynDim2Stride(64));
     TSTORE(g3, dstVHp);
+    // UB-side input-preservation probe: re-store the src tiles after the
+    // ops. TSTORE never touches GM src, so only these rows expose writes
+    // the ops made into the UB input tiles (e.g. in-place fixups).
+    GlobalData g4(out + 256, DynDim2Shape(1, 64), DynDim2Stride(64));
+    TSTORE(g4, src0Tile);
+    GlobalData g5(out + 320, DynDim2Shape(1, 64), DynDim2Stride(64));
+    TSTORE(g5, src1Tile);
 }
 
 extern "C" void LaunchTREMHpExactRepro(float* out, float* src0, float* src1, float scalar, void* stream)

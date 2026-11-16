@@ -51,14 +51,14 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## 高精度算法（TREM）
 
-`RemAlgorithm::HIGH_PRECISION` 运行与 TREMS 相同的 11 次迭代、以 $2^{24}$ 为基的逐位剥离和相同的 staged 循环倒置（算法与共享切分预算见 [TREMS 高精度章节](TREMS_zh.md#高精度算法)）。差异全部来自除数是张量：
+`RemAlgorithm::HIGH_PRECISION` 运行与 TREMS 相同的 11 次迭代、以 $2^{24}$ 为基的逐位剥离和相同的 staged 循环倒置（算法与共享切分预算见 [TREMS 高精度章节](TREMS_zh.md#高精度算法)）。差异全部来自除数是张量（详见[附录](#section_trem_appendix)）：
 
 - **每遍重载除数**：每一遍从原始 tile 重新读取 `|src1|`（`vabs` 到暂存的 `div` 区域），因为缩放过的除数不能喂给下一遍。
 - **逐元素的次正规区间**：标量除数时“除数是否次正规”是宿主侧常量；此处第 1 次迭代逐元素判定 —— 在 `|src1| <= minNormal` 的通道上把除数与状态同乘 $2^{24}$（打包掩码比较 + 选择），后处理再精确地对这些通道乘回 $2^{-24}$。
 - **异常修正为逐元素选择**：`src1 = ±inf → src0`；随后（必须在其后）`src0 = ±inf ∧ src1 = ±inf → NaN`；然后除数在保证域内时 `src0 = ±0 → src0`。
-- **多一个暂存区域**：未缩放的 `|src1|` 行跨该遍的全部迭代存活，因此 TREM 的 tmp 基于 $192C$（$C=1$ 时 784 个 float，含 512 float 的补偿窗口；更宽的行按 $\min(C,8)$ 增长），而 TREMS 为 $128C$ —— 见 [TREMS](TREMS_zh.md#tmp-占用) 的 `tmpCols` 分段方程。
+- **多一个暂存区域**：未缩放的 `|src1|` 行跨该遍的全部迭代存活，因此 TREM 的 tmp 基于 $192C$（$C=1$ 时 912 个 float，含 640 float 的补偿窗口；更宽的行按 $\min(C,8)$ 增长），而 TREMS 为 $128C$ —— 见 [TREMS](TREMS_zh.md#tmp-占用) 的 `tmpCols` 分段方程。
 
-**除数域**：`src1` 元素须非零且非 NaN。$\pm\infty$ 没问题（$x \bmod \pm\infty = x$）。保证域是 $|y| \ge 1$（或 $\pm\infty$）：余数符号修正探测 $r \cdot y$，当 $|r \cdot y| < 2^{-149}$ 时下溢为 $\pm 0$ 从而漏掉修正 —— 这是自 A5 实现继承的限制。更小的除数遵循 A5 迭代算术及该限制。
+**除数域**：`src1` 元素须非零且非 NaN。$\pm\infty$ 没问题（遵循向下取整语义，见 [TREMS 特殊值表](TREMS_zh.md)）。保证域是 $|y| \ge 1$（或 $\pm\infty$）：余数符号修正探测 $r \cdot y$，当 $|r \cdot y| < 2^{-149}$ 时下溢为 $\pm 0$ 从而漏掉修正 —— 这是自 A5 实现继承的限制。更小的除数遵循 A5 迭代算术及该限制。
 
 ## 支持的 Tile 尺寸（A2/A3）
 
@@ -69,19 +69,19 @@ $$
 \begin{cases}
 R+8\lceil R/256\rceil+8, & \text{DEFAULT},\ \texttt{float} \\[2pt]
 3R+8\lceil R/256\rceil+8, & \text{DEFAULT},\ \texttt{int32\_t} \\[2pt]
-272+512, & \text{HIGH\_PRECISION},\ C=1 \\[2pt]
-192C+8\lceil C/4\rceil+8+512\min(C,8), & \text{HIGH\_PRECISION},\ C\ge 2
+272+640, & \text{HIGH\_PRECISION},\ C=1 \\[2pt]
+192C+8\lceil C/4\rceil+8+640\min(C,8), & \text{HIGH\_PRECISION},\ C\ge 2
 \end{cases}
 $$
 
-HIGH_PRECISION 的 $C=1$ 分支含 64 float 的逐向量状态缓冲；$512\min(C,8)$ 项为末次迭代精确化的分批补偿窗口。192 KB 预算与 `validCols/64 <= 255` 下各行的最宽合法 `N`：
+HIGH_PRECISION 的 $C=1$ 分支含 64 float 的逐向量状态缓冲；$640\min(C,8)$ 项为末次迭代精确化的分批补偿窗口（8 位 Veltkamp 拆分、结果有限性守护，详见 TREMS.md）。192 KB 预算与 `validCols/64 <= 255` 下各行的最宽合法 `N`：
 
 | 行数 | TREM float | TREM int32 | TREM HP |
 |---|---|---|---|
-| 1 | 12160 | 8128 | 7424 |
-| 2 | 6976 | 5440 | 4928 |
-| 4 | 3712 | 3264 | 2944 |
-| 8 | 1920 | 1792 | 1664 |
+| 1 | 12160 | 8128 | 7296 |
+| 2 | 6976 | 5440 | 4864 |
+| 4 | 3712 | 3264 | 2880 |
+| 8 | 1920 | 1792 | 1600 |
 | 16 | 960 | 960 | 832 |
 | 32 | 448 | 448 | 448 |
 
@@ -125,9 +125,21 @@ void example() {
   TREM(dst, src0, src1, tmp);
 
   // 高精度（仅 float）：tmp 按 TREMS 切分预算取宽，
-  // 例如 8x448 tile -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 + 512*7 = 4952
+  // 例如 8x448 tile -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 + 640*7 = 5848
   Tile<TileType::Vec, float, 8, 448> hpDst, hpSrc0, hpSrc1;
-  Tile<TileType::Vec, float, 1, 4952> hpTmp;
+  Tile<TileType::Vec, float, 1, 5848> hpTmp;
   TREM<RemAlgorithm::HIGH_PRECISION>(hpDst, hpSrc0, hpSrc1, hpTmp);
 }
 ```
+
+## 附录：向量除数下的 TREM（A2/A3）<a name="section_trem_appendix"></a>
+
+共享高精度核心的数学规范 —— 语义与定义域、以 $2^{24}$ 为基的数字剥离梯、精确补偿的末次迭代、有限性守卫、次正规区间与后处理 —— 见 [TREMS 附录](TREMS_zh.md#section_hp_appendix)，此处不再重复。本附录说明除数为张量时的差异。
+
+- **每遍重载除数。** 每一遍都从*原始* tile 重读除数 $b_i = \mathrm{RN}(|\mathit{src1}| \cdot 2^{e(i)})$（`vabs` + 2 的幂缩放），绝不复用上一遍的缩放缓冲：梯级的每一级都必须是 $|y|$ 本身的精确缩放，复用缩放过的除数会使缩放因子复合、破坏 A.2 的梯。因此未缩放的 $|\mathit{src1}|$ 行跨整遍存活，这就是 TREM 的 tmp 基于 $192C$（对比 TREMS 的 $128C$）多出的那一个暂存区域。
+
+- **逐元素次正规区间。** 除数是否次正规在此是逐通道性质而非宿主常量：第 1 次迭代仅在 $|\mathit{src1}| \le \mathit{minNormal}$ 的通道上施加 TREMS 附录（A.5）的 $2^{24}$ 提升（打包掩码比较 + 选择），后处理仅对这些通道乘回 $2^{-24}$。
+
+- **后处理顺序。** TREMS 附录（A.6）的链逐元素执行、除数读自 $\mathit{src1}$：符号恢复 → 次正规缩回 → $|\mathit{src1}| = \pm\infty$ 选择 $x$ → 双无穷选择 NaN → $x = \pm 0$ 选择 $x$ → 余数符号修正（$r \cdot y < 0 \Rightarrow r + y$）→ $|y| = \pm\infty$ 通道上的向下取整无穷选择（同号 $x$、异号 $x + y$、$\pm 0$ 保持 $x$）→ $|x| = \pm\infty$ 上重施加 NaN。NaN 重施加放在最后，否则向下取整无穷选择会用被除数覆盖双无穷 NaN 通道。
+
+- **逐通道等价。** 与 TREMS 附录（A.7）相同，逐向量、staged 与分块调度求值同一张逐通道就近舍入数据流图，各组织产出按位一致的逐通道结果。
