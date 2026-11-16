@@ -115,9 +115,11 @@ void example_tput(__gm__ T* local_data, __gm__ T* remote_addr) {
 ### Ping-pong Double Buffering
 
 ```cpp
-constexpr size_t tileUBBytes = ((64 * 64 * sizeof(float) + 1023) / 1024) * 1024;
-TileT pingTile(64, 64);
-TileT pongTile(64, 64);
+// The (rows, cols) constructor requires DYNAMIC ValidRow/ValidCol
+using PingPongTileT = Tile<TileType::Vec, T, 64, 64, BLayout::RowMajor, DYNAMIC, DYNAMIC>;
+constexpr size_t tileUBBytes = ((64 * 64 * sizeof(T) + 1023) / 1024) * 1024;
+PingPongTileT pingTile(64, 64);
+PingPongTileT pongTile(64, 64);
 TASSIGN(pingTile, 0);
 TASSIGN(pongTile, tileUBBytes);  // Non-overlapping UB region
 

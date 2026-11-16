@@ -69,7 +69,7 @@ comm::TTEST(signal, 1, comm::WaitCmp::GE);
 
 ### AtomicType
 
-`TPUT` 的原子操作类型（定义于 `include/pto/common/constants.hpp`）：
+`TPUT` 的原子操作类型（定义于 `include/pto/common/type.hpp`）：
 
 | 值 | 说明 |
 |-------|-------------|
@@ -82,7 +82,7 @@ comm::TTEST(signal, 1, comm::WaitCmp::GE);
 
 | 值 | 说明 |
 |-------|-------------|
-| `DmaEngine::SDMA` | SDMA 引擎（支持一维传输，Ascend950 上仅支持TGET|
+| `DmaEngine::SDMA` | SDMA 引擎（支持一维传输；Ascend950 上 `TPUT_ASYNC` 为同步实现，`TGET_ASYNC` 仍为异步传输）|
 | `DmaEngine::URMA` | URMA 引擎（支持一维传输，仅 Ascend950 / NPU_ARCH 3510；要求 CANN >= 9.1.0）|
 | `DmaEngine::RDMA` | RDMA 引擎（支持一维传输，仅 Ascend950 / NPU_ARCH 3510；当前网卡平台仅支持 HNS1825）|
 

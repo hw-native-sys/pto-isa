@@ -11,6 +11,9 @@
 <!-- npu="910b" id3 -->
 - Atlas A2 products: Supported
 <!-- end id3 -->
+<!-- npu="960" id4 -->
+- Ascend 960 products: Supported
+<!-- end id4 -->
 
 
 ## Tile Operation Diagram
@@ -72,7 +75,7 @@ When `Mode` is `Hard`, `gmWorkspace` and `usedCores` are ignored and the behavio
 - Soft mode requires every participating core to enter the same barrier group **in the same order and the same number of times**. The instruction derives the current round from the arrival count, so a core that enters one time too many or too few falls out of step with the others and the barrier deadlocks.
 - The participant set is determined by how the kernel is compiled and launched, not by `SYNCALL`. The template parameters only declare *which kind of cores* to synchronize; how many cores actually come up and how AIC and AIV are paired depends on the compile arch and the launch method. If the two disagree, some core waits forever.
 - Hard AIC-only on A2/A3 cannot be compiled as a pure cube kernel: plain `dav-c220-cube` fails to establish the FFTS context that AIC-only hard sync needs, and hangs in practice. Compile it as MIX (`dav-c220`) instead, with the AIC side calling `SYNCALL<AICOnly>()` and the AIV side left empty. On A5, `dav-c310-cube` works.
-- When compiling a kernel by hand (not through chevron auto-split), the kernel meta must be declared explicitly, otherwise the runtime schedules the wrong core type and hard sync hangs for lack of an FFTS context. Declare it with the macros in `include/pto/common/kernel_meta.hpp` (`PTO_SYNCALL_AIV_KERNEL_META` / `PTO_SYNCALL_AIC_KERNEL_META` / `PTO_SYNCALL_MIX_AIC_KERNEL_META`); the macro argument must exactly match the `__global__` entry symbol. Currently only Hard AIV-only and Soft AIC-only on A2/A3 need a hand-written meta; the compiler generates it for all other cases.
+- When compiling a kernel by hand (not through chevron auto-split), the kernel meta must be declared explicitly, otherwise the runtime schedules the wrong core type and hard sync hangs for lack of an FFTS context. Declare it with the macros in `include/pto/common/kernel_meta.hpp` (`PTO_SYNCALL_AIV_KERNEL_META` / `PTO_SYNCALL_AIC_KERNEL_META` / `PTO_SYNCALL_MIX_AIC_KERNEL_META`); the macro argument must exactly match the `__global__` entry symbol. Every hand-compiled kernel needs it, whatever the mode and core type: on A2/A3 that covers Hard AIV-only (`dav-c220-vec`), Soft AIC-only (`dav-c220-cube`) and Hard MIX 1:1 (compiled per core type and linked through a register ELF, see `tests/npu/a2a3/src/st/testcase/syncall/syncall_mix_1_1_kernel.cpp`, where both the AIC and AIV entries declare a meta). Kernels built through chevron auto-split get a compiler-generated meta.
 - In the auto build path (`__PTO_AUTO__`), `SYNCALL` is a no-op; real synchronization happens only in manual kernels.
 - In CPU_SIM, every `SYNCALL` overload is currently a compatibility no-op, including Soft mode. It does not synchronize
   workers launched by `LaunchKernelMultiCore`.

@@ -45,7 +45,7 @@ PTO_INST void TNOTIFY(GlobalSignalData &dstSignalData, int32_t value, NotifyOp o
     - `dstSignalData` 应4字节对齐。
 - **操作语义**：
     - `NotifyOp::Set`：直接存储到远端内存。
-    - `NotifyOp::AtomicAdd`：使用 `st_atomic` 指令执行硬件原子加。
+    - `NotifyOp::AtomicAdd`：执行硬件原子加。A2/A3 使用 `st_atomic` 指令，Ascend 950 与 A6 使用 `atomicAdd`。
 
 ## 示例
 

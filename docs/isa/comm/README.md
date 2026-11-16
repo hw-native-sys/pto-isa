@@ -69,7 +69,7 @@ Reduction operators for `TREDUCE`:
 
 ### AtomicType
 
-Atomic operation type for `TPUT` (defined in `include/pto/common/constants.hpp`):
+Atomic operation type for `TPUT` (defined in `include/pto/common/type.hpp`):
 
 | Value | Description |
 |-------|-------------|
@@ -82,7 +82,7 @@ DMA backend selection for `TPUT_ASYNC`, `TPUT_ASYNC_NOTIFY`, and `TGET_ASYNC`:
 
 | Value | Description |
 |-------|-------------|
-| `DmaEngine::SDMA` | SDMA engine (supports 1D transfer) |
+| `DmaEngine::SDMA` | SDMA engine (supports 1D transfer; on Ascend950 `TPUT_ASYNC` is a synchronous implementation, while `TGET_ASYNC` remains asynchronous) |
 | `DmaEngine::URMA` | URMA engine (supports 1D transfer, Ascend950 / NPU_ARCH 3510 only; requires CANN >= 9.1.0) |
 | `DmaEngine::RDMA` | RDMA engine (supports 1D transfer, Ascend950 / NPU_ARCH 3510 only; currently supports only the HNS1825 NIC platform) |
 
