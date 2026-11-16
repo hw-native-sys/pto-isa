@@ -84,6 +84,68 @@ PTO_INTERNAL void TMULA_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1&
     TMula<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
         dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());
 }
+
+#if defined(PTO_NPU_ARCH_A6)
+// A6 sign variants: fused multiply-accumulate with per-term negation.
+//   NegProduct=false, NegAcc=false → dst = src0*src1 + dst (same as TMULA)
+//   NegProduct=true,  NegAcc=false → dst = -(src0*src1) + dst (vfms)
+//   NegProduct=true,  NegAcc=true  → dst = -(src0*src1) - dst (vfnma)
+//   NegProduct=false, NegAcc=true  → dst = src0*src1 - dst   (vfnms)
+template <typename T, bool NegProduct, bool NegAcc>
+struct MulaSignOp {
+    PTO_INTERNAL static void TernInstr(
+        RegTensor<T>& reg_dst, RegTensor<T>& reg_src0, RegTensor<T>& reg_src1, MaskReg& preg)
+    {
+        if constexpr (NegProduct && !NegAcc) {
+            vfms(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        } else if constexpr (NegProduct && NegAcc) {
+            vfnma(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        } else if constexpr (!NegProduct && NegAcc) {
+            vfnms(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        } else {
+            vfma(reg_dst, reg_src0, reg_src1, preg, MODE_ZEROING);
+        }
+    }
+};
+
+template <
+    typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, unsigned ElementsPerRepeat,
+    unsigned BlockSizeElem, bool NegProduct, bool NegAcc>
+__tf__ PTO_INTERNAL OP_NAME(TMULA) OP_TYPE(element_wise) void TMulaSign(
+    typename TileDataDst::TileDType __out__ dst, typename TileDataSrc0::TileDType __in__ src0,
+    typename TileDataSrc1::TileDType __in__ src1, unsigned validRows, unsigned validCols,
+    VFImplKind version = VFImplKind::VFIMPL_DEFAULT)
+{
+    using T = typename TileDataDst::DType;
+    __ubuf__ T* dstPtr = (__ubuf__ T*)__cce_get_tile_ptr(dst);
+    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
+
+    TernaryInstr<
+        MulaSignOp<T, NegProduct, NegAcc>, TileDataDst, TileDataSrc0, TileDataSrc1, ElementsPerRepeat, BlockSizeElem>(
+        dstPtr, src0Ptr, src1Ptr, validRows, validCols, version);
+    return;
+}
+
+// Sign-variant overload: TMULA_IMPL<NegProduct, NegAcc>(dst, src0, src1).
+// Bool-first template head keeps it unambiguous with the deduced 3-type form above.
+template <bool NegProduct, bool NegAcc, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1>
+PTO_INTERNAL void TMULA_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1)
+{
+    static_assert(
+        std::is_same_v<typename TileDataDst::DType, half> || std::is_same_v<typename TileDataDst::DType, bfloat16_t> ||
+            std::is_same_v<typename TileDataDst::DType, float>,
+        "TMULA sign variants require float types");
+    using T = typename TileDataDst::DType;
+    TMulaCheck<TileDataDst, TileDataSrc0, TileDataSrc1>(dst, src0, src1);
+    constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
+    constexpr unsigned elementsPerRepeat = CCE_VL / sizeof(T);
+
+    TMulaSign<TileDataDst, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem, NegProduct, NegAcc>(
+        dst.data(), src0.data(), src1.data(), dst.GetValidRow(), dst.GetValidCol());
+}
+#endif
+
 } // namespace pto
 
 #endif
