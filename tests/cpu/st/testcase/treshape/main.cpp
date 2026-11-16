@@ -8,6 +8,7 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 */
 
+#include <cstring>
 #include <gtest/gtest.h>
 #include <pto/pto-inst.hpp>
 
@@ -42,4 +43,31 @@ TEST_F(TReshapeTest, AliasesBackingStorageInCpuSim)
 
     dst.data()[3] = -5.0f;
     EXPECT_FLOAT_EQ(src.data()[3], -5.0f);
+}
+
+TEST_F(TReshapeTest, AliasesBackingStorageAcrossElementTypes)
+{
+    using SrcTile = Tile<TileType::Vec, unsigned char, 2, 32>;
+    using DstTile = Tile<TileType::Vec, float, 1, 16>;
+    static_assert(
+        SrcTile::Numel * sizeof(unsigned char) == DstTile::Numel * sizeof(float),
+        "TRESHAPE test tiles must have equal byte sizes");
+
+    SrcTile src;
+    DstTile dst;
+    TASSIGN(src, 0);
+    TASSIGN(dst, SrcTile::GetSizeInBytes());
+
+    for (int i = 0; i < SrcTile::Numel; ++i) {
+        src.data()[i] = static_cast<unsigned char>(i + 1);
+    }
+
+    TRESHAPE(dst, src);
+
+    ASSERT_EQ(reinterpret_cast<void*>(dst.data()), reinterpret_cast<void*>(src.data()));
+
+    dst.data()[0] = 3.5f;
+    float probe;
+    std::memcpy(&probe, src.data(), sizeof(probe));
+    EXPECT_FLOAT_EQ(probe, 3.5f);
 }
