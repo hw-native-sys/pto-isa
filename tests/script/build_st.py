@@ -41,9 +41,11 @@ def build_project(run_mode, soc_version, auto_enable=False, testcase="all"):
         if auto_enable:
             cmake_cmd.append("-DAUTO_MODE=ON")
 
-        subprocess.run(
+        cmake_result = subprocess.run(
             cmake_cmd, cwd=build_dir, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
         )
+        if cmake_result.stdout:
+            print(cmake_result.stdout, end="" if cmake_result.stdout.endswith("\n") else "\n")
 
         # make_cmd = ["make", "VERBOSE=1"] # print compile log for debug
         make_cmd = ["make"]
@@ -76,17 +78,25 @@ def main():
     parser = argparse.ArgumentParser(description="执行st脚本")
     parser.add_argument("-r", "--run-mode", required=True, help="运行模式（如 sim or npu)")
     parser.add_argument(
-        "-v", "--soc-version", required=True, help="SOC版本 只支持 a3 / a5 / a6 / kirinX90 / kirin9030 / kirin9050"
+        "-v",
+        "--soc-version",
+        required=True,
+        help="SOC版本 只支持 a3 / a5 / a6 / a6r2 / kirinX90 / kirin9030 / kirin9050",
     )
     parser.add_argument("-t", "--testcase", required=True, help="需要执行的用例")
     parser.add_argument("-g", "--gtest_filter", required=False, help="可选 需要执行的具体case名")
     parser.add_argument("-a", "--auto-mode-enable", action="store_true", help="开启auto模式")
 
     args = parser.parse_args()
+    args.soc_version = args.soc_version.lower()
+    supported = {"a3", "a5", "a6", "a6r2", "kirinx90", "kirin9030", "kirin9050"}
+    if args.soc_version not in supported:
+        raise SystemExit(f"unsupported soc-version '{args.soc_version}', expect one of: {sorted(supported)}")
+
     default_soc_version = "Ascend910B1"
     if args.soc_version == "a5":
         default_soc_version = "Ascend950PR_9599"
-    elif args.soc_version == "kirinX90":
+    elif args.soc_version == "kirinx90":
         default_soc_version = "KirinX90"
     elif args.soc_version == "kirin9030":
         default_soc_version = "Kirin9030"
@@ -94,6 +104,8 @@ def main():
         default_soc_version = "Kirin9050"
     elif args.soc_version == "a6":
         default_soc_version = "dav_9201"
+    elif args.soc_version == "a6r2":
+        default_soc_version = "dav_9202"
     default_cases = "all"
     if args.gtest_filter != None:
         default_cases = args.gtest_filter
@@ -108,16 +120,21 @@ def main():
             target_dir = target_dir + "/npu/a2a3/src/st"
         elif args.soc_version == "a6":
             target_dir = target_dir + "/npu/a6/src/st"
+        elif args.soc_version == "a6r2":
+            target_dir = target_dir + "/npu/a6r2/src/st"
         elif args.soc_version == "kirin9030":
             target_dir = target_dir + "/npu/kirin9030/src/st"
-        elif args.soc_version == "kirinX90":
+        elif args.soc_version == "kirinx90":
             target_dir = target_dir + "/npu/kirinX90/src/st"
         elif args.soc_version == "kirin9050":
             target_dir = target_dir + "/npu/kirin9050/src/st"
         else:  # a5
             target_dir = target_dir + "/npu/a5/src/st"
 
+        print(f"soc_version: {args.soc_version}")
         print(f"target_dir: {target_dir}")
+        if not os.path.isdir(target_dir):
+            raise FileNotFoundError(f"ST tree not found for soc-version={args.soc_version}: {target_dir}")
         os.chdir(target_dir)
 
         # 执行构建

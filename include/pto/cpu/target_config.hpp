@@ -20,7 +20,8 @@
 #error "PTO CPU simulator target flags require __CPU_SIM"
 #endif
 #if defined(__NPU_ARCH__) || defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
-    defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90) || defined(PTO_NPU_ARCH_KIRIN9050)
+    defined(PTO_NPU_ARCH_A6R2) || defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRINX90) ||             \
+    defined(PTO_NPU_ARCH_KIRIN9050)
 #error "PTO CPU simulator target flags cannot be combined with NPU target flags"
 #endif
 #endif

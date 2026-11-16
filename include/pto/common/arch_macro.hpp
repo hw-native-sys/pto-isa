@@ -46,6 +46,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // A6 reuses the A5 communication backend (SDMA MTE fallback + URMA). RDMA is
 // intentionally left out for now. The CCU collective path also follows A5.
 #define PTO_URMA_SUPPORTED
+#elif __NPU_ARCH__ == 9202
+#define PTO_NPU_ARCH_A6R2
+// A6R2 (dav-920r2) reuses the A6 instruction implementations and communication
+// backend for now. Keep PTO_NPU_ARCH_A6 so existing A6 guards apply; the A6R2
+// entry point is include/pto/npu/a6r2/header.hpp (which forwards to a6).
+#define PTO_NPU_ARCH_A6
+#define PTO_URMA_SUPPORTED
 #endif
 
 #endif // ARCH_MACRO_HPP

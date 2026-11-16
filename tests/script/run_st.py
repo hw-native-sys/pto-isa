@@ -367,7 +367,10 @@ def main():
     parser = argparse.ArgumentParser(description="执行st脚本")
     parser.add_argument("-r", "--run-mode", required=True, help="运行模式（如 sim or npu)")
     parser.add_argument(
-        "-v", "--soc-version", required=True, help="SOC版本 只支持 a3 / a5 / a6 / kirin9030 / kirinX90 kirin9050"
+        "-v",
+        "--soc-version",
+        required=True,
+        help="SOC版本 只支持 a3 / a5 / a6 / a6r2 / kirin9030 / kirinX90 / kirin9050",
     )
     parser.add_argument("-t", "--testcase", required=True, help="需要执行的用例")
     parser.add_argument("-g", "--gtest_filter", required=False, help="可选 需要执行的具体case名")
@@ -390,6 +393,8 @@ def main():
         default_soc_version = "Kirin9050"
     elif args.soc_version == "a6":
         default_soc_version = "dav_9201"
+    elif args.soc_version == "a6r2":
+        default_soc_version = "dav_9202"
     default_cases = "all"
     if args.gtest_filter != None:
         default_cases = args.gtest_filter
@@ -416,6 +421,8 @@ def main():
             target_dir = target_dir + "/npu/a2a3/src/st"
         elif args.soc_version == "a6":
             target_dir = target_dir + "/npu/a6/src/st"
+        elif args.soc_version == "a6r2":
+            target_dir = target_dir + "/npu/a6r2/src/st"
         elif args.soc_version == "kirin9030":  # kirin9030 与 kirinX90 共享代码
             target_dir = target_dir + "/npu/kirin9030/src/st"
         elif args.soc_version == "kirinX90":
