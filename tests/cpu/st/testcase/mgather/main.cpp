@@ -201,3 +201,38 @@ ELEM2D_DYN_TEST(elem2d_dyn_float_3x3_in_3x8_64size, float, int32_t, 3, 3, 1, 64)
 ELEM2D_DYN_TEST(elem2d_dyn_half_8x16_in_8x16_4x32, aclFloat16, int32_t, 8, 16, 4, 32)
 ROW_TEST(row_dyn_int32_3x16_8rows, int32_t, int32_t, 3, 16, 8)
 ROW_TEST(row_dyn_half_4x32_16rows, aclFloat16, int32_t, 4, 32, 16)
+
+#ifdef PTO_CPU_SIM_TARGET_A2A3
+template <pto::GatherSync Sync, pto::GatherOOB Mode>
+void TestGatherSync()
+{
+    using namespace pto;
+    float values[32], output[16] = {};
+    for (int i = 0; i < 32; ++i) {
+        values[i] = static_cast<float>(i + 1);
+    }
+    int32_t indices[8] = {3, Mode == GatherOOB::Zero ? 4 : 1};
+    using Source = GlobalTensor<float, Shape<1, 1, 1, 4, 8>, Stride<32, 32, 32, 8, 1>>;
+    using Destination = GlobalTensor<float, Shape<1, 1, 1, 2, 8>, Stride<16, 16, 16, 8, 1>>;
+    using Indices = GlobalTensor<int32_t, Shape<1, 1, 1, 1, 8>, Stride<8, 8, 8, 8, 1>>;
+    Source src(values);
+    Destination out(output);
+    Indices ids(indices);
+    Tile<TileType::Vec, float, 2, 8> dst;
+    Tile<TileType::Vec, int32_t, 1, 8> idx;
+    TASSIGN(dst, 0);
+    TASSIGN(idx, 128);
+    TLOAD(idx, ids);
+    MGATHER<Coalesce::Row, Mode, Sync>(dst, src, idx);
+    TSTORE(out, dst);
+    for (int i = 0; i < 16; ++i) {
+        const int row = indices[i / 8];
+        EXPECT_EQ(output[i], row < 4 ? values[row * 8 + i % 8] : 0.0f);
+    }
+}
+
+TEST_F(MGATHERTest, DefaultSync) { TestGatherSync<pto::GatherSync::Default, pto::GatherOOB::Undefined>(); }
+TEST_F(MGATHERTest, AsyncSync) { TestGatherSync<pto::GatherSync::Async, pto::GatherOOB::Undefined>(); }
+TEST_F(MGATHERTest, DefaultSyncZeroOOB) { TestGatherSync<pto::GatherSync::Default, pto::GatherOOB::Zero>(); }
+TEST_F(MGATHERTest, AsyncSyncZeroOOB) { TestGatherSync<pto::GatherSync::Async, pto::GatherOOB::Zero>(); }
+#endif

@@ -207,8 +207,8 @@ PTO_INTERNAL void TREMS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType
     UnaryTileScalarOpImpl<TileDst, TileSrc, ElementOp::OP_REMS>(dst, src, scalar);
 }
 
-template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDst, typename TileSrc>
-PTO_INTERNAL void TREMS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar, TileDst& tmp)
+template <auto PrecisionType = RemSAlgorithm::DEFAULT, typename TileDst, typename TileSrc, typename TileTmp>
+PTO_INTERNAL void TREMS_IMPL(TileDst& dst, TileSrc& src, typename TileSrc::DType scalar, TileTmp& tmp)
 {
     (void)tmp;
     if (scalar != static_cast<TileSrc::DType>(0)) {
