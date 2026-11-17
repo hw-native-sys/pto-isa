@@ -107,6 +107,13 @@ PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
     };
 }
 
+template <Coalesce CMode, GatherOOB Mode, GatherSync Sync, typename TileDst, typename GlobalData, typename TileInd>
+PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
+{
+    // CPU instructions complete synchronously for either native synchronization policy.
+    MGATHER_IMPL<CMode, Mode>(dst, src, indexes);
+}
+
 template <Coalesce CMode, typename TileDst, typename GlobalData, typename TileInd>
 PTO_INTERNAL void MGATHER_IMPL(TileDst& dst, GlobalData& src, TileInd& indexes)
 {

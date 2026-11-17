@@ -142,6 +142,38 @@ TEST_F(TStoreTest, ND_float4_e1m2x2_1_1_1_2_128_1_1_1_2_128)
     test_tstore<0, float4_e1m2x2_t, 1, 1, 1, 2, 128, 1, 1, 1, 2, 128>();
 }
 
+TEST_F(TStoreTest, AtomicResetPreservesExplicitStoreMode)
+{
+    using TileData = pto::Tile<pto::TileType::Vec, float, 1, 8>;
+    using GlobalData = pto::GlobalTensor<float, pto::Shape<1, 1, 1, 1, 8>, pto::Stride<8, 8, 8, 8, 1>>;
+    float input[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    float output[8] = {};
+    TileData tile;
+    pto::TASSIGN(tile, 0);
+    GlobalData source(input);
+    GlobalData destination(output);
+    pto::TLOAD(tile, source);
+
+    set_atomic_none();
+    pto::TSTORE(destination, tile);
+    for (int i = 0; i < 8; ++i) {
+        EXPECT_EQ(output[i], input[i]);
+    }
+
+    set_atomic_none();
+    pto::TSTORE<TileData, GlobalData, pto::AtomicType::AtomicAdd>(destination, tile);
+    for (int i = 0; i < 8; ++i) {
+        EXPECT_EQ(output[i], 2 * input[i]);
+    }
+
+    set_atomic_none();
+    set_atomic_none();
+    pto::TSTORE(destination, tile);
+    for (int i = 0; i < 8; ++i) {
+        EXPECT_EQ(output[i], input[i]);
+    }
+}
+
 TEST_F(TStoreTest, DN_float4_e1m2x2_1_1_1_4_21_1_1_1_8_32)
 {
     test_tstore<1, float4_e1m2x2_t, 1, 1, 1, 4, 21, 1, 1, 1, 8, 32>();
