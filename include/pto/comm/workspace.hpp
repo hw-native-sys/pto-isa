@@ -71,6 +71,15 @@ struct RdmaTransportConfig {
     uint32_t qpNum{1};
 };
 
+#if PTO_COMM_WORKSPACE_URMA_SUPPORTED
+struct UrmaTransportConfig {
+    urma::UrmaLayout layout{urma::UrmaLayout::PER_PEER};
+    uint32_t aivCount{urma::kUrmaAutoAivCount};
+    uint32_t jettiesPerCore{1};
+    uint32_t sqDepth{0};
+};
+#endif
+
 struct WorkspaceRequest {
     void* hcclComm{nullptr};
     uint32_t rankId{0};
@@ -78,6 +87,9 @@ struct WorkspaceRequest {
     void* symmetricAddr{nullptr};
     uint64_t symmetricBytes{0};
     const RdmaTransportConfig* rdma{nullptr};
+#if PTO_COMM_WORKSPACE_URMA_SUPPORTED
+    const UrmaTransportConfig* urma{nullptr};
+#endif
 };
 
 struct Workspace {
@@ -85,6 +97,16 @@ struct Workspace {
     uint64_t bytes{0};
     DmaEngine engine{DmaEngine::SDMA};
     void* impl{nullptr};
+};
+
+// Controls what CreateWorkspace() does with a manager whose Init() failed.
+// Destroy is the historical behavior and remains the default. Retain hands the
+// partially initialized manager back through Workspace::impl so the caller can
+// abandon it instead of triggering Finalize()/aclrtDestroyStream() on a device
+// that is already in an error state.
+enum class WorkspaceFailurePolicy : int32_t {
+    Destroy = 0,
+    Retain = 1,
 };
 
 inline aclError PtoCommGetWorkspaceSize(DmaEngine engine, const WorkspaceRequest& req, uint64_t* requiredBytes)
@@ -100,8 +122,13 @@ inline aclError PtoCommGetWorkspaceSize(DmaEngine engine, const WorkspaceRequest
             return sdma::SdmaWorkspaceManager::GetWorkspaceSize(requiredBytes);
 #endif
 #if PTO_COMM_WORKSPACE_URMA_SUPPORTED
-        case DmaEngine::URMA:
-            return urma::UrmaWorkspaceManager::GetWorkspaceSize(req.rankNum, requiredBytes);
+        case DmaEngine::URMA: {
+            const auto* urmaConfig = req.urma;
+            return urma::UrmaWorkspaceManager::GetWorkspaceSize(
+                req.rankNum, requiredBytes, urmaConfig != nullptr ? urmaConfig->layout : urma::UrmaLayout::PER_PEER,
+                urmaConfig != nullptr ? urmaConfig->aivCount : urma::kUrmaAutoAivCount,
+                urmaConfig != nullptr ? urmaConfig->jettiesPerCore : 1U);
+        }
 #endif
 #if PTO_COMM_WORKSPACE_RDMA_SUPPORTED
         case DmaEngine::RDMA:
@@ -140,16 +167,40 @@ inline void FillWorkspace(Workspace* out, DmaEngine engine, void* addr, uint64_t
     out->impl = impl;
 }
 
+// Called after a manager's Init() failed. Destroy keeps the historical
+// behavior; Retain publishes the manager through `out` so the caller can
+// abandon it without running the manager destructor on a faulted device.
+template <typename Manager>
+inline aclError FailWorkspace(
+    Workspace* out, DmaEngine engine, Manager* manager, WorkspaceFailurePolicy policy, aclError error)
+{
+    if (policy == WorkspaceFailurePolicy::Retain) {
+        FillWorkspace(out, engine, manager->GetWorkspaceAddr(), manager->GetWorkspaceSize(), manager);
+    } else {
+        delete manager;
+    }
+    return error;
+}
+
 #if PTO_COMM_WORKSPACE_SDMA_SUPPORTED
-inline aclError CreateSdmaWorkspace(void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
+inline aclError CreateSdmaWorkspace(
+    void* workspaceAddr, uint64_t workspaceSize, Workspace* out, WorkspaceFailurePolicy failurePolicy)
 {
     auto* manager = new (std::nothrow) sdma::SdmaWorkspaceManager();
     if (manager == nullptr) {
         return ACL_ERROR_FAILURE;
     }
-    if (!manager->Init(workspaceAddr, workspaceSize) || manager->GetWorkspaceAddr() == nullptr) {
-        delete manager;
-        return ACL_ERROR_FAILURE;
+    bool initOk = false;
+    try {
+        initOk = manager->Init(workspaceAddr, workspaceSize) && manager->GetWorkspaceAddr() != nullptr;
+    } catch (...) {
+        // Init can throw after creating a subset of STARS streams. Route the
+        // exception through the same failure policy as a false return so a
+        // Retain caller still receives the partially initialized manager.
+        return FailWorkspace(out, DmaEngine::SDMA, manager, failurePolicy, ACL_ERROR_FAILURE);
+    }
+    if (!initOk) {
+        return FailWorkspace(out, DmaEngine::SDMA, manager, failurePolicy, ACL_ERROR_FAILURE);
     }
     FillWorkspace(out, DmaEngine::SDMA, manager->GetWorkspaceAddr(), manager->GetWorkspaceSize(), manager);
     return ACL_SUCCESS;
@@ -164,7 +215,8 @@ inline bool IsValidUrmaRequest(const WorkspaceRequest& req)
 }
 
 inline aclError CreateUrmaWorkspace(
-    const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
+    const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out,
+    WorkspaceFailurePolicy failurePolicy)
 {
     if (!IsValidUrmaRequest(req)) {
         return ACL_ERROR_INVALID_PARAM;
@@ -174,11 +226,24 @@ inline aclError CreateUrmaWorkspace(
         return ACL_ERROR_FAILURE;
     }
     auto comm = reinterpret_cast<HcclComm>(req.hcclComm);
-    if (!manager->Init(
-            comm, req.rankId, req.rankNum, req.symmetricAddr, req.symmetricBytes, workspaceAddr, workspaceSize) ||
-        manager->GetWorkspaceAddr() == nullptr) {
-        delete manager;
-        return ACL_ERROR_FAILURE;
+    const auto* urmaConfig = req.urma;
+    bool initOk = false;
+    try {
+        initOk = manager->Init(
+                     comm, req.rankId, req.rankNum, req.symmetricAddr, req.symmetricBytes, workspaceAddr, workspaceSize,
+                     urmaConfig != nullptr ? urmaConfig->layout : urma::UrmaLayout::PER_PEER,
+                     urmaConfig != nullptr ? urmaConfig->aivCount : urma::kUrmaAutoAivCount,
+                     urmaConfig != nullptr ? urmaConfig->jettiesPerCore : 1U,
+                     urmaConfig != nullptr ? urmaConfig->sqDepth : 0U) &&
+                 manager->GetWorkspaceAddr() != nullptr;
+    } catch (...) {
+        // Route an Init exception through the same failure policy as a false
+        // return so a Retain caller still receives the partially initialized
+        // manager instead of losing it to an escaping exception.
+        return FailWorkspace(out, DmaEngine::URMA, manager, failurePolicy, ACL_ERROR_FAILURE);
+    }
+    if (!initOk) {
+        return FailWorkspace(out, DmaEngine::URMA, manager, failurePolicy, ACL_ERROR_FAILURE);
     }
     FillWorkspace(out, DmaEngine::URMA, manager->GetWorkspaceAddr(), manager->GetWorkspaceSize(), manager);
     return ACL_SUCCESS;
@@ -218,7 +283,8 @@ inline rdma::WorkspaceConfig MakeRdmaWorkspaceConfig(const WorkspaceRequest& req
 }
 
 inline aclError CreateRdmaWorkspace(
-    const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
+    const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out,
+    WorkspaceFailurePolicy failurePolicy)
 {
     if (!IsValidRdmaRequest(req)) {
         return ACL_ERROR_INVALID_PARAM;
@@ -232,10 +298,18 @@ inline aclError CreateRdmaWorkspace(
         return ACL_ERROR_FAILURE;
     }
     manager->SetTraceId(req.rdma->traceId);
-    const rdma::WorkspaceInitResult result = manager->Init(MakeRdmaWorkspaceConfig(req), workspaceAddr, workspaceSize);
+    rdma::WorkspaceInitResult result = rdma::WorkspaceInitResult::DISABLED;
+    try {
+        result = manager->Init(MakeRdmaWorkspaceConfig(req), workspaceAddr, workspaceSize);
+    } catch (...) {
+        // Route an Init exception through the same failure policy as a
+        // non-READY result so a Retain caller still receives the manager.
+        return FailWorkspace(out, DmaEngine::RDMA, manager, failurePolicy, ACL_ERROR_FAILURE);
+    }
     if (result != rdma::WorkspaceInitResult::READY || manager->GetWorkspaceAddr() == nullptr) {
-        delete manager;
-        return result == rdma::WorkspaceInitResult::DISABLED ? ACL_ERROR_FEATURE_UNSUPPORTED : ACL_ERROR_FAILURE;
+        return FailWorkspace(
+            out, DmaEngine::RDMA, manager, failurePolicy,
+            result == rdma::WorkspaceInitResult::DISABLED ? ACL_ERROR_FEATURE_UNSUPPORTED : ACL_ERROR_FAILURE);
     }
     FillWorkspace(out, DmaEngine::RDMA, manager->GetWorkspaceAddr(), manager->GetWorkspaceSize(), manager);
     return ACL_SUCCESS;
@@ -245,7 +319,8 @@ inline aclError CreateRdmaWorkspace(
 } // namespace detail
 
 inline aclError CreateWorkspace(
-    DmaEngine engine, const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out)
+    DmaEngine engine, const WorkspaceRequest& req, void* workspaceAddr, uint64_t workspaceSize, Workspace* out,
+    WorkspaceFailurePolicy failurePolicy = WorkspaceFailurePolicy::Destroy)
 {
     (void)req;
     (void)workspaceAddr;
@@ -257,15 +332,15 @@ inline aclError CreateWorkspace(
     switch (engine) {
 #if PTO_COMM_WORKSPACE_SDMA_SUPPORTED
         case DmaEngine::SDMA:
-            return detail::CreateSdmaWorkspace(workspaceAddr, workspaceSize, out);
+            return detail::CreateSdmaWorkspace(workspaceAddr, workspaceSize, out, failurePolicy);
 #endif
 #if PTO_COMM_WORKSPACE_URMA_SUPPORTED
         case DmaEngine::URMA:
-            return detail::CreateUrmaWorkspace(req, workspaceAddr, workspaceSize, out);
+            return detail::CreateUrmaWorkspace(req, workspaceAddr, workspaceSize, out, failurePolicy);
 #endif
 #if PTO_COMM_WORKSPACE_RDMA_SUPPORTED
         case DmaEngine::RDMA:
-            return detail::CreateRdmaWorkspace(req, workspaceAddr, workspaceSize, out);
+            return detail::CreateRdmaWorkspace(req, workspaceAddr, workspaceSize, out, failurePolicy);
 #endif
         default:
             return ACL_ERROR_FEATURE_UNSUPPORTED;
