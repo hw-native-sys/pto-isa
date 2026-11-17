@@ -107,3 +107,37 @@ TEST_F(TREMSTest, case_half_32x512_16x256) { test_trems<aclFloat16, NUM_32, NUM_
 TEST_F(TREMSTest, case_bf16_16x256_16x256) { test_trems<bfloat16_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
 TEST_F(TREMSTest, case_bf16_32x256_16x256) { test_trems<bfloat16_t, NUM_32, NUM_256, NUM_16, NUM_256>(); }
 #endif
+
+template <typename T, int ScratchCols>
+void TestIndependentScratch()
+{
+    using DataTile = Tile<TileType::Vec, T, 1, 64>;
+    using ScratchTile = Tile<TileType::Vec, T, 1, ScratchCols>;
+    using GlobalData = GlobalTensor<T, Shape<1, 1, 1, 1, 64>, Stride<64, 64, 64, 64, 1>>;
+    const T values[8] = {-7, -6, -1, 0, 1, 6, 7, 17};
+    const T positive[8] = {2, 0, 2, 0, 1, 0, 1, 2};
+    const T negative[8] = {-1, 0, -1, 0, -2, 0, -2, -1};
+    T input[64], output[64] = {}, preserved[64] = {};
+    for (int i = 0; i < 64; ++i) {
+        input[i] = values[i % 8];
+    }
+    DataTile src, dst;
+    ScratchTile tmp;
+    TASSIGN(src, 0);
+    TASSIGN(dst, 256);
+    TASSIGN(tmp, 512);
+    GlobalData source(input), destination(output), sourceAfter(preserved);
+    TLOAD(src, source);
+    for (T scalar : {T{3}, T{-3}}) {
+        TREMS(dst, src, scalar, tmp);
+        TSTORE(destination, dst);
+        TSTORE(sourceAfter, src);
+        for (int i = 0; i < 64; ++i) {
+            EXPECT_EQ(output[i], scalar > 0 ? positive[i % 8] : negative[i % 8]);
+            EXPECT_EQ(preserved[i], input[i]);
+        }
+    }
+}
+
+TEST_F(TREMSTest, IndependentInt32Scratch) { TestIndependentScratch<int32_t, 144>(); }
+TEST_F(TREMSTest, IndependentFloatScratch) { TestIndependentScratch<float, 80>(); }

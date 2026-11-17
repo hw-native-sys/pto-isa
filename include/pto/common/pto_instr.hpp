@@ -2726,7 +2726,7 @@ PTO_INST RecordEvent MGATHER(TileDst& dst, GlobalData& src, TileInd& indexes, Wa
     return {};
 }
 
-#if defined(PTO_NPU_ARCH_A2A3)
+#if defined(PTO_NPU_ARCH_A2A3) || defined(PTO_CPU_SIM_TARGET_A2A3)
 template <
     Coalesce CMode, GatherOOB Mode, GatherSync Sync, typename TileDst, typename GlobalData, typename TileInd,
     typename... WaitEvents>
