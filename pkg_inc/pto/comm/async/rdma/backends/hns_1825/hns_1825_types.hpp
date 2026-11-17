@@ -39,7 +39,7 @@ struct SqContext {
     uint64_t bufAddr;
     uint64_t headAddr;
     uint64_t tailAddr;
-    uint64_t dbAddr;
+    uint64_t dbAddr; // Base of the 2 KB-aligned PI-on-chip SQ doorbell window.
     uint64_t amoAddr;
     uint64_t dbSwAddr;
     uint64_t stateAddr;
@@ -147,6 +147,7 @@ union SqDoorbell {
 constexpr uint32_t kWriteReadWqeSize = 64;
 constexpr uint32_t kWqebbSize = 64;
 constexpr uint32_t kDefaultCqeSize = 64;
+constexpr uint32_t kSqDoorbellWindowSize = 2048;
 constexpr uint32_t kPollCqThreshold = 10;
 constexpr uint64_t kMaxTransferBytes = 0x7fffffffULL;
 constexpr uint32_t kMaxSyncId = 7;

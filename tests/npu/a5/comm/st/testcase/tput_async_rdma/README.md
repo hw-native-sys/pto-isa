@@ -8,7 +8,7 @@ notification. The three targets reuse the same RDMA test kernel implementation.
 
 - An A5 environment with HNS1825 NICs and the matching driver/HCOMM stack
 - MPI and HCCL configured as described in the top-level [tests README](../../../../../../README.md)
-- Reachable RDMA NIC IPv4 addresses for all participating ranks
+- Reachable RDMA NIC IPv4 or IPv6 addresses, using one family across all participating ranks
 
 ## Build and Run
 
@@ -47,20 +47,21 @@ cannot announce arrival.
 
 ## Endpoint Discovery
 
-The bootstrap resolves each rank's physical device id and RDMA IPv4, then exchanges endpoint and registered-memory information through MPI. The local IPv4 lookup order is:
+The bootstrap resolves each rank's physical device id and RDMA IP, then exchanges endpoint and registered-memory information through MPI. The local IP lookup order is:
 
-1. RoCE IPv4 in fixed `/etc/hccl_rootinfo.json` for the physical device.
-2. HCOMM topology parsing of fixed `/var/run/ascend-topologyd/virtualTopology.xml`.
-3. The test-only IP variables below.
+1. Explicit `PTO_ROCE_LOCAL_IP`, then rank-ordered `PTO_ROCE_IPS`.
+2. RoCE addresses for the physical device in `/etc/hccl_rootinfo.json`.
+3. HCOMM topology discovery through `TopoAddrInfoGetSize` / `TopoAddrInfoGet`.
 
-The ST does not generate or modify either topology file and does not provide path overrides.
+The ST does not generate or modify topology files. Automatic IPv6 discovery depends on HCOMM topology support; use explicit IPs if discovery fails.
 
 | Variable | Description |
 |---|---|
 | `PTO_RDMA_BACKEND` | Configure-time selector; the only supported value is `HNS_1825`. |
+| `PTO_ROCE_ADDR_FAMILY` | RoCE address family: `auto` (default), `inet4`, or `inet6`. |
 | `PTO_ROCE_PHYIDS` | Optional comma-separated physical device ids indexed by MPI rank. |
-| `PTO_ROCE_LOCAL_IP` | Final fallback IPv4 for the current MPI process; set it separately for each rank when needed. |
-| `PTO_ROCE_IPS` | Final fallback list containing exactly one IPv4 per MPI rank, in rank order. |
+| `PTO_ROCE_LOCAL_IP` | Explicit IPv4/IPv6 for this MPI process; overrides topology discovery. |
+| `PTO_ROCE_IPS` | Explicit list containing exactly one IPv4/IPv6 per MPI rank, in rank order. |
 | `PTO_ROCE_BASE_PORT` | Common channel base port; default `60032`. |
 | `PTO_ROCE_VERBOSE` | Set to `1` for endpoint, MR, channel, and cleanup progress logs. |
 | `PTO_ISA_GLOBAL_LOG_LEVEL` | `0` DEBUG, `1` INFO, `2` WARNING, `3` ERROR (default); `4` disables PTO file/stdout business logs. |
@@ -68,12 +69,16 @@ The ST does not generate or modify either topology file and does not provide pat
 | `HCCL_RDMA_TC` | HCOMM traffic class; default `132`. |
 | `HCCL_RDMA_SL` | HCOMM service level; default `4`. |
 
-`PTO_ROCE_LOCAL_IP` takes precedence over `PTO_ROCE_IPS`. Both are ignored when root-info or virtual-topology lookup succeeds. All ranks must use the same base port and, when `PTO_ROCE_IPS` is used, the same rank-ordered list.
+`PTO_ROCE_LOCAL_IP` takes precedence over `PTO_ROCE_IPS`. All ranks must use the same address family, base port and, when `PTO_ROCE_IPS` is used, the same rank-ordered list.
+
+To use IPv6 only, set `export PTO_ROCE_ADDR_FAMILY=inet6` on every rank. Automatic discovery prefers IPv4, then IPv6; a forced family never falls back. This setting controls RoCE only. IPv6 literals must omit brackets, ports and scope suffixes; link-local IPv6 is unsupported, and IPv4-mapped IPv6 counts as IPv4.
 
 ## Troubleshooting
 
 - If CMake reports that RDMA is disabled, set `PTO_RDMA_BACKEND=HNS_1825` and reconfigure without `-w`.
-- If endpoint discovery fails, verify the physical device mapping and the RoCE IPv4 in root-info or virtual topology, then use the test-only IP fallback if required.
+- If endpoint discovery fails, verify the physical device mapping and the RoCE IPv4/IPv6 in root-info or virtual topology, then set explicit IPs if required.
 - If HCOMM cannot load the HNS1825 verbs provider from its default search path, set `IBV_EXTEND_DRIVERS` to the driver-provided `libhrn5-rdmav34.so`.
 - Set `PTO_ROCE_VERBOSE=1`, `PTO_ISA_GLOBAL_LOG_LEVEL=1`, and `PTO_ISA_SLOG_PRINT_TO_STDOUT=1` to inspect INFO-level endpoint, MR, channel, and cleanup logs in the terminal.
 - For log paths and file management rules, see [Host logging](../../../../../../../include/pto/comm/logger/README.md).
+
+Logs report the selected address family in `family` and network interface in `netdev`; `connect DONE` indicates RDMA initialization has completed.

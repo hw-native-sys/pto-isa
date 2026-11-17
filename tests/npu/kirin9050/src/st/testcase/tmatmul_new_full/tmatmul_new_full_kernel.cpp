@@ -606,7 +606,9 @@ __global__ AICORE void RunTMATMULVectorRelu(
     out = dstGlobal.data();
 }
 
-template <typename OutType, typename AType, typename BType, typename BiasType, int validK, int validN, bool isBias>
+template <
+    typename OutType, typename AType, typename BType, typename BiasType, int validK, int validN, bool isBias,
+    bool useTgemv = false>
 __global__ AICORE void RunGEMV(
     __gm__ OutType* out, __gm__ AType* src0, __gm__ BType* src1, __gm__ BiasType* src2, __gm__ uint64_t* quantVec)
 {
@@ -713,6 +715,8 @@ __global__ AICORE void RunGEMV(
 
     if constexpr (isBias) {
         TMATMUL(cMatTile, aMatTile, bTile, biasTile, cfg);
+    } else if constexpr (useTgemv) {
+        TGEMV(cMatTile, aMatTile, bTile, cfg);
     } else {
         TMATMUL(cMatTile, aMatTile, bTile, cfg);
     }
@@ -1208,11 +1212,16 @@ void LaunchGEMV(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantVec, v
         RunGEMV<int32_t, int8_t, int8_t, int32_t, 64, 64, false><<<1, nullptr, stream>>>(
             reinterpret_cast<int32_t*>(out), reinterpret_cast<int8_t*>(src0), reinterpret_cast<int8_t*>(src1), nullptr,
             reinterpret_cast<uint64_t*>(quantVec));
+    } else if constexpr (tilingKey == 3) {
+        RunGEMV<half, half, half, half, 64, 64, false, true><<<1, nullptr, stream>>>(
+            reinterpret_cast<half*>(out), reinterpret_cast<half*>(src0), reinterpret_cast<half*>(src1), nullptr,
+            reinterpret_cast<uint64_t*>(quantVec));
     }
 }
 
 template void LaunchGEMV<1>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantVec, void* stream);
 template void LaunchGEMV<2>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantVec, void* stream);
+template void LaunchGEMV<3>(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* quantVec, void* stream);
 
 template <int32_t tilingKey>
 void LaunchGEMVBIAS(uint8_t* out, uint8_t* src0, uint8_t* src1, uint8_t* src2, uint8_t* quantVec, void* stream)

@@ -536,31 +536,49 @@ PTO_INTERNAL void TMovCbufToUbNz2Nd(
 {
     using dstType = typename DstTile::DType;
     constexpr int32_t c0Size = BLOCK_BYTE_SIZE / sizeof(dstType);
-    constexpr uint32_t innerRows = SrcTile::InnerRows;
-    constexpr uint32_t innerCols = SrcTile::InnerCols;
-    constexpr uint32_t innerNumel = SrcTile::InnerNumel;
-    constexpr uint32_t blockNumRow = SrcTile::Rows / innerRows;
-    constexpr uint32_t copyBytes = c0Size * sizeof(dstType);
     constexpr uint32_t dstStride = GetTmovAccDstStride<DstTile, SrcTile>();
+    constexpr bool hwNz2NdSupported =
+        (sizeof(dstType) == 2) && (SrcTile::InnerRows == FRACTAL_NZ_ROW) && (SrcTile::InnerCols == FRACTAL_NZ_ROW);
     validCol = CeilAlignment(validCol, c0Size);
-    SetFixpNzPara(1, 1, 1, 0);
-    for (uint32_t row = 0; row < static_cast<uint32_t>(validRow); ++row) {
-        uint32_t srcBlockRow = row / innerRows;
-        uint32_t srcInnerRow = row % innerRows;
-        for (uint32_t colBlk = 0; colBlk < static_cast<uint32_t>(validCol) / c0Size; ++colBlk) {
-            uint32_t srcCol = colBlk * c0Size;
-            uint32_t srcBlockCol = srcCol / innerCols;
-            uint32_t srcInnerCol = srcCol % innerCols;
-            uint32_t srcElemOff =
-                (blockNumRow * srcBlockCol + srcBlockRow) * innerNumel + srcInnerRow * innerCols + srcInnerCol;
-            uint32_t srcByteOff = srcElemOff * sizeof(dstType);
-            uint32_t dstByteOff = (row * dstStride + colBlk * c0Size) * sizeof(dstType);
-            fix_cbuf_to_ubuf(
-                dstBytes + dstByteOff, srcBytes + srcByteOff, static_cast<uint64_t>(copyBytes),
-                static_cast<uint32_t>(copyBytes), fixp_trans_mode_t::NORMAL_DMA, 0, 1);
+
+    if constexpr (hwNz2NdSupported) {
+        // One hardware NZ2ND pass. FIXP_NZ_PARA carries ndNum, the per-row source
+        // stride (1 x C0) and the source column-block stride (SrcTile::Rows x C0).
+        // loop2 walks rows, loop3 walks a contiguous destination row, so only
+        // validRow rows are written.
+        constexpr uint16_t loop2SrcStride = 1;
+        SetFixpNzPara(1, loop2SrcStride, static_cast<uint16_t>(SrcTile::Rows), 0);
+        fix_cbuf_to_ubuf(
+            reinterpret_cast<__ubuf__ dstType*>(dstBytes), reinterpret_cast<__cbuf__ dstType*>(srcBytes),
+            static_cast<uint64_t>(dstStride * sizeof(dstType)), validCol, fixp_trans_mode_t::NZ2ND, 0, validRow);
+        SetFixpNzPara(0, 0, 0, 0);
+    } else {
+        // The hardware NZ2ND mode does not cover 4-byte payloads or non-16x16
+        // source fractals; keep the per-32B-block NORMAL_DMA path for those.
+        constexpr uint32_t innerRows = SrcTile::InnerRows;
+        constexpr uint32_t innerCols = SrcTile::InnerCols;
+        constexpr uint32_t innerNumel = SrcTile::InnerNumel;
+        constexpr uint32_t blockNumRow = SrcTile::Rows / innerRows;
+        constexpr uint32_t copyBytes = c0Size * sizeof(dstType);
+        SetFixpNzPara(1, 1, 1, 0);
+        for (uint32_t row = 0; row < static_cast<uint32_t>(validRow); ++row) {
+            uint32_t srcBlockRow = row / innerRows;
+            uint32_t srcInnerRow = row % innerRows;
+            for (uint32_t colBlk = 0; colBlk < static_cast<uint32_t>(validCol) / c0Size; ++colBlk) {
+                uint32_t srcCol = colBlk * c0Size;
+                uint32_t srcBlockCol = srcCol / innerCols;
+                uint32_t srcInnerCol = srcCol % innerCols;
+                uint32_t srcElemOff =
+                    (blockNumRow * srcBlockCol + srcBlockRow) * innerNumel + srcInnerRow * innerCols + srcInnerCol;
+                uint32_t srcByteOff = srcElemOff * sizeof(dstType);
+                uint32_t dstByteOff = (row * dstStride + colBlk * c0Size) * sizeof(dstType);
+                fix_cbuf_to_ubuf(
+                    dstBytes + dstByteOff, srcBytes + srcByteOff, static_cast<uint64_t>(copyBytes),
+                    static_cast<uint32_t>(copyBytes), fixp_trans_mode_t::NORMAL_DMA, 0, 1);
+            }
         }
+        SetFixpNzPara(0, 0, 0, 0);
     }
-    SetFixpNzPara(0, 0, 0, 0);
 }
 
 template <typename DstTile, typename SrcTile>

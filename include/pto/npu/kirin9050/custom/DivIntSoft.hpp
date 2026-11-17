@@ -167,13 +167,7 @@ template <typename U>
 PTO_INTERNAL void DivIEEE754HalfViaFloatImpl(
     RegTensor<half>& dst, RegTensor<half>& src0, RegTensor<half>& src1, MaskReg& mask)
 {
-    // Convert b16 predicate to b32 predicates for even/odd float elements.
-    // A half register holds 128 elements; a float register holds 64.
-    // punpack with LOWER extracts even-positioned bits (for PART_EVEN),
-    // HIGHER extracts odd-positioned bits (for PART_ODD).
-    MaskReg mask_b32_even, mask_b32_odd;
-    punpack(mask_b32_even, mask, LOWER);
-    punpack(mask_b32_odd, mask, HIGHER);
+    MaskReg mask_b32_all = pset_b32(PAT_ALL);
 
     // Convert half -> float (each half reg -> two float regs: even & odd parts)
     RegTensor<float> src0_f32_even, src0_f32_odd;
@@ -183,18 +177,18 @@ PTO_INTERNAL void DivIEEE754HalfViaFloatImpl(
     vfcvt(src1_f32_even, src1, PART_EVEN);
     vfcvt(src1_f32_odd, src1, PART_ODD);
 
-    // Float32 IEEE 754 high-precision division (bit-exact)
+    // Float32 IEEE 754 high-precision division (bit-exact) on all 64 lanes.
     RegTensor<float> dst_f32_even, dst_f32_odd;
-    DivIEEE754FloatImpl<float, RegTensor<float> >(dst_f32_even, src0_f32_even, src1_f32_even, mask_b32_even);
-    DivIEEE754FloatImpl<float, RegTensor<float> >(dst_f32_odd, src0_f32_odd, src1_f32_odd, mask_b32_odd);
+    DivIEEE754FloatImpl<float, RegTensor<float> >(dst_f32_even, src0_f32_even, src1_f32_even, mask_b32_all);
+    DivIEEE754FloatImpl<float, RegTensor<float> >(dst_f32_odd, src0_f32_odd, src1_f32_odd, mask_b32_all);
 
     // Convert float -> half (each pair of float regs -> one half reg)
     // PART_EVEN places 64 results at even half positions (odd positions = 0)
     // PART_ODD  places 64 results at odd half positions (even positions = 0)
     // vor combines them into the final half register.
     RegTensor<half> dst_even, dst_odd;
-    vcvt(dst_even, dst_f32_even, mask_b32_even, ROUND_R, RS_DISABLE, PART_EVEN);
-    vcvt(dst_odd, dst_f32_odd, mask_b32_odd, ROUND_R, RS_DISABLE, PART_ODD);
+    vcvt(dst_even, dst_f32_even, mask_b32_all, ROUND_R, RS_DISABLE, PART_EVEN);
+    vcvt(dst_odd, dst_f32_odd, mask_b32_all, ROUND_R, RS_DISABLE, PART_ODD);
     vor(dst, dst_even, dst_odd, mask);
 }
 

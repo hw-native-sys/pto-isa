@@ -21,6 +21,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -40,6 +41,78 @@ namespace pto {
 namespace comm {
 namespace rdma {
 namespace hns_1825 {
+namespace net {
+
+struct IpAddress {
+    int family{AF_UNSPEC};
+    in_addr v4{};
+    in6_addr v6{};
+    std::string text;
+};
+
+inline const char* familyName(int family)
+{
+    return family == AF_INET ? "IPv4" : (family == AF_INET6 ? "IPv6" : "auto");
+}
+
+// Canonicalize mapped IPv6 as IPv4: it must never satisfy an IPv6-only request.
+// Scoped/link-local IPv6 needs a scope ID which HCOMM's CommAddr cannot carry.
+inline bool parseIp(const std::string& text, IpAddress& out)
+{
+    if (text.find('\0') != std::string::npos) {
+        return false;
+    }
+    IpAddress ip;
+    char buffer[INET6_ADDRSTRLEN]{};
+    if (inet_pton(AF_INET, text.c_str(), &ip.v4) == 1) {
+        ip.family = AF_INET;
+    } else if (inet_pton(AF_INET6, text.c_str(), &ip.v6) == 1) {
+        if (IN6_IS_ADDR_LINKLOCAL(&ip.v6) || IN6_IS_ADDR_UNSPECIFIED(&ip.v6) || IN6_IS_ADDR_MULTICAST(&ip.v6)) {
+            return false;
+        }
+        if (IN6_IS_ADDR_V4MAPPED(&ip.v6)) {
+            std::memcpy(&ip.v4, ip.v6.s6_addr + 12, sizeof(ip.v4));
+            ip.family = AF_INET;
+        } else {
+            ip.family = AF_INET6;
+        }
+    } else {
+        return false;
+    }
+    if (ip.family == AF_INET) {
+        const uint32_t address = ntohl(ip.v4.s_addr);
+        if (address == INADDR_ANY || address == INADDR_BROADCAST || IN_MULTICAST(address)) {
+            return false;
+        }
+    }
+    const void* bytes = ip.family == AF_INET ? static_cast<const void*>(&ip.v4) : &ip.v6;
+    if (inet_ntop(ip.family, bytes, buffer, sizeof(buffer)) == nullptr) {
+        return false;
+    }
+    ip.text = buffer;
+    out = ip;
+    return true;
+}
+
+inline bool readFamily(int& family, std::string& error)
+{
+    const char* value = std::getenv("PTO_ROCE_ADDR_FAMILY");
+    if (value == nullptr || std::strcmp(value, "auto") == 0) {
+        family = AF_UNSPEC;
+    } else if (std::strcmp(value, "inet4") == 0) {
+        family = AF_INET;
+    } else if (std::strcmp(value, "inet6") == 0) {
+        family = AF_INET6;
+    } else {
+        error = "PTO_ROCE_ADDR_FAMILY must be auto, inet4 or inet6";
+        return false;
+    }
+    return true;
+}
+
+inline bool matchesFamily(const IpAddress& ip, int family) { return family == AF_UNSPEC || ip.family == family; }
+
+} // namespace net
 
 // HCOMM-based RoCE control plane for the HNS_1825 backend.
 //
@@ -52,6 +125,7 @@ namespace hns_1825 {
 // Teardown releases resources in reverse ownership order: channels, registered
 // memory and endpoint, then detaches the caller-owned device workspace.
 // The caller supplies workspace, peer network and symmetric-memory metadata.
+// PTO_ROCE_ADDR_FAMILY=auto|inet4|inet6 validates that all peers use one address family.
 // PTO_ROCE_VERBOSE controls optional progress logs; all diagnostics use the unified host logger.
 class WorkspaceManager {
 public:
@@ -67,7 +141,7 @@ public:
     static aclError GetWorkspaceSize(uint32_t rankCount, uint64_t* bytes, uint32_t qpNum = 1);
 
     // rankId/rankCount     — this PE and the total number of PEs.
-    // phyId/localIp        — this rank's physical device and RoCE IPv4.
+    // phyId/localIp        — this rank's physical device and RoCE IPv4 or IPv6.
     // basePort             — base port for the HCOMM channel handshake.
     // peerIps/peerPhyIds   — every rank's RoCE endpoint information.
     // peerSymAddrs         — every rank's registered communication-buffer base.
@@ -141,6 +215,9 @@ private:
     bool UnregisterMemory();
     bool DestroyEndpoint();
     bool HasOwnedResources() const;
+    static bool NormalizeRoceAddresses(
+        const std::string& localIp, const std::vector<std::string>& peerIps, std::string& local,
+        std::vector<std::string>& peers, std::string& error);
     static bool ValidateBasicInitArguments(
         uint32_t rankId, uint32_t rankCount, uint32_t phyId, const std::string& localIp, uint16_t basePort,
         const std::vector<std::string>& peerIps, const std::vector<uint32_t>& peerPhyIds,
@@ -166,6 +243,7 @@ private:
     bool BuildChannels();
     bool WaitChannelsReady();
     static uint8_t GetEnvU8(const char* name, uint8_t defaultValue, long maximumValue, bool requireMultipleOf4);
+    static bool SetCommAddress(const std::string& text, CommAddr& address);
     static void SetEndpointDescDefaults(EndpointDesc& description);
     static void SetChannelDescDefaults(HcommChannelDesc& description);
 

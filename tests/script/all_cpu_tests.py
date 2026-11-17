@@ -10,6 +10,7 @@
 # --------------------------------------------------------------------------------
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -20,6 +21,25 @@ from pathlib import Path
 from functools import partial
 
 from cpu_bfloat16 import detect_bfloat16_cxx, derive_cc_from_cxx
+
+
+def disable_core_dumps() -> None:
+    # Same rationale as tests/run_cpu.py: gtest death tests intentionally kill
+    # forked children, and with core dumps enabled every child leaves a core
+    # file in the build tree. Children inherit this process's limit. Lower the
+    # soft limit only (hard limit stays so cores can be re-enabled later);
+    # set PTO_KEEP_CORE=1 (exactly) to keep core files.
+    if os.environ.get("PTO_KEEP_CORE") == "1":
+        return
+    try:
+        import resource
+    except ImportError:
+        return
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_CORE)
+        resource.setrlimit(resource.RLIMIT_CORE, (0, hard))
+    except (OSError, ValueError) as exc:
+        logging.warning("could not lower RLIMIT_CORE: %s", exc)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -280,6 +300,7 @@ def run_standalone_tests(repo_root: Path, args: argparse.Namespace) -> None:
 
 
 def main() -> int:
+    disable_core_dumps()
     args = parse_arguments()
     repo_root = Path(__file__).resolve().parents[2]
 

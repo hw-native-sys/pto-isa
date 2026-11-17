@@ -22,9 +22,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 namespace comm {
 
+#ifndef PTO_URMA_SUPPORTED
 PTO_INTERNAL bool AsyncEvent::Wait(const AsyncSession& /*session*/) const { return true; }
 
 PTO_INTERNAL bool AsyncEvent::Test(const AsyncSession& /*session*/) const { return true; }
+#endif
 
 } // namespace comm
 

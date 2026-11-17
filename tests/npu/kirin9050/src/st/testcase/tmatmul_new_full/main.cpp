@@ -529,7 +529,24 @@ void tmatmul_gemv_test(uint32_t K, uint32_t N)
     ReadFile(GetGoldenDir() + "/golden.bin", cFileSize, golden.data(), cFileSize);
     ReadFile(GetGoldenDir() + "/output_z.bin", cFileSize, devFinal.data(), cFileSize);
 
-    bool ret = ResultCmp(golden, devFinal, 0.001f);
+    // GEMV only produces M valid rows. Data is stored in NZ layout as
+    // [nBlock][mBlock][16][c0]; rows beyond M inside each block are not written.
+    constexpr uint32_t c0 = 32 / sizeof(T);
+    const uint32_t nBlocks = N_aligned / c0;
+    const uint32_t validPerBlock = M * c0;
+    std::vector<T> goldenValid;
+    std::vector<T> devValid;
+    goldenValid.reserve(M * N_aligned);
+    devValid.reserve(M * N_aligned);
+    for (uint32_t blk = 0; blk < nBlocks; ++blk) {
+        const size_t base = static_cast<size_t>(blk) * M_aligned * c0;
+        for (uint32_t i = 0; i < validPerBlock; ++i) {
+            goldenValid.push_back(golden[base + i]);
+            devValid.push_back(devFinal[base + i]);
+        }
+    }
+
+    bool ret = ResultCmp(goldenValid, devValid, 0.001f);
 
     EXPECT_TRUE(ret);
 }
@@ -537,6 +554,8 @@ void tmatmul_gemv_test(uint32_t K, uint32_t N)
 TEST_F(TMATMULTest, case_gemv_1) { tmatmul_gemv_test<aclFloat16, aclFloat16, aclFloat16, 1>(64, 64); }
 
 TEST_F(TMATMULTest, case_gemv_2) { tmatmul_gemv_test<int32_t, int8_t, int8_t, 2>(64, 64); }
+
+TEST_F(TMATMULTest, case_gemv_tgemv_1) { tmatmul_gemv_test<aclFloat16, aclFloat16, aclFloat16, 3>(64, 64); }
 
 template <typename T, typename U, typename S, typename B, int32_t key>
 void tmatmul_gemv_bias_test(uint32_t K, uint32_t N)

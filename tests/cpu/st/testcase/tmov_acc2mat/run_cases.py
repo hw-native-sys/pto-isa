@@ -11,6 +11,7 @@
 
 import argparse
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -28,10 +29,14 @@ def main() -> int:
         parser.error(f"binary does not exist: {binary}")
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
-    if os.name == "posix":
+    if os.name == "posix" and os.environ.get("PTO_KEEP_CORE") != "1":
         import resource
 
-        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        try:
+            _, hard = resource.getrlimit(resource.RLIMIT_CORE)
+            resource.setrlimit(resource.RLIMIT_CORE, (0, hard))
+        except (OSError, ValueError) as exc:
+            logging.warning("could not lower RLIMIT_CORE: %s", exc)
     log_dir = args.log_dir.resolve() if args.log_dir else binary.parent.parent / "logs/tmov_acc2mat"
     log_dir.mkdir(parents=True, exist_ok=True)
     listing = subprocess.run(

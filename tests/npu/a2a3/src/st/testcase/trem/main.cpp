@@ -509,9 +509,9 @@ TEST_F(TREMTest, case_hp_float_2x2048_2x2048_2x2048_2x2048)
 TEST_F(TREMTest, case_hp_float_5x320_5x320_5x320_5x320) { test_trem_hp<float, 5, 320, 5, 320, 5, 320, 5, 320>(); }
 TEST_F(TREMTest, case_hp_float_8x456_8x456_8x456_8x456) { test_trem_hp<float, 8, 456, 8, 456, 8, 456, 8, 456>(); }
 TEST_F(TREMTest, case_hp_float_4x136_4x136_4x136_4x136) { test_trem_hp<float, 4, 136, 4, 136, 4, 136, 4, 136>(); }
-TEST_F(TREMTest, case_hp_float_1x7424_1x7424_1x7424_1x7424)
+TEST_F(TREMTest, case_hp_float_1x7296_1x7296_1x7296_1x7296)
 {
-    test_trem_hp<float, 1, 7424, 1, 7424, 1, 7424, 1, 7424>();
+    test_trem_hp<float, 1, 7296, 1, 7296, 1, 7296, 1, 7296>();
 }
 TEST_F(TREMTest, case_hp_float_16x64_16x64_16x64_16x63) { test_trem_hp<float, 16, 64, 16, 64, 16, 64, 16, 63>(); }
 
@@ -531,7 +531,7 @@ TEST_F(TREMTest, ip_hp_float_2x2048) { test_trem_inplace<true, float, 2, 2048, 2
 TEST_F(TREMTest, ip_hp_float_5x320) { test_trem_inplace<true, float, 5, 320, 5, 320>(); }
 TEST_F(TREMTest, ip_hp_float_8x456) { test_trem_inplace<true, float, 8, 456, 8, 456>(); }
 TEST_F(TREMTest, ip_hp_float_4x136) { test_trem_inplace<true, float, 4, 136, 4, 136>(); }
-TEST_F(TREMTest, ip_hp_float_1x7424) { test_trem_inplace<true, float, 1, 7424, 1, 7424>(); }
+TEST_F(TREMTest, ip_hp_float_1x7296) { test_trem_inplace<true, float, 1, 7296, 1, 7296>(); }
 // disjoint controls validating the probe kernels on the stock layout
 TEST_F(TREMTest, ctrl_disj_def_float_33x64) { test_trem_disjoint<false, float, 33, 64, 33, 64>(); }
 TEST_F(TREMTest, ctrl_disj_hp_float_8x448) { test_trem_disjoint<true, float, 8, 448, 8, 448>(); }

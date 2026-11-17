@@ -799,8 +799,31 @@ def print_test_summary(results) -> None:
     logging.info(_render_table(["Target", "Status", "Time"], results))
 
 
+def disable_core_dumps() -> None:
+    # Several CPU ST suites use gtest death tests, which validate fatal-signal
+    # handling in forked children. With core dumps enabled those children leave
+    # hundreds of core files (hundreds of MB) next to the test binaries, which
+    # makes a plain Quick Start run look like it crashed. Lower only the soft
+    # RLIMIT_CORE (the hard limit stays, so cores can be re-enabled for
+    # debugging) for the runner and its children; the death tests themselves
+    # still verify the same signals and messages. Set PTO_KEEP_CORE=1 (exactly)
+    # to skip this and keep core files.
+    if os.environ.get("PTO_KEEP_CORE") == "1":
+        return
+    try:
+        import resource
+    except ImportError:
+        return
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_CORE)
+        resource.setrlimit(resource.RLIMIT_CORE, (0, hard))
+    except (OSError, ValueError) as exc:
+        logging.warning("could not lower RLIMIT_CORE: %s", exc)
+
+
 def main() -> int:
     args = parse_arguments()
+    disable_core_dumps()
     setup_environment(args)
     repo_root = Path(__file__).resolve().parent
 
