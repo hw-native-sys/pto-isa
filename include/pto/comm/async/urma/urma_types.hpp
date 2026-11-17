@@ -70,6 +70,7 @@ static_assert(
     "A fixed SQE slot must fit one 64-bit word per lane of a single warp");
 
 constexpr uint32_t kDefaultInflightGatherEventsPerAiv = 64U;
+constexpr size_t kUrmaGatherAlignment = 16U;
 constexpr uint16_t kUrmaGatherInlineEvent = UINT16_MAX - 2U;
 constexpr uint16_t kUrmaGatherNoCompletionEvent = UINT16_MAX - 1U;
 constexpr uint16_t kUrmaGatherSlotEvent = UINT16_MAX;
@@ -160,13 +161,13 @@ enum class UrmaGatherSlotState : uint8_t {
     Retired = 2,
 };
 
-struct alignas(16) UrmaGatherAivRuntimeHeader {
+struct alignas(kUrmaGatherAlignment) UrmaGatherAivRuntimeHeader {
     uint32_t queueStageCapacity;
     uint32_t reserved[3];
 };
 static_assert(sizeof(UrmaGatherAivRuntimeHeader) == 16U, "URMA gather runtime header layout mismatch");
 
-struct alignas(16) UrmaGatherCompletionPoolState {
+struct alignas(kUrmaGatherAlignment) UrmaGatherCompletionPoolState {
     uint32_t allocateSequence;
     uint32_t reclaimSequence;
     uint32_t nextGeneration;
@@ -174,7 +175,7 @@ struct alignas(16) UrmaGatherCompletionPoolState {
 };
 static_assert(sizeof(UrmaGatherCompletionPoolState) == 16U, "URMA gather completion pool layout mismatch");
 
-struct alignas(16) UrmaGatherQueueStage {
+struct alignas(kUrmaGatherAlignment) UrmaGatherQueueStage {
     uint32_t publishedBbSequence;
     uint32_t nextBbSequence;
     uint32_t publishedCqeSequence;
@@ -188,7 +189,7 @@ struct alignas(16) UrmaGatherQueueStage {
 };
 static_assert(sizeof(UrmaGatherQueueStage) == 32U, "URMA gather queue stage layout mismatch");
 
-struct alignas(16) UrmaGatherQueueSubmission {
+struct alignas(kUrmaGatherAlignment) UrmaGatherQueueSubmission {
     uint32_t peer;
     uint16_t jettyIndex;
     uint16_t stageIndex;
@@ -205,7 +206,7 @@ struct alignas(16) UrmaGatherQueueSubmission {
 };
 static_assert(sizeof(UrmaGatherQueueSubmission) == 48U, "URMA gather queue submission layout mismatch");
 
-struct alignas(16) UrmaGatherSubmissionPlan {
+struct alignas(kUrmaGatherAlignment) UrmaGatherSubmissionPlan {
     uint32_t queueCount;
     uint32_t payloadSqeCount;
     uint64_t completionSlotAddress;
