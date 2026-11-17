@@ -60,6 +60,18 @@ const pipe_t PIPE_ALL = 6;
 const pipe_t PIPE_FIX = 7;
 inline void pipe_barrier(pipe_t pipe) { (void)pipe; }
 
+template <typename T>
+inline void st_dev(T value, T* addr, int)
+{
+    *addr = value;
+}
+
+template <typename T>
+inline T ld_dev(T* addr, int)
+{
+    return *addr;
+}
+
 #define aclFloat16ToFloat(x) ((float)(x))
 
 #if !defined(__COSTMODEL)

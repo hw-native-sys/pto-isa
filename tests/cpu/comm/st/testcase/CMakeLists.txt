@@ -15,6 +15,12 @@ function(pto_cpu_sim_comm_st NAME)
     endif()
     add_executable(${NAME} ${FILES_LIST})
     target_compile_options(${NAME} PRIVATE ${CMAKE_CPP_COMPILE_OPTIONS} -std=c++${CMAKE_CXX_STANDARD})
+    # CPU-SIM has no real URMA NIC; the CPU comm layer simulates it. Enable the
+    # URMA code paths only for the URMA testcases so the general CPU ST suite
+    # (which asserts PTO_URMA_SUPPORTED is off for CPU target selection) stays clean.
+    if(NAME MATCHES "urma")
+        target_compile_definitions(${NAME} PRIVATE PTO_URMA_SUPPORTED)
+    endif()
     target_include_directories(${NAME} PRIVATE
         ${PROJECT_SOURCE_DIR}/../../../../include/
         ${PROJECT_SOURCE_DIR}/../../../../include/common
@@ -39,6 +45,7 @@ set(ALL_TESTCASES
 tscatter
 tgather
 tget_async_urma
+tput_async_notify_urma
 tput_async_urma
 )
 

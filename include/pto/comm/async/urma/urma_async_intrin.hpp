@@ -17,6 +17,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/comm_types.hpp"
 #include "pto/comm/async_common/async_types.hpp"
 #include "pto/comm/async/urma/urma_types.hpp"
+#ifdef __CPU_SIM
+#include <cstring>
+#endif
 
 namespace pto {
 namespace comm {
@@ -470,6 +473,72 @@ AICORE inline bool UrmaPollCq(
 {
     return UrmaPollCqAt(session, peer, session.qpIdxBase, targetBb, targetCqe, blocking, completed);
 }
+
+#ifdef __CPU_SIM
+// CPU-SIM stand-in for the URMA NIC data path. On real hardware the NIC runs
+// asynchronously; on CPU-SIM it is simulated on the posting thread. The engine
+// calls this from its backpressure points so the simulated NIC consumes the
+// WQEs the core just committed and frees ring space, instead of waiting for a
+// completion that only this thread could ever produce.
+//
+// Consumes the posted region [wq->tailAddr, targetBb) of ONE jetty, performs
+// the data movement each SQE requests (WRITE local->remote, READ remote->local,
+// FAA signal-add), emits one CQE per SQE, and publishes both frontiers.
+AICORE inline bool CpuSimUrmaDrainNIC(
+    const AsyncSession& session, uint32_t peer, uint32_t jetty, __gm__ UrmaWQCtx* wq, __gm__ UrmaCqCtx* cq,
+    uint32_t targetBb, bool publishTails = true)
+{
+    (void)session;
+    (void)peer;
+    (void)jetty;
+    const uint32_t bbSize = 1U << wq->wqeShiftSize;
+    const uint32_t cqeSize = 1U << cq->cqeShiftSize;
+    uint32_t bb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+    uint32_t cqeSequence = ld_dev(reinterpret_cast<__gm__ uint32_t*>(cq->tailAddr), 0);
+    while (bb < targetBb) {
+        __gm__ UrmaSqeCtx* sqe = reinterpret_cast<__gm__ UrmaSqeCtx*>(wq->bufAddr + bbSize * (bb % wq->depth));
+        __gm__ UrmaSgeCtx* sge =
+            reinterpret_cast<__gm__ UrmaSgeCtx*>(reinterpret_cast<__gm__ uint8_t*>(sqe) + kUrmaSqeSizeBytes);
+        const uint64_t rmtAddr =
+            static_cast<uint64_t>(sqe->rmtAddrLOrTokenId) | (static_cast<uint64_t>(sqe->rmtAddrHOrTokenValue) << 32U);
+        __gm__ uint8_t* remote = reinterpret_cast<__gm__ uint8_t*>(rmtAddr);
+        __gm__ uint8_t* local = reinterpret_cast<__gm__ uint8_t*>(sge->va);
+        switch (static_cast<UrmaOpcode>(sqe->opcode)) {
+            case UrmaOpcode::WRITE:
+                std::memcpy(remote, local, sge->len);
+                bb += 1U;
+                break;
+            case UrmaOpcode::READ:
+                std::memcpy(local, remote, sge->len);
+                bb += 1U;
+                break;
+            case UrmaOpcode::FAA: {
+                __gm__ int32_t* immediate =
+                    reinterpret_cast<__gm__ int32_t*>(wq->bufAddr + bbSize * ((bb + 1U) % wq->depth));
+                const int32_t addValue = *immediate;
+                const int32_t newValue = *reinterpret_cast<__gm__ int32_t*>(remote) + addValue;
+                *reinterpret_cast<__gm__ int32_t*>(remote) = newValue;
+                *reinterpret_cast<__gm__ int32_t*>(local) = newValue;
+                bb += 2U;
+                break;
+            }
+            default:
+                return false;
+        }
+        __gm__ UrmaJfcCqeCtx* cqe =
+            reinterpret_cast<__gm__ UrmaJfcCqeCtx*>(cq->bufAddr + cqeSize * (cqeSequence & (cq->depth - 1U)));
+        cqe->owner = ((cqeSequence / cq->depth) & 1U) ^ 1U;
+        cqe->status = 0U;
+        cqe->substatus = 0U;
+        ++cqeSequence;
+    }
+    if (publishTails) {
+        st_dev(cqeSequence, reinterpret_cast<__gm__ uint32_t*>(cq->tailAddr), 0);
+        st_dev(targetBb, reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+    }
+    return true;
+}
+#endif // __CPU_SIM
 
 #include "pto/comm/async/urma/urma_async_post.hpp"
 

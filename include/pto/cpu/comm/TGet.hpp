@@ -14,9 +14,40 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/pto_tile.hpp>
 #include "pto/cpu/tile_offsets.hpp"
 #include "pto/cpu/parallel.hpp"
+#ifdef PTO_URMA_SUPPORTED
+#include "pto/comm/async/urma/urma_async_intrin.hpp"
+#include "pto/cpu/comm/urma_cpu_sim_nic.hpp"
+#include "pto/cpu/comm/urma_async_event.hpp"
+#endif
 
 namespace pto {
 namespace comm {
+
+// Total payload element count for an async transfer (flat 5-D product).
+template <typename GlobalData>
+PTO_INTERNAL uint64_t AsyncElementCount(GlobalData& tensor)
+{
+    return static_cast<uint64_t>(tensor.GetShape(GlobalTensorDim::DIM_0)) *
+           static_cast<uint64_t>(tensor.GetShape(GlobalTensorDim::DIM_1)) *
+           static_cast<uint64_t>(tensor.GetShape(GlobalTensorDim::DIM_2)) *
+           static_cast<uint64_t>(tensor.GetShape(GlobalTensorDim::DIM_3)) *
+           static_cast<uint64_t>(tensor.GetShape(GlobalTensorDim::DIM_4));
+}
+
+// Total payload bytes for an async transfer, with the same src/dst validation
+// the shared URMA path performs (TGetAsync.hpp / TPutAsyncCommonDetail.hpp):
+// non-null pointers and dst at least as large as src. The shared path uses
+// PTO_ASSERT, which compiles to a no-op in release, so use PTO_CPU_ASSERT here
+// to actually catch misuse on CPU-SIM (there is no NIC to reject a bad
+// descriptor, so an undersized dst would otherwise be written out of bounds).
+template <typename GlobalDstData, typename GlobalSrcData>
+PTO_INTERNAL uint64_t AsyncTransferSize(GlobalDstData& dst, GlobalSrcData& src)
+{
+    PTO_CPU_ASSERT(
+        src.data() != nullptr && dst.data() != nullptr, "URMA async: src and dst tensor pointers must not be null.");
+    PTO_CPU_ASSERT(AsyncElementCount(dst) >= AsyncElementCount(src), "URMA async: dst buffer too small for src data.");
+    return AsyncElementCount(src) * sizeof(typename GlobalSrcData::DType);
+}
 
 template <typename GlobalDstData, typename GlobalSrcData, AtomicType atomicType = AtomicType::AtomicNone>
 PTO_INTERNAL void Copy_Data(GlobalDstData& dstTensor, GlobalSrcData& srcTensor)
@@ -69,6 +100,29 @@ PTO_INTERNAL void TGET_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& pi
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>
 PTO_INTERNAL AsyncEvent TGET_ASYNC_IMPL(GlobalDstData& dst, GlobalSrcData& src, const AsyncSession& session)
 {
+    if constexpr (engine == DmaEngine::URMA) {
+#ifdef PTO_URMA_SUPPORTED
+        const uint64_t transferSize = AsyncTransferSize(dst, src);
+        const urma::detail::UrmaMultiPostResult result = urma::__urma_get_async(
+            reinterpret_cast<__gm__ uint8_t*>(dst.data()), reinterpret_cast<__gm__ uint8_t*>(src.data()), transferSize,
+            session);
+#ifdef __CPU_SIM
+        uint32_t peer = 0U;
+        uint32_t unusedBb = 0U;
+        urma::detail::DecodeHandle(result.handle, peer, unusedBb);
+        for (uint32_t j = 0U; j < result.jettyCount; ++j) {
+            if (!urma::detail::CpuSimUrmaDrainPost(
+                    session, peer, static_cast<uint32_t>(result.jettyBase) + j, result.targetBb[j])) {
+                return AsyncEvent::Failed(engine);
+            }
+        }
+#endif
+        return urma::MakeUrmaMultiJettyEvent(result);
+#else
+        static_assert(engine != DmaEngine::URMA, "TGET_ASYNC: URMA requires PTO_URMA_SUPPORTED.");
+        return AsyncEvent(0, engine);
+#endif
+    }
     Copy_Data(dst, src);
     return AsyncEvent(0, engine);
 }
@@ -77,6 +131,26 @@ template <DmaEngine engine, typename GlobalDstData, typename GlobalSrcData>
 PTO_INTERNAL AsyncEvent
 TGET_ASYNC_IMPL(GlobalDstData& dst, GlobalSrcData& src, const AsyncSession& session, uint32_t peer)
 {
+    if constexpr (engine == DmaEngine::URMA) {
+#ifdef PTO_URMA_SUPPORTED
+        const uint64_t transferSize = AsyncTransferSize(dst, src);
+        const urma::detail::UrmaMultiPostResult result = urma::__urma_get_async(
+            reinterpret_cast<__gm__ uint8_t*>(dst.data()), reinterpret_cast<__gm__ uint8_t*>(src.data()), transferSize,
+            session, peer);
+#ifdef __CPU_SIM
+        for (uint32_t j = 0U; j < result.jettyCount; ++j) {
+            if (!urma::detail::CpuSimUrmaDrainPost(
+                    session, peer, static_cast<uint32_t>(result.jettyBase) + j, result.targetBb[j])) {
+                return AsyncEvent::Failed(engine);
+            }
+        }
+#endif
+        return urma::MakeUrmaMultiJettyEvent(result);
+#else
+        static_assert(engine != DmaEngine::URMA, "TGET_ASYNC: URMA requires PTO_URMA_SUPPORTED.");
+        return AsyncEvent(0, engine);
+#endif
+    }
     return TGET_ASYNC_IMPL<engine>(dst, src, session);
 }
 
