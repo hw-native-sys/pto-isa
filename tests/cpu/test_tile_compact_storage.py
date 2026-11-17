@@ -21,6 +21,7 @@ does not exercise BF16.
 
 import argparse
 import json
+import logging
 import os
 from pathlib import Path
 import subprocess
@@ -41,8 +42,12 @@ def main():
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--aggregate-context", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if resource is not None:
-        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    if resource is not None and os.environ.get("PTO_KEEP_CORE") != "1":
+        try:
+            _, hard = resource.getrlimit(resource.RLIMIT_CORE)
+            resource.setrlimit(resource.RLIMIT_CORE, (0, hard))
+        except (OSError, ValueError) as exc:
+            logging.warning("could not lower RLIMIT_CORE: %s", exc)
     root = Path(__file__).resolve().parents[2]
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
