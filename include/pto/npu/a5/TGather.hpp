@@ -297,27 +297,32 @@ __tf__ AICORE void TGather(
     unsigned validCol)
 {
     using T = typename DstTileData::DType;
+    // fp8 types (e4m3/e5m2/hifloat8) have no vlds/vsqz/vstur/vstar overloads on A5, but mask-pattern
+    // gather is pure byte movement, so run them through the uint8_t path (both are 1-byte).
+    constexpr bool isFp8 =
+        std::is_same_v<T, float8_e4m3_t> || std::is_same_v<T, float8_e5m2_t> || std::is_same_v<T, hifloat8_t>;
+    using TWork = std::conditional_t<isFp8, uint8_t, T>;
     constexpr unsigned srcStride = SrcTileData::RowStride;
     constexpr unsigned dstStride = DstTileData::RowStride;
-    __ubuf__ typename DstTileData::DType* dstPtr = (__ubuf__ typename DstTileData::DType*)__cce_get_tile_ptr(dst);
-    __ubuf__ typename DstTileData::DType* srcPtr = (__ubuf__ typename DstTileData::DType*)__cce_get_tile_ptr(src);
-    constexpr uint16_t nElemPerVL = CCE_VL / sizeof(T);
+    __ubuf__ TWork* dstPtr = (__ubuf__ TWork*)__cce_get_tile_ptr(dst);
+    __ubuf__ TWork* srcPtr = (__ubuf__ TWork*)__cce_get_tile_ptr(src);
+    constexpr uint16_t nElemPerVL = CCE_VL / sizeof(TWork);
     uint16_t repeatTimes = CeilDivision(validCol, nElemPerVL);
 
     __VEC_SCOPE__
     {
-        RegTensor<T> srcReg;
+        RegTensor<TWork> srcReg;
         MaskReg loadMask;
         uint32_t maskValue = 0;
         if constexpr (gatherType == GatherAxis::GATHER_COL) {
             uint16_t stride = 0;
             constexpr auto distValue =
-                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+                std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<TWork, DistVST::DIST_NORM>())>();
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
                 stride = GetStrideByMask<maskPattern, srcStride>(i);
                 maskValue = validCol;
                 for (uint16_t j = 0; j < repeatTimes; ++j) {
-                    loadMask = CreatePredicate<T>(maskValue);
+                    loadMask = CreatePredicate<TWork>(maskValue);
                     vlds(srcReg, srcPtr, stride + j * nElemPerVL, NORM);
                     vsts(srcReg, dstPtr, i * dstStride + j * nElemPerVL, distValue, loadMask);
                 }
@@ -327,15 +332,15 @@ __tf__ AICORE void TGather(
             constexpr auto sprValue = std::integral_constant<::Spr, static_cast<::Spr>(SPR_AR_VALUE)>();
             sprclr(sprValue);
 
-            MaskReg dstPg0 = GetMaskVal<T, maskPattern>();
-            RegTensor<T> dstReg;
+            MaskReg dstPg0 = GetMaskVal<TWork, maskPattern>();
+            RegTensor<TWork> dstReg;
             MaskReg executeMask;
             UnalignReg ureg;
 
             for (uint16_t i = 0; i < (uint16_t)validRow; ++i) {
                 maskValue = validCol;
                 for (uint16_t j = 0; j < repeatTimes; ++j) {
-                    loadMask = CreatePredicate<T>(maskValue);
+                    loadMask = CreatePredicate<TWork>(maskValue);
                     vlds(srcReg, srcPtr + i * srcStride, j * nElemPerVL, NORM);
                     pand(executeMask, dstPg0, loadMask, loadMask);
                     vsqz(dstReg, srcReg, executeMask, MODE_STORED);

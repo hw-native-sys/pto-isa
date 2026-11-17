@@ -30,6 +30,14 @@ template <
     typename srcT, typename dstT, int kGRows_, int kGCols_, int kTRows_, int kTCols_, pto::MaskPattern maskPattern>
 void LaunchTGATHER(dstT* out, srcT* src, void* stream);
 
+// fp8 mask-pattern gather launchers (host passes raw byte buffers; kernel uses the fp8 device type).
+template <int ROW, int COL, pto::MaskPattern maskPattern>
+void LaunchTGATHERFp8E4M3(uint8_t* out, uint8_t* src, void* stream);
+template <int ROW, int COL, pto::MaskPattern maskPattern>
+void LaunchTGATHERFp8E5M2(uint8_t* out, uint8_t* src, void* stream);
+template <int ROW, int COL, pto::MaskPattern maskPattern>
+void LaunchTGATHERFp8HiF8(uint8_t* out, uint8_t* src, void* stream);
+
 template <typename T, int staticRows, int staticCols, int validRows, int validCols, pto::MaskPattern maskPattern>
 void LaunchTGATHERDynamic(T* out, T* src, void* stream);
 
@@ -152,7 +160,8 @@ TEST_F(TGATHERTest, case11_int64_u32_4x72_4x72) { test_gather_index<int64_t, uin
 
 TEST_F(TGATHERTest, case12_uint64_u32_4x72_4x72) { test_gather_index<uint64_t, uint32_t, uint64_t, 4, 72, 4, 72>(); }
 
-template <typename T, pto::MaskPattern PATTERN, uint32_t ROW, uint32_t COL, typename dstT = T>
+// fp8Mode: 0 = generic T launcher, 1 = fp8_e4m3, 2 = fp8_e5m2, 3 = hifloat8_t (host type is uint8_t)
+template <typename T, pto::MaskPattern PATTERN, uint32_t ROW, uint32_t COL, typename dstT = T, int fp8Mode = 0>
 void test_gather()
 {
     aclInit(nullptr);
@@ -180,7 +189,15 @@ void test_gather()
     ReadFile(GetGoldenDir() + "/x1_gm.bin", size, src0Host, size);
 
     aclrtMemcpy(src0Device, size, src0Host, size, ACL_MEMCPY_HOST_TO_DEVICE);
-    LaunchTGATHER<T, dstT, ROW, COL, ROW, COL, PATTERN>(dstDevice, src0Device, stream);
+    if constexpr (fp8Mode == 1) {
+        LaunchTGATHERFp8E4M3<ROW, COL, PATTERN>(dstDevice, src0Device, stream);
+    } else if constexpr (fp8Mode == 2) {
+        LaunchTGATHERFp8E5M2<ROW, COL, PATTERN>(dstDevice, src0Device, stream);
+    } else if constexpr (fp8Mode == 3) {
+        LaunchTGATHERFp8HiF8<ROW, COL, PATTERN>(dstDevice, src0Device, stream);
+    } else {
+        LaunchTGATHER<T, dstT, ROW, COL, ROW, COL, PATTERN>(dstDevice, src0Device, stream);
+    }
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstsize, dstDevice, dstsize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -383,6 +400,92 @@ TEST_F(TGATHERTest, case1_b8_P0100) { test_gather<int8_t, pto::MaskPattern::P010
 TEST_F(TGATHERTest, case1_b8_P1000) { test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL>(); }
 
 TEST_F(TGATHERTest, case1_b8_P1111) { test_gather<int8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL>(); }
+
+// fp8 mask-pattern cases (host buffers are byte-agnostic uint8_t; the kernel uses fp8 device types)
+TEST_F(TGATHERTest, case1_fp8e4m3_P0101)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL, uint8_t, 1>();
+}
+TEST_F(TGATHERTest, case1_fp8e4m3_P1010)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1010, HALF_P1010_ROW, HALF_P1010_COL, uint8_t, 1>();
+}
+TEST_F(TGATHERTest, case1_fp8e4m3_P0001)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0001, HALF_P0001_ROW, HALF_P0001_COL, uint8_t, 1>();
+}
+TEST_F(TGATHERTest, case1_fp8e4m3_P0010)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0010, HALF_P0010_ROW, HALF_P0010_COL, uint8_t, 1>();
+}
+TEST_F(TGATHERTest, case1_fp8e4m3_P0100)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0100, HALF_P0100_ROW, HALF_P0100_COL, uint8_t, 1>();
+}
+TEST_F(TGATHERTest, case1_fp8e4m3_P1000)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL, uint8_t, 1>();
+}
+TEST_F(TGATHERTest, case1_fp8e4m3_P1111)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL, uint8_t, 1>();
+}
+TEST_F(TGATHERTest, case1_fp8e5m2_P0101)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL, uint8_t, 2>();
+}
+TEST_F(TGATHERTest, case1_fp8e5m2_P1010)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1010, HALF_P1010_ROW, HALF_P1010_COL, uint8_t, 2>();
+}
+TEST_F(TGATHERTest, case1_fp8e5m2_P0001)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0001, HALF_P0001_ROW, HALF_P0001_COL, uint8_t, 2>();
+}
+TEST_F(TGATHERTest, case1_fp8e5m2_P0010)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0010, HALF_P0010_ROW, HALF_P0010_COL, uint8_t, 2>();
+}
+TEST_F(TGATHERTest, case1_fp8e5m2_P0100)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0100, HALF_P0100_ROW, HALF_P0100_COL, uint8_t, 2>();
+}
+TEST_F(TGATHERTest, case1_fp8e5m2_P1000)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL, uint8_t, 2>();
+}
+TEST_F(TGATHERTest, case1_fp8e5m2_P1111)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL, uint8_t, 2>();
+}
+TEST_F(TGATHERTest, case1_fp8hif8_P0101)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0101, HALF_P0101_ROW, HALF_P0101_COL, uint8_t, 3>();
+}
+TEST_F(TGATHERTest, case1_fp8hif8_P1010)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1010, HALF_P1010_ROW, HALF_P1010_COL, uint8_t, 3>();
+}
+TEST_F(TGATHERTest, case1_fp8hif8_P0001)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0001, HALF_P0001_ROW, HALF_P0001_COL, uint8_t, 3>();
+}
+TEST_F(TGATHERTest, case1_fp8hif8_P0010)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0010, HALF_P0010_ROW, HALF_P0010_COL, uint8_t, 3>();
+}
+TEST_F(TGATHERTest, case1_fp8hif8_P0100)
+{
+    test_gather<uint8_t, pto::MaskPattern::P0100, HALF_P0100_ROW, HALF_P0100_COL, uint8_t, 3>();
+}
+TEST_F(TGATHERTest, case1_fp8hif8_P1000)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1000, HALF_P1000_ROW, HALF_P1000_COL, uint8_t, 3>();
+}
+TEST_F(TGATHERTest, case1_fp8hif8_P1111)
+{
+    test_gather<uint8_t, pto::MaskPattern::P1111, HALF_P1111_ROW, HALF_P1111_COL, uint8_t, 3>();
+}
 
 // Compare-form TGATHER test: dst holds u32 indices, so golden is compared exactly (a float-tolerance
 // compare cannot see index diffs because any u32 index reinterpreted as f32 is a denormal).
