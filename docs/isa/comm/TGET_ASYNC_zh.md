@@ -29,11 +29,13 @@
     - `DmaEngine::RDMA`（Ascend 950PR/Ascend 950DT，仅NPU_ARCH 3510；当前网卡平台仅支持 HNS1825）
 
 > **注意（布局约束）**
-> 各引擎目前都**仅支持扁平连续的逻辑一维tensor**，不支持非一维或非连续布局。
+> 各引擎的 Tensor 重载目前都**仅支持扁平连续的逻辑一维tensor**，不支持非一维或非连续布局。
 
 ## C++内建接口
 
 声明于 `include/pto/comm/pto_comm_inst.hpp`：
+
+### 连续 Tensor 重载
 
 ```cpp
 // 全架构可用。URMA/RDMA 使用 session 中绑定的源rank。
@@ -49,6 +51,31 @@ PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
                                const AsyncSession &session, uint32_t peer,
                                WaitEvents &... events);
 ```
+
+### URMA Scatter 重载
+
+```cpp
+struct ScatterSegment {
+    __gm__ uint8_t *addr;        // 本地 GM 目的分段
+    uint32_t length;             // 字节数
+};
+
+struct ScatterSource {
+    __gm__ const uint8_t *addr;  // 连续远端 GM 源区间
+    uint32_t segCount;           // 消耗的目的分段数
+    uint32_t peer;               // 源 rank
+};
+
+template <DmaEngine engine = DmaEngine::URMA, typename... WaitEvents>
+PTO_INST AsyncEvent TGET_ASYNC(
+    __gm__ const ScatterSegment *destinationSegments, uint32_t destinationSegmentCount,
+    __gm__ const ScatterSource *sources, uint32_t sourceCount,
+    const AsyncSession &session, WaitEvents &... events);
+```
+
+该重载将连续远端 GM 区间读入本地 GM 分段，仅支持 Ascend 950 上的 URMA，不支持 CPU 仿真。
+每个 `sources[i]` 从 `peer` 指定的 rank 读取数据，按顺序填充接下来的 `segCount` 个目的分段；
+满足 `sum(sources[i].segCount) == destinationSegmentCount`，一次调用可读取多个 peer。
 
 `AsyncSession` 是引擎无关的会话对象。使用 `BuildAsyncSession<engine>()` 构建一次后，传递给所有异步调用和事件等待。模板参数 `engine` 在编译期选择DMA后端，使代码对未来引擎（CCU等）保持前向兼容。
 
@@ -86,9 +113,15 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
-// 不绑定源rank，配合带 peer 的指令重载使用。
+// 不绑定源rank，配合带 peer 的 Tensor 重载或 Scatter 重载使用。
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    AsyncSession &session);
+
+// 同上，并传入Scatter SIMT路径所需的UB scratch。
+template <DmaEngine engine, typename ScratchTile>
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    ScratchTile &scratchTile,
                                     AsyncSession &session);
 
 // 绑定源rank，配合不带 peer 的指令重载使用。
@@ -101,11 +134,13 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 
 | 参数 | 说明 |
 |---|---|
+| `scratchTile` | 由kernel分配的UB scratch tile，仅Scatter SIMT路径需要。|
 | `workspace` | 由调用方分配并传给主机侧 `UrmaWorkspaceManager` 初始化的GM指针。|
 | `destRankId` | 此会话绑定的远端PE rank id。对于 `TGET_ASYNC`，这是数据来源的源rank。|
 | `session` | 输出的 `AsyncSession` 对象。|
 
-URMA不需要 `scratchTile`——轮询通过 `ld_dev`/`st_dev` 硬件原语直接操作。
+连续 Tensor 重载不需要 `scratchTile`。Scatter 使用不绑定 rank 的 session 构造函数。
+Scatter SIMT 路径需要至少 `sizeof(urma::UrmaGatherSimtScratch)` 字节的 UB；未提供时回退到 Scalar 路径。
 
 构建时按当前AI Core划分该核可用的URMA队列。`workspace` 无效，或当前block数超出workspace配置的队列容量时，返回 `false`。
 
@@ -158,9 +193,21 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 
 ## 约束
 
+连续 Tensor 重载：
+
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
 - 源、目的tensor均须为**扁平连续的逻辑一维**，且目的容量不小于源元素数
+
+URMA Scatter 重载：
+
+- GM 描述符、分段长度、MR 范围、peer、Session 与生命周期要求同 [Gather PUT 约束](TPUT_ASYNC_zh.md#约束)，源/目的方向对调
+- 当前 GET 每个 READ SQE 使用一个 SGE（一个目的分段），PUT 每个 WRITE SQE 最多 12 个；因此相同分段数下，SQE 数、Scalar/SIMT 路径选择及 `OneCqe` 的 CQE 数可能不同
+- 目的区间在未完成操作间不得重叠
+- 参数校验或资源预留失败返回失败事件，Wait/Test 返回 `false`；不要单凭 `valid()` 判断结果
+
+通用约束：
+
 - SDMA workspace必须是由调用方分配并传给主机侧 `SdmaWorkspaceManager` 初始化的有效GM指针
 - URMA workspace必须是由调用方分配并传给主机侧 `UrmaWorkspaceManager` 初始化的有效GM指针
 - Session和workspace的生命周期必须覆盖相关Event的完成阶段
@@ -175,17 +222,20 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 
 ## scratchTile的作用
 
-`scratchTile` 不承载传输数据，仅作为SDMA控制元数据和完成标志轮询的临时UB工作区；RDMA路径下用于WQE/CQE控制数据。payload始终沿远端GM → DMA引擎 → 本地GM路径传输。
+`scratchTile` 不承载传输数据，仅作为SDMA控制元数据和完成标志轮询、URMA Scatter 下发及RDMA WQE/CQE控制数据的临时UB工作区。payload始终沿远端GM → DMA引擎 → 本地GM路径传输。
 
 类型要求：必须是UB/Vec位置的 `pto::Tile`（`ScratchTile::Loc == TileType::Vec`）。SDMA至少8字节，RDMA至少64字节，推荐 `Tile<TileType::Vec, uint8_t, 1, comm::sdma::UB_ALIGN_SIZE>`（256Byte）。
 
 ## 批量提交
 
-`TGET_ASYNC` 不加入 `AsyncSubmitMode` 批次，但在发起本次读取前，会先提交同一Session上由 `TPUT_ASYNC` 暂存的批次。URMA下该批次的目标rank须与本次调用的peer一致，否则返回失败Event。
+连续 Tensor `TGET_ASYNC` 不加入 `AsyncSubmitMode` 批次，但在发起本次读取前，会先提交同一Session上由 `TPUT_ASYNC` 暂存的批次。URMA下该批次的目标rank须与本次调用的peer一致，否则返回失败Event。
 
+URMA Scatter 与 Gather PUT 的批量提交规则相同，同一批次可包含多个 peer；Wait/Test 不会提交暂存批次。
 `submitMode` / `batchSize` 的完整语义参见 [TPUT_ASYNC 批量提交](TPUT_ASYNC_zh.md#批量提交)。
 
 ## 完成语义（Quiet语义）
+
+连续 Tensor 重载：
 
 - **SDMA**：每次`TGET_ASYNC`都会提交数据传输SQE和用于标记本次操作完成的flag SQE。对其返回的Event调用`Wait`或`Test`时，通过轮询对应flag判断该次`TGET_ASYNC`是否完成；完成后也能保证同一Session中此前提交的所有SDMA操作均已完成。
 - **URMA**：`TGET_ASYNC` 立即提交RDMA READ WQE并敲门铃。`Wait` 通过轮询Completion Queue（CQ）等待所有预期的CQE被消费。
@@ -200,6 +250,10 @@ RDMA操作涉及不同peer时，必须分别等待每个peer的最后一个Event
 同一Session最多可有64个未完成操作，超过后提交可能产生背压。
 
 wait成功后，所有已发出的 `dstGlobalData` 读入数据均已全部就绪。
+
+URMA Scatter 使用 `session.cfg.urma.cqePolicy`，默认 `OneCqe`，语义同 [Gather PUT 完成策略](TPUT_ASYNC_zh.md#urma-gather完成策略)。
+含负载的 `NoCqe` Event 不可等待，须由同一Session的后续 `Final` 确认；允许两个计数均为0的空 `Final` 调用。
+成功 Wait/Test 后，才可消费该Event覆盖的本地读取结果。
 
 ## SDMA并发与Session所有权
 
