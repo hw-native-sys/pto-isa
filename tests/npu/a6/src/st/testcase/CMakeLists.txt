@@ -168,6 +168,8 @@ set(ALL_TESTCASES
     tmov_nd2nz
     tmov_zz
     tquant_dn
+    tmula_sign
+    tmadd_sign
     tload_large_stride
     tpushpop_cv_nosplit
     tpushpop_vc_nosplit

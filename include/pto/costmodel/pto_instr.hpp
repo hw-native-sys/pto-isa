@@ -790,6 +790,19 @@ PTO_INST RecordEvent TMADD(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& s
     return RecordEvent{};
 }
 
+#if defined(PTO_NPU_ARCH_A6)
+// A6 sign-variant overload retaining the TMADD name: TMADD<NegProduct, NegAddend>(dst, src0, src1).
+template <
+    bool NegProduct, bool NegAddend, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
+    typename... WaitEvents>
+PTO_INST RecordEvent TMADD(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
+{
+    ::pto::detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(TMADD, PTO_TEMPLATE_ARGS(NegProduct, NegAddend), dst, src0, src1);
+    return RecordEvent{};
+}
+#endif
+
 template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
 PTO_INST RecordEvent TMULA(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
 {
@@ -797,6 +810,19 @@ PTO_INST RecordEvent TMULA(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& s
     MAP_INSTR_IMPL(TMULA, dst, src0, src1);
     return RecordEvent{};
 }
+
+#if defined(PTO_NPU_ARCH_A6)
+// A6 sign-variant overload retaining the TMULA name: TMULA<NegProduct, NegAcc>(dst, src0, src1).
+template <
+    bool NegProduct, bool NegAcc, typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1,
+    typename... WaitEvents>
+PTO_INST RecordEvent TMULA(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& src1, WaitEvents&... events)
+{
+    ::pto::detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(TMULA, PTO_TEMPLATE_ARGS(NegProduct, NegAcc), dst, src0, src1);
+    return RecordEvent{};
+}
+#endif
 
 template <
     auto PrecisionType = PowAlgorithm::DEFAULT, typename DstTile, typename BaseTile, typename ExpTile, typename TmpTile,
