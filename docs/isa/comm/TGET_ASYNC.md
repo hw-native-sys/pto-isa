@@ -29,11 +29,13 @@ Data flow:
     - `DmaEngine::RDMA` (Ascend950, NPU_ARCH 3510 only; currently supports only the HNS1825 NIC platform)
 
 > **Important (layout constraint)**
-> All engines currently support **only flat contiguous logical 1D tensors**; non-1D or non-contiguous layouts are not supported.
+> Tensor overloads in all engines currently support **only flat contiguous logical 1D tensors**; non-1D or non-contiguous layouts are not supported.
 
 ## C++ Intrinsic
 
 Declared in `include/pto/comm/pto_comm_inst.hpp`.
+
+### Contiguous Tensor Overload
 
 ```cpp
 // Available on all architectures. URMA/RDMA use the source rank bound in the session.
@@ -50,6 +52,32 @@ PTO_INST AsyncEvent TGET_ASYNC(GlobalDstData &dstGlobalData, GlobalSrcData &srcG
                                const AsyncSession &session, uint32_t peer,
                                WaitEvents &... events);
 ```
+
+### URMA Scatter Overload
+
+```cpp
+struct ScatterSegment {
+    __gm__ uint8_t *addr;        // local GM destination segment
+    uint32_t length;             // length in bytes
+};
+
+struct ScatterSource {
+    __gm__ const uint8_t *addr;  // contiguous remote GM source
+    uint32_t segCount;           // destination segments consumed
+    uint32_t peer;               // source rank
+};
+
+template <DmaEngine engine = DmaEngine::URMA, typename... WaitEvents>
+PTO_INST AsyncEvent TGET_ASYNC(
+    __gm__ const ScatterSegment *destinationSegments, uint32_t destinationSegmentCount,
+    __gm__ const ScatterSource *sources, uint32_t sourceCount,
+    const AsyncSession &session, WaitEvents &... events);
+```
+
+This URMA-only overload reads contiguous remote GM ranges into local GM segments on Ascend 950
+(no CPU simulation). Each `sources[i]` fills the next `segCount` destination segments in order;
+`peer` selects its source rank. Require `sum(sources[i].segCount) == destinationSegmentCount`.
+One call may read from multiple peers.
 
 `AsyncSession` is an engine-agnostic session object. Build once with
 `BuildAsyncSession<engine>()`, then pass to all async calls and event waits.
@@ -94,9 +122,15 @@ PTO_INTERNAL bool BuildAsyncSession(ScratchTile &scratchTile,
 
 ```cpp
 #ifdef PTO_URMA_SUPPORTED
-// No source rank bound; use with the instruction overload that takes `peer`.
+// No source rank bound; use with the tensor overload that takes `peer` or the Scatter overload.
 template <DmaEngine engine>
 PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    AsyncSession &session);
+
+// Same, plus the UB scratch required by the Scatter SIMT path.
+template <DmaEngine engine, typename ScratchTile>
+PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
+                                    ScratchTile &scratchTile,
                                     AsyncSession &session);
 
 // Binds the source rank; use with the instruction overload without `peer`.
@@ -109,11 +143,14 @@ PTO_INTERNAL bool BuildAsyncSession(__gm__ uint8_t *workspace,
 
 | Parameter | Description |
 |---|---|
+| `scratchTile` | UB scratch tile allocated by the kernel. Required only by the Scatter SIMT path. |
 | `workspace` | GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`. |
 | `destRankId` | Remote PE rank id bound to this session. For `TGET_ASYNC` this is the source rank. |
 | `session` | Output `AsyncSession` object. |
 
-URMA does not require `scratchTile` — polling uses `ld_dev`/`st_dev` hardware intrinsics directly.
+Contiguous tensor overloads do not require `scratchTile`. Scatter uses the rank-independent builders.
+The Scatter SIMT path needs at least `sizeof(urma::UrmaGatherSimtScratch)` bytes of UB;
+without it Scatter falls back to the scalar path.
 
 Construction divides the URMA queues available to the current AI core. It returns `false` when
 `workspace` is invalid, or when the current block count exceeds the queue capacity configured in the
@@ -169,9 +206,21 @@ if (comm::BuildAsyncSession<comm::DmaEngine::RDMA>(scratchTile, rdmaWorkspace, m
 
 ## Constraints
 
+Contiguous tensor overloads:
+
 - `GlobalSrcData::RawDType == GlobalDstData::RawDType`
 - `GlobalSrcData::layout == GlobalDstData::layout`
 - Source and destination tensors must both be **flat contiguous logical 1D**, and the destination capacity must be no smaller than the source element count
+
+URMA Scatter overload:
+
+- GM descriptor, segment-length, MR-range, peer, session and lifetime requirements follow [Gather PUT constraints](TPUT_ASYNC.md#constraints), with source and destination roles reversed
+- GET currently uses one SGE (one destination segment) per READ SQE; PUT packs up to 12 SGEs per WRITE SQE. For the same segment count, SQE counts, scalar/SIMT path selection and `OneCqe` CQE counts may therefore differ
+- Outstanding destination ranges must not overlap
+- Validation or resource-reservation failure returns a failed event whose Wait/Test return `false`; do not judge success by `valid()` alone
+
+General constraints:
+
 - SDMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `SdmaWorkspaceManager`
 - URMA workspace must be a valid GM pointer allocated by the caller and initialized by host-side `UrmaWorkspaceManager`
 - Keep the session and its workspace alive until all associated events have completed
@@ -187,7 +236,7 @@ Violations of the tensor constraints above are caught by `PTO_ASSERT`.
 ## scratchTile Role
 
 `scratchTile` does not carry transferred data. It only serves as temporary UB workspace for SDMA
-control metadata and completion flag polling, and for WQE/CQE control data on the RDMA path. The
+control metadata and completion flag polling, URMA Scatter submission, and RDMA WQE/CQE control data. The
 payload always follows the remote GM -> DMA engine -> local GM path.
 
 Type requirement: must be a `pto::Tile` located in UB/Vec (`ScratchTile::Loc == TileType::Vec`). At
@@ -196,14 +245,17 @@ least 8 bytes for SDMA and 64 bytes for RDMA; `Tile<TileType::Vec, uint8_t, 1, c
 
 ## Batch Submission
 
-`TGET_ASYNC` does not join an `AsyncSubmitMode` batch, but before issuing the read it submits any
+Contiguous-tensor `TGET_ASYNC` does not join an `AsyncSubmitMode` batch, but before issuing the read it submits any
 batch staged on the same session by `TPUT_ASYNC`. Under URMA, the target rank of that batch must
 match the peer of this call, otherwise a failed event is returned.
 
-For the full semantics of `submitMode` and `batchSize`, see
+URMA Scatter follows Gather PUT batching rules and may span multiple peers in one batch.
+Wait/Test does not submit a deferred batch. For the full semantics of `submitMode` and `batchSize`, see
 [TPUT_ASYNC Batch Submission](TPUT_ASYNC.md#batch-submission).
 
 ## Completion Semantics (Quiet Semantics)
+
+Contiguous tensor overloads:
 
 - **SDMA**: Each `TGET_ASYNC` submits data-transfer SQEs and flag SQEs that mark completion of that operation. `Wait` or `Test` on its returned event polls the corresponding flags to determine whether that `TGET_ASYNC` has completed; completion also guarantees that all earlier SDMA operations in the same session have completed.
 - **URMA**: `TGET_ASYNC` submits an RDMA READ WQE and rings the doorbell immediately. `Wait` polls the Completion Queue (CQ) until all expected CQEs have been consumed.
@@ -218,6 +270,11 @@ For RDMA operations targeting different peers, wait for the last event of each p
 Up to 64 operations may be outstanding in one session before submission can apply backpressure.
 
 After wait succeeds, all issued reads into `dstGlobalData` are complete.
+
+URMA Scatter uses `session.cfg.urma.cqePolicy`, defaulting to `OneCqe`, with the same semantics as
+[Gather PUT completion policies](TPUT_ASYNC.md#urma-gather-completion-policies).
+A non-empty `NoCqe` event cannot be waited on; a later `Final` in the same session must confirm it.
+The `Final` call may be empty with both counts zero. Consume covered local read results only after successful Wait/Test.
 
 ## SDMA Concurrency and Session Ownership
 

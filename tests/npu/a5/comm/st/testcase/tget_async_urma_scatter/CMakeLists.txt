@@ -1,0 +1,7 @@
+pto_comm_st(tget_async_urma_scatter)
+
+if(PTO_URMA_GATHER_FORCE_SCALAR)
+    target_compile_definitions(tget_async_urma_scatter_kernel PRIVATE PTO_URMA_GATHER_FORCE_SCALAR)
+elseif(PTO_URMA_GATHER_FORCE_SIMT)
+    target_compile_definitions(tget_async_urma_scatter_kernel PRIVATE PTO_URMA_GATHER_FORCE_SIMT)
+endif()

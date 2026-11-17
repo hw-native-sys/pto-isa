@@ -490,8 +490,7 @@ PTO_INST AsyncEvent TPUT_ASYNC(
     }
     urma::detail::UrmaRawGatherDestinationList destinationList{destinations};
     urma::detail::UrmaRawGatherSourceSegmentList sourceList{sourceSegments};
-    return urma::detail::SubmitUrmaGatherWrite(
-        destinationList, destinationCount, sourceList, sourceSegmentCount, session);
+    return urma::detail::SubmitUrmaGather(destinationList, destinationCount, sourceList, sourceSegmentCount, session);
 }
 
 #endif
@@ -575,6 +574,26 @@ PTO_INST AsyncEvent TPUT_ASYNC_NOTIFY(
 // TGET_ASYNC: Asynchronous remote read (GM-to-GM via DMA engine).
 // Build once with comm::BuildAsyncSession<engine>(), then pass to all calls.
 // ============================================================================
+
+#ifdef PTO_URMA_SUPPORTED
+template <DmaEngine engine = DmaEngine::URMA, typename... WaitEvents>
+PTO_INST AsyncEvent TGET_ASYNC(
+    __gm__ const ScatterSegment* destinationSegments, uint32_t destinationSegmentCount,
+    __gm__ const ScatterSource* sources, uint32_t sourceCount, const AsyncSession& session, WaitEvents&... events)
+{
+    static_assert(engine == DmaEngine::URMA, "Scatter TGET_ASYNC is supported only by URMA.");
+    WaitAllEvents(events...);
+    if ((destinationSegmentCount != 0U && destinationSegments == nullptr) ||
+        (sourceCount != 0U && sources == nullptr)) {
+        PTO_ASSERT(false, "Scatter TGET_ASYNC descriptor pointer is null for a non-zero count.");
+        return AsyncEvent::Failed(DmaEngine::URMA);
+    }
+    urma::detail::UrmaRawScatterSourceList sourceList{sources};
+    urma::detail::UrmaRawScatterDestinationList destinationList{destinationSegments};
+    return urma::detail::SubmitUrmaGather<urma::UrmaOpcode::READ>(
+        sourceList, sourceCount, destinationList, destinationSegmentCount, session);
+}
+#endif
 
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData, typename... WaitEvents>
 PTO_INST AsyncEvent TGET_ASYNC(
