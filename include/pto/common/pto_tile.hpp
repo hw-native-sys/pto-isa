@@ -13,6 +13,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/cpu/target_config.hpp>
 
+#if !defined(PTO_NPU_ARCH_LINX) && !defined(PTO_CPU_SIM_TARGET_LINX)
+
 #include <type_traits>
 
 #include <pto/common/arch_macro.hpp>
@@ -2039,5 +2041,9 @@ PTO_INTERNAL size_t GetTileOffset(int row, int col)
 
 PTO_CPU_TARGET_NAMESPACE_END
 } // namespace pto
+
+#else
+#include <pto/npu/linx/impl/common/pto_tile.hpp>
+#endif // Linx native type routing
 
 #endif

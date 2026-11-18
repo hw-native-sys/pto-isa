@@ -10,6 +10,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifndef _PTO_INCLUDE_NPU_TYPE_H_
 #define _PTO_INCLUDE_NPU_TYPE_H_
+
+#include <pto/cpu/target_config.hpp>
+#if !defined(PTO_NPU_ARCH_LINX) && !defined(PTO_CPU_SIM_TARGET_LINX)
 #include <cstdint>
 #if !defined(__CPU_SIM) && !defined(__COSTMODEL)
 #define AICORE [aicore]
@@ -499,5 +502,9 @@ typedef std::bfloat16_t bfloat16_t;
 typedef _Float16 bfloat16_t;
 #endif
 #endif
+
+#else
+#include <pto/npu/linx/impl/common/type.hpp>
+#endif // Linx native type routing
 
 #endif

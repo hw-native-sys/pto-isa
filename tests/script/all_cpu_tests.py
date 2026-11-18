@@ -167,6 +167,7 @@ TEST_SOURCES = [
 
 STANDALONE_TESTCASES = (
     "tile_compact_storage",
+    "linx_native",
 )
 
 

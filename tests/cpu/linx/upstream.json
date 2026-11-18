@@ -1,0 +1,30 @@
+{
+  "repository": "https://github.com/LinxISA/Linx-TileOP-API",
+  "branch": "linx",
+  "revision": "74d7326c521aeb1b21c52602b67c55b42b3563a3",
+  "spec_repository": "https://github.com/PTO-ISA/pto-spec",
+  "spec_revision": "42067d0f2890b8c013a868bd1247ebc6437b3179",
+  "headers": {
+    "common/debug_utils.hpp": "e9ce0807e29fc61d25ce430feb2cbaded51d418cd585c371184304edde6bf77b",
+    "common/global_iterator.hpp": "8ea0f18da8e76515925613e54867d11dabf6ac1e42cc215b55282286539301eb",
+    "common/layout.hpp": "1cc953846d61d9587e6ddf0932901395cedb45dc3a87ee101e5438d578179674",
+    "common/math_utils.hpp": "7dd581e158baac8b7260fa55cc9cc53610c2542b11d89b4db14224a0830945c1",
+    "common/pto_indexed_range.hpp": "d7234ee959f6a56b6f3c084df2b5a27a5fb45a798f834f6743ab2dd1fd76c165",
+    "common/pto_local_cube_assembly.hpp": "63604167b22b7a5aa7529ec6ca270fa716d4cf884a3a8c1720a81a7b122e8cea",
+    "common/pto_predicate.hpp": "8debd46595399160b67422f9f48183f026274af8d01d00b1cf08886812c91a94",
+    "common/pto_shared_nd.hpp": "05544bbc1b8b7b170bca88c0ef290a5e3c0fd299030b50fb58778b816d2c1a3b",
+    "common/pto_tile.hpp": "67ab0c7c84f774880bb074c9a988ae1649c7bbd60ea215b1b49db078a3898c29",
+    "common/pto_tile_region.hpp": "70ec7661031662b1eadeb91c4ed4c21507f698e080120ccf94584f2b8c94db1f",
+    "common/pto_tile_region_inline_asm.hpp": "74fb69437019aa41324a2b36d8921ac6c36475cacdd1cf5233140c80b0173522",
+    "common/pto_tileop.hpp": "0d7cf82bfd1e9e3259c3bdecc29f364b7bde9433ee3a2c68c003f5630a71f5c9",
+    "common/pto_tileop_api_revision.hpp": "f34245b83a8bafb0dd4ce296ee9ac9ea0fb86ea11350e9683635b0ff6cef85bb",
+    "common/tile_tensor_impl.hpp": "2feef561436e49fc0729afe92016180376f040ccd1248579374884308e13333d",
+    "common/tileop_api.hpp": "06a590b354f642ba30e981e8ca6fb2977db6e491f68583422e7fdecdcb052219",
+    "common/tileop_api_impl.hpp": "7a4bf481dd30b24a854f401f3656d5c071792bb52625154508b765c48ffe39dc",
+    "common/type.hpp": "3995afeef99dea03132ac68405d3ce32c67a216e2fb901074bc1d3905901bd80",
+    "jcore/linx_compat_types.hpp": "966c911d146febdf20bdc91c3d28fb0396c71311a92c4dc549fd16a015ae5cd1",
+    "jcore/template_asm.hpp": "378df3bdea48493380413b9a5c807dbc0f533e83c9f38c3fe45945d6c8a7c32b",
+    "jcore/type.hpp": "c29eb9df41e1933cb86be86a0e237f29463efc3c1fad4076ef04e18f79bbea66",
+    "jcore/utils.hpp": "bb7f66f646598809d318ad01ff5fc8e1e023be542dd3befe8c46776404364080"
+  }
+}
