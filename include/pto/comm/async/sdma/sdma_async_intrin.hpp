@@ -212,6 +212,26 @@ PTO_INTERNAL uint64_t __sdma_put_async_notify(
 
 namespace detail {
 
+PTO_INTERNAL bool SdmaTestEvent(uint64_t handle, const SdmaSession& session)
+{
+    uint64_t postId = 0ULL;
+    uint32_t queueCount = 0U;
+    if (!DecodeSdmaEventHandle(handle, postId, queueCount)) {
+        return false;
+    }
+    return SdmaEventCheck(postId, queueCount, session, false);
+}
+
+PTO_INTERNAL bool SdmaWaitEvent(uint64_t handle, const SdmaSession& session)
+{
+    uint64_t postId = 0ULL;
+    uint32_t queueCount = 0U;
+    if (!DecodeSdmaEventHandle(handle, postId, queueCount)) {
+        return false;
+    }
+    return SdmaEventCheck(postId, queueCount, session, true);
+}
+
 // AsyncSession overloads of the event checks used by AsyncEvent::Wait / Test.
 PTO_INTERNAL bool SdmaWaitEvent(uint64_t handle, const AsyncSession& session)
 {

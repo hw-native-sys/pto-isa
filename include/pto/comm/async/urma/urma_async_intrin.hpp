@@ -18,7 +18,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/comm/async_common/async_types.hpp"
 #include "pto/comm/async/urma/urma_types.hpp"
 #ifdef __CPU_SIM
-#include <cstring>
+#include "securec.h"
 #endif
 
 namespace pto {
@@ -364,117 +364,17 @@ AICORE inline void PublishCqAndWqTails(
     st_dev(targetBb, reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
 }
 
-AICORE inline __gm__ UrmaJfcCqeCtx* GetUrmaCqe(__gm__ UrmaCqCtx* cq, uint32_t sequence, uint32_t cqeSize)
-{
-    return reinterpret_cast<__gm__ UrmaJfcCqeCtx*>(cq->bufAddr + cqeSize * (sequence & (cq->depth - 1U)));
-}
-
-AICORE inline bool IsUrmaCqePrefixReady(__gm__ UrmaCqCtx* cq, uint32_t begin, uint32_t end, uint32_t cqeSize)
-{
-    for (uint32_t sequence = begin; sequence != end; ++sequence) {
-        __gm__ UrmaJfcCqeCtx* cqe = GetUrmaCqe(cq, sequence, cqeSize);
-        const bool validOwner = (sequence / cq->depth) & 1U;
-        DcciCachelines(reinterpret_cast<__gm__ uint8_t*>(cqe), sizeof(UrmaJfcCqeCtx));
-        if ((validOwner ^ cqe->owner) == 0U) {
-            return false;
-        }
-    }
-    return true;
-}
-
-// Same SYS_CNT read as AscendC::GetSystemCycle. This header is included from every
-// A5 kernel, and that declaration's header is only on the comm ST include path.
-AICORE inline uint64_t UrmaReadSystemCycle()
-{
-#if defined(__CCE_AICORE__)
-    uint64_t sysCnt = 0;
-    asm volatile("MOV %0, SYS_CNT\n" : "+l"(sysCnt));
-    return sysCnt;
-#else
-    return 0U;
-#endif
-}
-
-AICORE inline bool WaitForUrmaCqe(__gm__ UrmaCqCtx* cq, uint32_t sequence, uint32_t cqeSize, __gm__ UrmaJfcCqeCtx*& cqe)
-{
-    cqe = GetUrmaCqe(cq, sequence, cqeSize);
-    const bool validOwner = (sequence / cq->depth) & 1U;
-    const uint64_t startCycles = UrmaReadSystemCycle();
-    uint32_t polls = 0U;
-    DcciCachelines(reinterpret_cast<__gm__ uint8_t*>(cqe), sizeof(UrmaJfcCqeCtx));
-    while ((validOwner ^ cqe->owner) == 0U) {
-        if ((++polls & (kUrmaPollCycleStride - 1U)) == 0U &&
-            UrmaReadSystemCycle() - startCycles >= kUrmaPollCqTimeoutCycles) {
-            return false;
-        }
-        DcciCachelines(reinterpret_cast<__gm__ uint8_t*>(cqe), sizeof(UrmaJfcCqeCtx));
-    }
-    return true;
-}
-
-AICORE inline bool RetireUrmaCqePrefix(
-    __gm__ UrmaWQCtx* wq, __gm__ UrmaCqCtx* cq, uint32_t beginCqeSequence, uint32_t endCqeSequence, uint32_t cqeSize,
-    uint32_t& completedBbSequence)
-{
-    for (uint32_t sequence = beginCqeSequence; sequence != endCqeSequence; ++sequence) {
-        __gm__ UrmaJfcCqeCtx* cqe = nullptr;
-        if (!WaitForUrmaCqe(cq, sequence, cqeSize, cqe)) {
-            return false;
-        }
-        constexpr uint32_t kStatusShift = 8U;
-        const uint32_t cqeError =
-            (static_cast<uint32_t>(cqe->status) << kStatusShift) | static_cast<uint32_t>(cqe->substatus);
-        if (cqeError != 0U) {
-            return false;
-        }
-        completedBbSequence =
-            AdvanceUrmaCompletedBbSequence(completedBbSequence, static_cast<uint32_t>(cqe->entryIdx), wq->depth);
-    }
-    return true;
-}
-
-AICORE inline bool UrmaPollCqAt(
-    const AsyncSession& session, uint32_t peer, uint32_t jettyIdx, uint32_t targetBb, uint32_t targetCqe, bool blocking,
-    bool& completed)
-{
-    completed = false;
-    if (!ValidateUrmaSessionAt(session, peer, jettyIdx)) {
-        return false;
-    }
-    __gm__ UrmaCqCtx* cq = GetCqContextAt(session, peer, jettyIdx);
-    __gm__ UrmaWQCtx* wq = GetWqContextAt(session, peer, jettyIdx);
-    const uint32_t completedCqe = ld_dev(reinterpret_cast<__gm__ uint32_t*>(cq->tailAddr), 0);
-    if (SequenceReached(completedCqe, targetCqe)) {
-        const uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
-        completed = SequenceReached(completedBb, targetBb);
-        return true;
-    }
-    const uint32_t cqeSize = 1U << cq->cqeShiftSize;
-    if (!blocking && !IsUrmaCqePrefixReady(cq, completedCqe, targetCqe, cqeSize)) {
-        return true;
-    }
-    uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
-    if (!RetireUrmaCqePrefix(wq, cq, completedCqe, targetCqe, cqeSize, completedBb)) {
-        dsb(DSB_DDR);
-        UrmaPostSendUpdateInfo(ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->headAddr), 0), wq);
-        pipe_barrier(PIPE_ALL);
-        completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
-        if (!RetireUrmaCqePrefix(wq, cq, completedCqe, targetCqe, cqeSize, completedBb)) {
-            return false;
-        }
-    }
-    PublishCqAndWqTails(completedBb, targetCqe, cq, wq);
-    completed = SequenceReached(completedBb, targetBb);
-    return true;
-}
-
-AICORE inline bool UrmaPollCq(
-    const AsyncSession& session, uint32_t peer, uint32_t targetBb, uint32_t targetCqe, bool blocking, bool& completed)
-{
-    return UrmaPollCqAt(session, peer, session.qpIdxBase, targetBb, targetCqe, blocking, completed);
-}
-
 #ifdef __CPU_SIM
+AICORE inline void CpuSimUrmaWriteCqe(__gm__ UrmaCqCtx* cq, uint32_t cqeSize, uint32_t& cqeSequence)
+{
+    __gm__ UrmaJfcCqeCtx* cqe =
+        reinterpret_cast<__gm__ UrmaJfcCqeCtx*>(cq->bufAddr + cqeSize * (cqeSequence & (cq->depth - 1U)));
+    cqe->owner = ((cqeSequence / cq->depth) & 1U) ^ 1U;
+    cqe->status = 0U;
+    cqe->substatus = 0U;
+    ++cqeSequence;
+}
+
 // CPU-SIM stand-in for the URMA NIC data path. On real hardware the NIC runs
 // asynchronously; on CPU-SIM it is simulated on the posting thread. The engine
 // calls this from its backpressure points so the simulated NIC consumes the
@@ -505,11 +405,11 @@ AICORE inline bool CpuSimUrmaDrainNIC(
         __gm__ uint8_t* local = reinterpret_cast<__gm__ uint8_t*>(sge->va);
         switch (static_cast<UrmaOpcode>(sqe->opcode)) {
             case UrmaOpcode::WRITE:
-                std::memcpy(remote, local, sge->len);
+                (void)memcpy_s(remote, sge->len, local, sge->len);
                 bb += 1U;
                 break;
             case UrmaOpcode::READ:
-                std::memcpy(local, remote, sge->len);
+                (void)memcpy_s(local, sge->len, remote, sge->len);
                 bb += 1U;
                 break;
             case UrmaOpcode::FAA: {
@@ -525,12 +425,7 @@ AICORE inline bool CpuSimUrmaDrainNIC(
             default:
                 return false;
         }
-        __gm__ UrmaJfcCqeCtx* cqe =
-            reinterpret_cast<__gm__ UrmaJfcCqeCtx*>(cq->bufAddr + cqeSize * (cqeSequence & (cq->depth - 1U)));
-        cqe->owner = ((cqeSequence / cq->depth) & 1U) ^ 1U;
-        cqe->status = 0U;
-        cqe->substatus = 0U;
-        ++cqeSequence;
+        CpuSimUrmaWriteCqe(cq, cqeSize, cqeSequence);
     }
     if (publishTails) {
         st_dev(cqeSequence, reinterpret_cast<__gm__ uint32_t*>(cq->tailAddr), 0);

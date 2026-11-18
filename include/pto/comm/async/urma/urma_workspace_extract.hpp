@@ -92,7 +92,7 @@ public:
           notifyPoolSize_(params.notifyPoolSize),
           kUrmaSymMemTag(params.symMemTag),
           channelHandles_(channels.ChannelHandles()),
-          sharedPeerOrder_(channels.SharedPeerOrder()),
+          sharedPeerOrder_(channels.Routes().SharedPeerOrder()),
           channelsPerJetty_(channels.ChannelsPerJetty()),
           peerBaseAddrs_(peerBaseAddrs)
     {}

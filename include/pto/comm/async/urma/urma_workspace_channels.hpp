@@ -74,14 +74,13 @@ public:
         channelsPerJetty_ = 0;
     }
 
-    uint32_t RailCount() const { return routes_.RailCount(); }
+    UrmaWorkspaceRoutes& Routes() { return routes_; }
+    const UrmaWorkspaceRoutes& Routes() const { return routes_; }
+
     uint32_t ChannelsPerJetty() const { return channelsPerJetty_; }
-    const std::vector<uint32_t>& SharedPeerOrder() const { return routes_.SharedPeerOrder(); }
     const std::vector<ChannelHandle>& ChannelHandles() const { return channelHandles_; }
 
     bool BuildChannels() { return IsPerPeer() ? BuildChannelsPerPeer() : BuildChannelsSharedPoolOnRails(); }
-
-    bool BuildRailPlan() { return routes_.BuildRailPlan(); }
 
 private:
     using PeerLink = UrmaWorkspaceRoutes::PeerLink;
@@ -151,7 +150,7 @@ private:
 
     bool BuildChannelsSharedPoolOnRails()
     {
-        if (!routes_.HasRailPlan() && !BuildRailPlan()) {
+        if (!routes_.HasRailPlan() && !routes_.BuildRailPlan()) {
             return false;
         }
         if (AcquireJettiesOnPlan()) {
