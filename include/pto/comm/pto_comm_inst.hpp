@@ -575,7 +575,7 @@ PTO_INST AsyncEvent TPUT_ASYNC_NOTIFY(
 // Build once with comm::BuildAsyncSession<engine>(), then pass to all calls.
 // ============================================================================
 
-#ifdef PTO_URMA_SUPPORTED
+#if defined(PTO_URMA_SUPPORTED) && (defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)) && !defined(__CPU_SIM)
 template <DmaEngine engine = DmaEngine::URMA, typename... WaitEvents>
 PTO_INST AsyncEvent TGET_ASYNC(
     __gm__ const ScatterSegment* destinationSegments, uint32_t destinationSegmentCount,
