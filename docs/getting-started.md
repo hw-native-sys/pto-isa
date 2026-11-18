@@ -378,6 +378,10 @@ ulimit -n 65536
   ```bash
   chmod +x build.sh
   ./build.sh --run_simple --a5 --npu
+
+  # On a shared machine where only 1 card is available to you, pin the card count
+  # (otherwise the script uses every visible NPU).
+  ./build.sh --run_simple --a5 --npu --npu-count 1
   ```
 
 **Packaging:**

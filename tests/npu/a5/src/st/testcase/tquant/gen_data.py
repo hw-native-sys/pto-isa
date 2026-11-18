@@ -1200,3 +1200,14 @@ if __name__ == "__main__":
         os.chdir(case_name)
         gen_golden_data_tquant(case_name, param)
         os.chdir(original_dir)
+
+    # Boxed E8M0 views preserve bytes and share the ND numerical reference.
+    for rows, cols in ((16, 64), (32, 64), (16, 128)):
+        case_name = f"TQUANTTEST.case_mxfp8_boxed_e8m0_exp_{rows}x{cols}"
+        os.makedirs(case_name, exist_ok=True)
+        original_dir = os.getcwd()
+        try:
+            os.chdir(case_name)
+            fp32_to_mxfp8(rows, cols, mode="nd")
+        finally:
+            os.chdir(original_dir)

@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 #include <iostream>
@@ -77,8 +78,6 @@ void test_ttrans()
     size_t srcFileSize = srcTRows * srcTCols * sizeof(T);
     size_t dstFileSize = dstTRows * dstTCols * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -121,8 +120,6 @@ void test_ttrans()
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(dstFileSize / sizeof(T));
     std::vector<T> result(dstFileSize / sizeof(T));
@@ -209,4 +206,11 @@ TEST_F(TTRANSTest, case_f8e8m0_32x32_32x32_32x32)
 TEST_F(TTRANSTest, case_f8e8m0_64x64_64x64_22x63)
 {
     test_ttrans<int8_t, 64, 64, 64, 64, 22, 63, false, false, false, false, true>();
+}
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
 }

@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -81,8 +82,6 @@ std::string GetGoldenDir()
 template <int32_t testKey, typename AType, typename CType>
 void testTInsertAcc2Mat(int32_t m, int32_t k, int32_t n)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -116,8 +115,6 @@ void testTInsertAcc2Mat(int32_t m, int32_t k, int32_t n)
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<CType> golden(cFileSize / sizeof(CType));
     std::vector<CType> devFinal(cFileSize / sizeof(CType));
@@ -136,8 +133,6 @@ using LaunchFn2 = void (*)(uint64_t*, uint64_t*, void*);
 template <typename dType>
 void testSingleSrc(size_t srcByteSize, size_t dstByteSize, LaunchFn2 launch)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -162,8 +157,6 @@ void testSingleSrc(size_t srcByteSize, size_t dstByteSize, LaunchFn2 launch)
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<dType> golden(dstByteSize / sizeof(dType));
     std::vector<dType> devFinal(dstByteSize / sizeof(dType));
@@ -186,8 +179,6 @@ template <int32_t testKey, typename dType>
 void testTInsertND(int32_t rows, int32_t cols)
 {
     size_t byteSize = rows * cols * sizeof(dType);
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -212,8 +203,6 @@ void testTInsertND(int32_t rows, int32_t cols)
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<dType> golden(byteSize / sizeof(dType));
     std::vector<dType> devFinal(byteSize / sizeof(dType));
@@ -230,8 +219,6 @@ using NdVecLaunchFn = void (*)(uint8_t*, uint8_t*, uint8_t*, void*);
 template <typename dType>
 void testNDVec(size_t srcByteSize, size_t dstByteSize, NdVecLaunchFn launch)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -263,8 +250,6 @@ void testNDVec(size_t srcByteSize, size_t dstByteSize, NdVecLaunchFn launch)
     aclrtFreeHost(srcHost);
     aclrtFreeHost(dstInitHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<dType> golden(dstByteSize / sizeof(dType));
     std::vector<dType> devFinal(dstByteSize / sizeof(dType));
@@ -304,8 +289,6 @@ using LaunchFn3 = void (*)(uint64_t*, uint64_t*, uint64_t*, void*);
 template <typename dType>
 void testTwoSrc(size_t src1Bytes, size_t src2Bytes, size_t dstBytes, LaunchFn3 launch)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -336,8 +319,6 @@ void testTwoSrc(size_t src1Bytes, size_t src2Bytes, size_t dstBytes, LaunchFn3 l
     aclrtFreeHost(src1Host);
     aclrtFreeHost(src2Host);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<dType> golden(dstBytes / sizeof(dType));
     std::vector<dType> devFinal(dstBytes / sizeof(dType));
@@ -537,4 +518,11 @@ TEST_F(TInsertTest, case_compact_rowplusone_tmov_fp32_idx0_8)
 TEST_F(TInsertTest, case_compact_rowplusone_tmov_bf16_idx0_16)
 {
     testTInsertCompactTMov<4, uint16_t, 64, 48, 128, 128>(launchTInsertCompactRowPlusOneTMov<4>);
+}
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
 }

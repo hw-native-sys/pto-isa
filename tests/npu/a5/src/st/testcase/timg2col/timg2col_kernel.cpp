@@ -215,7 +215,7 @@ AICORE inline void runTIMG2COL_DW(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
         set_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
         wait_flag(PIPE_M, PIPE_MTE1, EVENT_ID0);
 #endif
-        TEXTRACT(aTile, aMatTile, i * baseK, 0);
+        TEXTRACT(aTile, aMatTile, i * baseK, 0); // aMatTile H*W is aligned to 16, will use load2dv2
         TIMG2COL<RightTile, TileMatBData, SetFmatrixMode::FMATRIX_B_MANUAL>(bTile, bMatTile, i * baseK, 0);
 #ifndef __PTO_AUTO__
         set_flag(PIPE_MTE1, PIPE_M, EVENT_ID0);
@@ -261,8 +261,8 @@ AICORE inline void runTIMG2COL_DX(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
     using GlobalDataSrc0 = GlobalTensor<U, ShapeDim5Src0, StridDim5Src0, Layout::NCHW>;
 
     constexpr int gStrideSrc1[5] = {
-        filterH * filterW * filterN * filterC0, filterW * filterN * filterC0, filterN * filterC0, filterC0, 1};
-    using ShapeDim5Src1 = pto::Shape<filterC1, filterH, filterW, filterN, filterC0>;
+        filterC1 * filterH * filterW * filterN * filterC0, filterN * filterC0, 16 * filterC0, filterC0, 1};
+    using ShapeDim5Src1 = pto::Shape<1, filterC1 * filterH * filterW, filterN / 16, 16, filterC0>;
     using StridDim5Src1 = pto::Stride<gStrideSrc1[0], gStrideSrc1[1], gStrideSrc1[2], gStrideSrc1[3], gStrideSrc1[4]>;
     using GlobalDataSrc1 = GlobalTensor<U, ShapeDim5Src1, StridDim5Src1, Layout::FRACTAL_Z>;
 
@@ -295,9 +295,9 @@ AICORE inline void runTIMG2COL_DX(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
     constexpr int bufferSizeB = filterC1 * filterH * filterW * filterN * filterC0;
     using TileMatBData = ConvTile<
         TileType::Mat, U, bufferSizeB, Layout::FRACTAL_Z,
-        pto::ConvTileShape<filterC1, filterH, filterW, filterN, filterC0>>;
+        pto::ConvTileShape<filterC1 * filterH * filterW, filterN / 16, 16, filterC0>>;
     TileMatBData bMatTile;
-    static_assert(bMatTile.totalDimCount == 5);
+    static_assert(bMatTile.totalDimCount == 4);
     TASSIGN(bMatTile, 0x40000);
 
     using LeftTile = TileLeft<U, M, NAligned, validM, N>;
@@ -318,7 +318,7 @@ AICORE inline void runTIMG2COL_DX(__gm__ T* out, __gm__ U* src0, __gm__ U* src1)
     wait_flag(PIPE_MTE2, PIPE_MTE1, EVENT_ID0);
 #endif
 
-    TMOV(aTile, aMatTile);
+    TMOV(aTile, aMatTile); // if aMatTile H*W is not aligned to 16, will use load3dv2
     bMatTile.SetTranspose(true);
     TMOV(bTile, bMatTile);
 

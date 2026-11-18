@@ -50,14 +50,41 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
 
 ## High Precision Algorithm (TREM)
 
-`RemAlgorithm::HIGH_PRECISION` runs the same 11-iteration base-$2^{24}$ digit-peeling and the same staged loop inversion as TREMS (see the [TREMS high precision section](TREMS.md#high-precision-algorithm) for the algorithm and the shared tiling budget). The differences all come from the divisor being a tensor:
+`RemAlgorithm::HIGH_PRECISION` runs the same 11-iteration base-$2^{24}$ digit-peeling and the same staged loop inversion as TREMS (see the [TREMS high precision section](TREMS.md#high-precision-algorithm) for the algorithm and the shared tiling budget). The differences all come from the divisor being a tensor (specified in the [appendix](#section_trem_appendix)):
 
 - **Per-pass divisor reload**: each pass re-reads `|src1|` from the original tile (`vabs` into the scratch `div` region), because a scaled divisor must not feed the next pass.
 - **Per-element subnormal regime**: with a scalar divisor, "is the divisor subnormal" is a host-side constant; here iteration 1 decides per element — where `|src1| <= minNormal`, divisor and state are lifted by $2^{24}$ (packed-mask compare + selects) and the post pass rescales exactly those lanes by $2^{-24}$.
 - **Exception fixups are per-element selects**: `src1 = ±inf → src0`; then (after it) `src0 = ±inf ∧ src1 = ±inf → NaN`; then `src0 = ±0` with an in-domain divisor `→ src0`.
-- **One more scratch region**: the unscaled `|src1|` row persists across a pass's iterations, so TREM's tmp is $192C$-based (784 floats at $C=1$, including the 512-float compensation window; it grows with $\min(C,8)$ for wider rows) versus TREMS's $128C$ — see the `tmpCols` cases equation in [TREMS](TREMS.md#tmp-occupancy).
+- **One more scratch region**: the unscaled `|src1|` row persists across a pass's iterations, so TREM's tmp is $192C$-based (912 floats at $C=1$, including the 640-float compensation window; it grows with $\min(C,8)$ for wider rows) versus TREMS's $128C$ — see the `tmpCols` cases equation in [TREMS](TREMS.md#tmp-occupancy).
 
-**Divisor domain**: `src1` elements must be nonzero and not NaN. $\pm\infty$ is fine ($x \bmod \pm\infty = x$). The guaranteed domain is $|y| \ge 1$ (or $\pm\infty$): the remainder sign correction probes $r \cdot y$, which underflows to $\pm 0$ when $|r \cdot y| < 2^{-149}$ and would then miss the correction — a limitation inherited from the A5 implementation. Smaller divisors follow the A5 iteration arithmetic including that limitation.
+**Divisor domain**: `src1` elements must be nonzero and not NaN. $\pm\infty$ is fine (floored semantics; see the special-value table in [TREMS](TREMS.md#high-precision-algorithm)). The guaranteed domain is $|y| \ge 1$ (or $\pm\infty$): the remainder sign correction probes $r \cdot y$, which underflows to $\pm 0$ when $|r \cdot y| < 2^{-149}$ and would then miss the correction — a limitation inherited from the A5 implementation. Smaller divisors follow the A5 iteration arithmetic including that limitation.
+
+## Supported Tile Sizes (A2/A3)
+
+TREM carries one more `tmp` region than TREMS (the unscaled `|src1|` row), and the int DEFAULT path routes all float-domain conversions through `tmp` (both input tiles read-only). The `tmp` width per mode, with $R$ the dst row stride in elements, $\mathit{maskF} = 8\lceil R/256\rceil$ and $C = \max(\lfloor N/64 \rfloor, 1)$:
+
+$$
+\mathit{tmpCols}(N)=
+\begin{cases}
+R+8\lceil R/256\rceil+8, & \text{DEFAULT},\ \texttt{float} \\[2pt]
+3R+8\lceil R/256\rceil+8, & \text{DEFAULT},\ \texttt{int32\_t} \\[2pt]
+272+640, & \text{HIGH\_PRECISION},\ C=1 \\[2pt]
+192C+8\lceil C/4\rceil+8+640\min(C,8), & \text{HIGH\_PRECISION},\ C\ge 2
+\end{cases}
+$$
+
+The $C=1$ HIGH_PRECISION branch folds in the 64-float per-vector state buffer; the $640\min(C,8)$ term is the batched compensation window of the exact final iteration (8-bit Veltkamp split, three 8-bit quotient digits, result-finiteness guard; see TREMS.md for the full description). Widest valid `N` per row count under the 192 KB budget and `validCols/64 <= 255`:
+
+| rows | TREM float | TREM int32 | TREM HP |
+|---|---|---|---|
+| 1 | 12160 | 8128 | 7296 |
+| 2 | 6976 | 5440 | 4864 |
+| 4 | 3712 | 3264 | 2880 |
+| 8 | 1920 | 1792 | 1600 |
+| 16 | 960 | 960 | 832 |
+| 32 | 448 | 448 | 448 |
+
+Wider tiles must be split into multiple calls. In-place `dst == src0` is supported in both precision modes (`src1` must remain disjoint).
 
 ## Constraints
 
@@ -67,7 +94,7 @@ PTO_INST RecordEvent TREM(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &sr
     - Tile location must be vector (`TileData::Loc == TileType::Vec`).
     - Runtime: `src0`, `src1` and `dst` tiles should have the same `validRow/validCol`.
     - In-place operation (`dst` assigned over `src0`) is supported in both precision modes; `src1` must stay disjoint from `dst`.
-    - `tmp` must have at least 1 valid row and `TileDataDst::RowStride + 8 * ceil(TileDataDst::RowStride / 256) + 8` valid columns, for intermediate results, a packed comparison mask aligned to 32 bytes, and a 32-byte address buffer (DEFAULT path). The HIGH_PRECISION path needs the larger $192C$ scratch contract from the [TREMS tiling budget](TREMS.md#high-precision-tiling-budget).
+    - `tmp` must have at least 1 valid row and `TileDataDst::RowStride + 8 * ceil(TileDataDst::RowStride / 256) + 8` valid columns for `float` (intermediate results, a packed comparison mask aligned to 32 bytes, and a 32-byte address buffer), or `3 * TileDataDst::RowStride + 8 * ceil(TileDataDst::RowStride / 256) + 8` for `int32_t` (the int path routes its float-domain dividend, divisor and quotient chain through `tmp`; both input tiles are read-only). The HIGH_PRECISION path needs the larger $192C$ scratch contract from the [TREMS tiling budget](TREMS.md#high-precision-tiling-budget).
 - **Implementation checks (A5)**:
     - `TileData::DType` must be one of: `half`, `float`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t`.
     - Tile layout must be row-major (`TileData::isRowMajor`).
@@ -98,9 +125,21 @@ void example() {
   TREM(dst, src0, src1, tmp);
 
   // High precision (float only): tmp sized per the TREMS tiling budget,
-  // e.g. 8x448 tiles -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 + 512*7 = 4952
+  // e.g. 8x448 tiles -> C = 7, tmpCols = 192*7 + 8*ceil(7/4) + 8 + 640*7 = 5848
   Tile<TileType::Vec, float, 8, 448> hpDst, hpSrc0, hpSrc1;
-  Tile<TileType::Vec, float, 1, 4952> hpTmp;
+  Tile<TileType::Vec, float, 1, 5848> hpTmp;
   TREM<RemAlgorithm::HIGH_PRECISION>(hpDst, hpSrc0, hpSrc1, hpTmp);
 }
 ```
+
+## Appendix: TREM under a Vector Divisor (A2/A3)<a name="section_trem_appendix"></a>
+
+The mathematical specification of the shared high-precision core — semantics and domain, the base-$2^{24}$ digit-peeling ladder, the exact compensated final iteration, the finiteness guard, the subnormal regime and the post pass — is given in the [TREMS appendix](TREMS.md#section_hp_appendix) and is not repeated here. This appendix specifies what changes when the divisor is a tensor.
+
+- **Per-pass divisor reload.** Every pass re-reads the divisor as $b_i = \mathrm{RN}(|\mathit{src1}| \cdot 2^{e(i)})$ from the *original* tile (`vabs` + power-of-two scalings), never from the previous pass's scaled buffer: each rung of the ladder must be an exact scaling of $|y|$ itself, and reusing a scaled divisor would compound the scale factors and break the ladder of A.2. The unscaled $|\mathit{src1}|$ row therefore stays live across a pass, which is the one extra scratch region behind TREM's $192C$ tmp base (versus TREMS's $128C$).
+
+- **Per-element subnormal regime.** Whether the divisor is subnormal is a per-lane property here, not a host constant: iteration 1 applies the $2^{24}$ lift of the TREMS appendix (A.5) only on lanes with $|\mathit{src1}| \le \mathit{minNormal}$, via packed-mask compare + select, and the post pass rescales exactly those lanes by $2^{-24}$.
+
+- **Post-pass order.** The chain of the TREMS appendix (A.6) runs per element with the divisor read from $\mathit{src1}$: sign restore → subnormal rescale → $|\mathit{src1}| = \pm\infty$ selects $x$ → both-inf selects NaN → $x = \pm 0$ selects $x$ → remainder sign correction ($r \cdot y < 0 \Rightarrow r + y$) → floored-inf select on $|y| = \pm\infty$ lanes ($x$ same-sign, $x + y$ opposite-sign, $\pm 0$ keeps $x$) → NaN re-applied on $|x| = \pm\infty$. The NaN re-application runs last because the floored-inf select would otherwise overwrite the both-inf NaN lanes with the dividend.
+
+- **Lane-wise equivalence.** As in the TREMS appendix (A.7), the per-vector, staged, and chunked schedules evaluate the same per-lane round-to-nearest dataflow graph, so all organizations produce bitwise-identical per-lane results.

@@ -326,6 +326,14 @@ PTO_INTERNAL void RowExpandBinaryInstr(
     __ubuf__ typename TileDataSrc1::DType* src1Ptr, unsigned kValidRows, unsigned kValidCols)
 {
     constexpr bool isContiguous = (TileData::ValidCol == TileData::Cols) || (TileData::Rows == 1);
+#if defined(PTO_NPU_ARCH_A5)
+    // Short-row packing eligibility (issue #406): the row width divides the vector width, so 2-8
+    // full rows share one vector operation (widths 8/16/32 and their wider-type equivalents).
+    // Only referenced by the packed short-row dispatch below, which is A5-only.
+    constexpr unsigned groupRows = elementsPerRepeat / TileData::Cols;
+    constexpr bool shortRowPackEligible =
+        TileData::Cols >= 8 && elementsPerRepeat % TileData::Cols == 0 && groupRows >= 2 && groupRows <= 8;
+#endif
 
     if constexpr (TileDataSrc1::isRowMajor) {
         if constexpr (TileData::Cols < elementsPerRepeat && isContiguous) {
@@ -338,14 +346,26 @@ PTO_INTERNAL void RowExpandBinaryInstr(
                 dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
         }
     } else {
+#if defined(PTO_NPU_ARCH_A5)
+        // Dynamic valid extents (ValidCol == DYNAMIC) may still describe full contiguous rows at
+        // runtime: PyPTO-generated tiles are dynamic-valid (e.g. the C1A FP4/FP8 scale carriers
+        // [1024,16] / [512,32]), so check the runtime column count instead of falling straight to
+        // the 2D path. Both data tiles must be physically dense for the packed flat row addressing
+        // to be exact; runtime partial columns keep the strided 2D implementation below.
+        if constexpr (
+            shortRowPackEligible && TileData::RowStride == TileData::Cols &&
+            TileDataSrc0::RowStride == TileData::Cols) {
+            if (kValidCols == TileData::Cols) {
+                TRowExpandBinOps_1D_PackedShortRows<
+                    Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
+                    dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);
+                return;
+            }
+        }
+#endif
         if constexpr (TileData::Cols < elementsPerRepeat && isContiguous) {
 #if defined(PTO_NPU_ARCH_A5)
-            // Short-row packing (issue #406): when the row width divides the vector width, whole row
-            // groups can share one full-width operation; eligible widths are 8/16/32 (and their
-            // half/bf16/byte equivalents), i.e. 2-8 rows per 64/128/256-lane vector.
-            constexpr unsigned groupRows = elementsPerRepeat / TileData::Cols;
-            if constexpr (
-                TileData::Cols >= 8 && elementsPerRepeat % TileData::Cols == 0 && groupRows >= 2 && groupRows <= 8) {
+            if constexpr (shortRowPackEligible) {
                 TRowExpandBinOps_1D_PackedShortRows<
                     Op, TileData, TileDataSrc0, TileDataSrc1, elementsPerRepeat, blockSizeElem>(
                     dstPtr, src0Ptr, src1Ptr, kValidRows, kValidCols);

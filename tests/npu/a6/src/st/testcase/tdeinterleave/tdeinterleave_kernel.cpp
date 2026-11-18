@@ -71,6 +71,15 @@ void LaunchTDeInterleaveHalf(aclFloat16* out0, aclFloat16* out1, aclFloat16* src
         <<<1, nullptr, stream>>>((half*)(out0), (half*)(out1), (half*)(src0), (half*)(src1));
 }
 
+// fp8 types are byte-agnostic for the de-interleave data move; the host test passes raw byte
+// buffers and reinterpret-casts them to the fp8 device type inside the launcher.
+template <typename Fp8T, int tileH, int tileW, int vRows, int vCols>
+void LaunchTDeInterleaveFp8(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    runTDeInterleave<Fp8T, tileH, tileW, vRows, vCols>
+        <<<1, nullptr, stream>>>((Fp8T*)(out0), (Fp8T*)(out1), (Fp8T*)(src0), (Fp8T*)(src1));
+}
+
 template <typename T, int tileH, int tileW, int vRows, int vCols>
 __global__ AICORE void runTDeInterleaveSingleSrc(__gm__ T __out__* out0, __gm__ T __out__* out1, __gm__ T __in__* src)
 {
@@ -123,6 +132,13 @@ void LaunchTDeInterleaveSingleSrcHalf(aclFloat16* out0, aclFloat16* out1, aclFlo
         <<<1, nullptr, stream>>>((half*)(out0), (half*)(out1), (half*)(src));
 }
 
+template <typename Fp8T, int tileH, int tileW, int vRows, int vCols>
+void LaunchTDeInterleaveSingleSrcFp8(uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream)
+{
+    runTDeInterleaveSingleSrc<Fp8T, tileH, tileW, vRows, vCols>
+        <<<1, nullptr, stream>>>((Fp8T*)(out0), (Fp8T*)(out1), (Fp8T*)(src));
+}
+
 // aligned valid column cases
 template void LaunchTDeInterleave<float, 64, 64, 64, 64>(
     float* out0, float* out1, float* src0, float* src1, void* stream);
@@ -139,6 +155,20 @@ template void LaunchTDeInterleave<uint8_t, 32, 256, 32, 256>(
 template void LaunchTDeInterleave<float, 64, 64, 64, 56>(
     float* out0, float* out1, float* src0, float* src1, void* stream);
 
+// aligned fp8 cases
+void LaunchTDeInterleaveFp8E4M3(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    LaunchTDeInterleaveFp8<float8_e4m3_t, 32, 256, 32, 256>(out0, out1, src0, src1, stream);
+}
+void LaunchTDeInterleaveFp8E5M2(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    LaunchTDeInterleaveFp8<float8_e5m2_t, 32, 256, 32, 256>(out0, out1, src0, src1, stream);
+}
+void LaunchTDeInterleaveFp8E8M0(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    LaunchTDeInterleaveFp8<float8_e8m0_t, 32, 256, 32, 256>(out0, out1, src0, src1, stream);
+}
+
 // single src cases
 template void LaunchTDeInterleaveSingleSrc<float, 16, 128, 16, 128>(float* out0, float* out1, float* src, void* stream);
 template void LaunchTDeInterleaveSingleSrc<int32_t, 16, 128, 16, 128>(
@@ -147,3 +177,17 @@ template void LaunchTDeInterleaveSingleSrcHalf<16, 256, 16, 256>(
     aclFloat16* out0, aclFloat16* out1, aclFloat16* src, void* stream);
 template void LaunchTDeInterleaveSingleSrc<uint8_t, 8, 512, 8, 512>(
     uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream);
+
+// single src fp8 cases
+void LaunchTDeInterleaveSingleSrcFp8E4M3(uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream)
+{
+    LaunchTDeInterleaveSingleSrcFp8<float8_e4m3_t, 8, 512, 8, 512>(out0, out1, src, stream);
+}
+void LaunchTDeInterleaveSingleSrcFp8E5M2(uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream)
+{
+    LaunchTDeInterleaveSingleSrcFp8<float8_e5m2_t, 8, 512, 8, 512>(out0, out1, src, stream);
+}
+void LaunchTDeInterleaveSingleSrcFp8E8M0(uint8_t* out0, uint8_t* out1, uint8_t* src, void* stream)
+{
+    LaunchTDeInterleaveSingleSrcFp8<float8_e8m0_t, 8, 512, 8, 512>(out0, out1, src, stream);
+}

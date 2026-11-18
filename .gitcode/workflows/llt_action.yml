@@ -31,6 +31,15 @@ jobs:
           ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
           allow-unsafe-pr-checkout: true
       -
+        name: oidc_auth
+        uses: huaweicloud-oidc-auth
+        with:
+          audience: ${{ secrets.audience }}
+          agency_urn: ${{ secrets.agency_urn }}
+          provider_urn: ${{ secrets.provider_urn }}
+          region: cn-north-4
+          duration: 3600
+      -
         name: download
         uses: obs-download
         with:
@@ -61,8 +70,6 @@ jobs:
         with:
           endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
           bucket: "ascend-ci"
-          access-key: ${{secrets.AK}}
-          secret-key: ${{secrets.SK}}
           artifact-path: |
             ${{ steps.process_checkout.outputs.path }}/${{ inputs.ut_package }}
           object-prefix: ${{ env.obs_path }}/

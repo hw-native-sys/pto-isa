@@ -759,8 +759,27 @@ def print_test_summary(results) -> None:
     logging.info(_render_table(["Target", "Status", "Time"], results))
 
 
+def disable_core_dumps() -> None:
+    # Costmodel death tests (EXPECT_DEATH) fork children that intentionally
+    # crash. Lower only the soft RLIMIT_CORE (the hard limit stays, so cores
+    # can be re-enabled for debugging); set PTO_KEEP_CORE=1 (exactly) to keep
+    # core files.
+    if os.environ.get("PTO_KEEP_CORE") == "1":
+        return
+    try:
+        import resource
+    except ImportError:
+        return
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_CORE)
+        resource.setrlimit(resource.RLIMIT_CORE, (0, hard))
+    except (OSError, ValueError) as exc:
+        logging.warning("could not lower RLIMIT_CORE: %s", exc)
+
+
 def main() -> int:
     args = parse_arguments()
+    disable_core_dumps()
     setup_environment(args)
     repo_root = Path(__file__).resolve().parent
 

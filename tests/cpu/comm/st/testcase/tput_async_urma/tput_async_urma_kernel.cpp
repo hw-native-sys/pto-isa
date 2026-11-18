@@ -13,9 +13,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <iostream>
 #include <pto/pto-inst.hpp>
 
-#define PTO_URMA_SUPPORTED
-
-#include "pto/pto-inst.hpp"
 #include "pto/common/pto_tile.hpp"
 #include "pto/common/cpu_stub.hpp"
 #include "../common.hpp"
@@ -51,7 +48,6 @@ __global__ AICORE void TPutAsyncUrmaKernelImpl(
     pipe_barrier(PIPE_ALL);
 
     if (my_rank == root_rank) {
-#ifdef PTO_URMA_SUPPORTED
         const int my_peer = my_rank - first_rank_id;
         for (int target_peer = 0; target_peer < nranks; ++target_peer) {
             if (target_peer == my_peer) {
@@ -62,24 +58,26 @@ __global__ AICORE void TPutAsyncUrmaKernelImpl(
             Global remoteRecvG(remoteRecvBuf, shape, stride);
 
             pto::comm::AsyncSession session;
-            BuildAsyncSession<pto::comm::DmaEngine::URMA>(urmaWorkspace, static_cast<uint32_t>(target_peer), session);
+            pto::comm::BuildAsyncSession<pto::comm::DmaEngine::URMA>(
+                urmaWorkspace, static_cast<uint32_t>(target_peer), session);
             auto event = pto::comm::TPUT_ASYNC<pto::comm::DmaEngine::URMA>(remoteRecvG, sendG, session);
             event.Wait(session);
         }
-#endif
     }
 
     pipe_barrier(PIPE_ALL);
 }
 
 // ============================================================================
-// Host-side runner.
+// Host-side runners.
 // ============================================================================
+
+// Pass 1: set up the workspace and fill this rank's own cluster buffer.
 template <typename T, size_t count>
-bool RunPutAsyncUrmaRootPutKernel(
+bool PreparePutAsyncUrmaRank(
     int rank_id, int n_ranks, int n_devices, int first_device_id, int first_rank_id, int root_rank)
 {
-    size_t commBytesNeeded = 64 * sizeof(int32_t) + 2 * count * sizeof(T);
+    const size_t commBytesNeeded = 64 * sizeof(int32_t) + 2 * count * sizeof(T);
 
     UrmaTestContext ctx;
     if (!ctx.Setup(rank_id, n_ranks, n_devices, first_device_id, root_rank, commBytesNeeded)) {
@@ -109,6 +107,23 @@ bool RunPutAsyncUrmaRootPutKernel(
     aclrtMemcpy(sendBuf, count * sizeof(T), input_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(recvBuf, count * sizeof(T), output_host, count * sizeof(T), ACL_MEMCPY_HOST_TO_DEVICE);
 
+    aclrtFreeHost(input_host);
+    aclrtFreeHost(output_host);
+    ctx.Cleanup();
+    return true;
+}
+
+// Pass 2: run the kernel, then verify the receive buffer on non-root ranks.
+template <typename T, size_t count>
+bool RunPutAsyncUrmaRank(int rank_id, int n_ranks, int n_devices, int first_device_id, int first_rank_id, int root_rank)
+{
+    const size_t commBytesNeeded = 64 * sizeof(int32_t) + 2 * count * sizeof(T);
+
+    UrmaTestContext ctx;
+    if (!ctx.Setup(rank_id, n_ranks, n_devices, first_device_id, root_rank, commBytesNeeded)) {
+        return false;
+    }
+
     CommMpiBarrier();
 
     TPutAsyncUrmaKernelImpl<T, count>(
@@ -118,10 +133,19 @@ bool RunPutAsyncUrmaRootPutKernel(
 
     CommMpiBarrier();
 
-    aclrtMemcpy(output_host, count * sizeof(T), recvBuf, count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
+    constexpr size_t kDataOffset = 64 * sizeof(int32_t);
+    uint8_t* commBytes = reinterpret_cast<uint8_t*>(ctx.devBuf);
+    T* recvBuf = reinterpret_cast<T*>(commBytes + kDataOffset) + count;
 
     bool is_ok = true;
     if (rank_id != root_rank) {
+        uint8_t* output_host = nullptr;
+        aclrtMallocHost(reinterpret_cast<void**>(&output_host), count * sizeof(T));
+        if (output_host == nullptr) {
+            ctx.Cleanup();
+            return false;
+        }
+        aclrtMemcpy(output_host, count * sizeof(T), recvBuf, count * sizeof(T), ACL_MEMCPY_DEVICE_TO_HOST);
         for (size_t i = 0; i < count; ++i) {
             T value = reinterpret_cast<T*>(output_host)[i];
             T expected = static_cast<T>(i + root_rank * 10000);
@@ -132,23 +156,22 @@ bool RunPutAsyncUrmaRootPutKernel(
                 break;
             }
         }
+        aclrtFreeHost(output_host);
     }
 
-    aclrtFreeHost(input_host);
-    aclrtFreeHost(output_host);
     ctx.Cleanup();
-
     return is_ok;
 }
 
 // ============================================================================
-// MPI-based multi-rank launch.
+// MPI-based multi-rank launch (two passes: prepare all, then run all).
 // ============================================================================
 template <typename T, size_t count>
 bool RunPutAsyncUrmaRootPut(int n_ranks, int n_devices, int first_rank_id, int first_device_id)
 {
     return RunUrmaTestMpiLaunch(
-        n_ranks, n_devices, first_rank_id, first_device_id, RunPutAsyncUrmaRootPutKernel<T, count>);
+        n_ranks, n_devices, first_rank_id, first_device_id, PreparePutAsyncUrmaRank<T, count>,
+        RunPutAsyncUrmaRank<T, count>);
 }
 
 // Explicit instantiations

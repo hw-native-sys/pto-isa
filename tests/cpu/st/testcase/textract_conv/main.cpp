@@ -10,6 +10,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "test_common.h"
 #include "pto/pto-inst.hpp"
 #include <gtest/gtest.h>
+#include "cpu_tile_test_utils.h"
 
 using namespace std;
 using namespace pto;
@@ -130,6 +131,93 @@ void textract_test_4d()
     EXPECT_TRUE(ret);
 }
 
+template <typename T, size_t N, size_t C, size_t H, size_t W>
+void TestAccToConvTileNCHW()
+{
+    constexpr uint32_t INDEX_ROW = 2;
+    constexpr uint32_t INDEX_COL = 1;
+
+    using SrcTile = Tile<TileType::Acc, T, 16, 16, BLayout::ColMajor, DYNAMIC, DYNAMIC, SLayout::RowMajor, 1024>;
+    using DstTile = ConvTile<TileType::Vec, T, N * C * H * W * sizeof(T), Layout::NCHW, ConvTileShape<N, C, H, W>>;
+
+    SrcTile src;
+    std::vector<T> srcStorage(16 * 16);
+    src.data() = srcStorage.data();
+    src.SetValidRow(INDEX_ROW + N * H * W);
+    src.SetValidCol(INDEX_COL + C);
+    DstTile dst;
+    std::vector<T> dstStorage(N * C * H * W);
+    dst.data() = dstStorage.data();
+
+    for (size_t r = 0; r < 16; ++r) {
+        for (size_t c = 0; c < 16; ++c) {
+            src.SetElement(r, c, static_cast<T>(r * 100 + c));
+        }
+    }
+
+    TEXTRACT(dst, src, INDEX_ROW, INDEX_COL);
+
+    for (size_t n = 0; n < N; ++n) {
+        for (size_t c = 0; c < C; ++c) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; ++w) {
+                    const size_t srcRow = INDEX_ROW + (n * H + h) * W + w;
+                    const size_t srcCol = INDEX_COL + c;
+                    const size_t dstOffset = ((n * C + c) * H + h) * W + w;
+                    const T expected = src.GetElement(srcRow, srcCol);
+
+                    EXPECT_EQ(dst.data()[dstOffset], expected);
+                }
+            }
+        }
+    }
+}
+
+template <typename T, size_t N, size_t C, size_t D, size_t H, size_t W>
+void TestAccToConvTileNCDHW()
+{
+    constexpr uint32_t INDEX_ROW = 0;
+    constexpr uint32_t INDEX_COL = 2;
+
+    using SrcTile = Tile<TileType::Acc, T, 16, 16, BLayout::ColMajor, DYNAMIC, DYNAMIC, SLayout::RowMajor, 1024>;
+    using DstTile =
+        ConvTile<TileType::Vec, T, N * C * D * H * W * sizeof(T), Layout::NCDHW, ConvTileShape<N, C, D, H, W>>;
+
+    SrcTile src;
+    std::vector<T> srcStorage(16 * 16);
+    src.data() = srcStorage.data();
+    src.SetValidRow(INDEX_ROW + N * D * H * W);
+    src.SetValidCol(INDEX_COL + C);
+    DstTile dst;
+    std::vector<T> dstStorage(N * C * D * H * W);
+    dst.data() = dstStorage.data();
+
+    for (size_t r = 0; r < 16; ++r) {
+        for (size_t c = 0; c < 16; ++c) {
+            src.SetElement(r, c, static_cast<T>(r * 100 + c));
+        }
+    }
+
+    TEXTRACT(dst, src, INDEX_ROW, INDEX_COL);
+
+    for (size_t n = 0; n < N; ++n) {
+        for (size_t c = 0; c < C; ++c) {
+            for (size_t d = 0; d < D; ++d) {
+                for (size_t h = 0; h < H; ++h) {
+                    for (size_t w = 0; w < W; ++w) {
+                        const size_t srcRow = INDEX_ROW + ((n * D + d) * H + h) * W + w;
+                        const size_t srcCol = INDEX_COL + c;
+                        const size_t dstOffset = (((n * C + c) * D + d) * H + h) * W + w;
+                        const T expected = src.GetElement(srcRow, srcCol);
+
+                        EXPECT_EQ(dst.data()[dstOffset], expected);
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST_F(TEXTRACTTest, case_0) { textract_test_4d<aclFloat16, 4, 3, 16, 16, 3 * 16, 2 * 16, 16, 16>(); }
 
 TEST_F(TEXTRACTTest, case_1) { textract_test_4d<uint16_t, 4, 3, 16, 16, 3 * 16, 2 * 16, 16, 16>(); }
@@ -137,3 +225,11 @@ TEST_F(TEXTRACTTest, case_1) { textract_test_4d<uint16_t, 4, 3, 16, 16, 3 * 16, 
 TEST_F(TEXTRACTTest, case_2) { textract_test_4d<float, 4, 3, 16, 8, 3 * 8, 2 * 16, 8, 16>(); }
 
 TEST_F(TEXTRACTTest, case_3) { textract_test_4d<int32_t, 4, 3, 16, 8, 3 * 8, 2 * 16, 8, 16>(); }
+
+TEST_F(TEXTRACTTest, AccToConvTileNCHWFloat) { TestAccToConvTileNCHW<float, 2, 3, 2, 3>(); }
+
+TEST_F(TEXTRACTTest, AccToConvTileNCDHWFloat) { TestAccToConvTileNCDHW<float, 2, 3, 2, 2, 2>(); }
+
+TEST_F(TEXTRACTTest, AccToConvTileNCHWInt32) { TestAccToConvTileNCHW<int32_t, 2, 3, 2, 3>(); }
+
+TEST_F(TEXTRACTTest, AccToConvTileNCDHWInt32) { TestAccToConvTileNCDHW<int32_t, 2, 3, 2, 2, 2>(); }

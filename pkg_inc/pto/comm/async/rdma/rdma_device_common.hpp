@@ -22,6 +22,18 @@ namespace rdma {
 constexpr uint32_t kHandleRankShift = 32;
 constexpr uint32_t kErrorHandleRank = 0xffffffffU;
 
+// Read SYS_CNT directly to avoid importing AscendC type aliases into PTO kernels.
+AICORE inline uint64_t ReadSystemCycle()
+{
+#if defined(__CCE_AICORE__)
+    uint64_t sysCnt = 0;
+    asm volatile("MOV %0, SYS_CNT\n" : "+l"(sysCnt));
+    return sysCnt;
+#else
+    return 0U;
+#endif
+}
+
 AICORE inline uint64_t EncodeHandle(uint32_t queueIndex, uint32_t queueHead)
 {
     return (static_cast<uint64_t>(queueIndex) << kHandleRankShift) | static_cast<uint64_t>(queueHead);

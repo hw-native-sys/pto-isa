@@ -196,6 +196,7 @@ def main():
         "PTO_CPU_SIM_TARGET_A2A3",
         "PTO_CPU_SIM_TARGET_A5",
         "PTO_NPU_ARCH_A5",
+        "PTO_NPU_ARCH_A6R2",
         "__NPU_ARCH__=2201",
         "__COSTMODEL",
     ):
@@ -204,6 +205,13 @@ def main():
             base + ["-D" + target, "-fsyntax-only", entry],
             None,
             "target" if target != "__COSTMODEL" else "cannot be combined",
+        )
+    if args.linx_compiler:
+        command(
+            "reject-device-mixed-A6R2",
+            native + ["-DPTO_NPU_ARCH_A6R2", "-fsyntax-only", entry],
+            None,
+            "Linx and Ascend target flags cannot be combined",
         )
     command(
         "reject-device-flag-on-host",

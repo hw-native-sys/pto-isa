@@ -55,7 +55,7 @@ $$ \mathrm{dst1}_{i, k} = \mathrm{src}_{i, 2k+1}, \quad 0 \le k < \mathrm{halfVa
 
 Where `halfValidCols = src.GetValidCol() / 2`.
 
-> **Note**: For the single-source form, the source tile width must be at least `2 × ElementsPerRepeat` (where `ElementsPerRepeat = 256 / sizeof(T)`) so that two adjacent register-sized chunks can be loaded from the same row without crossing row boundaries.
+> **Note**: For the single-source form, the source tile width must be at least `2 × ElementsPerRepeat` (where `ElementsPerRepeat = 256 / sizeof(T)`) so that the first repeat's two adjacent register-sized loads stay within the same row.
 
 ## C++ Intrinsic
 
@@ -77,8 +77,10 @@ PTO_INST RecordEvent TDEINTERLEAVE(TileDataDst &dst1, TileDataDst &dst0, TileDat
 
 ## Constraints
 
-- **Implementation checks (A5)**:
-    - `TileData::DType` must be one of: `int32_t`, `uint32_t`, `float`, `int16_t`, `uint16_t`, `half`, `bfloat16_t`, `uint8_t`, `int8_t`.
+- **Implementation checks**:
+    - Supported `TileData::DType`:
+        - Ascend 950PR/Ascend 950DT products: `int32_t`, `uint32_t`, `float`, `int16_t`, `uint16_t`, `half`, `bfloat16_t`, `uint8_t`, `int8_t`.
+        - Ascend 960 products: `int32_t`, `uint32_t`, `float`, `int16_t`, `uint16_t`, `half`, `bfloat16_t`, `uint8_t`, `int8_t`, `float8_e4m3_t`, `float8_e5m2_t`, `float8_e8m0_t`.
     - Tile layout must be row-major (`TileData::isRowMajor`).
     - All tiles must have the same `DType`.
     - Two-source form: `src0`, `src1`, `dst0`, `dst1` must all have the same valid shape, and their `validCols` must be even.

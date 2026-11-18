@@ -20,6 +20,104 @@ using namespace pto;
 
 namespace TQuantTest {
 
+template <int Rows, int Cols, bool ColumnMajor>
+__global__ AICORE void runE8M0StorageView(__gm__ uint8_t* dst, __gm__ uint8_t* src)
+{
+    constexpr int bytes = Rows * Cols;
+    using Boxed = Tile<
+        TileType::Vec, float8_e8m0_t, Rows, Cols, ColumnMajor ? BLayout::ColMajor : BLayout::RowMajor, Rows, Cols,
+        ColumnMajor ? SLayout::ColMajor : SLayout::RowMajor, 32>;
+    using Flat = Tile<TileType::Vec, float8_e8m0_t, 1, bytes, BLayout::RowMajor, 1, bytes, SLayout::NoneBox, 512>;
+    using Bytes = Tile<TileType::Vec, uint8_t, 1, bytes>;
+    using Global = GlobalTensor<uint8_t, Shape<1, 1, 1, 1, bytes>, pto::Stride<1, 1, 1, bytes, 1>>;
+    Boxed boxed;
+    Flat flat;
+    Bytes input;
+    Bytes output;
+    TASSIGN(boxed, 0);
+    TASSIGN(input, 0);
+    // Separate initial addresses catch a reshape that fails to alias.
+    TASSIGN(flat, 0x1000);
+    TASSIGN(output, 0x2000);
+    Global srcGlobal(src);
+    Global dstGlobal(dst);
+    // Load the physical bytes directly rather than applying a boxed layout conversion.
+    TLOAD(input, srcGlobal);
+    TRESHAPE(flat, boxed);
+    TRESHAPE(output, flat);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(dstGlobal, output);
+}
+
+void LaunchE8M0StorageView(int caseId, uint8_t* dst, uint8_t* src, void* stream)
+{
+    if (caseId == 0) {
+        runE8M0StorageView<16, 2, false><<<1, nullptr, stream>>>(dst, src);
+    } else if (caseId == 1) {
+        runE8M0StorageView<2, 32, true><<<1, nullptr, stream>>>(dst, src);
+    } else {
+        runE8M0StorageView<64, 8, false><<<1, nullptr, stream>>>(dst, src);
+    }
+}
+
+// instantiates TRESHAPE_IMPL(flatExp, *exp), so the regression would be lost.
+template <int Rows, int Cols>
+__global__ AICORE void runTQuantBoxedE8M0Exp(
+    __gm__ uint8_t __out__* dst, __gm__ float __in__* src, __gm__ uint8_t __out__* dstExp)
+{
+    constexpr int groups = Rows * Cols / 32;
+    using SrcTile = Tile<TileType::Vec, float, Rows, Cols>;
+    using OutTile = Tile<TileType::Vec, int8_t, Rows, Cols>;
+    using ExpTile = Tile<TileType::Vec, float8_e8m0_t, 1, groups, BLayout::RowMajor, 1, groups, SLayout::RowMajor, 32>;
+    using ParamTile = Tile<TileType::Vec, float, 1, groups>;
+    static_assert(ExpTile::Rows == 1, "Regression must instantiate TQUANT's flat exponent reshape path.");
+    static_assert(ExpTile::SFractal != SLayout::NoneBox, "Regression requires a boxed exponent source.");
+    using ExpBytes = Tile<TileType::Vec, uint8_t, 1, groups>;
+    using SrcGlobal = GlobalTensor<float, Shape<1, 1, 1, Rows, Cols>, pto::Stride<1, 1, 1, Cols, 1>>;
+    using OutGlobal = GlobalTensor<int8_t, Shape<1, 1, 1, Rows, Cols>, pto::Stride<1, 1, 1, Cols, 1>>;
+    using ExpGlobal = GlobalTensor<uint8_t, Shape<1, 1, 1, 1, groups>, pto::Stride<1, 1, 1, groups, 1>>;
+    SrcTile input;
+    OutTile output;
+    ExpTile exp;
+    ParamTile maxTile;
+    ParamTile scaleTile;
+    TASSIGN(input, 0x0);
+    TASSIGN(output, 0x10000);
+    TASSIGN(exp, 0x20000);
+    TASSIGN(maxTile, 0x20100);
+    TASSIGN(scaleTile, 0x20200);
+    ExpBytes expBytes;
+    TASSIGN(expBytes, 0x20000);
+    SrcGlobal srcGlobal(src);
+    OutGlobal outGlobal((__gm__ int8_t*)dst);
+    ExpGlobal expGlobal(dstExp);
+    TLOAD(input, srcGlobal);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+    wait_flag(PIPE_MTE2, PIPE_V, EVENT_ID0);
+#endif
+    TQUANT<QuantType::MXFP8>(output, input, &exp, &maxTile, &scaleTile);
+#ifndef __PTO_AUTO__
+    set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+    wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
+#endif
+    TSTORE(outGlobal, output);
+    TSTORE(expGlobal, expBytes);
+}
+
+template <int Rows, int Cols>
+void LaunchTQuantBoxedE8M0Exp(uint8_t* dst, float* src, uint8_t* dstExp, void* stream)
+{
+    runTQuantBoxedE8M0Exp<Rows, Cols><<<1, nullptr, stream>>>(dst, src, dstExp);
+}
+
+template void LaunchTQuantBoxedE8M0Exp<16, 64>(uint8_t*, float*, uint8_t*, void*);
+template void LaunchTQuantBoxedE8M0Exp<32, 64>(uint8_t*, float*, uint8_t*, void*);
+template void LaunchTQuantBoxedE8M0Exp<16, 128>(uint8_t*, float*, uint8_t*, void*);
+
 constexpr int TQUANT_A5_UB_ALIGN_BYTES = 32;
 constexpr int TQUANT_A5_UB_SIZE_BYTES = 256 * 1024;
 

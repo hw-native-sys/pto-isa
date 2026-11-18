@@ -253,7 +253,7 @@ if __name__ == "__main__":
         TREMSParams("TREMSTest.hp_sz_1x576", np.float32, 1, 576, 1, 576, hp=True),
         TREMSParams("TREMSTest.hp_sz_1x4096", np.float32, 1, 4096, 1, 4096, hp=True),
         TREMSParams("TREMSTest.hp_sz_1x6400", np.float32, 1, 6400, 1, 6400, hp=True),
-        TREMSParams("TREMSTest.hp_sz_1x11136", np.float32, 1, 11136, 1, 11136, hp=True),
+        TREMSParams("TREMSTest.hp_sz_1x10880", np.float32, 1, 10880, 1, 10880, hp=True),
         TREMSParams("TREMSTest.hp_sz_str_2x256_192", np.float32, 2, 256, 2, 192, hp=True),
         TREMSParams("TREMSTest.hp_sz_str_4x128_65", np.float32, 4, 128, 4, 72, valid_col=65, hp=True),
         TREMSParams("TREMSTest.ip_hp_2x2048", np.float32, 2, 2048, 2, 2048, hp=True),

@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -40,8 +41,6 @@ void test_tmins()
     size_t dstfileSize = dstRow * dstCol * sizeof(T);
     size_t scalarFileSize = sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -78,8 +77,6 @@ void test_tmins()
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(dstfileSize / sizeof(T));
     std::vector<T> devFinal(dstfileSize / sizeof(T));
@@ -132,4 +129,11 @@ TEST_F(TMINSTest, case_int64_1x16368_1x16368_1x16368)
 TEST_F(TMINSTest, case_uint64_1x16368_1x16368_1x16368)
 {
     test_tmins<uint64_t, 1, 16368, 1, 16368, 1, 16368, PAD_VALUE_NULL>();
+}
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
 }

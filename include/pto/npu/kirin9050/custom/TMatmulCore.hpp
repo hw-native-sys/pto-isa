@@ -144,6 +144,7 @@ PTO_INTERNAL void TMatmulMacroAcc(
     matmulCfg.broadcastEn = broadcastEn;
     matmulCfg.preQuant = preQuant;
     matmulCfg.preRelu = preRelu;
+    matmulCfg.gemvCtrl = cfg.gemvCtrl;
     matmulCfg.sizeN = n;
     TMatmulCore<TileRes, TileLeft, TileRight>(cData, aData, bData, biasAddr, btAddr, m, k, n, matmulCfg.Build());
 }

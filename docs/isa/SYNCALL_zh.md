@@ -11,6 +11,9 @@
 <!-- npu="910b" id3 -->
 - Atlas A2系列产品：支持
 <!-- end id3 -->
+<!-- npu="960" id4 -->
+- Ascend 960系列产品：支持
+<!-- end id4 -->
 
 
 ## 指令示意图
@@ -78,7 +81,7 @@ PTO_INST void SYNCALL(GlobalData &gmWorkspace, int32_t usedCores = 0);
 - Soft模式要求所有参与的核以**相同顺序、相同次数**进入同一组barrier。指令按到达次数推算当前是第几轮，某个核多进或少进一次，就会与其他核错轮，进而卡死。
 - 参与者集合由kernel的编译与启动方式决定，不由 `SYNCALL` 决定。模板参数只是声明「本次要同步哪一类核」，实际拉起多少核、AIC与AIV如何配对，取决于kernel编译成哪种arch、以什么方式启动。两者对不上就会有核一直等待。
 - A2/A3 的 Hard AIC-only 不能编译成纯cube kernel：纯 `dav-c220-cube` 建立不起AIC-only硬同步所需的FFTS上下文，实测会hang。须按MIX编译（`dav-c220`），AIC侧调用 `SYNCALL<AICOnly>()`，AIV侧留空。A5 用 `dav-c310-cube` 即可。
-- 手工编译kernel（不走chevron自动拆分）时须自行声明kernel meta，否则runtime会按错误的核型调度，硬同步拿不到FFTS上下文而hang。meta用 `include/pto/common/kernel_meta.hpp` 中的宏声明（`PTO_SYNCALL_AIV_KERNEL_META` / `PTO_SYNCALL_AIC_KERNEL_META` / `PTO_SYNCALL_MIX_AIC_KERNEL_META`），宏参须与 `__global__` 入口符号完全一致。当前仅A2/A3的 Hard AIV-only 与 Soft AIC-only 需手写，其余场景由编译器生成。
+- 手工编译kernel（不走chevron自动拆分）时须自行声明kernel meta，否则runtime会按错误的核型调度，硬同步拿不到FFTS上下文而hang。meta用 `include/pto/common/kernel_meta.hpp` 中的宏声明（`PTO_SYNCALL_AIV_KERNEL_META` / `PTO_SYNCALL_AIC_KERNEL_META` / `PTO_SYNCALL_MIX_AIC_KERNEL_META`），宏参须与 `__global__` 入口符号完全一致。手工编译的kernel无论模式与核型都需要声明：A2/A3上包括 Hard AIV-only（`dav-c220-vec`）、Soft AIC-only（`dav-c220-cube`）以及 Hard MIX 1:1（按核型分别编译后经register ELF链接，参见 `tests/npu/a2a3/src/st/testcase/syncall/syncall_mix_1_1_kernel.cpp`，其AIC与AIV入口各声明一次meta）。走chevron自动拆分构建的kernel由编译器生成meta。
 - auto构建路径（`__PTO_AUTO__`）下 `SYNCALL` 为no-op，真实同步只在manual kernel中发生。
 - CPU_SIM 中所有 `SYNCALL` 重载当前都是兼容性空操作（包括 Soft 模式），不会同步由 `LaunchKernelMultiCore` 启动的工作线程。
 

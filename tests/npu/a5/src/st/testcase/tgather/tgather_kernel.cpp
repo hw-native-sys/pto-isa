@@ -220,6 +220,28 @@ void LaunchTGATHER(dstT* out, srcT* src, void* stream)
     }
 }
 
+// Mask-pattern gather for fp8 device types (float8_e4m3_t / float8_e5m2_t / hifloat8_t), which are
+// 1-byte like int8_t/uint8_t. The host test passes raw byte buffers and the launcher reinterpret-casts
+// them to the fp8 device type. Only A5 mask-pattern gather supports fp8 (see TGatherCheck).
+template <int ROW, int COL, MaskPattern maskPattern>
+void LaunchTGATHERFp8E4M3(uint8_t* out, uint8_t* src, void* stream)
+{
+    runTGATHER<float8_e4m3_t, float8_e4m3_t, ROW, COL, ROW, COL, maskPattern>
+        <<<1, nullptr, stream>>>((float8_e4m3_t*)(out), (float8_e4m3_t*)(src));
+}
+template <int ROW, int COL, MaskPattern maskPattern>
+void LaunchTGATHERFp8E5M2(uint8_t* out, uint8_t* src, void* stream)
+{
+    runTGATHER<float8_e5m2_t, float8_e5m2_t, ROW, COL, ROW, COL, maskPattern>
+        <<<1, nullptr, stream>>>((float8_e5m2_t*)(out), (float8_e5m2_t*)(src));
+}
+template <int ROW, int COL, MaskPattern maskPattern>
+void LaunchTGATHERFp8HiF8(uint8_t* out, uint8_t* src, void* stream)
+{
+    runTGATHER<hifloat8_t, hifloat8_t, ROW, COL, ROW, COL, maskPattern>
+        <<<1, nullptr, stream>>>((hifloat8_t*)(out), (hifloat8_t*)(src));
+}
+
 template <typename T, int staticRows, int staticCols, int validRows, int validCols, MaskPattern maskPattern>
 __global__ AICORE void runTGATHERDynamic(__gm__ T* out, __gm__ T* src)
 {
@@ -532,3 +554,26 @@ template void LaunchInt64GatherScatterGuard<uint64_t, 1, 4, 80, 3, 67, 36, pto::
     uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
 template void LaunchInt64GatherScatterGuard<uint64_t, 1, 4, 8, 3, 1, 4, pto::MaskPattern::P1000>(
     uint64_t* out, uint64_t* input, uint32_t* indices, void* stream);
+
+// fp8 mask-pattern instantiations (A5)
+template void LaunchTGATHERFp8E4M3<HALF_P0101_ROW, HALF_P0101_COL, MaskPattern::P0101>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E4M3<HALF_P1010_ROW, HALF_P1010_COL, MaskPattern::P1010>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E4M3<HALF_P0001_ROW, HALF_P0001_COL, MaskPattern::P0001>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E4M3<HALF_P0010_ROW, HALF_P0010_COL, MaskPattern::P0010>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E4M3<HALF_P0100_ROW, HALF_P0100_COL, MaskPattern::P0100>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E4M3<HALF_P1000_ROW, HALF_P1000_COL, MaskPattern::P1000>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E4M3<HALF_P1111_ROW, HALF_P1111_COL, MaskPattern::P1111>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E5M2<HALF_P0101_ROW, HALF_P0101_COL, MaskPattern::P0101>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E5M2<HALF_P1010_ROW, HALF_P1010_COL, MaskPattern::P1010>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E5M2<HALF_P0001_ROW, HALF_P0001_COL, MaskPattern::P0001>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E5M2<HALF_P0010_ROW, HALF_P0010_COL, MaskPattern::P0010>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E5M2<HALF_P0100_ROW, HALF_P0100_COL, MaskPattern::P0100>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E5M2<HALF_P1000_ROW, HALF_P1000_COL, MaskPattern::P1000>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8E5M2<HALF_P1111_ROW, HALF_P1111_COL, MaskPattern::P1111>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8HiF8<HALF_P0101_ROW, HALF_P0101_COL, MaskPattern::P0101>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8HiF8<HALF_P1010_ROW, HALF_P1010_COL, MaskPattern::P1010>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8HiF8<HALF_P0001_ROW, HALF_P0001_COL, MaskPattern::P0001>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8HiF8<HALF_P0010_ROW, HALF_P0010_COL, MaskPattern::P0010>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8HiF8<HALF_P0100_ROW, HALF_P0100_COL, MaskPattern::P0100>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8HiF8<HALF_P1000_ROW, HALF_P1000_COL, MaskPattern::P1000>(uint8_t*, uint8_t*, void*);
+template void LaunchTGATHERFp8HiF8<HALF_P1111_ROW, HALF_P1111_COL, MaskPattern::P1111>(uint8_t*, uint8_t*, void*);

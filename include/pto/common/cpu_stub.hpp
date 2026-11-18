@@ -60,6 +60,18 @@ const pipe_t PIPE_ALL = 6;
 const pipe_t PIPE_FIX = 7;
 inline void pipe_barrier(pipe_t pipe) { (void)pipe; }
 
+template <typename T>
+inline void st_dev(T value, T* addr, int)
+{
+    *addr = value;
+}
+
+template <typename T>
+inline T ld_dev(T* addr, int)
+{
+    return *addr;
+}
+
 #define aclFloat16ToFloat(x) ((float)(x))
 
 #if !defined(__COSTMODEL)
@@ -123,6 +135,9 @@ inline int aclFinalize() { return 0; }
 inline void set_flag(pipe_t, pipe_t, int) {}
 inline void wait_flag(pipe_t, pipe_t, int) {}
 #if !defined(__COSTMODEL)
+// CPU stores select atomic behavior per instruction; there is no persistent atomic mode to reset.
+inline void set_atomic_none() {}
+
 using mem_dsb_t = int;
 struct cache_line_t {
     static constexpr int SINGLE_CACHE_LINE = 0;

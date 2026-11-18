@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -47,8 +48,6 @@ using NzLaunchFn = void (*)(uint8_t*, uint8_t*, uint8_t*, void*);
 template <typename dType>
 void runNDTest(size_t srcByteSize, size_t dstByteSize, NdLaunchFn launch)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -82,8 +81,6 @@ void runNDTest(size_t srcByteSize, size_t dstByteSize, NdLaunchFn launch)
     aclrtFreeHost(srcHost);
     aclrtFreeHost(dstInitHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<dType> golden(dstByteSize / sizeof(dType));
     std::vector<dType> devFinal(dstByteSize / sizeof(dType));
@@ -96,8 +93,6 @@ void runNDTest(size_t srcByteSize, size_t dstByteSize, NdLaunchFn launch)
 template <typename dType>
 void runNZTest(size_t srcByteSize, size_t dstByteSize, NzLaunchFn launch)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -130,8 +125,6 @@ void runNZTest(size_t srcByteSize, size_t dstByteSize, NzLaunchFn launch)
     aclrtFreeHost(srcHost);
     aclrtFreeHost(dstInitHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<dType> golden(dstByteSize / sizeof(dType));
     std::vector<dType> devFinal(dstByteSize / sizeof(dType));
@@ -222,3 +215,10 @@ TEST_F(TExtractVecTest, case_nz_scalar_4) { testNZScalar<4, int8_t>(32, 64, 16, 
 TEST_F(TExtractVecTest, case_nz_scalar_5) { testNZScalar<5, int32_t>(32, 16, 16, 16); }
 TEST_F(TExtractVecTest, case_nz_scalar_fp4_e2m1) { testNZScalar<6, uint8_t>(16, 64, 16, 64); }
 TEST_F(TExtractVecTest, case_nz_scalar_fp4_e1m2) { testNZScalar<7, uint8_t>(16, 64, 16, 64); }
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}

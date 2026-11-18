@@ -133,7 +133,7 @@ private:
         while (true) {
             end = directory_.find('/', end);
             const std::string current = directory_.substr(0, end);
-            if (mkdir(current.c_str(), 0750) != 0 && errno != EEXIST) {
+            if (mkdir(current.c_str(), S_IRWXU | S_IRGRP | S_IXGRP) != 0 && errno != EEXIST) {
                 ReportError("mkdir", current, errno);
                 return false;
             }
@@ -230,8 +230,13 @@ private:
         constexpr char SUFFIX[] = ".log";
         constexpr size_t PREFIX_LENGTH = sizeof(PREFIX) - 1;
         constexpr size_t SUFFIX_LENGTH = sizeof(SUFFIX) - 1;
-        if (name.size() < PREFIX_LENGTH + 1 + 1 + 14 + 1 + 1 + SUFFIX_LENGTH ||
-            name.compare(0, PREFIX_LENGTH, PREFIX) != 0 ||
+        constexpr size_t MIN_PID_LENGTH = 1;
+        constexpr size_t TIMESTAMP_LENGTH = 14;
+        constexpr size_t MIN_SEQUENCE_LENGTH = 1;
+        constexpr size_t SEPARATOR_LENGTH = 1;
+        constexpr size_t MIN_FILENAME_LENGTH = PREFIX_LENGTH + MIN_PID_LENGTH + SEPARATOR_LENGTH + TIMESTAMP_LENGTH +
+                                               SEPARATOR_LENGTH + MIN_SEQUENCE_LENGTH + SUFFIX_LENGTH;
+        if (name.size() < MIN_FILENAME_LENGTH || name.compare(0, PREFIX_LENGTH, PREFIX) != 0 ||
             name.compare(name.size() - SUFFIX_LENGTH, SUFFIX_LENGTH, SUFFIX) != 0) {
             return false;
         }
@@ -239,13 +244,14 @@ private:
         if (pidEnd == std::string::npos) {
             return false;
         }
-        const size_t timestampEnd = name.find('_', pidEnd + 1);
-        if (timestampEnd == std::string::npos || timestampEnd - pidEnd - 1 != 14) {
+        const size_t timestampEnd = name.find('_', pidEnd + SEPARATOR_LENGTH);
+        if (timestampEnd == std::string::npos || timestampEnd - pidEnd - SEPARATOR_LENGTH != TIMESTAMP_LENGTH) {
             return false;
         }
         const std::string pid = name.substr(PREFIX_LENGTH, pidEnd - PREFIX_LENGTH);
-        const std::string timestamp = name.substr(pidEnd + 1, 14);
-        const std::string sequence = name.substr(timestampEnd + 1, name.size() - SUFFIX_LENGTH - timestampEnd - 1);
+        const std::string timestamp = name.substr(pidEnd + SEPARATOR_LENGTH, TIMESTAMP_LENGTH);
+        const std::string sequence =
+            name.substr(timestampEnd + SEPARATOR_LENGTH, name.size() - SUFFIX_LENGTH - timestampEnd - SEPARATOR_LENGTH);
         if (!IsDecimal(pid) || !IsDecimal(timestamp) || !IsDecimal(sequence)) {
             return false;
         }
@@ -352,7 +358,7 @@ private:
         const int oldFd = fd_;
         fd_ = -1;
         fileSize_ = 0;
-        if (fchmod(oldFd, 0440) != 0) {
+        if (fchmod(oldFd, S_IRUSR | S_IRGRP) != 0) {
             ReportError("fchmod", directory_, errno);
         }
         if (close(oldFd) != 0) {

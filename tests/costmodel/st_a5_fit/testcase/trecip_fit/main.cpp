@@ -14,6 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <gtest/gtest.h>
 
 #include <pto/common/type.hpp>
+#include <pto/pto-inst.hpp>
 #include <pto/costmodel/lightweight_costmodel.hpp>
 
 #include "a5_cost_check.hpp"
@@ -25,6 +26,31 @@ using ::pto::mocker::lightweight::CostModelArch;
 using ::pto::mocker::lightweight::CostModelInput;
 using ::pto::mocker::lightweight::DType;
 using ::pto::mocker::lightweight::PtoOpcode;
+
+template <typename T, DType Type>
+void CheckPublicReciprocal()
+{
+    using Tile = pto::Tile<pto::TileType::Vec, T, 1, 128, pto::BLayout::RowMajor, 1, 128>;
+    Tile src, dst;
+    pto::TASSIGN(src, 0);
+    pto::TASSIGN(dst, 4096);
+    auto& context = pto::perf_sim::GetCostModelCtx();
+    const auto originalArch = context.npu_arch;
+    context.npu_arch = pto::perf_sim::kAscend950Arch;
+    const CostModelInput input{
+        .op = PtoOpcode::TRECIP, .dtype = Type, .rows = 1, .cols = 128, .arch = CostModelArch::A5};
+    const auto expected = pto::mocker::lightweight::EstimateCycles(input).cycles;
+    EXPECT_GT(expected, 0);
+    pto::TRECIP(dst, src);
+    EXPECT_EQ(pto::mocker::GetLastPtoInstrCycles(), expected);
+    context.npu_arch = originalArch;
+}
+
+TEST(A5TrecipFit, PublicApiReachesReciprocalModel)
+{
+    CheckPublicReciprocal<half, DType::Half>();
+    CheckPublicReciprocal<float, DType::Float>();
+}
 
 struct A5VfFitCase {
     DType dtype;

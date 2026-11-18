@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 #include <cstdint>
@@ -45,8 +46,6 @@ void TLOADSCALEFUNC()
     size_t bFileSize = N4 * N5 * sizeof(T);
     size_t cFileSize = N1 * N2 * N3 * N4 * N5 * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -83,8 +82,6 @@ void TLOADSCALEFUNC()
     aclrtFreeHost(src0Host);
     aclrtFreeHost(src1Host);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(cFileSize / sizeof(T));
     std::vector<T> devFinal(cFileSize / sizeof(T));
@@ -140,4 +137,11 @@ TEST_F(TLOADSCALETest, 4_3_3_16_2_4_10_5_16_2_192_10_scale_ZZ2ZZ)
 TEST_F(TLOADSCALETest, 7_5_3_16_2_7_7_11_16_2_12_560_scale_NN2NN)
 {
     TLOADSCALEFUNC<uint8_t, 12, 7, 5, 3, 16, 2, 7, 7, 11, 16, 2, 12, 560>();
+}
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
 }

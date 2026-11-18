@@ -164,11 +164,23 @@ AICORE inline UrmaSlicePostResult UrmaPostSliceOnJetty(
                 CommitPostedWqes(wq, pendingHead, submittedWqeCount);
                 announcedHead = pendingHead;
             }
+#ifdef __CPU_SIM
+            // No asynchronous NIC exists on CPU-SIM, so waiting for a completion
+            // here can never succeed. Let the simulated NIC consume the WQEs
+            // committed so far, which frees ring space, then retry.
+            if (!CpuSimUrmaDrainNIC(session, peer, jetty, wq, cq, announcedHead)) {
+                result.targetBb = announcedHead;
+                result.targetCqe = submittedWqeCount;
+                return result;
+            }
+            continue;
+#else
             if (!UrmaAwaitOneCqe(session, peer, jetty)) {
                 result.targetBb = announcedHead;
                 result.targetCqe = submittedWqeCount;
                 return result;
             }
+#endif
         }
 
         const uint64_t remaining = sliceLen - offset;
@@ -320,9 +332,18 @@ AICORE inline bool EnsureNotifyRingRoom(
     if (state.pendingHead != state.announcedHead) {
         CommitPostedWqes(state.wq, state.pendingHead, state.submittedWqeCount);
     }
+#ifdef __CPU_SIM
+    // Same as UrmaPostSliceOnJetty: the simulated NIC must consume the committed
+    // WQEs to free ring space, since no asynchronous completion can arrive.
+    if (!CpuSimUrmaDrainNIC(session, peer, state.jetty, state.wq, state.cq, state.pendingHead)) {
+        return false;
+    }
+    return UrmaRingHasRoom(state.wq, state.cq, state.pendingHead, state.submittedWqeCount, requiredBb, 1U);
+#else
     bool completed = false;
     return UrmaPollCqAt(session, peer, state.jetty, state.pendingHead, state.submittedWqeCount, true, completed) &&
            completed;
+#endif
 }
 
 AICORE inline bool PostNotifyPayload(

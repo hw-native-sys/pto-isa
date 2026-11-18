@@ -146,6 +146,7 @@ private:
 
     static std::string FormatRecord(LogLevel level, const std::string& message)
     {
+        constexpr int MICROSECOND_WIDTH = 6;
         timeval now{};
         (void)gettimeofday(&now, nullptr);
         std::tm localTime{};
@@ -154,8 +155,8 @@ private:
         (void)std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &localTime);
 
         std::ostringstream stream;
-        stream << timestamp << '.' << std::setfill('0') << std::setw(6) << now.tv_usec << ' ' << LevelName(level) << ' '
-               << syscall(SYS_gettid) << " pid[" << getpid() << "] " << message << '\n';
+        stream << timestamp << '.' << std::setfill('0') << std::setw(MICROSECOND_WIDTH) << now.tv_usec << ' '
+               << LevelName(level) << ' ' << syscall(SYS_gettid) << " pid[" << getpid() << "] " << message << '\n';
         return stream.str();
     }
 

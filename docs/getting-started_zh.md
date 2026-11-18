@@ -377,6 +377,9 @@ ulimit -n 65536
   ```bash
   chmod +x build.sh
   ./build.sh --run_simple --a5 --npu
+
+  # 共享机器上只允许使用 1 张卡时，显式指定卡数（不指定则自动探测可见卡数）
+  ./build.sh --run_simple --a5 --npu --npu-count 1
   ```
 
 **打包：**

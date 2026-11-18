@@ -38,6 +38,22 @@ PTO_INST RecordEvent TIMG2COL(TileData &dst, ConvTileData &src, uint16_t posM = 
 - **Implementation checks (A2A3)**: `TileData::DType` must be one of: `int8_t`, `half`, `bfloat16_t`, `float`.
 - **Implementation checks (A5)**: `TileData::DType` must be one of: `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `bfloat16_t`, `float`.
 
+### ConvTile conversion paths
+
+The ConvTile path requires `ConvTileData::Loc == TileType::Mat` and source layout `NC1HWC0` or `NDC1HWC0`.
+The destination paths and layout requirements are:
+
+| Architecture | Destination | On-chip storage | Layout requirement |
+| --- | --- | --- | --- |
+| A2A3 | `TileType::Left` | L0A | `SFractal == SLayout::RowMajor` and `BLayout == RowMajor` |
+| A5 | `TileType::Left` | L0A | `SFractal == SLayout::RowMajor` and `BLayout == ColMajor` |
+| A5 | `TileType::Right` | L0B | `SFractal == SLayout::ColMajor` and `BLayout == RowMajor` |
+
+Destination and source dtypes must be identical. Convolution configuration fields are still read from the source ConvTile.
+
+The current A5 `Right` path does not use the source ConvTile `transpose` configuration; that field does not change
+the output arrangement of a `Right` destination. A2A3 still accepts only `Left` destinations.
+
 ## Math Interpretation
 
 Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.

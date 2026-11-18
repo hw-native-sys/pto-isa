@@ -18,6 +18,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/common/debug.h>
 
 namespace pto {
+// For 1-byte non-int8/uint8 dtypes (hifloat8/float8_*), vector intrinsic overloads are not guaranteed
+// on all toolchains, so reinterpret the UB pointers as int8 and operate via int8 intrinsics (same
+// convention as TExtractRegT). Semantics match since each element occupies exactly one byte.
+template <typename T>
+using TInterleaveRegT =
+    std::conditional_t<sizeof(T) == 1 && !std::is_same_v<T, int8_t> && !std::is_same_v<T, uint8_t>, int8_t, T>;
+
 template <typename TileDataDst, typename TileDataSrc>
 PTO_INTERNAL void TInterleaveCheck(
     const TileDataDst& dst1, const TileDataDst& dst0, const TileDataSrc& src1, const TileDataSrc& src0)
@@ -26,7 +33,8 @@ PTO_INTERNAL void TInterleaveCheck(
     static_assert(
         std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t> || std::is_same_v<T, float> ||
             std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, half> ||
-            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>,
+            std::is_same_v<T, bfloat16_t> || std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t> ||
+            std::is_same_v<T, float8_e4m3_t> || std::is_same_v<T, float8_e5m2_t> || std::is_same_v<T, float8_e8m0_t>,
         "Fix: TINTERLEAVE has invalid data type.");
     static_assert(
         TileDataDst::isRowMajor && TileDataSrc::isRowMajor, "Fix: TINTERLEAVE only support row major layout.");
@@ -121,27 +129,28 @@ __tf__ PTO_INTERNAL void TInterleaveAlign(
     unsigned validCols)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
-    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
-    __ubuf__ T* dst1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(dst1);
-    __ubuf__ T* dst0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(dst0);
+    using RegT = TInterleaveRegT<T>;
+    __ubuf__ RegT* src1Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(src1);
+    __ubuf__ RegT* src0Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(src0);
+    __ubuf__ RegT* dst1Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(dst1);
+    __ubuf__ RegT* dst0Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(dst0);
 
     uint32_t halfValidCols = validCols >> 1;
     uint16_t repeatTime = CeilDivision(halfValidCols, ElementsPerRepeat);
     constexpr auto distValue =
-        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<RegT, DistVST::DIST_NORM>())>();
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned srcRowStride = TileDataSrc::RowStride;
 
     __VEC_SCOPE__
     {
-        RegTensor<T> src0Reg, src1Reg, dst0Reg, dst1Reg;
+        RegTensor<RegT> src0Reg, src1Reg, dst0Reg, dst1Reg;
         for (uint16_t i = 0; i < (uint16_t)validRows; ++i) {
             // Interleave src0/src1 first half into dst0; second half into dst1 (aligned loads)
-            TInterleaveAlignedHalf<T, ElementsPerRepeat>(
+            TInterleaveAlignedHalf<RegT, ElementsPerRepeat>(
                 src0Reg, src1Reg, dst0Reg, dst1Reg, dst0Ptr, src0Ptr, src1Ptr, i * srcRowStride, i * dstRowStride,
                 repeatTime, validCols, distValue);
-            TInterleaveAlignedHalf<T, ElementsPerRepeat>(
+            TInterleaveAlignedHalf<RegT, ElementsPerRepeat>(
                 src0Reg, src1Reg, dst0Reg, dst1Reg, dst1Ptr, src0Ptr, src1Ptr, i * srcRowStride + halfValidCols,
                 i * dstRowStride, repeatTime, validCols, distValue);
         }
@@ -155,28 +164,29 @@ __tf__ PTO_INTERNAL void TInterleaveUnalign(
     unsigned validCols)
 {
     using T = typename TileDataDst::DType;
-    __ubuf__ T* dst1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(dst1);
-    __ubuf__ T* dst0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(dst0);
-    __ubuf__ T* src1Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src1);
-    __ubuf__ T* src0Ptr = (__ubuf__ T*)__cce_get_tile_ptr(src0);
+    using RegT = TInterleaveRegT<T>;
+    __ubuf__ RegT* dst1Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(dst1);
+    __ubuf__ RegT* dst0Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(dst0);
+    __ubuf__ RegT* src1Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(src1);
+    __ubuf__ RegT* src0Ptr = (__ubuf__ RegT*)__cce_get_tile_ptr(src0);
 
     uint32_t halfValidCols = validCols >> 1;
     uint16_t repeatTime = CeilDivision(halfValidCols, ElementsPerRepeat);
     constexpr auto distValue =
-        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<T, DistVST::DIST_NORM>())>();
+        std::integral_constant<::DistVST, static_cast<::DistVST>(GetDistVst<RegT, DistVST::DIST_NORM>())>();
     constexpr unsigned dstRowStride = TileDataDst::RowStride;
     constexpr unsigned srcRowStride = TileDataSrc::RowStride;
 
     __VEC_SCOPE__
     {
         UnalignReg ureg;
-        RegTensor<T> src0Reg, src1Reg, dst0Reg, dst1Reg;
+        RegTensor<RegT> src0Reg, src1Reg, dst0Reg, dst1Reg;
         for (uint16_t i = 0; i < (uint16_t)validRows; ++i) {
             // First half: aligned loads into dst0; second half: unaligned loads into dst1
-            TInterleaveAlignedHalf<T, ElementsPerRepeat>(
+            TInterleaveAlignedHalf<RegT, ElementsPerRepeat>(
                 src0Reg, src1Reg, dst0Reg, dst1Reg, dst0Ptr, src0Ptr, src1Ptr, i * srcRowStride, i * dstRowStride,
                 repeatTime, validCols, distValue);
-            TInterleaveUnalignedHalf<T, ElementsPerRepeat>(
+            TInterleaveUnalignedHalf<RegT, ElementsPerRepeat>(
                 src0Reg, src1Reg, dst0Reg, dst1Reg, ureg, dst1Ptr, src0Ptr, src1Ptr, i * srcRowStride + halfValidCols,
                 i * dstRowStride, repeatTime, validCols, distValue);
         }

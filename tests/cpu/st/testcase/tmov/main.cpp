@@ -349,3 +349,93 @@ TEST_F(TMOVTest, mx_scale_rejects_unaligned_dn_rows)
     TASSIGN(tmp, 8192);
     EXPECT_DEATH_IF_SUPPORTED(TMOV<0>(dst, src, tmp), "X2ZZ DN rows must be a multiple of 16");
 }
+
+template <typename T, int N, int C, int H, int W>
+void testMovAccToConvTileNCHW()
+{
+    constexpr int SRC_ROWS = 16;
+    constexpr int SRC_COLS = 16;
+
+    using SrcTile =
+        Tile<TileType::Acc, T, SRC_ROWS, SRC_COLS, BLayout::ColMajor, DYNAMIC, DYNAMIC, SLayout::RowMajor, 1024>;
+    using DstTile = ConvTile<TileType::Vec, T, N * C * H * W * sizeof(T), Layout::NCHW, ConvTileShape<N, C, H, W>>;
+
+    SrcTile src;
+    std::vector<T> srcStorage(SRC_ROWS * SRC_COLS);
+    src.data() = srcStorage.data();
+    src.SetValidRow(N * H * W);
+    src.SetValidCol(C);
+    for (int r = 0; r < SRC_ROWS; ++r) {
+        for (int c = 0; c < SRC_COLS; ++c) {
+            src.SetElement(r, c, static_cast<T>(r * 100 + c));
+        }
+    }
+
+    DstTile dst;
+    std::vector<T> dstStorage(N * C * H * W, static_cast<T>(-1));
+    dst.data() = dstStorage.data();
+    TMOV(dst, src);
+    for (int n = 0; n < N; ++n) {
+        for (int c = 0; c < C; ++c) {
+            for (int h = 0; h < H; ++h) {
+                for (int w = 0; w < W; ++w) {
+                    const size_t dstIndex = ((n * C + c) * H + h) * W + w;
+                    const int srcRow = (n * H + h) * W + w;
+                    const int srcCol = c;
+
+                    EXPECT_EQ(dstStorage[dstIndex], src.GetElement(srcRow, srcCol))
+                        << "Mismatch at N=" << n << ", C=" << c << ", H=" << h << ", W=" << w;
+                }
+            }
+        }
+    }
+}
+
+template <typename T, int N, int C, int D, int H, int W>
+void testMovAccToConvTileNCDHW()
+{
+    constexpr int SRC_ROWS = 16;
+    constexpr int SRC_COLS = 16;
+
+    using SrcTile =
+        Tile<TileType::Acc, T, SRC_ROWS, SRC_COLS, BLayout::ColMajor, DYNAMIC, DYNAMIC, SLayout::RowMajor, 1024>;
+    using DstTile =
+        ConvTile<TileType::Vec, T, N * C * D * H * W * sizeof(T), Layout::NCDHW, ConvTileShape<N, C, D, H, W>>;
+
+    SrcTile src;
+    std::vector<T> srcStorage(SRC_ROWS * SRC_COLS);
+    src.data() = srcStorage.data();
+    src.SetValidRow(N * D * H * W);
+    src.SetValidCol(C);
+    for (int r = 0; r < SRC_ROWS; ++r) {
+        for (int c = 0; c < SRC_COLS; ++c) {
+            src.SetElement(r, c, static_cast<T>(r * 100 + c));
+        }
+    }
+
+    DstTile dst;
+    std::vector<T> dstStorage(N * C * D * H * W, static_cast<T>(-1));
+    dst.data() = dstStorage.data();
+    TMOV(dst, src);
+    for (int n = 0; n < N; ++n) {
+        for (int c = 0; c < C; ++c) {
+            for (int d = 0; d < D; ++d) {
+                for (int h = 0; h < H; ++h) {
+                    for (int w = 0; w < W; ++w) {
+                        const size_t dstIndex = (((n * C + c) * D + d) * H + h) * W + w;
+                        const int srcRow = ((n * D + d) * H + h) * W + w;
+                        const int srcCol = c;
+
+                        EXPECT_EQ(dstStorage[dstIndex], src.GetElement(srcRow, srcCol))
+                            << "Mismatch at N=" << n << ", C=" << c << ", D=" << d << ", H=" << h << ", W=" << w;
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_F(TMOVTest, AccToConvTileNCHWFloat) { testMovAccToConvTileNCHW<float, 1, 4, 2, 3>(); }
+TEST_F(TMOVTest, AccToConvTileNCDHWFloat) { testMovAccToConvTileNCDHW<float, 1, 4, 2, 2, 2>(); }
+TEST_F(TMOVTest, AccToConvTileNCHWInt32) { testMovAccToConvTileNCHW<int32_t, 1, 4, 2, 3>(); }
+TEST_F(TMOVTest, AccToConvTileNCDHWInt32) { testMovAccToConvTileNCDHW<int32_t, 1, 4, 2, 2, 2>(); }

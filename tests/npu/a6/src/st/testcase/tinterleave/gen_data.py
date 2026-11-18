@@ -13,20 +13,24 @@
 import os
 
 import numpy as np
+from ml_dtypes import float8_e4m3fn, float8_e5m2
 
 np.random.seed(19)
 
 
 class TInterleaveParams:
-    def __init__(self, dtype, tileH, tileW, vRow, vCol):
+    def __init__(self, dtype, tileH, tileW, vRow, vCol, name=None):
         self.dtype = dtype
         self.tile_h = tileH
         self.tile_w = tileW
         self.valid_row = vRow
         self.valid_col = vCol
+        self.name = name
 
 
 def generate_case_name(param):
+    if param.name is not None:
+        return f"TINTERLEAVETest.case_{param.name}_{param.tile_h}x{param.tile_w}_{param.valid_row}x{param.valid_col}"
     dtype_str = {
         np.float32: "float",
         np.float16: "half",
@@ -88,6 +92,10 @@ case_params_list = [
     # odd valid col
     TInterleaveParams(np.float32, 64, 64, 64, 63),
     TInterleaveParams(np.uint8, 32, 256, 32, 255),
+    # fp8 (byte-agnostic data move; the kernel uses fp8 device types)
+    TInterleaveParams(float8_e4m3fn, 32, 256, 32, 256, name="fp8e4m3"),
+    TInterleaveParams(float8_e5m2, 32, 256, 32, 256, name="fp8e5m2"),
+    TInterleaveParams(np.uint8, 32, 256, 32, 256, name="fp8e8m0"),
 ]
 
 if __name__ == "__main__":

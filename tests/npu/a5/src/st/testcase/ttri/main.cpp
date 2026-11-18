@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstring>
 #include "acl/acl.h"
 #include "test_common.h"
+#include "acl_env.h"
 
 using namespace std;
 using namespace PtoTestCommon;
@@ -42,8 +43,6 @@ void test_ttri(int diagonal)
 {
     size_t fileSize = validRows * validCols * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -63,8 +62,6 @@ void test_ttri(int diagonal)
 
     aclrtFreeHost(dstHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(fileSize / sizeof(T));
     std::vector<T> devFinal(fileSize / sizeof(T));
@@ -109,8 +106,6 @@ void test_ttri_dyn(int diagonal)
 {
     size_t fileSize = validRows * validCols * sizeof(T);
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -130,8 +125,6 @@ void test_ttri_dyn(int diagonal)
 
     aclrtFreeHost(dstHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<T> golden(fileSize / sizeof(T));
     std::vector<T> devFinal(fileSize / sizeof(T));
@@ -182,8 +175,6 @@ void test_ttri_guard()
         }
     }
 
-    ASSERT_EQ(aclInit(nullptr), ACL_SUCCESS);
-    ASSERT_EQ(aclrtSetDevice(0), ACL_SUCCESS);
     aclrtStream stream;
     ASSERT_EQ(aclrtCreateStream(&stream), ACL_SUCCESS);
     T* dstDevice;
@@ -194,8 +185,6 @@ void test_ttri_guard()
     EXPECT_EQ(aclrtMemcpy(actual.data(), fileSize, dstDevice, fileSize, ACL_MEMCPY_DEVICE_TO_HOST), ACL_SUCCESS);
     EXPECT_EQ(aclrtFree(dstDevice), ACL_SUCCESS);
     EXPECT_EQ(aclrtDestroyStream(stream), ACL_SUCCESS);
-    EXPECT_EQ(aclrtResetDevice(0), ACL_SUCCESS);
-    EXPECT_EQ(aclFinalize(), ACL_SUCCESS);
 
     // Check valid elements, row padding, invalid rows, and the trailing guard byte for byte.
     for (size_t byte = 0; byte < fileSize; ++byte) {
@@ -207,3 +196,10 @@ void test_ttri_guard()
     TEST_F(TTRITest, name) { test_ttri_guard<type, kind, rows, cols, validRows, validCols, upper, diagonal>(); }
 #include "ttri_guard_cases.inc"
 #undef PTO_TTRI_GUARD_CASE
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}

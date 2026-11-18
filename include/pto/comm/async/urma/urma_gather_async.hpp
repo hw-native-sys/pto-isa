@@ -13,10 +13,18 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #ifdef PTO_URMA_SUPPORTED
 
-#if __has_include(<simt_api/device_functions.h>)
-#include <simt_api/device_functions.h>
+#if defined(__CCE_AICORE_SUPPORT_SIMT__)
 #define PTO_URMA_GATHER_SIMT_AVAILABLE
 #endif
+
+// Without the availability macro the submit path drops every SIMT branch, which
+// would turn a forced-SIMT build into a silent scalar run and report a pass for
+// a path it never exercised.
+#if defined(PTO_URMA_GATHER_FORCE_SIMT) && !defined(PTO_URMA_GATHER_SIMT_AVAILABLE)
+#error "PTO_URMA_GATHER_FORCE_SIMT needs a SIMT-capable toolchain (__CCE_AICORE_SUPPORT_SIMT__ is undefined)."
+#endif
+
+#include <type_traits>
 
 #include "pto/comm/async_common/TPutAsyncCommonDetail.hpp"
 #include "pto/comm/async/urma/urma_async_intrin.hpp"
@@ -28,6 +36,8 @@ namespace detail {
 
 constexpr uint32_t kUrmaGatherNoCqeFlags = 0x01U;
 constexpr uint32_t kUrmaGatherOneCqeFlags = 0x20U;
+// relax placement | completion order | fence previous READ/atomic | CQE.
+// Also used by the descriptor READ path and capacity-recovery NOPs.
 constexpr uint32_t kUrmaGatherFinalFlags = 0x2dU;
 
 AICORE inline bool IsUrmaGatherEventKind(uint16_t eventKind)
@@ -90,8 +100,15 @@ AICORE PTO_INLINE uint32_t LoadUrmaGatherDescriptorDword(__gm__ const void* addr
     return ld_dev(reinterpret_cast<__gm__ uint32_t*>(const_cast<__gm__ void*>(address)), 0);
 }
 
-struct UrmaRawGatherDestinationList {
-    __gm__ const GatherDestination* destinations;
+// Keep READ SQEs in the single-SGE format used by contiguous TGET_ASYNC.
+// Scatter descriptors still accept multiple local segments; each becomes a READ.
+template <typename RemoteDescriptor>
+constexpr uint32_t kUrmaDescriptorMaxSges = std::is_same_v<RemoteDescriptor, ScatterSource> ? 1U : kUrmaMaxSgesPerSqe;
+
+template <typename RemoteDescriptor>
+struct UrmaRawRemoteList {
+    static constexpr uint32_t kMaxSges = kUrmaDescriptorMaxSges<RemoteDescriptor>;
+    __gm__ const RemoteDescriptor* destinations;
 
     AICORE __gm__ uint8_t* GetRemoteAddress(uint32_t index) const
     {
@@ -104,8 +121,9 @@ struct UrmaRawGatherDestinationList {
     }
 };
 
-struct UrmaRawGatherSourceSegmentList {
-    __gm__ const GatherSegment* sourceSegments;
+template <typename LocalDescriptor>
+struct UrmaRawLocalSegmentList {
+    __gm__ const LocalDescriptor* sourceSegments;
 
     AICORE __gm__ const uint8_t* GetLocalAddress(uint32_t index) const
     {
@@ -120,6 +138,11 @@ struct UrmaRawGatherSourceSegmentList {
         return GetLocalAddress(index) != nullptr && GetLengthBytes(index) != 0U;
     }
 };
+
+using UrmaRawGatherDestinationList = UrmaRawRemoteList<GatherDestination>;
+using UrmaRawGatherSourceSegmentList = UrmaRawLocalSegmentList<GatherSegment>;
+using UrmaRawScatterSourceList = UrmaRawRemoteList<ScatterSource>;
+using UrmaRawScatterDestinationList = UrmaRawLocalSegmentList<ScatterSegment>;
 
 AICORE inline uint32_t UrmaGatherStageIndex(
     __gm__ UrmaInfo* info, uint32_t peer, uint32_t queueSlot, uint32_t queueCount)
@@ -199,10 +222,11 @@ AICORE inline bool UrmaGatherLocalRangeValid(__gm__ UrmaInfo* info, __gm__ const
            bytes <= memoryEnd - address;
 }
 
+template <typename RemoteList, typename LocalList>
 AICORE inline bool BuildUrmaGatherSubmissionPlan(
-    const UrmaRawGatherDestinationList& destinations, uint32_t destinationCount,
-    const UrmaRawGatherSourceSegmentList& sourceSegments, uint32_t sourceSegmentCount, const AsyncSession& session,
-    UrmaGatherRuntimeView& runtime, UrmaGatherSubmissionPlan& submissionPlan)
+    const RemoteList& destinations, uint32_t destinationCount, const LocalList& sourceSegments,
+    uint32_t sourceSegmentCount, const AsyncSession& session, UrmaGatherRuntimeView& runtime,
+    UrmaGatherSubmissionPlan& submissionPlan)
 {
     if (!session.valid || session.engine != DmaEngine::URMA || session.cfg.urma.qpCount == 0U ||
         session.cfg.urma.qpCount > kUrmaMaxJettiesPerCore) {
@@ -251,7 +275,7 @@ AICORE inline bool BuildUrmaGatherSubmissionPlan(
             uint32_t groupSegmentCount = 0U;
             uint64_t groupBytes = 0U;
             while (consumedForDestination + groupSegmentCount < destinationSegmentCount &&
-                   groupSegmentCount < kUrmaMaxSgesPerSqe) {
+                   groupSegmentCount < RemoteList::kMaxSges) {
                 const uint32_t sourceSegmentIndex = firstSourceSegment + groupSegmentCount;
                 if (!sourceSegments.IsValid(sourceSegmentIndex)) {
                     return false;
@@ -543,9 +567,6 @@ AICORE inline bool ReserveUrmaGatherSubmissionResources(
 
         queueSubmission->beginBbSequence = queueStage->nextBbSequence;
         queueSubmission->beginCqeSequence = queueStage->nextCqeSequence;
-        // Both fills know each queue's total footprint before reservation. The
-        // scalar path advances a queue-local cursor while it emits compact
-        // WQEs; the SIMT path computes fixed-slot positions directly.
         const uint32_t nextBbSequence = queueStage->nextBbSequence + queueSubmission->payloadBbCount;
         queueSubmission->endBbSequence = nextBbSequence;
         queueSubmission->endCqeSequence = queueStage->nextCqeSequence + queueSubmission->requestedCqeCount;
@@ -554,13 +575,33 @@ AICORE inline bool ReserveUrmaGatherSubmissionResources(
     return true;
 }
 
+// Closes a queue that carries an unfinished NoCqe prefix but no payload in this
+// submission. One WQEBB, no SGEs, CQE requested. The scalar path calls this even
+// when the toolchain has no SIMT support, so the body stays outside that guard.
 AICORE inline void FillUrmaGatherFinalNopScalar(
-    __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, uint32_t bbSequence);
+    __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, uint32_t bbSequence)
+{
+    constexpr uint32_t kWordsPerBb = 8U;
+    __gm__ uint64_t* sqWords = reinterpret_cast<__gm__ uint64_t*>(workQueue->bufAddr);
+    for (uint32_t word = 0U; word < kWordsPerBb; ++word) {
+        sqWords[(bbSequence * kWordsPerBb + word) & (workQueue->depth * kWordsPerBb - 1U)] = 0U;
+    }
+    __gm__ uint8_t* firstBb = reinterpret_cast<__gm__ uint8_t*>(
+        workQueue->bufAddr + static_cast<uint64_t>(bbSequence & (workQueue->depth - 1U)) * 64U);
+    FillSqeCtx(
+        reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb), remoteMem, nullptr, UrmaOpcode::NOP, bbSequence,
+        workQueue->depth);
+    __gm__ UrmaSqeCtx* header = reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb);
+    header->flag = kUrmaGatherFinalFlags;
+    header->sgeNum = 0U;
+    DcciCachelines(firstBb, 64U);
+}
 
+template <UrmaOpcode opcode = UrmaOpcode::WRITE, typename LocalList>
 AICORE inline void FillOneUrmaGatherSqeScalar(
     __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, __gm__ uint8_t* remoteAddress,
     uint32_t firstSourceSegment, uint32_t sourceSegmentCount, uint32_t bbSequence, uint32_t flags,
-    const UrmaRawGatherSourceSegmentList& sourceSegments)
+    const LocalList& sourceSegments)
 {
     constexpr uint32_t kWordsPerBb = 8U;
     const uint32_t bbCount = (kUrmaSqeSizeBytes + sourceSegmentCount * kUrmaSgeSizeBytes + 63U) / 64U;
@@ -572,8 +613,7 @@ AICORE inline void FillOneUrmaGatherSqeScalar(
     __gm__ uint8_t* firstBb = reinterpret_cast<__gm__ uint8_t*>(
         workQueue->bufAddr + static_cast<uint64_t>(bbSequence & (workQueue->depth - 1U)) * 64U);
     FillSqeCtx(
-        reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb), remoteMem, remoteAddress, UrmaOpcode::WRITE, bbSequence,
-        workQueue->depth);
+        reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb), remoteMem, remoteAddress, opcode, bbSequence, workQueue->depth);
     __gm__ UrmaSqeCtx* header = reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb);
     header->flag = flags;
     header->sgeNum = sourceSegmentCount;
@@ -607,10 +647,10 @@ AICORE inline int32_t FindUrmaGatherQueueSubmission(
     return -1;
 }
 
+template <UrmaOpcode opcode = UrmaOpcode::WRITE, typename RemoteList, typename LocalList>
 AICORE inline bool FillUrmaGatherSqesScalar(
-    const UrmaRawGatherDestinationList& destinations, uint32_t destinationCount,
-    const UrmaRawGatherSourceSegmentList& sourceSegments, const AsyncSession& session, UrmaGatherRuntimeView& runtime,
-    const UrmaGatherSubmissionPlan& submissionPlan)
+    const RemoteList& destinations, uint32_t destinationCount, const LocalList& sourceSegments,
+    const AsyncSession& session, UrmaGatherRuntimeView& runtime, const UrmaGatherSubmissionPlan& submissionPlan)
 {
     __gm__ UrmaInfo* info = reinterpret_cast<__gm__ UrmaInfo*>(session.contextGm);
     for (uint32_t queueIndex = 0U; queueIndex < submissionPlan.queueCount; ++queueIndex) {
@@ -637,7 +677,7 @@ AICORE inline bool FillUrmaGatherSqesScalar(
             uint32_t groupSegmentCount = 0U;
             uint64_t groupBytes = 0U;
             while (consumedForDestination + groupSegmentCount < destinationSegmentCount &&
-                   groupSegmentCount < kUrmaMaxSgesPerSqe) {
+                   groupSegmentCount < RemoteList::kMaxSges) {
                 const uint64_t segmentBytes = sourceSegments.GetLengthBytes(firstSourceSegment + groupSegmentCount);
                 if (groupSegmentCount != 0U && groupBytes > kUrmaMaxWqeTransferBytes - segmentBytes) {
                     break;
@@ -667,7 +707,7 @@ AICORE inline bool FillUrmaGatherSqesScalar(
                          kUrmaGatherFinalFlags :
                          kUrmaGatherNoCqeFlags);
             const uint32_t bbSequence = queueSubmission->nextBbSequence;
-            FillOneUrmaGatherSqeScalar(
+            FillOneUrmaGatherSqeScalar<opcode>(
                 workQueue, remoteMem, remoteBase + destinationBytes, firstSourceSegment, groupSegmentCount, bbSequence,
                 flags, sourceSegments);
             queueSubmission->nextBbSequence += (kUrmaSqeSizeBytes + groupSegmentCount * kUrmaSgeSizeBytes + 63U) / 64U;
@@ -696,32 +736,32 @@ AICORE inline bool FillUrmaGatherSqesScalar(
 // ============================================================================
 // Plan-free SIMT gather fast path
 // ============================================================================
-// Eligible submissions emit exactly one SQE per destination, so the global SQE
-// ordinal is the destination index and every ring position is closed-form:
-// a queue's SQEs sit at baseBbSequence + slotIndex * slotBbCount. That removes
-// both the GM plan array and the O(queues x SQEs) sequencing loop. The price is
-// a fixed slot per SQE, padded with NOP WQEs when an SQE is narrower than the
-// submission's widest one.
-
 // Descriptor reads inside a vector function have the same hazard the scalar
 // path documents above: a caller that rewrites one descriptor buffer every
 // round needs each pass to reach memory rather than a line left over from the
-// previous round. asc_ldcg is the vector-side load that does.
+// previous round. __ldg defaults to CACHEABLE, so the NON_CACHEABLE L1 hint is
+// what makes the load reach memory; the same applies to the __stg below.
 __simt_callee__ AICORE PTO_INLINE uint64_t LoadUrmaGatherSimtAddress(__gm__ const void* address)
 {
-    return static_cast<uint64_t>(
-        asc_ldcg(reinterpret_cast<__gm__ unsigned long long*>(const_cast<__gm__ void*>(address))));
+    return __ldg<LD_L2CacheType::L2_CACHE_HINT_NORMAL_FV, L1CacheType::NON_CACHEABLE>(
+        reinterpret_cast<__gm__ uint64_t*>(const_cast<__gm__ void*>(address)));
 }
 
 __simt_callee__ AICORE PTO_INLINE uint32_t LoadUrmaGatherSimtWord(__gm__ const void* address)
 {
-    return asc_ldcg(reinterpret_cast<__gm__ unsigned int*>(const_cast<__gm__ void*>(address)));
+    return __ldg<LD_L2CacheType::L2_CACHE_HINT_NORMAL_FV, L1CacheType::NON_CACHEABLE>(
+        reinterpret_cast<__gm__ uint32_t*>(const_cast<__gm__ void*>(address)));
+}
+
+__simt_callee__ AICORE PTO_INLINE void StoreUrmaGatherSimtSqWord(__gm__ uint64_t* address, uint64_t value)
+{
+    __stg<ST_L2CacheType::L2_CACHE_HINT_NORMAL_FV, L1CacheType::NON_CACHEABLE>(address, value);
 }
 
 __simt_callee__ AICORE PTO_INLINE uint64_t BroadcastUrmaGatherSimtU64(uint64_t value, int32_t sourceLane, int32_t width)
 {
-    const uint32_t low = asc_shfl(static_cast<uint32_t>(value), sourceLane, width);
-    const uint32_t high = asc_shfl(static_cast<uint32_t>(value >> 32U), sourceLane, width);
+    const uint32_t low = __shfl(static_cast<uint32_t>(value), sourceLane, width);
+    const uint32_t high = __shfl(static_cast<uint32_t>(value >> 32U), sourceLane, width);
     return static_cast<uint64_t>(low) | (static_cast<uint64_t>(high) << 32U);
 }
 
@@ -731,7 +771,7 @@ FindOrAddUrmaGatherSimtStage(__ubuf__ UrmaGatherSimtScratch* scratch, uint32_t s
     const uint32_t stageKey = stageIndex + 1U;
     for (uint32_t probe = 0U; probe < kUrmaGatherSimtMaxQueues; ++probe) {
         __ubuf__ UrmaGatherSimtActiveStage* active = scratch->activeStages + probe;
-        const uint32_t oldKey = asc_atomic_cas(&active->stageKey, 0U, stageKey);
+        const uint32_t oldKey = atomicCAS(&active->stageKey, 0U, stageKey);
         if (oldKey == 0U || oldKey == stageKey) {
             if (oldKey == 0U) {
                 active->peer = peer;
@@ -767,11 +807,9 @@ UrmaGatherSimtTargetRow(uint32_t layout, uint32_t peer, uint32_t jettyIndex, uin
                                                                       peer * rowsPerPeer + jettyIndex;
 }
 
-// Counts SQEs per queue stage, validates every destination, and records the
-// per-warp source-segment prefix the fill pass needs to address segments
-// absolutely. Warp w owns destinations [w * chunkSize, (w + 1) * chunkSize).
+template <typename RemoteDescriptor, typename LocalDescriptor>
 AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtCountKernel(
-    __gm__ const GatherDestination* destinations, __gm__ const GatherSegment* sourceSegments,
+    __gm__ const RemoteDescriptor* destinations, __gm__ const LocalDescriptor* sourceSegments,
     __ubuf__ UrmaGatherSimtScratch* scratch, uint32_t destinationCount, uint32_t chunkSize, uint32_t rankCount,
     uint32_t qpCount, uint32_t qpIdxBase, uint32_t nextWqeSeq, uint32_t stageCapacity, uint32_t layout,
     uint32_t rowsPerPeer, uint64_t memPtr, uint64_t localMrBase, uint64_t localMrLength)
@@ -786,7 +824,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtCountKernel(
     for (uint32_t wordIndex = threadRank; wordIndex < kScratchWords; wordIndex += kThreadCount) {
         scratchWords[wordIndex] = 0U;
     }
-    asc_syncthreads();
+    __syncthreads();
 
     const uint32_t chunkBegin = warpIndex * chunkSize;
     uint32_t chunkEnd = chunkBegin + chunkSize;
@@ -797,8 +835,6 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtCountKernel(
         chunkEnd = chunkBegin;
     }
 
-    // Segment totals first: the absolute index of a chunk's first segment is
-    // only known once every earlier chunk has reported its own total.
     if (laneIndex == 0U) {
         uint32_t segmentSum = 0U;
         for (uint32_t destinationIndex = chunkBegin; destinationIndex < chunkEnd; ++destinationIndex) {
@@ -806,23 +842,20 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtCountKernel(
         }
         scratch->warpSegmentSum[warpIndex] = segmentSum;
     }
-    asc_syncthreads();
+    __syncthreads();
 
-    // One warp scans the 32 chunk totals in five shuffle steps. This replaces
-    // the old O(warp^2) lane-0 loop and publishes every chunk's exclusive
-    // source-segment prefix at once.
     if (warpIndex == 0U) {
         uint32_t prefix = scratch->warpSegmentSum[laneIndex];
         const uint32_t ownCount = prefix;
         for (uint32_t delta = 1U; delta < kUrmaGatherSimtWarpSize; delta <<= 1U) {
-            const uint32_t previous = asc_shfl_up(prefix, delta, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+            const uint32_t previous = __shfl_up(prefix, delta, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
             if (laneIndex >= delta) {
                 prefix += previous;
             }
         }
         scratch->warpSegmentBase[laneIndex] = prefix - ownCount;
     }
-    asc_syncthreads();
+    __syncthreads();
 
     uint32_t firstSegment = scratch->warpSegmentBase[warpIndex];
     const uint64_t localMrEnd = localMrBase + localMrLength;
@@ -833,25 +866,26 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtCountKernel(
             peer = LoadUrmaGatherSimtWord(&destinations[destinationIndex].peer);
             segmentCount = LoadUrmaGatherSimtWord(&destinations[destinationIndex].segCount);
         }
-        peer = asc_shfl(peer, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
-        segmentCount = asc_shfl(segmentCount, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+        peer = __shfl(peer, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+        segmentCount = __shfl(segmentCount, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
         const uint32_t queueSlot = (nextWqeSeq + destinationIndex) % qpCount;
         const uint32_t stageIndex = UrmaGatherSimtStageIndex(layout, peer, queueSlot, qpCount);
-        const bool commonAccepted = peer < rankCount && segmentCount != 0U && segmentCount <= kUrmaMaxSgesPerSqe &&
+        const bool commonAccepted = peer < rankCount && segmentCount != 0U &&
+                                    segmentCount <= kUrmaDescriptorMaxSges<RemoteDescriptor> &&
                                     stageIndex < stageCapacity && stageIndex <= UINT16_MAX;
 
         uint32_t segmentBytes = 0U;
         bool segmentAccepted = true;
         if (commonAccepted && laneIndex < segmentCount) {
-            __gm__ const GatherSegment* sourceSegment = sourceSegments + firstSegment + laneIndex;
+            __gm__ const LocalDescriptor* sourceSegment = sourceSegments + firstSegment + laneIndex;
             segmentBytes = LoadUrmaGatherSimtWord(&sourceSegment->length);
             const uint64_t localAddress = LoadUrmaGatherSimtAddress(&sourceSegment->addr);
             segmentAccepted = localAddress != 0U && segmentBytes != 0U && segmentBytes <= kUrmaMaxWqeTransferBytes &&
                               localMrEnd >= localMrBase && localAddress >= localMrBase && localAddress <= localMrEnd &&
                               segmentBytes <= localMrEnd - localAddress;
         }
-        const uint32_t validSegments = asc_ballot(segmentAccepted);
-        const uint32_t destinationBytes = asc_reduce_add(segmentBytes);
+        const uint32_t validSegments = __ballot(segmentAccepted);
+        const uint32_t destinationBytes = __reduce_add(segmentBytes);
 
         if (laneIndex == 0U) {
             bool accepted =
@@ -870,25 +904,22 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtCountKernel(
             if (accepted) {
                 const uint32_t activeIndex = FindOrAddUrmaGatherSimtStage(scratch, stageIndex, peer);
                 if (activeIndex != UINT32_MAX) {
-                    asc_atomic_add(&scratch->activeStages[activeIndex].sqeCount, 1U);
-                    asc_atomic_max(&scratch->maxSegmentCount, segmentCount);
+                    atomicAdd(&scratch->activeStages[activeIndex].sqeCount, 1U);
+                    atomicMax(&scratch->maxSegmentCount, segmentCount);
                 } else {
-                    asc_atomic_max(&scratch->rejected, 1U);
+                    atomicMax(&scratch->rejected, 1U);
                 }
             } else {
-                asc_atomic_max(&scratch->rejected, 1U);
+                atomicMax(&scratch->rejected, 1U);
             }
         }
         firstSegment += segmentCount;
     }
 }
 
-// General count path for destinations that need more than one SQE. The split
-// boundary matches the scalar path exactly: at most 12 SGEs and 256MB per SQE.
-// Lane 0 of each warp scans its destination chunk; split shapes are uncommon,
-// and keeping this planning pass simple avoids slowing the one-SQE fast path.
+template <typename RemoteDescriptor, typename LocalDescriptor>
 AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKernel(
-    __gm__ const GatherDestination* destinations, __gm__ const GatherSegment* sourceSegments,
+    __gm__ const RemoteDescriptor* destinations, __gm__ const LocalDescriptor* sourceSegments,
     __ubuf__ UrmaGatherSimtScratch* scratch, uint32_t destinationCount, uint32_t sourceSegmentCount, uint32_t chunkSize,
     uint32_t rankCount, uint32_t qpCount, uint32_t qpIdxBase, uint32_t nextWqeSeq, uint32_t stageCapacity,
     uint32_t layout, uint32_t rowsPerPeer, uint64_t memPtr, uint64_t localMrBase, uint64_t localMrLength)
@@ -903,7 +934,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
     for (uint32_t wordIndex = threadRank; wordIndex < kScratchWords; wordIndex += kThreadCount) {
         scratchWords[wordIndex] = 0U;
     }
-    asc_syncthreads();
+    __syncthreads();
 
     const uint32_t chunkBegin = warpIndex * chunkSize;
     uint32_t chunkEnd = chunkBegin + chunkSize;
@@ -921,19 +952,19 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
         }
         scratch->warpSegmentSum[warpIndex] = segmentSum;
     }
-    asc_syncthreads();
+    __syncthreads();
     if (warpIndex == 0U) {
         uint32_t prefix = scratch->warpSegmentSum[laneIndex];
         const uint32_t ownCount = prefix;
         for (uint32_t delta = 1U; delta < kUrmaGatherSimtWarpSize; delta <<= 1U) {
-            const uint32_t previous = asc_shfl_up(prefix, delta, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+            const uint32_t previous = __shfl_up(prefix, delta, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
             if (laneIndex >= delta) {
                 prefix += previous;
             }
         }
         scratch->warpSegmentBase[laneIndex] = prefix - ownCount;
     }
-    asc_syncthreads();
+    __syncthreads();
 
     if (laneIndex == 0U) {
         uint32_t firstSegment = scratch->warpSegmentBase[warpIndex];
@@ -949,7 +980,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
             uint64_t destinationBytes = 0U;
             uint32_t destinationSqeCount = 0U;
             for (uint32_t segment = 0U; segment < segmentCount && accepted; ++segment) {
-                __gm__ const GatherSegment* sourceSegment = sourceSegments + firstSegment + segment;
+                __gm__ const LocalDescriptor* sourceSegment = sourceSegments + firstSegment + segment;
                 const uint32_t segmentBytes = LoadUrmaGatherSimtWord(&sourceSegment->length);
                 const uint64_t localAddress = LoadUrmaGatherSimtAddress(&sourceSegment->addr);
                 accepted = localAddress != 0U && segmentBytes != 0U && segmentBytes <= kUrmaMaxWqeTransferBytes &&
@@ -958,7 +989,8 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
                 if (!accepted) {
                     break;
                 }
-                if (groupSegmentCount == kUrmaMaxSgesPerSqe || groupBytes > kUrmaMaxWqeTransferBytes - segmentBytes) {
+                if (groupSegmentCount == kUrmaDescriptorMaxSges<RemoteDescriptor> ||
+                    groupBytes > kUrmaMaxWqeTransferBytes - segmentBytes) {
                     ++destinationSqeCount;
                     groupSegmentCount = 0U;
                     groupBytes = 0U;
@@ -983,27 +1015,27 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
                            destinationBytes <= remoteEnd - remoteAddress;
             }
             if (!accepted || destinationSqeCount == 0U) {
-                asc_atomic_max(&scratch->rejected, 1U);
+                atomicMax(&scratch->rejected, 1U);
             }
             warpSqeCount += destinationSqeCount;
             firstSegment += segmentCount;
         }
         scratch->warpSqeSum[warpIndex] = warpSqeCount;
     }
-    asc_syncthreads();
+    __syncthreads();
 
     if (warpIndex == 0U) {
         uint32_t prefix = scratch->warpSqeSum[laneIndex];
         const uint32_t ownCount = prefix;
         for (uint32_t delta = 1U; delta < kUrmaGatherSimtWarpSize; delta <<= 1U) {
-            const uint32_t previous = asc_shfl_up(prefix, delta, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+            const uint32_t previous = __shfl_up(prefix, delta, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
             if (laneIndex >= delta) {
                 prefix += previous;
             }
         }
         scratch->warpSqeBase[laneIndex] = prefix - ownCount;
     }
-    asc_syncthreads();
+    __syncthreads();
     if (scratch->rejected != 0U) {
         return;
     }
@@ -1018,18 +1050,19 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
             uint64_t groupBytes = 0U;
             for (uint32_t segment = 0U; segment < segmentCount; ++segment) {
                 const uint32_t segmentBytes = LoadUrmaGatherSimtWord(&sourceSegments[firstSegment + segment].length);
-                if (groupSegmentCount == kUrmaMaxSgesPerSqe || groupBytes > kUrmaMaxWqeTransferBytes - segmentBytes) {
+                if (groupSegmentCount == kUrmaDescriptorMaxSges<RemoteDescriptor> ||
+                    groupBytes > kUrmaMaxWqeTransferBytes - segmentBytes) {
                     const uint32_t queueSlot = (nextWqeSeq + sqeOrdinal) % qpCount;
                     const uint32_t stageIndex = UrmaGatherSimtStageIndex(layout, peer, queueSlot, qpCount);
                     if (stageIndex >= stageCapacity || stageIndex > UINT16_MAX) {
-                        asc_atomic_max(&scratch->rejected, 1U);
+                        atomicMax(&scratch->rejected, 1U);
                     } else {
                         const uint32_t activeIndex = FindOrAddUrmaGatherSimtStage(scratch, stageIndex, peer);
                         if (activeIndex == UINT32_MAX) {
-                            asc_atomic_max(&scratch->rejected, 1U);
+                            atomicMax(&scratch->rejected, 1U);
                         } else {
-                            asc_atomic_add(&scratch->activeStages[activeIndex].sqeCount, 1U);
-                            asc_atomic_max(&scratch->maxSegmentCount, groupSegmentCount);
+                            atomicAdd(&scratch->activeStages[activeIndex].sqeCount, 1U);
+                            atomicMax(&scratch->maxSegmentCount, groupSegmentCount);
                         }
                     }
                     ++sqeOrdinal;
@@ -1043,14 +1076,14 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
                 const uint32_t queueSlot = (nextWqeSeq + sqeOrdinal) % qpCount;
                 const uint32_t stageIndex = UrmaGatherSimtStageIndex(layout, peer, queueSlot, qpCount);
                 if (stageIndex >= stageCapacity || stageIndex > UINT16_MAX) {
-                    asc_atomic_max(&scratch->rejected, 1U);
+                    atomicMax(&scratch->rejected, 1U);
                 } else {
                     const uint32_t activeIndex = FindOrAddUrmaGatherSimtStage(scratch, stageIndex, peer);
                     if (activeIndex == UINT32_MAX) {
-                        asc_atomic_max(&scratch->rejected, 1U);
+                        atomicMax(&scratch->rejected, 1U);
                     } else {
-                        asc_atomic_add(&scratch->activeStages[activeIndex].sqeCount, 1U);
-                        asc_atomic_max(&scratch->maxSegmentCount, groupSegmentCount);
+                        atomicAdd(&scratch->activeStages[activeIndex].sqeCount, 1U);
+                        atomicMax(&scratch->maxSegmentCount, groupSegmentCount);
                     }
                 }
                 ++sqeOrdinal;
@@ -1060,15 +1093,12 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitCountKe
     }
 }
 
-// A warp is split into fixed-size subgroups according to slot width. A 1-BB
-// slot gets four 8-lane writers, a 2-BB slot gets two 16-lane writers, and a
-// 3/4-BB slot uses the whole warp. The subgroup leader claims one queue slot
-// and broadcasts it; the remaining lanes write that SQE in parallel.
+template <typename RemoteDescriptor, typename LocalDescriptor>
 AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtFillKernel(
-    __gm__ const GatherDestination* destinations, __gm__ const GatherSegment* sourceSegments,
+    __gm__ const RemoteDescriptor* destinations, __gm__ const LocalDescriptor* sourceSegments,
     __ubuf__ UrmaGatherSimtScratch* scratch, uint32_t destinationCount, uint32_t chunkSize, uint32_t rankCount,
     uint32_t qpCount, uint32_t qpIdxBase, uint32_t nextWqeSeq, uint32_t layout, uint32_t rowsPerPeer, uint64_t memPtr,
-    uint32_t slotBbCount, uint32_t payloadFlags, uint32_t lastFlags, uint32_t nopFlags, uint32_t writeOpcode,
+    uint32_t slotBbCount, uint32_t payloadFlags, uint32_t lastFlags, uint32_t nopFlags, uint32_t transferOpcode,
     uint32_t nopOpcode)
 {
     constexpr uint32_t kWordsPerBb = 8U;
@@ -1100,13 +1130,13 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtFillKernel(
             peer = LoadUrmaGatherSimtWord(&destinations[destinationIndex].peer);
             segmentCount = LoadUrmaGatherSimtWord(&destinations[destinationIndex].segCount);
         }
-        peer = asc_shfl(peer, 0, static_cast<int32_t>(subgroupSize));
-        segmentCount = asc_shfl(segmentCount, 0, static_cast<int32_t>(subgroupSize));
+        peer = __shfl(peer, 0, static_cast<int32_t>(subgroupSize));
+        segmentCount = __shfl(segmentCount, 0, static_cast<int32_t>(subgroupSize));
 
         uint32_t destinationSegmentOffset = 0U;
         uint32_t batchSegmentCount = 0U;
         for (uint32_t group = 0U; group < subgroupCount; ++group) {
-            const uint32_t groupSegmentCount = asc_shfl(
+            const uint32_t groupSegmentCount = __shfl(
                 segmentCount, static_cast<int32_t>(group * subgroupSize),
                 static_cast<int32_t>(kUrmaGatherSimtWarpSize));
             if (group < subgroupIndex) {
@@ -1124,13 +1154,13 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtFillKernel(
             const uint32_t activeIndex = FindUrmaGatherSimtStage(scratch, stageIndex);
             if (activeIndex != UINT32_MAX) {
                 queueIndex = scratch->activeStages[activeIndex].queueIndex;
-                slotIndex = asc_atomic_add(&scratch->queues[queueIndex].fillCounter, 1U);
+                slotIndex = atomicAdd(&scratch->queues[queueIndex].fillCounter, 1U);
                 stageFound = true;
             }
         }
-        queueIndex = asc_shfl(queueIndex, 0, static_cast<int32_t>(subgroupSize));
-        slotIndex = asc_shfl(slotIndex, 0, static_cast<int32_t>(subgroupSize));
-        stageFound = asc_shfl(static_cast<uint32_t>(stageFound), 0, static_cast<int32_t>(subgroupSize)) != 0U;
+        queueIndex = __shfl(queueIndex, 0, static_cast<int32_t>(subgroupSize));
+        slotIndex = __shfl(slotIndex, 0, static_cast<int32_t>(subgroupSize));
+        stageFound = __shfl(static_cast<uint32_t>(stageFound), 0, static_cast<int32_t>(subgroupSize)) != 0U;
 
         if (activeDestination && stageFound && subgroupLane < slotWordCount) {
             __ubuf__ UrmaGatherSimtQueueEntry* queue = scratch->queues + queueIndex;
@@ -1155,7 +1185,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtFillKernel(
             const uint32_t headerWordIndex = inPayload ? payloadWordIndex : wordInBb;
             const uint32_t headerFlags =
                 inPayload ? ((slotIndex + 1U) == queue->sqeCount ? lastFlags : payloadFlags) : nopFlags;
-            const uint32_t headerOpcode = inPayload ? writeOpcode : nopOpcode;
+            const uint32_t headerOpcode = inPayload ? transferOpcode : nopOpcode;
             const uint32_t headerSgeNum = inPayload ? segmentCount : 0U;
 
             const uint32_t queueSlot = (nextWqeSeq + destinationIndex) % qpCount;
@@ -1188,7 +1218,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtFillKernel(
                 const uint32_t sgeWordIndex = payloadWordIndex - kHeaderWordCount;
                 const uint32_t sourceSegmentOffset = sgeWordIndex >> 1U;
                 if (sourceSegmentOffset < segmentCount) {
-                    __gm__ const GatherSegment* sourceSegment =
+                    __gm__ const LocalDescriptor* sourceSegment =
                         sourceSegments + firstSegment + destinationSegmentOffset + sourceSegmentOffset;
                     if ((sgeWordIndex & 1U) == 0U) {
                         wordValue = (static_cast<uint64_t>(remoteMem->localTokenId) << 32U) |
@@ -1202,22 +1232,18 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtFillKernel(
             const uint32_t ringWordCount = workQueueDepth * kWordsPerBb;
             __gm__ uint64_t* sqWords = reinterpret_cast<__gm__ uint64_t*>(queue->sqBaseAddress);
             const uint32_t ringWordIndex = (slotBbSequence * kWordsPerBb + subgroupLane) & (ringWordCount - 1U);
-            asc_stcg(
-                reinterpret_cast<__gm__ unsigned long long int*>(sqWords + ringWordIndex),
-                static_cast<unsigned long long int>(wordValue));
+            StoreUrmaGatherSimtSqWord(sqWords + ringWordIndex, wordValue);
         }
         firstSegment += batchSegmentCount;
     }
 }
 
-// Split fill uses one warp per destination and emits as many SQEs as needed.
-// It is intentionally separate from the subgroup fast path so the common
-// one-SQE case keeps its four/two destinations-per-warp throughput.
+template <typename RemoteDescriptor, typename LocalDescriptor>
 AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKernel(
-    __gm__ const GatherDestination* destinations, __gm__ const GatherSegment* sourceSegments,
+    __gm__ const RemoteDescriptor* destinations, __gm__ const LocalDescriptor* sourceSegments,
     __ubuf__ UrmaGatherSimtScratch* scratch, uint32_t destinationCount, uint32_t chunkSize, uint32_t rankCount,
     uint32_t qpCount, uint32_t qpIdxBase, uint32_t nextWqeSeq, uint32_t layout, uint32_t rowsPerPeer, uint64_t memPtr,
-    uint32_t slotBbCount, uint32_t payloadFlags, uint32_t lastFlags, uint32_t nopFlags, uint32_t writeOpcode,
+    uint32_t slotBbCount, uint32_t payloadFlags, uint32_t lastFlags, uint32_t nopFlags, uint32_t transferOpcode,
     uint32_t nopOpcode)
 {
     constexpr uint32_t kWordsPerBb = 8U;
@@ -1245,8 +1271,8 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
             segmentCount = LoadUrmaGatherSimtWord(&destinations[destinationIndex].segCount);
             remoteBaseAddress = LoadUrmaGatherSimtAddress(&destinations[destinationIndex].addr);
         }
-        peer = asc_shfl(peer, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
-        segmentCount = asc_shfl(segmentCount, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+        peer = __shfl(peer, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+        segmentCount = __shfl(segmentCount, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
         remoteBaseAddress =
             BroadcastUrmaGatherSimtU64(remoteBaseAddress, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
 
@@ -1256,7 +1282,8 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
             uint32_t groupSegmentCount = 0U;
             uint64_t groupBytes = 0U;
             if (laneIndex == 0U) {
-                while (consumedSegments + groupSegmentCount < segmentCount && groupSegmentCount < kUrmaMaxSgesPerSqe) {
+                while (consumedSegments + groupSegmentCount < segmentCount &&
+                       groupSegmentCount < kUrmaDescriptorMaxSges<RemoteDescriptor>) {
                     const uint32_t segmentBytes = LoadUrmaGatherSimtWord(
                         &sourceSegments[firstSegment + consumedSegments + groupSegmentCount].length);
                     if (groupSegmentCount != 0U && groupBytes > kUrmaMaxWqeTransferBytes - segmentBytes) {
@@ -1266,7 +1293,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
                     ++groupSegmentCount;
                 }
             }
-            groupSegmentCount = asc_shfl(groupSegmentCount, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+            groupSegmentCount = __shfl(groupSegmentCount, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
             groupBytes = BroadcastUrmaGatherSimtU64(groupBytes, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
 
             const uint32_t queueSlot = (nextWqeSeq + sqeOrdinal) % qpCount;
@@ -1278,14 +1305,14 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
                 const uint32_t activeIndex = FindUrmaGatherSimtStage(scratch, stageIndex);
                 if (activeIndex != UINT32_MAX) {
                     queueIndex = scratch->activeStages[activeIndex].queueIndex;
-                    slotIndex = asc_atomic_add(&scratch->queues[queueIndex].fillCounter, 1U);
+                    slotIndex = atomicAdd(&scratch->queues[queueIndex].fillCounter, 1U);
                     stageFound = true;
                 }
             }
-            queueIndex = asc_shfl(queueIndex, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
-            slotIndex = asc_shfl(slotIndex, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+            queueIndex = __shfl(queueIndex, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
+            slotIndex = __shfl(slotIndex, 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize));
             stageFound =
-                asc_shfl(static_cast<uint32_t>(stageFound), 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize)) != 0U;
+                __shfl(static_cast<uint32_t>(stageFound), 0, static_cast<int32_t>(kUrmaGatherSimtWarpSize)) != 0U;
 
             if (stageFound && laneIndex < slotWordCount) {
                 __ubuf__ UrmaGatherSimtQueueEntry* queue = scratch->queues + queueIndex;
@@ -1302,7 +1329,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
                 const uint32_t headerWordIndex = inPayload ? payloadWordIndex : wordInBb;
                 const uint32_t headerFlags =
                     inPayload ? ((slotIndex + 1U) == queue->sqeCount ? lastFlags : payloadFlags) : nopFlags;
-                const uint32_t headerOpcode = inPayload ? writeOpcode : nopOpcode;
+                const uint32_t headerOpcode = inPayload ? transferOpcode : nopOpcode;
                 const uint32_t headerSgeNum = inPayload ? groupSegmentCount : 0U;
 
                 const uint32_t jettyIndex = qpIdxBase + queueSlot;
@@ -1335,7 +1362,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
                     const uint32_t sgeWordIndex = payloadWordIndex - kHeaderWordCount;
                     const uint32_t sourceSegmentOffset = sgeWordIndex >> 1U;
                     if (sourceSegmentOffset < groupSegmentCount) {
-                        __gm__ const GatherSegment* sourceSegment =
+                        __gm__ const LocalDescriptor* sourceSegment =
                             sourceSegments + firstSegment + consumedSegments + sourceSegmentOffset;
                         if ((sgeWordIndex & 1U) == 0U) {
                             wordValue = (static_cast<uint64_t>(remoteMem->localTokenId) << 32U) |
@@ -1349,9 +1376,7 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
                 const uint32_t ringWordCount = workQueueDepth * kWordsPerBb;
                 __gm__ uint64_t* sqWords = reinterpret_cast<__gm__ uint64_t*>(queue->sqBaseAddress);
                 const uint32_t ringWordIndex = (slotBbSequence * kWordsPerBb + laneIndex) & (ringWordCount - 1U);
-                asc_stcg(
-                    reinterpret_cast<__gm__ unsigned long long int*>(sqWords + ringWordIndex),
-                    static_cast<unsigned long long int>(wordValue));
+                StoreUrmaGatherSimtSqWord(sqWords + ringWordIndex, wordValue);
             }
             consumedSegments += groupSegmentCount;
             destinationBytes += groupBytes;
@@ -1361,35 +1386,12 @@ AICORE __simt_vf__ LAUNCH_BOUND(1024) PTO_INLINE void UrmaGatherSimtSplitFillKer
     }
 }
 
-// Closes a queue that carries an unfinished NoCqe prefix but no payload in this
-// submission. One WQEBB, no SGEs, CQE requested.
-AICORE inline void FillUrmaGatherFinalNopScalar(
-    __gm__ UrmaWQCtx* workQueue, __gm__ UrmaMemInfo* remoteMem, uint32_t bbSequence)
-{
-    constexpr uint32_t kWordsPerBb = 8U;
-    __gm__ uint64_t* sqWords = reinterpret_cast<__gm__ uint64_t*>(workQueue->bufAddr);
-    for (uint32_t word = 0U; word < kWordsPerBb; ++word) {
-        sqWords[(bbSequence * kWordsPerBb + word) & (workQueue->depth * kWordsPerBb - 1U)] = 0U;
-    }
-    __gm__ uint8_t* firstBb = reinterpret_cast<__gm__ uint8_t*>(
-        workQueue->bufAddr + static_cast<uint64_t>(bbSequence & (workQueue->depth - 1U)) * 64U);
-    FillSqeCtx(
-        reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb), remoteMem, nullptr, UrmaOpcode::NOP, bbSequence,
-        workQueue->depth);
-    __gm__ UrmaSqeCtx* header = reinterpret_cast<__gm__ UrmaSqeCtx*>(firstBb);
-    header->flag = kUrmaGatherFinalFlags;
-    header->sgeNum = 0U;
-    DcciCachelines(firstBb, 64U);
-}
-
-// Runs the counting pass and turns its per-stage totals into the per-queue
-// submission records. The common pass handles one SQE per destination; the
-// split pass handles the same 12-SGE/256MB grouping as the scalar path.
+template <typename RemoteDescriptor, typename LocalDescriptor>
 AICORE inline bool TryBuildUrmaGatherSimtPlan(
-    __gm__ const GatherDestination* destinations, uint32_t destinationCount, __gm__ const GatherSegment* sourceSegments,
-    uint32_t sourceSegmentCount, const AsyncSession& session, UrmaGatherRuntimeView& runtime,
-    UrmaGatherSubmissionPlan& submissionPlan, __ubuf__ UrmaGatherSimtScratch* scratch, uint32_t& chunkSize,
-    bool splitPath)
+    __gm__ const RemoteDescriptor* destinations, uint32_t destinationCount,
+    __gm__ const LocalDescriptor* sourceSegments, uint32_t sourceSegmentCount, const AsyncSession& session,
+    UrmaGatherRuntimeView& runtime, UrmaGatherSubmissionPlan& submissionPlan, __ubuf__ UrmaGatherSimtScratch* scratch,
+    uint32_t& chunkSize, bool splitPath)
 {
     __gm__ UrmaInfo* info = reinterpret_cast<__gm__ UrmaInfo*>(session.contextGm);
     const uint32_t qpCount = session.cfg.urma.qpCount;
@@ -1402,13 +1404,13 @@ AICORE inline bool TryBuildUrmaGatherSimtPlan(
     chunkSize = (destinationCount + kUrmaGatherSimtWarps - 1U) / kUrmaGatherSimtWarps;
 
     if (splitPath) {
-        cce::async_invoke<UrmaGatherSimtSplitCountKernel>(
+        cce::async_invoke<UrmaGatherSimtSplitCountKernel<RemoteDescriptor, LocalDescriptor>>(
             cce::dim3{kUrmaGatherSimtWarpSize, kUrmaGatherSimtWarps}, destinations, sourceSegments, scratch,
             destinationCount, sourceSegmentCount, chunkSize, info->rankCount, qpCount, session.qpIdxBase,
             session.rt.urma.nextWqeSeq, info->gatherQueueStageCapacity, static_cast<uint32_t>(info->layout),
             info->rowsPerPeer, info->memPtr, info->localMrBase, info->localMrLength);
     } else {
-        cce::async_invoke<UrmaGatherSimtCountKernel>(
+        cce::async_invoke<UrmaGatherSimtCountKernel<RemoteDescriptor, LocalDescriptor>>(
             cce::dim3{kUrmaGatherSimtWarpSize, kUrmaGatherSimtWarps}, destinations, sourceSegments, scratch,
             destinationCount, chunkSize, info->rankCount, qpCount, session.qpIdxBase, session.rt.urma.nextWqeSeq,
             info->gatherQueueStageCapacity, static_cast<uint32_t>(info->layout), info->rowsPerPeer, info->memPtr,
@@ -1425,7 +1427,8 @@ AICORE inline bool TryBuildUrmaGatherSimtPlan(
         totalSegmentCount += scratch->warpSegmentSum[warpIndex];
     }
     const uint32_t maxSegmentCount = scratch->maxSegmentCount;
-    if (totalSegmentCount != sourceSegmentCount || maxSegmentCount == 0U || maxSegmentCount > kUrmaMaxSgesPerSqe) {
+    if (totalSegmentCount != sourceSegmentCount || maxSegmentCount == 0U ||
+        maxSegmentCount > kUrmaDescriptorMaxSges<RemoteDescriptor>) {
         return false;
     }
     // One slot wide enough for the widest SQE in this submission, so every
@@ -1513,10 +1516,11 @@ AICORE inline bool TryBuildUrmaGatherSimtPlan(
 
 // Publishes the ring coordinates that reservation just settled, then lets the
 // fill pass write every SQE. Must run after ReserveUrmaGatherSubmissionResources.
+template <UrmaOpcode opcode = UrmaOpcode::WRITE, typename RemoteDescriptor, typename LocalDescriptor>
 AICORE inline void FillUrmaGatherSimtSqes(
     const AsyncSession& session, UrmaGatherRuntimeView& runtime, const UrmaGatherSubmissionPlan& submissionPlan,
-    __ubuf__ UrmaGatherSimtScratch* scratch, __gm__ const GatherDestination* destinations, uint32_t destinationCount,
-    __gm__ const GatherSegment* sourceSegments, uint32_t chunkSize, bool splitPath)
+    __ubuf__ UrmaGatherSimtScratch* scratch, __gm__ const RemoteDescriptor* destinations, uint32_t destinationCount,
+    __gm__ const LocalDescriptor* sourceSegments, uint32_t chunkSize, bool splitPath)
 {
     __gm__ UrmaInfo* info = reinterpret_cast<__gm__ UrmaInfo*>(session.contextGm);
     uint32_t payloadQueueCount = 0U;
@@ -1543,19 +1547,19 @@ AICORE inline void FillUrmaGatherSimtSqes(
     const uint32_t payloadFlags = cqePolicy == UrmaCqePolicy::OneCqe ? kUrmaGatherOneCqeFlags : kUrmaGatherNoCqeFlags;
     const uint32_t lastFlags = cqePolicy == UrmaCqePolicy::Final ? kUrmaGatherFinalFlags : payloadFlags;
     if (splitPath) {
-        cce::async_invoke<UrmaGatherSimtSplitFillKernel>(
+        cce::async_invoke<UrmaGatherSimtSplitFillKernel<RemoteDescriptor, LocalDescriptor>>(
             cce::dim3{kUrmaGatherSimtWarpSize, kUrmaGatherSimtWarps}, destinations, sourceSegments, scratch,
             destinationCount, chunkSize, info->rankCount, session.cfg.urma.qpCount, session.qpIdxBase,
             session.rt.urma.nextWqeSeq, static_cast<uint32_t>(info->layout), info->rowsPerPeer, info->memPtr,
             static_cast<uint32_t>(submissionPlan.slotBbCount), payloadFlags, lastFlags, kUrmaGatherNoCqeFlags,
-            static_cast<uint32_t>(UrmaOpcode::WRITE), static_cast<uint32_t>(UrmaOpcode::NOP));
+            static_cast<uint32_t>(opcode), static_cast<uint32_t>(UrmaOpcode::NOP));
     } else {
-        cce::async_invoke<UrmaGatherSimtFillKernel>(
+        cce::async_invoke<UrmaGatherSimtFillKernel<RemoteDescriptor, LocalDescriptor>>(
             cce::dim3{kUrmaGatherSimtWarpSize, kUrmaGatherSimtWarps}, destinations, sourceSegments, scratch,
             destinationCount, chunkSize, info->rankCount, session.cfg.urma.qpCount, session.qpIdxBase,
             session.rt.urma.nextWqeSeq, static_cast<uint32_t>(info->layout), info->rowsPerPeer, info->memPtr,
             static_cast<uint32_t>(submissionPlan.slotBbCount), payloadFlags, lastFlags, kUrmaGatherNoCqeFlags,
-            static_cast<uint32_t>(UrmaOpcode::WRITE), static_cast<uint32_t>(UrmaOpcode::NOP));
+            static_cast<uint32_t>(opcode), static_cast<uint32_t>(UrmaOpcode::NOP));
     }
     set_flag(PIPE_V, PIPE_S, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
@@ -1721,32 +1725,35 @@ AICORE inline AsyncEvent CommitUrmaGatherSubmission(
     return MakeUrmaGatherEvent(session, runtime, submissionPlan);
 }
 
-AICORE inline AsyncEvent SubmitUrmaGatherWriteScalar(
-    const UrmaRawGatherDestinationList& destinations, uint32_t destinationCount,
-    const UrmaRawGatherSourceSegmentList& sourceSegments, uint32_t sourceSegmentCount, const AsyncSession& session,
-    UrmaGatherRuntimeView& runtime)
+template <UrmaOpcode opcode = UrmaOpcode::WRITE, typename RemoteDescriptor, typename LocalDescriptor>
+AICORE inline AsyncEvent SubmitUrmaGatherScalar(
+    const UrmaRawRemoteList<RemoteDescriptor>& destinations, uint32_t destinationCount,
+    const UrmaRawLocalSegmentList<LocalDescriptor>& sourceSegments, uint32_t sourceSegmentCount,
+    const AsyncSession& session, UrmaGatherRuntimeView& runtime)
 {
     UrmaGatherSubmissionPlan submissionPlan{};
     if (!BuildUrmaGatherSubmissionPlan(
             destinations, destinationCount, sourceSegments, sourceSegmentCount, session, runtime, submissionPlan) ||
         !ReserveUrmaGatherSubmissionResources(session, runtime, submissionPlan)) {
-        PTO_ASSERT(false, "TPUT_ASYNC URMA gather: validation or resource reservation failed.");
+        PTO_ASSERT(false, "URMA gather/scatter: validation or resource reservation failed.");
         return AsyncEvent::Failed(DmaEngine::URMA);
     }
-    if (!FillUrmaGatherSqesScalar(destinations, destinationCount, sourceSegments, session, runtime, submissionPlan)) {
+    if (!FillUrmaGatherSqesScalar<opcode>(
+            destinations, destinationCount, sourceSegments, session, runtime, submissionPlan)) {
         AbortUrmaGatherSlot(
             reinterpret_cast<__gm__ UrmaGatherCompletionSlotHeader*>(submissionPlan.completionSlotAddress));
-        PTO_ASSERT(false, "TPUT_ASYNC URMA gather: scalar SQE fill failed.");
+        PTO_ASSERT(false, "URMA gather/scatter: scalar SQE fill failed.");
         return AsyncEvent::Failed(DmaEngine::URMA);
     }
     return CommitUrmaGatherSubmission(session, runtime, submissionPlan);
 }
 
 #if defined(PTO_URMA_GATHER_SIMT_AVAILABLE)
-AICORE inline bool TrySubmitUrmaGatherWriteSimt(
-    const UrmaRawGatherDestinationList& destinations, uint32_t destinationCount,
-    const UrmaRawGatherSourceSegmentList& sourceSegments, uint32_t sourceSegmentCount, const AsyncSession& session,
-    UrmaGatherRuntimeView& runtime, AsyncEvent& event)
+template <UrmaOpcode opcode = UrmaOpcode::WRITE, typename RemoteDescriptor, typename LocalDescriptor>
+AICORE inline bool TrySubmitUrmaGatherSimt(
+    const UrmaRawRemoteList<RemoteDescriptor>& destinations, uint32_t destinationCount,
+    const UrmaRawLocalSegmentList<LocalDescriptor>& sourceSegments, uint32_t sourceSegmentCount,
+    const AsyncSession& session, UrmaGatherRuntimeView& runtime, AsyncEvent& event)
 {
     UrmaGatherSubmissionPlan submissionPlan{};
     if (session.tmpBufAddr == nullptr || session.tmpBufSize < sizeof(UrmaGatherSimtScratch)) {
@@ -1754,8 +1761,8 @@ AICORE inline bool TrySubmitUrmaGatherWriteSimt(
     }
     __ubuf__ UrmaGatherSimtScratch* scratch = reinterpret_cast<__ubuf__ UrmaGatherSimtScratch*>(session.tmpBufAddr);
     uint32_t chunkSize = 0U;
-    const bool definitelyNeedsSplit = destinationCount <= UINT32_MAX / kUrmaMaxSgesPerSqe &&
-                                      sourceSegmentCount > destinationCount * kUrmaMaxSgesPerSqe;
+    const bool definitelyNeedsSplit = destinationCount <= UINT32_MAX / kUrmaDescriptorMaxSges<RemoteDescriptor> &&
+                                      sourceSegmentCount > destinationCount * kUrmaDescriptorMaxSges<RemoteDescriptor>;
     bool splitPath = definitelyNeedsSplit;
     bool built = false;
     if (!splitPath) {
@@ -1771,11 +1778,11 @@ AICORE inline bool TrySubmitUrmaGatherWriteSimt(
     }
     if (built) {
         if (!ReserveUrmaGatherSubmissionResources(session, runtime, submissionPlan)) {
-            PTO_ASSERT(false, "TPUT_ASYNC URMA gather: validation or resource reservation failed.");
+            PTO_ASSERT(false, "URMA gather/scatter: validation or resource reservation failed.");
             event = AsyncEvent::Failed(DmaEngine::URMA);
             return true;
         }
-        FillUrmaGatherSimtSqes(
+        FillUrmaGatherSimtSqes<opcode>(
             session, runtime, submissionPlan, scratch, destinations.destinations, destinationCount,
             sourceSegments.sourceSegments, chunkSize, splitPath);
         event = CommitUrmaGatherSubmission(session, runtime, submissionPlan);
@@ -1785,40 +1792,43 @@ AICORE inline bool TrySubmitUrmaGatherWriteSimt(
 }
 #endif
 
-AICORE inline AsyncEvent SubmitUrmaGatherWrite(
-    const UrmaRawGatherDestinationList& destinations, uint32_t destinationCount,
-    const UrmaRawGatherSourceSegmentList& sourceSegments, uint32_t sourceSegmentCount, const AsyncSession& session)
+template <UrmaOpcode opcode = UrmaOpcode::WRITE, typename RemoteDescriptor, typename LocalDescriptor>
+AICORE inline AsyncEvent SubmitUrmaGather(
+    const UrmaRawRemoteList<RemoteDescriptor>& destinations, uint32_t destinationCount,
+    const UrmaRawLocalSegmentList<LocalDescriptor>& sourceSegments, uint32_t sourceSegmentCount,
+    const AsyncSession& session)
 {
     UrmaGatherRuntimeView runtime{};
     if (!GetUrmaGatherRuntime(session, runtime)) {
-        PTO_ASSERT(false, "TPUT_ASYNC URMA gather: validation or resource reservation failed.");
+        PTO_ASSERT(false, "URMA gather/scatter: validation or resource reservation failed.");
         return AsyncEvent::Failed(DmaEngine::URMA);
     }
 
 #if defined(PTO_URMA_GATHER_FORCE_SCALAR)
-    return SubmitUrmaGatherWriteScalar(
+    return SubmitUrmaGatherScalar<opcode>(
         destinations, destinationCount, sourceSegments, sourceSegmentCount, session, runtime);
 #elif defined(PTO_URMA_GATHER_SIMT_AVAILABLE)
 #if defined(PTO_URMA_GATHER_FORCE_SIMT)
     const bool useSimt = destinationCount != 0U || sourceSegmentCount != 0U;
 #else
-    const bool mayNeedMoreThanThresholdSqes = sourceSegmentCount > kUrmaGatherScalarSqeThreshold * kUrmaMaxSgesPerSqe;
+    const bool mayNeedMoreThanThresholdSqes =
+        sourceSegmentCount > kUrmaGatherScalarSqeThreshold * kUrmaDescriptorMaxSges<RemoteDescriptor>;
     const bool useSimt = destinationCount > kUrmaGatherScalarSqeThreshold || mayNeedMoreThanThresholdSqes;
 #endif
     if (useSimt) {
         AsyncEvent event{};
-        if (TrySubmitUrmaGatherWriteSimt(
+        if (TrySubmitUrmaGatherSimt<opcode>(
                 destinations, destinationCount, sourceSegments, sourceSegmentCount, session, runtime, event)) {
             return event;
         }
 #if defined(PTO_URMA_GATHER_FORCE_SIMT)
-        PTO_ASSERT(false, "TPUT_ASYNC URMA gather: forced SIMT path rejected the submission.");
+        PTO_ASSERT(false, "URMA gather/scatter: forced SIMT path rejected the submission.");
         return AsyncEvent::Failed(DmaEngine::URMA);
 #endif
     }
 #endif
 
-    return SubmitUrmaGatherWriteScalar(
+    return SubmitUrmaGatherScalar<opcode>(
         destinations, destinationCount, sourceSegments, sourceSegmentCount, session, runtime);
 }
 

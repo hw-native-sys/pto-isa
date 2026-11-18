@@ -138,6 +138,29 @@ Ascend 950PR/Ascend 950DT 和 CPU 模拟器），适用范围与配对规则见�
   `mode = AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`。
 - 对于 `TileType::Acc -> TileType::Vec`，当目标为32位类型（`float`/`int32_t`）且使用 `DualModeSplitN` 时，切分前的 `ValidCol` 必须是 `32` 的整数倍。
 
+### A5 新增 ConvTile 提取路径
+
+除 A2A3 原有的 ConvTile `FRACTAL_Z` / `FRACTAL_Z_3D` 到 `Right` 提取路径外，A5 新增以下路径：
+
+| 目的 | 源布局 | 目的布局检查 | 说明 |
+| --- | --- | --- | --- |
+| `Left` / L0A | `NC1HWC0` | `SFractal == SLayout::RowMajor` | 源按 `[N,C1,H,W,C0]` 解释，行跨度取 `H*W` |
+| `Right` / L0B | `FRACTAL_Z` | 非转置：`SFractal == ColMajor` 且 `BLayout == RowMajor`；转置：`SFractal == RowMajor` 且 `BLayout == ColMajor` | 4D 源按 `[C1HW,N/16,16,C0]` 解释 |
+| `Right` / L0B | `FRACTAL_Z_3D` | 同上 | 5D 源按 `[C1,H,W,N,C0]` 解释 |
+
+该路径支持 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、
+`half`、`bfloat16_t`、`float`，并要求源、目的元素宽度相同。
+4D `FRACTAL_Z` 源的最后两个静态维度必须为 `[16, 32 / sizeof(DType)]`。
+
+底层搬运是否转置由源 ConvTile 的 `SetTranspose()` 配置决定；目的布局只通过编译期检查接受
+上述非转置或转置形式。调用方须保证二者组合与期望的物理排列一致，并保证
+`indexRow` / `indexCol` 定位的窗口落在源 ConvTile 存储范围内。
+
+当 ConvTile→L0A 路径的源 `H*W` 不是 `16` 的整数倍时，实现会改用特殊的 `1x1` IMG2COL 搬运。
+该路径会改写 A 侧 `fmatrix` / `l3d_rpt` / `padding` 寄存器。若后续 `TIMG2COL` 使用 A 侧
+`SetFmatrixMode::FMATRIX_A_MANUAL` 配置，则必须重新调用 `SETFMATRIX` / `SET_IMG2COL_RPT` /
+`SET_IMG2COL_PADDING` 设置所需寄存器值；`H*W` 为 `16` 的整数倍时不触发该副作用。
+
 ### A5 Acc→Mat NZ 布局转换
 
 以下路径的目标为 NZ 布局（`BLayout::ColMajor`、`SLayout::RowMajor`）：

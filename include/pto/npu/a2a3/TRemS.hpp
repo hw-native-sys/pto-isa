@@ -27,7 +27,7 @@ PTO_INTERNAL unsigned HpScratchRequiredCols(unsigned capVecs)
     // is the compensation window of the final-iteration HpFusedSub (eight
     // vectors per batched chunk, clamped to the row's vector count)
     unsigned chunk = capVecs < TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : TREM_HP_FUSED_CHUNK_A2A3;
-    return 128 * capVecs + HpScratchMaskFloats(capVecs) + 8 + (capVecs == 1 ? 64 : 0) + 8 * 64 * chunk;
+    return 128 * capVecs + HpScratchMaskFloats(capVecs) + 8 + (capVecs == 1 ? 64 : 0) + 10 * 64 * chunk;
 }
 
 PTO_INTERNAL void HpScratchInit(HpScratchA2A3& s, __ubuf__ float* tmp, unsigned capVecs)
@@ -215,7 +215,7 @@ PTO_INTERNAL void HpPostS(
 // the iteration chain.
 template <unsigned dstRowStride, unsigned srcRowStride>
 PTO_INTERNAL void TRemSInfScalar(
-    __ubuf__ float* dst, __ubuf__ float* src, __ubuf__ float* tmp, unsigned validRows, unsigned validCols)
+    __ubuf__ float* dst, __ubuf__ float* src, float scalar, __ubuf__ float* tmp, unsigned validRows, unsigned validCols)
 {
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(float);
     unsigned fullPerRow = validCols / elementsPerRepeat;
@@ -240,7 +240,17 @@ PTO_INTERNAL void TRemSInfScalar(
             pipe_barrier(PIPE_V);
             vector_dup(s.k, HpNan(), 1, 1, 1, 8, 8);
             pipe_barrier(PIPE_V);
-            HpSelect(d, s.k, x, s, 1, count);
+            // |x|==inf -> NaN lands in s.bTmp (unused here): src stays
+            // read-only. Floored: opposite-sign x -> x + scalar, same-sign
+            // x -> x; zero lanes keep x (0*inf probe is NaN).
+            HpSelect(s.bTmp, s.k, x, s, 1, count);
+            vmuls(s.k, s.bTmp, scalar, 1, 1, 1, 8, 8);
+            pipe_barrier(PIPE_V);
+            vadds(d, s.bTmp, scalar, 1, 1, 1, 8, 8); // candidate = x + scalar = copysign(inf, scalar)
+            pipe_barrier(PIPE_V);
+            vcmpvs_lt(s.cmpMask, s.k, 0.0f, 1, 1, 1, 8, 8);
+            pipe_barrier(PIPE_V);
+            HpSelect(d, d, s.bTmp, s, 1, count);
         }
     }
     set_mask_norm();
@@ -349,13 +359,9 @@ PTO_INTERNAL void TRemSStageSeqS(
     }
 }
 
-// Staged path: seed each row's state from |src0| once, then run one iteration
-// over all full vectors per pass (ops batched over the row's full vectors),
-// then the postprocessing pass, then tails through the per-vector path.
-// Scratch is a capacity-sized window the passes reuse: the per-iteration
-// divisor is dup'd from scalars and no buffer stays live across passes, so
-// the UB footprint no longer carries redundant worst-case-simultaneous
-// buffers (see the liveness notes in TFmodRemHp.hpp).
+// Staged path: seed |src0| once, one iteration per pass over all full
+// vectors, then the postprocessing pass, then tails per-vector. Passes reuse
+// one capacity-sized scratch window (no buffer stays live across passes).
 template <bool isFmod, unsigned dstRowStride, unsigned srcRowStride>
 PTO_INTERNAL void TRemSStagedA2A3(
     __ubuf__ float* dst, __ubuf__ float* src, float scalar, __ubuf__ float* tmp, unsigned validRows, unsigned validCols)
@@ -402,10 +408,8 @@ PTO_INTERNAL void TRemSStagedA2A3(
     set_vector_mask(-1, -1);
 }
 
-// Formula: remainder(a, b) = a - floor(a/b) * b
-// Note: For fp32, after computing remainder, we check if result * scalar < 0.
-//       If signs differ, we add scalar to result to ensure the result has the same sign as scalar.
-//
+// Formula: remainder(a, b) = a - floor(a/b) * b; if result * scalar < 0, add
+// scalar so the result takes the scalar's sign.
 // tmp layout (single row, columns measured in T elements):
 //   [0, dstRowStride)                    sign-correction candidate (dst + x)
 //   [dstRowStride, dstRowStride+maskF)   packed compare bitmask, 32-byte aligned
@@ -482,49 +486,49 @@ struct RemSOp {
         pipe_barrier(PIPE_V);
     }
 
+    // INT32 remainder in a strictly read-only-src form: the float-domain
+    // dividend and the divisor/quotient chain live in tmp (rows [0,R) and
+    // [R,2R)), src is never written, and dst receives rint(a) as src's last
+    // read completes. tmp contract: 2*dstRowStride + maskF + 8 floats.
     PTO_INTERNAL static void RemSInt32Instr(
         __ubuf__ int32_t* dst, __ubuf__ int32_t* src, int32_t x, __ubuf__ int32_t* tmp, unsigned dstRowStride,
         unsigned repeatTimes, unsigned validCols)
     {
         __ubuf__ float* dst_f = reinterpret_cast<__ubuf__ float*>(dst);
-        __ubuf__ float* src_f = reinterpret_cast<__ubuf__ float*>(src);
-        __ubuf__ float* tmp_f = reinterpret_cast<__ubuf__ float*>(tmp);
+        __ubuf__ float* rowA_f = reinterpret_cast<__ubuf__ float*>(tmp);
+        __ubuf__ float* rowQ_f = rowA_f + dstRowStride;
+        __ubuf__ int32_t* rowQ_i = reinterpret_cast<__ubuf__ int32_t*>(rowQ_f);
 
-        vconv_s322f32(src_f, src, 1, 1, 1, 8, 8);
-        vector_dup(tmp_f, (float)x, 1, 1, 1, 8, 8);
+        vconv_s322f32(rowA_f, src, 1, 1, 1, 8, 8); // rowA = float(a); src untouched
+        vector_dup(rowQ_f, (float)x, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
 
-        vdiv(tmp_f, src_f, tmp_f, 1, 1, 1, 1, 8, 8, 8);
+        vconv_f322s32r(dst, rowA_f, 1, 1, 1, 8, 8); // dst = rint(a) (src's last read above)
         pipe_barrier(PIPE_V);
 
-        vconv_f322s32f(tmp, tmp_f, 1, 1, 1, 8, 8); // floor quotient
-        // round-reconvert dividend into dst (tmp keeps q): dst may alias src,
-        // and this is src's last read, so dst is safe to write from here on
-        vconv_f322s32r(dst, src_f, 1, 1, 1, 8, 8);
+        vdiv(rowQ_f, rowA_f, rowQ_f, 1, 1, 1, 1, 8, 8, 8); // rowQ = q_f (divisor consumed)
         pipe_barrier(PIPE_V);
-
-        vmuls(tmp, tmp, x, 1, 1, 1, 8, 8); // floor(src/x) * x (int)
+        vconv_f322s32f(rowQ_i, rowQ_f, 1, 1, 1, 8, 8); // floor quotient q (int)
         pipe_barrier(PIPE_V);
-
-        vsub(dst, dst, tmp, 1, 1, 1, 1, 8, 8, 8); // r = rint(src) - q*x
+        vmuls(rowQ_i, rowQ_i, x, 1, 1, 1, 8, 8); // q * x (int)
+        pipe_barrier(PIPE_V);
+        vsub(dst, dst, rowQ_i, 1, 1, 1, 1, 8, 8, 8); // r = rint(a) - q*x
         pipe_barrier(PIPE_V);
 
         vconv_s322f32(dst_f, dst, 1, 1, 1, 8, 8);
-        vconv_s322f32(tmp_f, tmp, 1, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
-
-        vmuls(tmp_f, dst_f, (float)x, 1, 1, 1, 8, 8); // sign probe: r * s
+        vmuls(rowQ_f, dst_f, (float)x, 1, 1, 1, 8, 8); // sign probe: r * x
         pipe_barrier(PIPE_V);
 
         unsigned maskBytes = CeilDivision(dstRowStride, BIT_TO_BYTE);
         unsigned maskFloats = CeilDivision(maskBytes, BLOCK_BYTE_SIZE) * BIT_TO_BYTE;
-        __ubuf__ uint8_t* cmpMask = reinterpret_cast<__ubuf__ uint8_t*>(tmp_f + dstRowStride);
+        __ubuf__ uint8_t* cmpMask = reinterpret_cast<__ubuf__ uint8_t*>(rowQ_f + dstRowStride);
         set_mask_norm();
         set_vector_mask(-1, -1);
-        vcmpvs_lt(cmpMask, tmp_f, 0.0f, repeatTimes, 1, 1, 8, 8);
+        vcmpvs_lt(cmpMask, rowQ_f, 0.0f, repeatTimes, 1, 1, 8, 8);
         pipe_barrier(PIPE_V);
 
-        __ubuf__ uint32_t* addrBuf = reinterpret_cast<__ubuf__ uint32_t*>(tmp_f + dstRowStride + maskFloats);
+        __ubuf__ uint32_t* addrBuf = reinterpret_cast<__ubuf__ uint32_t*>(rowQ_f + dstRowStride + maskFloats);
         set_flag(PIPE_V, PIPE_S, EVENT_ID0);
         wait_flag(PIPE_V, PIPE_S, EVENT_ID0);
         *(reinterpret_cast<__ubuf__ uint64_t*>(addrBuf)) = static_cast<uint64_t>(reinterpret_cast<int64_t>(cmpMask));
@@ -535,10 +539,10 @@ struct RemSOp {
 
         set_mask_count();
         set_vector_mask(0, validCols);
-        vadds(tmp_f, dst_f, (float)x, 1, 1, 1, 8, 8); // candidate r + s
+        vadds(rowQ_f, dst_f, (float)x, 1, 1, 1, 8, 8); // candidate r + x
         pipe_barrier(PIPE_V);
 
-        vsel(dst_f, tmp_f, dst_f, 1, 1, 1, 1, 8, 8, 8, 2);
+        vsel(dst_f, rowQ_f, dst_f, 1, 1, 1, 1, 8, 8, 8, 2);
         pipe_barrier(PIPE_V);
 
         vconv_f322s32z(dst, dst_f, 1, 1, 1, 8, 8);
@@ -561,14 +565,12 @@ __tf__ PTO_INTERNAL void TRemS(
 
     if constexpr (
         PrecisionType == RemSAlgorithm::HIGH_PRECISION && (std::is_same_v<T, float> || std::is_same_v<T, float32_t>)) {
-        // High precision remainder (issue #2): staged loop inversion when the
-        // tile has enough full vectors and dst does not alias src, per-vector
-        // iterations otherwise (see the staged drivers above). An inf scalar
-        // short-circuits: x % +-inf = x (NaN where |x| = inf) - the iteration
-        // chain's divisor dups and sign-correction probe misbehave with it.
+        // Staged loop inversion when eligible (enough full vectors, no
+        // aliasing), per-vector iterations otherwise. An inf scalar
+        // short-circuits with floored inf semantics (see appendix).
         if (HpScalarIsInf((float)x)) {
             TRemSInfScalar<dstRowStride, srcRowStride>(
-                reinterpret_cast<__ubuf__ float*>(dstPtr), reinterpret_cast<__ubuf__ float*>(srcPtr),
+                reinterpret_cast<__ubuf__ float*>(dstPtr), reinterpret_cast<__ubuf__ float*>(srcPtr), (float)x,
                 reinterpret_cast<__ubuf__ float*>(tmpPtr), validRows, validCols);
             set_mask_norm();
             set_vector_mask(-1, -1);
@@ -644,7 +646,10 @@ PTO_INTERNAL void TREMS_IMPL(TileDataDst& dst, TileDataSrc& src, typename TileDa
     // BIT_TO_BYTE bits per byte, packed mask rounded up to BLOCK_BYTE_SIZE bytes
     constexpr unsigned maskBytes = (dstRowStride + BIT_TO_BYTE - 1) / BIT_TO_BYTE;
     constexpr unsigned maskFloats = ((maskBytes + BLOCK_BYTE_SIZE - 1) / BLOCK_BYTE_SIZE) * (BLOCK_BYTE_SIZE / 4);
-    constexpr unsigned tmpRequiredCols = dstRowStride + maskFloats + BIT_TO_BYTE;
+    // the int path keeps the float-domain dividend and the quotient chain in
+    // tmp (src is read-only), so it needs one row more than the float path
+    constexpr unsigned tmpRequiredCols =
+        (std::is_same_v<T, int32_t> ? 2 * dstRowStride : dstRowStride) + maskFloats + BIT_TO_BYTE;
     // The high precision path needs the larger scratch contract from
     // HpScratchRequiredCols above, sized for the staged capacity (full vectors per
     // row, at least 1 for the per-vector fallback).

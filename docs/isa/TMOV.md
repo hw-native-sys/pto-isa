@@ -280,6 +280,11 @@ A5 Vec-to-Vec moves currently do not support `int64_t` / `uint64_t`; 64-bit Scal
     - `TileType::Vec -> TileType::Vec/TileType::Mat`
     - `TileType::Acc -> TileType::Vec/TileType::Mat`
     - specific `ND -> ZZ` and related internal path variants handled by the A5 implementation
+- When the source is a ConvTile, A2A3 and A5 both support `FRACTAL_Z -> TileType::Right` (L0B).
+- A5 additionally supports `NC1HWC0 -> TileType::Left` (L0A). This path reuses the A5 `TEXTRACT` ConvTile move helper,
+  passes the source ConvTile `SetTranspose()` configuration to the underlying move, and requires the corresponding destination
+  layout from the additional A5 ConvTile extraction paths in [TEXTRACT](TEXTRACT.md). `TMOV` starts at source-window origin 0
+  and provides no `indexRow` / `indexCol` offsets.
 - For `TileType::Mat -> TileType::Bias`:
     - supported dtype pairs are `int32_t -> int32_t`, `float -> float`, `half -> float`, `bfloat16_t -> float`
     - source row must be `1`

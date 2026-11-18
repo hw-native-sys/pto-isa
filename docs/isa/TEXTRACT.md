@@ -147,6 +147,29 @@ For Mat-to-Left/Right layout extraction:
   `mode = AccToVecMode::{SingleModeVec0, SingleModeVec1, DualModeSplitM, DualModeSplitN}`.
 - For `TileType::Acc -> TileType::Vec` with a 32-bit destination type (`float`/`int32_t`), when using `DualModeSplitN` the `ValidCol` (before the split) must be a multiple of `32`.
 
+### A5 additional ConvTile extraction paths
+
+Besides the A2A3 ConvTile paths from `FRACTAL_Z` / `FRACTAL_Z_3D` to `Right`, A5 adds the following paths:
+
+| Destination | Source layout | Destination layout check | Description |
+| --- | --- | --- | --- |
+| `Left` / L0A | `NC1HWC0` | `SFractal == SLayout::RowMajor` | Source is interpreted as `[N,C1,H,W,C0]`; the row extent is `H*W` |
+| `Right` / L0B | `FRACTAL_Z` | Non-transposed: `SFractal == ColMajor` and `BLayout == RowMajor`; transposed: `SFractal == RowMajor` and `BLayout == ColMajor` | The 4-D source is interpreted as `[C1HW,N/16,16,C0]` |
+| `Right` / L0B | `FRACTAL_Z_3D` | Same as above | The 5-D source is interpreted as `[C1,H,W,N,C0]` |
+
+These paths support `int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `half`, `bfloat16_t`, and `float`,
+and require equal source and destination element widths. The last two static dimensions of a 4-D `FRACTAL_Z` source
+must be `[16, 32 / sizeof(DType)]`.
+
+Whether the underlying move is transposed is controlled by the source ConvTile `SetTranspose()` configuration. The destination
+layout check accepts the non-transposed or transposed form above. The caller must ensure that the combination matches the intended
+physical arrangement and that the window located by `indexRow` / `indexCol` lies within source ConvTile storage.
+
+When the source `H*W` of the ConvTile-to-L0A path is not a multiple of `16`, the implementation uses a special `1x1` IMG2COL move.
+That path overwrites the A-side `fmatrix` / `l3d_rpt` / `padding` registers. If a subsequent `TIMG2COL` uses A-side
+`SetFmatrixMode::FMATRIX_A_MANUAL`, the required register values must be restored with `SETFMATRIX` / `SET_IMG2COL_RPT` /
+`SET_IMG2COL_PADDING`. This side effect is not triggered when `H*W` is a multiple of `16`.
+
 ### A5 Acc-to-Mat NZ layout conversion
 
 The following paths use an NZ destination (`BLayout::ColMajor`, `SLayout::RowMajor`):

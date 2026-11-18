@@ -254,7 +254,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #endif
 #endif
 
-#ifdef PTO_NPU_ARCH_A6
+#if defined(PTO_NPU_ARCH_A6R2)
+#include "pto/npu/a6r2/header.hpp"
+#elif defined(PTO_NPU_ARCH_A6)
 #include "pto/npu/a6/header.hpp"
 #endif
 

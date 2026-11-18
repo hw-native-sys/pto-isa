@@ -36,7 +36,9 @@ __global__ AICORE void runTRem(
     // width covers candidate + packed compare mask + cmpmask address buffer
     // (matches the TRemCheck contract in include/pto/npu/a2a3/TRem.hpp)
     constexpr unsigned maskFloats = ((dstTileW + 255) / 256) * 8;
-    constexpr unsigned tmpTileW = dstTileW + maskFloats + 8;
+    // int keeps its float-domain dividend, divisor and quotient chain in tmp
+    // (both srcs are read-only), so it needs two more rows than float
+    constexpr unsigned tmpTileW = (std::is_same<T, int32_t>::value ? 3 * dstTileW : dstTileW) + maskFloats + 8;
     using TileDataTmp = Tile<TileType::Vec, T, 1, tmpTileW, BLayout::RowMajor, -1, -1>;
     TileDataDst dstTile(vRows, vCols);
     TileDataSrc0 src0Tile(vRows, vCols);
@@ -90,7 +92,7 @@ __global__ AICORE void runTRemHP(
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
     constexpr unsigned tmpTileW =
         192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
-        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
+        640 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     using TileDataTmp = Tile<TileType::Vec, T, 1, tmpTileW, BLayout::RowMajor, -1, -1>;
     TileDataDst dstTile(vRows, vCols);
     TileDataSrc0 src0Tile(vRows, vCols);
@@ -159,12 +161,14 @@ __global__ AICORE void runTRemInplace(__gm__ T* out, __gm__ T* src1)
     TileData src1Tile(vRows, vCols);
     constexpr unsigned tileBytes = dstTileH * dstTileW * sizeof(T);
     constexpr unsigned maskFloatsDef = ((dstTileW + 255) / 256) * 8;
-    constexpr unsigned tmpWDef = dstTileW + maskFloatsDef + 8;
+    // int keeps its float-domain dividend, divisor and quotient chain in tmp
+    // (both srcs are read-only), so it needs two more rows than float
+    constexpr unsigned tmpWDef = (std::is_same<T, int32_t>::value ? 3 * dstTileW : dstTileW) + maskFloatsDef + 8;
     constexpr unsigned capVecs = dstTileW / 64 > 0 ? dstTileW / 64 : 1;
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
     constexpr unsigned tmpWHp =
         192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
-        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
+        640 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     constexpr unsigned tmpW = highPrecision ? tmpWHp : tmpWDef;
     using TileDataTmp = Tile<TileType::Vec, T, 1, tmpW, BLayout::RowMajor, -1, -1>;
     TileDataTmp tmpTile(1, tmpW);
@@ -213,12 +217,14 @@ __global__ AICORE void runTRemDisjoint(__gm__ T* out, __gm__ T* src0, __gm__ T* 
     TileData src1Tile(vRows, vCols);
     constexpr unsigned tileBytes = dstTileH * dstTileW * sizeof(T);
     constexpr unsigned maskFloatsDef = ((dstTileW + 255) / 256) * 8;
-    constexpr unsigned tmpWDef = dstTileW + maskFloatsDef + 8;
+    // int keeps its float-domain dividend, divisor and quotient chain in tmp
+    // (both srcs are read-only), so it needs two more rows than float
+    constexpr unsigned tmpWDef = (std::is_same<T, int32_t>::value ? 3 * dstTileW : dstTileW) + maskFloatsDef + 8;
     constexpr unsigned capVecs = dstTileW / 64 > 0 ? dstTileW / 64 : 1;
     constexpr unsigned maskF = ((capVecs * 8 + 31) / 32) * 8;
     constexpr unsigned tmpWHp =
         192 * capVecs + maskF + 8 + (capVecs == 1 ? 64 : 0) +
-        512 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
+        640 * (capVecs < pto::TREM_HP_FUSED_CHUNK_A2A3 ? capVecs : pto::TREM_HP_FUSED_CHUNK_A2A3);
     constexpr unsigned tmpW = highPrecision ? tmpWHp : tmpWDef;
     using TileDataTmp = Tile<TileType::Vec, T, 1, tmpW, BLayout::RowMajor, -1, -1>;
     TileDataTmp tmpTile(1, tmpW);
@@ -286,7 +292,7 @@ template void LaunchTREM<int32_t, 1, 64, 1, 64, 1, 64, 1, 64>(int32_t* out, int3
 template void LaunchTREM<int32_t, 2, 72, 2, 72, 2, 72, 2, 65>(int32_t* out, int32_t* src0, int32_t* src1, void* stream);
 template void LaunchTREM<int32_t, 3, 136, 3, 136, 3, 136, 3, 129>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);
-template void LaunchTREM<int32_t, 1, 8192, 1, 8192, 1, 8192, 1, 8192>(
+template void LaunchTREM<int32_t, 1, 8128, 1, 8128, 1, 8128, 1, 8128>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);
 template void LaunchTREM<int32_t, 2, 192, 2, 192, 2, 192, 2, 192>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);
@@ -304,7 +310,7 @@ template void LaunchTREMHP<float, 2, 2048, 2, 2048, 2, 2048, 2, 2048>(
 template void LaunchTREMHP<float, 5, 320, 5, 320, 5, 320, 5, 320>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMHP<float, 8, 456, 8, 456, 8, 456, 8, 456>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMHP<float, 4, 136, 4, 136, 4, 136, 4, 136>(float* out, float* src0, float* src1, void* stream);
-template void LaunchTREMHP<float, 1, 7424, 1, 7424, 1, 7424, 1, 7424>(
+template void LaunchTREMHP<float, 1, 7296, 1, 7296, 1, 7296, 1, 7296>(
     float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMHP<float, 16, 64, 16, 64, 16, 64, 16, 63>(float* out, float* src0, float* src1, void* stream);
 // HP size matrix (compensated final iteration)
@@ -346,7 +352,7 @@ template void LaunchTREMInplace<true, float, 2, 2048, 2, 2048>(float* out, float
 template void LaunchTREMInplace<true, float, 5, 320, 5, 320>(float* out, float* src1, void* stream);
 template void LaunchTREMInplace<true, float, 8, 456, 8, 456>(float* out, float* src1, void* stream);
 template void LaunchTREMInplace<true, float, 4, 136, 4, 136>(float* out, float* src1, void* stream);
-template void LaunchTREMInplace<true, float, 1, 7424, 1, 7424>(float* out, float* src1, void* stream);
+template void LaunchTREMInplace<true, float, 1, 7296, 1, 7296>(float* out, float* src1, void* stream);
 // disjoint controls
 template void LaunchTREMDisjoint<false, float, 33, 64, 33, 64>(float* out, float* src0, float* src1, void* stream);
 template void LaunchTREMDisjoint<true, float, 8, 448, 8, 448>(float* out, float* src0, float* src1, void* stream);

@@ -10,9 +10,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <type_traits>
+#include <vector>
 #include <pto/common/type.hpp>
 #include "acl/acl.h"
 #include "test_common.h"
+#include "acl_env.h"
 
 #define DIV_ROUNDUP(a, b) (((a) + (b) - 1) / (b))
 
@@ -21,7 +23,8 @@ using namespace PtoTestCommon;
 
 namespace TQuantTest {
 
-void LaunchMxFp4PaddedOutputRows(uint8_t* q, uint16_t* x, uint8_t* exp, void* stream);
+template <int Rows, int Cols>
+void LaunchTQuantBoxedE8M0Exp(uint8_t* dst, float* src, uint8_t* dstExp, void* stream);
 
 template <int validRows, int validCols, int mode, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 void LaunchTQuantMXFP8(uint8_t* dst, float* src, uint8_t* dst_exp, void* stream);
@@ -63,11 +66,56 @@ template <
     int staticRows, int staticCols, int validRows, int validCols, pto::QuantScaleAlg scaleAlg = pto::QuantScaleAlg::OCP>
 void LaunchTQuantMXFP4_E2M1_FP16_Exp2D(uint8_t* dst, uint16_t* src, uint8_t* dst_exp, void* stream);
 
+void LaunchMxFp4PaddedOutputRows(uint8_t* q, uint16_t* x, uint8_t* exp, void* stream);
+
 class TQUANTTEST : public testing::Test {
 protected:
     void SetUp() override {}
     void TearDown() override {}
 };
+
+void LaunchE8M0StorageView(int caseId, uint8_t* dst, uint8_t* src, void* stream);
+
+void TestE8M0StorageView(int caseId, size_t bytes)
+{
+    ASSERT_EQ(aclInit(nullptr), ACL_SUCCESS);
+    ASSERT_EQ(aclrtSetDevice(0), ACL_SUCCESS);
+    aclrtStream stream = nullptr;
+    uint8_t* srcDevice = nullptr;
+    uint8_t* dstDevice = nullptr;
+    // Keep assertions inside a lambda so resources are released on failure.
+    [&]() {
+        ASSERT_EQ(aclrtCreateStream(&stream), ACL_SUCCESS);
+        ASSERT_EQ(aclrtMalloc((void**)&srcDevice, bytes, ACL_MEM_MALLOC_HUGE_FIRST), ACL_SUCCESS);
+        ASSERT_EQ(aclrtMalloc((void**)&dstDevice, bytes, ACL_MEM_MALLOC_HUGE_FIRST), ACL_SUCCESS);
+        std::vector<uint8_t> input(bytes);
+        std::vector<uint8_t> output(bytes);
+        for (size_t i = 0; i < bytes; ++i) {
+            input[i] = static_cast<uint8_t>(i * 73 + i / 256 + 19);
+        }
+        ASSERT_EQ(aclrtMemcpy(srcDevice, bytes, input.data(), bytes, ACL_MEMCPY_HOST_TO_DEVICE), ACL_SUCCESS);
+        ASSERT_EQ(aclrtMemset(dstDevice, bytes, 0, bytes), ACL_SUCCESS);
+        LaunchE8M0StorageView(caseId, dstDevice, srcDevice, stream);
+        ASSERT_EQ(aclrtSynchronizeStream(stream), ACL_SUCCESS);
+        ASSERT_EQ(aclrtMemcpy(output.data(), bytes, dstDevice, bytes, ACL_MEMCPY_DEVICE_TO_HOST), ACL_SUCCESS);
+        EXPECT_EQ(output, input);
+    }();
+    if (dstDevice != nullptr) {
+        EXPECT_EQ(aclrtFree(dstDevice), ACL_SUCCESS);
+    }
+    if (srcDevice != nullptr) {
+        EXPECT_EQ(aclrtFree(srcDevice), ACL_SUCCESS);
+    }
+    if (stream != nullptr) {
+        EXPECT_EQ(aclrtDestroyStream(stream), ACL_SUCCESS);
+    }
+    EXPECT_EQ(aclrtResetDevice(0), ACL_SUCCESS);
+    EXPECT_EQ(aclFinalize(), ACL_SUCCESS);
+}
+
+// TEST_F(TQUANTTEST, case_e8m0_reshape_zz_16x2_to_1x32) { TestE8M0StorageView(0, 32); }
+// TEST_F(TQUANTTEST, case_e8m0_reshape_nn_2x32_to_1x64) { TestE8M0StorageView(1, 64); }
+// TEST_F(TQUANTTEST, case_e8m0_reshape_zz_64x8_to_1x512) { TestE8M0StorageView(2, 512); }
 
 std::string GetGoldenDir()
 {
@@ -92,8 +140,6 @@ struct MxQuantBuffers {
 template <typename SrcT>
 void InitMxQuantBuffers(MxQuantBuffers<SrcT>& buffers, size_t srcFileSize, size_t dstFileSize, size_t dstExpFileSize)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtCreateStream(&buffers.stream);
 
     aclrtMallocHost((void**)(&buffers.dstHost), dstFileSize);
@@ -140,8 +186,6 @@ void ReleaseMxQuantBuffers(MxQuantBuffers<SrcT>& buffers)
     aclrtFreeHost((void*)buffers.dstExpHost);
     aclrtFreeHost((void*)buffers.srcHost);
     aclrtDestroyStream(buffers.stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 }
 
 void CompareMxFp8Outputs(size_t dstFileSize, size_t dstExpFileSize)
@@ -196,6 +240,18 @@ void RunMxFp8Case(LaunchFunc launch)
     ASSERT_TRUE(stored);
     CompareMxFp8Outputs(dstFileSize, dstExpFileSize);
 }
+
+template <int Rows, int Cols>
+void RunBoxedE8M0TQuantST()
+{
+    RunMxFp8Case<Rows, Cols, 0, float>([](uint8_t* dst, float* src, uint8_t* exp, void* stream) {
+        LaunchTQuantBoxedE8M0Exp<Rows, Cols>(dst, src, exp, stream);
+    });
+}
+
+TEST_F(TQUANTTEST, case_mxfp8_boxed_e8m0_exp_16x64) { RunBoxedE8M0TQuantST<16, 64>(); }
+TEST_F(TQUANTTEST, case_mxfp8_boxed_e8m0_exp_32x64) { RunBoxedE8M0TQuantST<32, 64>(); }
+TEST_F(TQUANTTEST, case_mxfp8_boxed_e8m0_exp_16x128) { RunBoxedE8M0TQuantST<16, 128>(); }
 
 template <int validRows, int validCols, typename LaunchFunc>
 void RunMxFp4E2M1Case(LaunchFunc launch)
@@ -311,8 +367,6 @@ void test_tquant_int8_sym()
     int8_t *dstHost, *dstDevice;
     float *srcHost, *srcDevice, *scaleHost, *scaleDevice;
 
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
     aclrtMallocHost((void**)(&dstHost), dstFileSize);
@@ -341,8 +395,6 @@ void test_tquant_int8_sym()
     aclrtFreeHost(srcHost);
     aclrtFreeHost(scaleHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<int8_t> golden_s8(dstFileSize);
     std::vector<int8_t> dev_s8(dstFileSize);
@@ -359,8 +411,6 @@ void test_tquant_int8_asym()
     size_t dstSize = validRows * validCols * sizeof(uint8_t);
     size_t scaleSize = validRows * sizeof(float);
     size_t offSize = validRows * sizeof(float);
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
     uint8_t *dstHost, *dstDev;
@@ -394,8 +444,6 @@ void test_tquant_int8_asym()
     aclrtFreeHost(scaleHost);
     aclrtFreeHost(offHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
     std::vector<uint8_t> golden_u8(dstSize), dev_u8(dstSize);
     ReadFile(GetGoldenDir() + "/golden_u8.bin", dstSize, golden_u8.data(), dstSize);
     ReadFile(GetGoldenDir() + "/output_u8.bin", dstSize, dev_u8.data(), dstSize);
@@ -580,3 +628,10 @@ TEST_F(TQUANTTEST, case_int8_asym_fp32_64x128_nd) { test_tquant_int8_asym<64, 12
 TEST_F(TQUANTTEST, case_int8_asym_fp32_128x128_nd) { test_tquant_int8_asym<128, 128, 0>(); }
 TEST_F(TQUANTTEST, case_int8_asym_fp32_256x128_nd) { test_tquant_int8_asym<256, 128, 0>(); }
 } // namespace TQuantTest
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
+}

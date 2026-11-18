@@ -31,6 +31,29 @@ PTO_INTERNAL void TPUT_IMPL(GlobalDstData& dst, GlobalSrcData& src, TileData& pi
 template <DmaEngine engine = DmaEngine::SDMA, typename GlobalDstData, typename GlobalSrcData>
 PTO_INTERNAL AsyncEvent TPUT_ASYNC_IMPL(GlobalDstData& dst, GlobalSrcData& src, const AsyncSession& session)
 {
+    if constexpr (engine == DmaEngine::URMA) {
+#ifdef PTO_URMA_SUPPORTED
+        const uint64_t transferSize = AsyncTransferSize(dst, src);
+        const urma::detail::UrmaMultiPostResult result = urma::__urma_put_async(
+            reinterpret_cast<__gm__ uint8_t*>(dst.data()), reinterpret_cast<__gm__ uint8_t*>(src.data()), transferSize,
+            session);
+#ifdef __CPU_SIM
+        uint32_t peer = 0U;
+        uint32_t unusedBb = 0U;
+        urma::detail::DecodeHandle(result.handle, peer, unusedBb);
+        for (uint32_t j = 0U; j < result.jettyCount; ++j) {
+            if (!urma::detail::CpuSimUrmaDrainPost(
+                    session, peer, static_cast<uint32_t>(result.jettyBase) + j, result.targetBb[j])) {
+                return AsyncEvent::Failed(engine);
+            }
+        }
+#endif
+        return urma::MakeUrmaMultiJettyEvent(result);
+#else
+        static_assert(engine != DmaEngine::URMA, "TPUT_ASYNC: URMA requires PTO_URMA_SUPPORTED.");
+        return AsyncEvent(0, engine);
+#endif
+    }
     Copy_Data(dst, src);
     return AsyncEvent(0, engine);
 }
@@ -39,6 +62,26 @@ template <DmaEngine engine, typename GlobalDstData, typename GlobalSrcData>
 PTO_INTERNAL AsyncEvent
 TPUT_ASYNC_IMPL(GlobalDstData& dst, GlobalSrcData& src, const AsyncSession& session, uint32_t peer)
 {
+    if constexpr (engine == DmaEngine::URMA) {
+#ifdef PTO_URMA_SUPPORTED
+        const uint64_t transferSize = AsyncTransferSize(dst, src);
+        const urma::detail::UrmaMultiPostResult result = urma::__urma_put_async(
+            reinterpret_cast<__gm__ uint8_t*>(dst.data()), reinterpret_cast<__gm__ uint8_t*>(src.data()), transferSize,
+            session, peer);
+#ifdef __CPU_SIM
+        for (uint32_t j = 0U; j < result.jettyCount; ++j) {
+            if (!urma::detail::CpuSimUrmaDrainPost(
+                    session, peer, static_cast<uint32_t>(result.jettyBase) + j, result.targetBb[j])) {
+                return AsyncEvent::Failed(engine);
+            }
+        }
+#endif
+        return urma::MakeUrmaMultiJettyEvent(result);
+#else
+        static_assert(engine != DmaEngine::URMA, "TPUT_ASYNC: URMA requires PTO_URMA_SUPPORTED.");
+        return AsyncEvent(0, engine);
+#endif
+    }
     return TPUT_ASYNC_IMPL<engine>(dst, src, session);
 }
 
@@ -47,6 +90,26 @@ PTO_INTERNAL AsyncEvent TPUT_ASYNC_NOTIFY_IMPL(
     GlobalDstData& dst, GlobalSrcData& src, GlobalSignalData& dstSignalData, int32_t signalValue, NotifyOp notifyOp,
     const AsyncSession& session, uint32_t peer)
 {
+    if constexpr (engine == DmaEngine::URMA) {
+#ifdef PTO_URMA_SUPPORTED
+        const uint64_t transferSize = AsyncTransferSize(dst, src);
+        const urma::detail::UrmaPostResult result = urma::__urma_put_async_notify(
+            reinterpret_cast<__gm__ uint8_t*>(dst.data()), reinterpret_cast<__gm__ uint8_t*>(src.data()), transferSize,
+            reinterpret_cast<__gm__ int32_t*>(dstSignalData.data()), signalValue, notifyOp, session, peer);
+#ifdef __CPU_SIM
+        uint32_t drainPeer = 0U;
+        uint32_t targetBb = 0U;
+        urma::detail::DecodeHandle(result.handle, drainPeer, targetBb);
+        if (!urma::detail::CpuSimUrmaDrainPost(session, drainPeer, result.jetty, targetBb)) {
+            return AsyncEvent::Failed(engine);
+        }
+#endif
+        return urma::MakeUrmaNotifyEvent(result);
+#else
+        static_assert(engine != DmaEngine::URMA, "TPUT_ASYNC_NOTIFY: URMA requires PTO_URMA_SUPPORTED.");
+        return AsyncEvent::Failed(engine);
+#endif
+    }
     (void)peer;
     AsyncEvent event = TPUT_ASYNC_IMPL<engine>(dst, src, session);
     TNOTIFY_IMPL(dstSignalData, signalValue, notifyOp);

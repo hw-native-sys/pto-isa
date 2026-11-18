@@ -71,6 +71,15 @@ void LaunchTInterleaveHalf(aclFloat16* out0, aclFloat16* out1, aclFloat16* src0,
         <<<1, nullptr, stream>>>((half*)(out0), (half*)(out1), (half*)(src0), (half*)(src1));
 }
 
+// fp8 types are byte-agnostic for the interleave data move; the host test passes raw byte
+// buffers and reinterpret-casts them to the fp8 device type inside the launcher.
+template <typename Fp8T, int tileH, int tileW, int vRows, int vCols>
+void LaunchTInterleaveFp8(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    runTInterleave<Fp8T, tileH, tileW, vRows, vCols>
+        <<<1, nullptr, stream>>>((Fp8T*)(out0), (Fp8T*)(out1), (Fp8T*)(src0), (Fp8T*)(src1));
+}
+
 // aligned valid column cases
 template void LaunchTInterleave<float, 64, 64, 64, 64>(
     float* out0, float* out1, float* src0, float* src1, void* stream);
@@ -90,3 +99,17 @@ template void LaunchTInterleave<float, 64, 64, 64, 63>(
     float* out0, float* out1, float* src0, float* src1, void* stream);
 template void LaunchTInterleave<uint8_t, 32, 256, 32, 255>(
     uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream);
+
+// fp8 cases
+void LaunchTInterleaveFp8E4M3(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    LaunchTInterleaveFp8<float8_e4m3_t, 32, 256, 32, 256>(out0, out1, src0, src1, stream);
+}
+void LaunchTInterleaveFp8E5M2(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    LaunchTInterleaveFp8<float8_e5m2_t, 32, 256, 32, 256>(out0, out1, src0, src1, stream);
+}
+void LaunchTInterleaveFp8E8M0(uint8_t* out0, uint8_t* out1, uint8_t* src0, uint8_t* src1, void* stream)
+{
+    LaunchTInterleaveFp8<float8_e8m0_t, 32, 256, 32, 256>(out0, out1, src0, src1, stream);
+}

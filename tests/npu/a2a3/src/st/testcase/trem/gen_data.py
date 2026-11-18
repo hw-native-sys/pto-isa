@@ -105,7 +105,10 @@ def hp_divisor_pool(dtype):
       including the probe-underflow limitation."""
     fi = np.finfo(np.float32)
     vals = [np.inf, -np.inf, f32(1.0), f32(-1.0), f32(7.5), f32(-7.5), f32(256.0), f32(-256.0),
-            f32(1e30), f32(-1e30), fi.max, -fi.max]
+            f32(1e30), f32(-1e30), fi.max, -fi.max, f32(fi.max / 2**23), f32(fi.max / 2**13)]
+    # FLT_MAX/2^23 and /2^13 close the issue-435 gap: paired with the FLT_MAX
+    # dividend in the pool they give k*b == FLT_MAX exactly (r == 0); with
+    # random dividends they exercise the finiteness-guard fallback lanes
     return np.array(vals, dtype=np.float32)
 
 
@@ -231,7 +234,7 @@ if __name__ == "__main__":
         TremParams(i, 1, 64, 1, 64, 1, 64, 1, 64),
         TremParams(i, 2, 72, 2, 72, 2, 72, 2, 65),
         TremParams(i, 3, 136, 3, 136, 3, 136, 3, 129),
-        TremParams(i, 1, 8192, 1, 8192, 1, 8192, 1, 8192),
+        TremParams(i, 1, 8128, 1, 8128, 1, 8128, 1, 8128),
         TremParams(i, 2, 192, 2, 192, 2, 192, 2, 192),
         TremParams(i, 2, 256, 2, 192, 2, 192, 2, 192),  # strided dst
     ]
@@ -247,7 +250,7 @@ if __name__ == "__main__":
         TremParams(np.float32, 5, 320, 5, 320, 5, 320, 5, 320, hp=True),
         TremParams(np.float32, 8, 456, 8, 456, 8, 456, 8, 456, hp=True),
         TremParams(np.float32, 4, 136, 4, 136, 4, 136, 4, 136, hp=True),
-        TremParams(np.float32, 1, 7424, 1, 7424, 1, 7424, 1, 7424, hp=True),
+        TremParams(np.float32, 1, 7296, 1, 7296, 1, 7296, 1, 7296, hp=True),
         TremParams(np.float32, 16, 64, 16, 64, 16, 64, 16, 63, hp=True),
         # HP size matrix (compensated final iteration)
         TremParams(np.float32, 2, 448, 2, 448, 2, 448, 2, 448, hp=True),
@@ -288,7 +291,7 @@ if __name__ == "__main__":
         TremParams(f, 5, 320, 5, 320, 5, 320, 5, 320, hp=True, mode="ip_hp_"),
         TremParams(f, 8, 456, 8, 456, 8, 456, 8, 456, hp=True, mode="ip_hp_"),
         TremParams(f, 4, 136, 4, 136, 4, 136, 4, 136, hp=True, mode="ip_hp_"),
-        TremParams(f, 1, 7424, 1, 7424, 1, 7424, 1, 7424, hp=True, mode="ip_hp_"),
+        TremParams(f, 1, 7296, 1, 7296, 1, 7296, 1, 7296, hp=True, mode="ip_hp_"),
         TremParams(f, 33, 64, 33, 64, 33, 64, 33, 64, mode="ctrl_disj_def_"),
         TremParams(f, 8, 448, 8, 448, 8, 448, 8, 448, hp=True, mode="ctrl_disj_hp_"),
     ]

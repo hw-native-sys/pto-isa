@@ -25,7 +25,7 @@ namespace comm {
 // ==========================================================================
 
 enum class DmaEngine : uint8_t {
-    SDMA = 0, // Supports 2D transfer
+    SDMA = 0, // Supports 1D transfer
     URMA = 1, // Supports 1D transfer (HCCP V2 Jetty, NPU_ARCH 3510 only)
     RDMA = 2, // RDMA engine; RdmaBackend identifies the NIC implementation compiled into the binary
 };

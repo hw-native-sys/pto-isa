@@ -9,6 +9,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 */
 
 #include "test_common.h"
+#include "acl_env.h"
 #include "acl/acl.h"
 #include <gtest/gtest.h>
 
@@ -41,8 +42,6 @@ using LaunchFn = void (*)(uint64_t*, uint64_t*, void*);
 template <typename dType>
 void testTInsertZN(size_t srcByteSize, size_t dstByteSize, LaunchFn launch)
 {
-    aclInit(nullptr);
-    aclrtSetDevice(0);
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
@@ -67,8 +66,6 @@ void testTInsertZN(size_t srcByteSize, size_t dstByteSize, LaunchFn launch)
     aclrtFreeHost(dstHost);
     aclrtFreeHost(srcHost);
     aclrtDestroyStream(stream);
-    aclrtResetDevice(0);
-    aclFinalize();
 
     std::vector<dType> golden(dstByteSize / sizeof(dType));
     std::vector<dType> devFinal(dstByteSize / sizeof(dType));
@@ -143,4 +140,11 @@ TEST_F(TInsertZNTest, case_zn_offset_12)
 TEST_F(TInsertZNTest, case_zn_offset_13)
 {
     testTInsertZN<float>((8 * 48 + 8 * 16) * 4, 8 * 48 * 4, launchTInsertZNOffset<13>);
+}
+
+int main(int argc, char** argv)
+{
+    testing::InitGoogleTest(&argc, argv);
+    testing::AddGlobalTestEnvironment(new AclEnv());
+    return RUN_ALL_TESTS();
 }
