@@ -40,13 +40,13 @@ PTO_INST RecordEvent TRESHAPE(TileDataOut &dst, TileDataIn &src, WaitEvents &...
 由 `TRESHAPE_IMPL` 强制执行：
 
 - **Tile类型必须匹配**：`TileDataIn::Loc == TileDataOut::Loc`。
-- **总字节大小必须匹配**：`sizeof(InElem) * InNumel == sizeof(OutElem) * OutNumel`。
+- **总字节大小必须匹配**。CPU 模拟和 NPU 手动模式均比较 `TileDataIn::StorageBytes` 和 `TileDataOut::StorageBytes`，计入元素打包和面板填充。
 - **不允许boxed/non-boxed转换**：
     - 不能在 `SLayout::NoneBox` 与boxed布局之间进行reshape。
 
 ## 备注
 
-- **CPU模拟**：实现为按字节拷贝到 `dst`。
+- **CPU模拟**：`dst` 与 `src` 共享底层存储。通过任一视图写入的数据都可从另一视图读到。
 - **Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品**：实现为别名（`TASSIGN_IMPL(dst, src.data())`），因此 `dst` 和 `src` 引用同一底层存储。
 
 ## 示例

@@ -12,6 +12,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define ELEMENT_OP_HPP
 
 #include <cmath>
+#include <cstdint>
 #include <type_traits>
 
 #include "pto/common/pto_tile.hpp"
@@ -179,14 +180,82 @@ struct ElementOpCal<DType, ElementOp::OP_REM> {
     }
 };
 
+// A5/A6-compatible shift semantics shared by SHL/SHR.
+//
+// 64-bit (int64_t/uint64_t) follows A5/A6 Int64ShiftRegs: the count is the low
+// six bits of src1 (src1 & 63) and the direction is NEVER reversed, so e.g.
+// TSHL<uint64_t>(8, 64) shifts by 64 & 63 == 0 and returns 8.
+//
+// 8/16/32-bit: the shift amount (src1) is interpreted as a SIGNED value and a
+// negative amount reverses the shift direction (left <-> right). The result is
+// computed in a 64-bit domain and truncated to DType, reproducing the reference
+// (numpy/torch) bit pattern for every shift amount (e.g. a left shift by >= bit
+// width yields 0 after truncation).
+//
+// `Left == true` computes SHL, `Left == false` computes SHR. Right shift is
+// arithmetic for signed DType and logical for unsigned DType.
+template <typename DType, bool Left>
+static DType ShiftWithReverse(DType src0, DType src1)
+{
+    using S = std::make_signed_t<DType>;
+    using U = std::make_unsigned_t<DType>;
+    if constexpr (sizeof(DType) == sizeof(uint64_t)) {
+        const uint64_t count = static_cast<uint64_t>(src1) & static_cast<uint64_t>(63);
+        if constexpr (Left) {
+            const uint64_t a = static_cast<uint64_t>(static_cast<U>(src0));
+            return static_cast<DType>(static_cast<U>(a << count));
+        } else if constexpr (std::is_signed_v<DType>) {
+            const int64_t s = static_cast<int64_t>(static_cast<S>(src0));
+            return static_cast<DType>(s >> count);
+        } else {
+            const uint64_t a = static_cast<uint64_t>(static_cast<U>(src0));
+            return static_cast<DType>(static_cast<U>(a >> count));
+        }
+    } else {
+        const int64_t amt = static_cast<int64_t>(static_cast<S>(src1));
+        const bool doLeft = Left ? (amt >= 0) : (amt < 0);
+        // Unsigned negation avoids signed overflow for the most-negative value.
+        const uint64_t mag =
+            amt >= 0 ? static_cast<uint64_t>(amt) : (static_cast<uint64_t>(0) - static_cast<uint64_t>(amt));
+        if (doLeft) {
+            const uint64_t a = static_cast<uint64_t>(static_cast<U>(src0));
+            const uint64_t r = (mag < 64) ? (a << mag) : static_cast<uint64_t>(0);
+            return static_cast<DType>(static_cast<U>(r));
+        }
+        if constexpr (std::is_signed_v<DType>) {
+            const int64_t sr = static_cast<int64_t>(static_cast<S>(src0));
+            const int64_t r = (mag < 64) ? (sr >> mag) : (sr < 0 ? static_cast<int64_t>(-1) : static_cast<int64_t>(0));
+            return static_cast<DType>(r);
+        } else {
+            const uint64_t a = static_cast<uint64_t>(static_cast<U>(src0));
+            const uint64_t r = (mag < 64) ? (a >> mag) : static_cast<uint64_t>(0);
+            return static_cast<DType>(static_cast<U>(r));
+        }
+    }
+}
+
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SHL> {
-    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 << src1; }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
+    {
+        if constexpr (std::is_integral_v<DType>) {
+            dst = ShiftWithReverse<DType, true>(src0, src1);
+        } else {
+            dst = src0 << src1;
+        }
+    }
 };
 
 template <typename DType>
 struct ElementOpCal<DType, ElementOp::OP_SHR> {
-    static void apply(DType& dst, DType& src0, DType& src1, size_t) { dst = src0 >> src1; }
+    static void apply(DType& dst, DType& src0, DType& src1, size_t)
+    {
+        if constexpr (std::is_integral_v<DType>) {
+            dst = ShiftWithReverse<DType, false>(src0, src1);
+        } else {
+            dst = src0 >> src1;
+        }
+    }
 };
 
 template <typename DType>

@@ -40,6 +40,20 @@ std::string GetGoldenDir()
     return fullPath;
 }
 
+// Bitwise src-preservation check: the op must not modify the input tile, in
+// GM or in UB (the kernel re-stores the src tile after the op as a probe).
+static void ExpectSrcPreserved(const std::vector<float>& before, const float* after, size_t floats)
+{
+    const uint32_t* b = reinterpret_cast<const uint32_t*>(before.data());
+    for (size_t i = 0; i < floats; ++i) {
+        const uint32_t a = *reinterpret_cast<const uint32_t*>(after + i);
+        if (a != b[i]) {
+            EXPECT_EQ(a, b[i]) << "src modified at element " << i;
+            return;
+        }
+    }
+}
+
 template <int validRows, int validCols, int mode>
 void test_tquant_int8_sym()
 {
@@ -67,6 +81,7 @@ void test_tquant_int8_sym()
     aclrtMemcpy(srcDevice, srcFileSize, srcHost, srcFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
     ReadFile(GetGoldenDir() + "/inv_scale_fp32.bin", scaleFileSize, scaleHost, scaleFileSize);
     aclrtMemcpy(scaleDevice, scaleFileSize, scaleHost, scaleFileSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    const std::vector<float> srcBefore(srcHost, srcHost + validRows * validCols);
 
     LaunchTQuantInt8<validRows, validCols, mode, pto::QuantType::INT8_SYM>(dstDevice, srcDevice, scaleDevice, stream);
 
@@ -74,6 +89,9 @@ void test_tquant_int8_sym()
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "aclrtSynchronizeStream failed (ret=" << syncRet
                                     << "): " << aclGetRecentErrMsg();
     aclrtMemcpy(dstHost, dstFileSize, dstDevice, dstFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    std::vector<float> srcAfter(validRows * validCols);
+    aclrtMemcpy(srcAfter.data(), srcFileSize, srcDevice, srcFileSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    ExpectSrcPreserved(srcBefore, srcAfter.data(), validRows * validCols);
 
     WriteFile(GetGoldenDir() + "/output_s8.bin", dstHost, dstFileSize);
 
@@ -122,11 +140,15 @@ void test_tquant_int8_asym()
     aclrtMemcpy(srcDev, srcSize, srcHost, srcSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(scaleDev, scaleSize, scaleHost, scaleSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(offDev, offSize, offHost, offSize, ACL_MEMCPY_HOST_TO_DEVICE);
+    const std::vector<float> srcBefore(srcHost, srcHost + validRows * validCols);
     LaunchTQuantInt8<validRows, validCols, mode, pto::QuantType::INT8_ASYM>(dstDev, srcDev, scaleDev, stream, offDev);
     aclError syncRet = aclrtSynchronizeStream(stream);
     ASSERT_EQ(syncRet, ACL_SUCCESS) << "aclrtSynchronizeStream failed (ret=" << syncRet
                                     << "): " << aclGetRecentErrMsg();
     aclrtMemcpy(dstHost, dstSize, dstDev, dstSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    std::vector<float> srcAfter(validRows * validCols);
+    aclrtMemcpy(srcAfter.data(), srcSize, srcDev, srcSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    ExpectSrcPreserved(srcBefore, srcAfter.data(), validRows * validCols);
     WriteFile(GetGoldenDir() + "/output_u8.bin", dstHost, dstSize);
     aclrtFree(dstDev);
     aclrtFree(srcDev);
@@ -147,11 +169,11 @@ void test_tquant_int8_asym()
 
 TEST_F(TQUANTTEST, case_int8_sym_fp32_64x128_nd) { test_tquant_int8_sym<64, 128, 0>(); }
 
-TEST_F(TQUANTTEST, case_int8_sym_fp32_128x128_nd) { test_tquant_int8_sym<128, 128, 0>(); }
+TEST_F(TQUANTTEST, case_int8_sym_fp32_128x64_nd) { test_tquant_int8_sym<128, 64, 0>(); }
 
 TEST_F(TQUANTTEST, case_int8_asym_fp32_64x128_nd) { test_tquant_int8_asym<64, 128, 0>(); }
 
-TEST_F(TQUANTTEST, case_int8_asym_fp32_128x128_nd) { test_tquant_int8_asym<128, 128, 0>(); }
+TEST_F(TQUANTTEST, case_int8_asym_fp32_128x64_nd) { test_tquant_int8_asym<128, 64, 0>(); }
 
 TEST_F(TQUANTTEST, case_int8_asym_fp32_32x72_nd) { test_tquant_int8_asym<32, 72, 0>(); }
 

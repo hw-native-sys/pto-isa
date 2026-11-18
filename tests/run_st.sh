@@ -840,10 +840,10 @@ if [ "$ENABLE_A3" = "true" ]; then                 # A2A3
       python3 tests/script/run_st.py $ARGS -w -v a3 -t tci -g TCITest.case1_int32
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x128_nd
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_sym_fp32_128x64_nd
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "1" ]; then
-      python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x128_nd
+      python3 tests/script/run_st.py $ARGS -w -v a3 -t tquant -g TQUANTTEST.case_int8_asym_fp32_128x64_nd
       fi
       if [ -z "$ST_PART" ] || [ "$ST_PART" = "3" ]; then
       python3 tests/script/run_st.py $ARGS -w -v a3 -t texpands_mat -g TEXPANDSTest.case1

@@ -48,7 +48,7 @@ For a tile $x \in \mathbb{R}^{M \times N}$ grouped along axis `grp_axis` (ND: ax
 - **INT8_SYM:** $q_i = \mathrm{clip}(\mathrm{round}(x_i \cdot \mathrm{scale}), -128, 127)$.
 - **INT8_ASYM:** $q_i = \mathrm{clip}(\mathrm{round}(x_i \cdot \mathrm{scale}) + \mathrm{offset}, 0, 255)$.
 
-No group structure; `scale` is a per-tile FP32 multiplier (normally the reciprocal of the quantization step), and asymmetric `offset` is a per-tile FP32 scalar/vector. To avoid double-rounding on A2/A3, the cast chain is `FP32 → S32 → FP32 → FP16 → INT8` (5 stages, via a `tmp` tile = src size); A5 uses native broadcast + cast (no `tmp`). Input must be **FP32**.
+No group structure; `scale` is a per-tile FP32 multiplier (normally the reciprocal of the quantization step), and asymmetric `offset` is a per-tile FP32 scalar/vector. To avoid double-rounding on A2/A3, the cast chain is `FP32 → S32 → FP16 → INT8`; A5 uses native broadcast + cast (no `tmp`). Input must be **FP32**. On A2/A3 every intermediate — the scale/offset broadcast, the scaled FP32 block and the cast chain — lives in `tmp`; `src` is never written, so the caller is free to reuse it (see the INT8 `tmp` budget below).
 
 ## C++ Intrinsics
 
@@ -104,7 +104,7 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataPara &sc
 | `QuantType::INT8_SYM` | `nullptr` | `int8_t` | symmetric ($q = \mathrm{round}(x/\mathrm{scale})$) |
 | `QuantType::INT8_ASYM` | provided | `uint8_t` | asymmetric ($q = \mathrm{round}(x/\mathrm{scale}) + \mathrm{offset}$) |
 
-> The `tmp`-aware overload (`dst, src, scale, tmp, offset`) exists for A2/A3 interface parity. On A5 `tmp` is unused; on A2/A3 it must be `M×N` FP32 (the S32 cast intermediate).
+> The `tmp`-aware overload (`dst, src, scale, tmp, offset`) exists for A2/A3 interface parity. On A5 `tmp` is unused; on A2/A3 it must satisfy the INT8 scratch budget below (`src`/`scale`/`offset` are not written).
 
 ## Tile Sizes & Data Types
 
@@ -138,9 +138,25 @@ Same as MXFP8 except:
 | `dst` (ASYM) | `uint8_t` | $M \times N$ | $M \cdot N$ |
 | `scale` | FP32 scalar/vector | per-tile | — |
 | `offset` (ASYM) | FP32 scalar/vector | per-tile | — |
-| `tmp` (A2/A3 only) | FP32 | $M \times N$ | $M \cdot N \cdot 4$ |
+| `tmp` (A2/A3 only) | FP32 | flat region | $4\,\mathit{tmpFloats}(M,N)$ (below) |
 
-> **`tmp` tile (A2/A3 only):** must be the **same size as `src`** ($M \times N$ FP32 = $4MN$ bytes). It holds the FP32→S32 intermediate (A3 has no in-place `tcvt`). A5 accepts the same `tmp` argument for interface parity but **does not use it** (A5 broadcasts scale/offset natively via `vlds BRC_B32`).
+> **`tmp` tile (A2/A3 only):** `src` is not written (the ST suite verifies it bitwise after every call, including the UB tile contents), so the caller is free to reuse the input; all intermediates — the scale/offset broadcast, the scaled FP32 block, the S32 cast and the FP16 view — live in `tmp`. With $C = \lceil N/8 \rceil \cdot 8$ (the FP32 tile width):
+>
+> $$\mathit{tmpFloats}(M,N) \;=\; \max\bigl(\lceil \min(M,256)/8 \rceil\,64,\; M C\bigr) \;+\; M C$$
+>
+> FP32 elements — any tile shape providing that many contiguous FP32 elements works (auto mode keeps the whole-tile flow and requires $\mathit{tmpFloats} = MC$). A5 accepts the same `tmp` argument for interface parity but **does not use it** (A5 broadcasts scale/offset natively via `vlds BRC_B32`).
+>
+> **Supported tile sizes (A2/A3 INT8):** with `scale`/`offset` DN vectors padded to $\lceil M/8 \rceil \cdot 8$ rows and `dst` rows padded to 32-byte blocks, the single-core Unified-Buffer budget is
+>
+> $$4MC \;+\; M \lceil N/32 \rceil 32 \;+\; 64\lceil M/8 \rceil \;+\; 4\,\mathit{tmpFloats}(M,N) \;\le\; 196608\ \mathrm{B}$$
+>
+> widest per-row-count `N`:
+>
+> | M | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 |
+> |---|---|---|---|---|----|----|----|-----|-----|
+> | max N | 15112 | 7552 | 3776 | 1888 | 936 | 464 | 232 | 112 | 56 |
+>
+> Wider tiles must be split into multiple calls.
 
 ## Constraints
 
@@ -172,7 +188,7 @@ DN data FP8 mantissas share the same physical addresses as ND (the `(r,c)` eleme
 |--------|----------------------|-------|
 | MXFP8 *(A5 only)* | FP32, BF16, FP16 | FP32: in-place FP8 output (4:1). BF16/FP16: source zero-padded to `StaticCols`; upcast to FP32 before cast (no direct b16→e4m3). |
 | MXFP4 (e2m1) *(A5 only)* | **FP16, BF16 only** (not FP32) | output `float4_e2m1x2_t` (packed). |
-| INT8 (sym/asym) | **FP32 only** | SYM→`int8_t`, ASYM→`uint8_t`. A2/A3 need `tmp` = src size. |
+| INT8 (sym/asym) | **FP32 only** | SYM→`int8_t`, ASYM→`uint8_t`. A2/A3 need the INT8 `tmp` budget (inputs read-only). |
 
 > Microscaling (MXFP8/MXFP4) is supported on **A5 only**; A2/A3 support the **INT8** path only (FP32 input).
 

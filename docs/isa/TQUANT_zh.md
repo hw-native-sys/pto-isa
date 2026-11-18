@@ -48,7 +48,7 @@
 - **INT8_SYM：** $q_i = \mathrm{clip}(\mathrm{round}(x_i \cdot \mathrm{scale}), -128, 127)$。
 - **INT8_ASYM：** $q_i = \mathrm{clip}(\mathrm{round}(x_i \cdot \mathrm{scale}) + \mathrm{offset}, 0, 255)$。
 
-无分组结构；`scale` 是每Tile的FP32乘数（通常为量化步长的倒数），非对称模式下的 `offset` 为每Tile的FP32标量/向量。为避免二次舍入，Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上的类型转换链为 `FP32 → S32 → FP32 → FP16 → INT8`（5阶段，通过 `tmp` Tile）；Ascend 950PR/Ascend 950DT使用原生广播 + 类型转换（无需 `tmp`）。输入必须为 **FP32**。
+无分组结构；`scale` 是每Tile的FP32乘数（通常为量化步长的倒数），非对称模式下的 `offset` 为每Tile的FP32标量/向量。为避免二次舍入，Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上的类型转换链为 `FP32 → S32 → FP16 → INT8`；Ascend 950PR/Ascend 950DT使用原生广播 + 类型转换（无需 `tmp`）。输入必须为 **FP32**。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上全部中间结果 —— scale/offset 广播、缩放后的FP32块与类型转换链 —— 都存放在 `tmp` 中；`src` 不会被写入，调用方可自行决定是否复用输入（见下方 INT8 `tmp` 预算）。
 
 ## C++内建接口
 
@@ -105,7 +105,7 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataPara &sc
 | `QuantType::INT8_SYM` | `nullptr` | `int8_t` | 对称（$q = \mathrm{round}(x/\mathrm{scale})$） |
 | `QuantType::INT8_ASYM` | 提供 | `uint8_t` | 非对称（$q = \mathrm{round}(x/\mathrm{scale}) + \mathrm{offset}$） |
 
-> 带 `tmp` 的重载（`dst, src, scale, tmp, offset`）用于Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品接口对齐。Ascend 950PR/Ascend 950DT不使用 `tmp`；Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上 `tmp` 必须为 $M \times N$ FP32（S32类型转换中间结果）。
+> 带 `tmp` 的重载（`dst, src, scale, tmp, offset`）用于Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品接口对齐。Ascend 950PR/Ascend 950DT不使用 `tmp`；Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品上 `tmp` 须满足下方 INT8 暂存预算（不会写入 `src`/`scale`/`offset`）。
 
 ## Tile尺寸与数据类型
 
@@ -140,9 +140,25 @@ PTO_INST RecordEvent TQUANT(TileDataOut &dst, TileDataSrc &src, TileDataPara &sc
 | `dst`（ASYM） | `uint8_t` | $M \times N$ | $M \cdot N$ |
 | `scale` | FP32标量/向量 | 每Tile | — |
 | `offset`（ASYM） | FP32标量/向量 | 每Tile | — |
-| `tmp`（仅Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品） | FP32 | $M \times N$ | $M \cdot N \cdot 4$ |
+| `tmp`（仅Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品） | FP32 | 平坦区域 | $4\,\mathit{tmpFloats}(M,N)$（见下） |
 
-> **`tmp` Tile（仅Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）：** 必须与 `src` **同尺寸**（$M \times N$ FP32 = $4MN$ 字节），保存FP32→S32类型转换中间结果（Atlas A3 训练系列产品/Atlas A3 推理系列产品无原地 `tcvt`）。Ascend 950PR/Ascend 950DT接受同名 `tmp` 参数以保持接口一致，但**不使用它**（Ascend 950PR/Ascend 950DT原生 `vlds BRC_B32` 广播）。
+> **`tmp` Tile（仅Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）：** `src` 不会被写入（ST 套件在每次调用后按位校验，含 UB Tile 内容），调用方可自行决定是否复用输入；全部中间结果 —— scale/offset 广播、缩放后的FP32块、S32 转换与 FP16 视图 —— 都存放在 `tmp` 中。取 $C = \lceil N/8 \rceil \cdot 8$（FP32 Tile 宽度）：
+>
+> $$\mathit{tmpFloats}(M,N) \;=\; \max\bigl(\lceil \min(M,256)/8 \rceil\,64,\; M C\bigr) \;+\; M C$$
+>
+个 FP32 元素 —— 任意能提供这么多连续 FP32 元素的 Tile 形状均可（auto 模式保持整Tile流程，需要 $\mathit{tmpFloats} = MC$）。Ascend 950PR/Ascend 950DT接受同名 `tmp` 参数以保持接口一致，但**不使用它**（原生 `vlds BRC_B32` 广播）。
+>
+> **支持的 Tile 尺寸（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品 INT8）：** `scale`/`offset` 为 DN 向量、按 $\lceil M/8 \rceil \cdot 8$ 行对齐，`dst` 行按 32 字节块对齐时，单核 Unified Buffer 预算为
+>
+> $$4MC \;+\; M \lceil N/32 \rceil 32 \;+\; 64\lceil M/8 \rceil \;+\; 4\,\mathit{tmpFloats}(M,N) \;\le\; 196608\ \mathrm{B}$$
+>
+> 各行数下最宽 `N`：
+>
+> | M | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 |
+> |---|---|---|---|---|----|----|----|-----|-----|
+> | 最宽 N | 15112 | 7552 | 3776 | 1888 | 936 | 464 | 232 | 112 | 56 |
+>
+> 更宽的 Tile 须拆分为多次调用。
 
 ## 约束
 
@@ -174,7 +190,7 @@ DN数据的FP8 mantissa与ND共享相同的物理地址（`(r,c)` 元素完全�
 |------|-----------------|------|
 | MXFP8（仅 A5） | FP32、BF16、FP16 | FP32：原地FP8输出（4:1）。BF16/FP16：源零填充至 `StaticCols`；类型转换前先上转为FP32（无直接b16→e4m3）。 |
 | MXFP4（e2m1）（仅 A5） | **仅FP16、BF16**（不支持FP32） | 输出 `float4_e2m1x2_t`（打包）。 |
-| INT8（sym/asym） | **仅FP32** | SYM→`int8_t`，ASYM→`uint8_t`。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品需 `tmp` = src尺寸。 |
+| INT8（sym/asym） | **仅FP32** | SYM→`int8_t`，ASYM→`uint8_t`。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品需满足 INT8 `tmp` 预算（输入只读）。 |
 
 > 微缩（MXFP8/MXFP4）**仅在 A5 上支持**；A2/A3 仅支持 **INT8** 路径（FP32 输入）。
 
