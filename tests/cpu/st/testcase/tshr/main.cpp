@@ -88,12 +88,16 @@ void test_tshr()
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/golden.bin", fileSize, golden.data(), fileSize));
     CHECK_RESULT_GTEST(ReadFile(GetGoldenDir() + "/output.bin", fileSize, devFinal.data(), fileSize));
 
-    bool ret = ResultCmp<T>(golden, devFinal, 0.001f);
+    bool ret = ResultCmpExact<T>(golden, devFinal.data());
 
     EXPECT_TRUE(ret);
 }
 
+TEST_F(TSHRTest, case_int8_64x64_64x64_64x64) { test_tshr<int8_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSHRTest, case_uint8_64x64_64x64_64x64) { test_tshr<uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TSHRTest, case_int16_64x64_64x64_64x64) { test_tshr<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSHRTest, case_uint16_64x64_64x64_64x64) { test_tshr<uint16_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
 TEST_F(TSHRTest, case_int32_16x256_16x256_16x256) { test_tshr<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
-TEST_F(TSHRTest, case_int64_64x64_64x64_64x64) { test_tshr<int64_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
-TEST_F(TSHRTest, case_uint64_64x64_64x64_64x64) { test_tshr<uint64_t, NUM_64, NUM_64, NUM_64, NUM_64>(); }
+TEST_F(TSHRTest, case_uint32_16x256_16x256_16x256) { test_tshr<uint32_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TSHRTest, case_int64_16x256_16x256_16x256) { test_tshr<int64_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }
+TEST_F(TSHRTest, case_uint64_16x256_16x256_16x256) { test_tshr<uint64_t, NUM_16, NUM_256, NUM_16, NUM_256>(); }

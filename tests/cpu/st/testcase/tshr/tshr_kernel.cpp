@@ -48,11 +48,18 @@ void LaunchTSHR(T* out, T* src0, T* src1, void* stream)
         runTSHR<T, kGRows_, kGCols_, kTRows_, kTCols_>(out, src0, src1);
 }
 
+template void LaunchTSHR<int8_t, NUM_64, NUM_64, NUM_64, NUM_64>(int8_t* out, int8_t* src0, int8_t* src1, void* stream);
+template void LaunchTSHR<uint8_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint8_t* out, uint8_t* src0, uint8_t* src1, void* stream);
 template void LaunchTSHR<int16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
     int16_t* out, int16_t* src0, int16_t* src1, void* stream);
+template void LaunchTSHR<uint16_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+    uint16_t* out, uint16_t* src0, uint16_t* src1, void* stream);
 template void LaunchTSHR<int32_t, NUM_16, NUM_256, NUM_16, NUM_256>(
     int32_t* out, int32_t* src0, int32_t* src1, void* stream);
-template void LaunchTSHR<int64_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+template void LaunchTSHR<uint32_t, NUM_16, NUM_256, NUM_16, NUM_256>(
+    uint32_t* out, uint32_t* src0, uint32_t* src1, void* stream);
+template void LaunchTSHR<int64_t, NUM_16, NUM_256, NUM_16, NUM_256>(
     int64_t* out, int64_t* src0, int64_t* src1, void* stream);
-template void LaunchTSHR<uint64_t, NUM_64, NUM_64, NUM_64, NUM_64>(
+template void LaunchTSHR<uint64_t, NUM_16, NUM_256, NUM_16, NUM_256>(
     uint64_t* out, uint64_t* src0, uint64_t* src1, void* stream);
