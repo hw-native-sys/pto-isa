@@ -34,12 +34,16 @@ __global__ AICORE void runTQuantInt8Sym(
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, int8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
     using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
-    using TmpTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
+    // scratch budget (see docs/isa/TQUANT.md): broadcast/S32 region + scaled block
+    constexpr int bcastFloats = ((validRows < 256 ? validRows : 256) + 7) / 8 * 64;
+    constexpr int s32Region = bcastFloats > validRows * paddedCols_b32 ? bcastFloats : validRows * paddedCols_b32;
+    constexpr int tmpCols = s32Region + validRows * paddedCols_b32;
+    using TmpTile = Tile<TileType::Vec, float, 1, tmpCols, BLayout::RowMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstS8Tile(validRows, validCols);
     ParaTile scaleTile(validRows, 1);
-    TmpTile tmpTile(validRows, validCols);
+    TmpTile tmpTile(1, tmpCols);
 
     SrcGlobal srcGlobal(src);
     DstGlobal dstGlobal(out_s8);
@@ -66,6 +70,10 @@ __global__ AICORE void runTQuantInt8Sym(
 #endif
 
     TSTORE(dstGlobal, dstS8Tile);
+    // UB-side input preservation probe: TSTORE never writes GM src on its own,
+    // so re-storing the src tile after the op exposes writes the op made into
+    // the UB input (in-place scale/offset or aliased cast intermediates).
+    TSTORE(srcGlobal, srcTile);
 }
 
 // FP32 --> INT8 ASYM
@@ -84,13 +92,17 @@ __global__ AICORE void runTQuantInt8Asym(
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, uint8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
     using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
-    using TmpTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
+    // scratch budget (see docs/isa/TQUANT.md): broadcast/S32 region + scaled block
+    constexpr int bcastFloats = ((validRows < 256 ? validRows : 256) + 7) / 8 * 64;
+    constexpr int s32Region = bcastFloats > validRows * paddedCols_b32 ? bcastFloats : validRows * paddedCols_b32;
+    constexpr int tmpCols = s32Region + validRows * paddedCols_b32;
+    using TmpTile = Tile<TileType::Vec, float, 1, tmpCols, BLayout::RowMajor, -1, -1>;
 
     SrcTile srcTile(validRows, validCols);
     DstTile dstU8Tile(validRows, validCols);
     ParaTile scaleTile(validRows, 1);
     ParaTile offsetTile(validRows, 1);
-    TmpTile tmpTile(validRows, validCols);
+    TmpTile tmpTile(1, tmpCols);
 
     SrcGlobal srcGlobal(src);
     DstGlobal dstGlobal(out_u8);
@@ -118,6 +130,8 @@ __global__ AICORE void runTQuantInt8Asym(
     set_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
     wait_flag(PIPE_V, PIPE_MTE3, EVENT_ID0);
 #endif
+    // UB-side input preservation probe (see the sym kernel)
+    TSTORE(srcGlobal, srcTile);
 
     TSTORE(dstGlobal, dstU8Tile);
 }
@@ -138,7 +152,7 @@ void LaunchTQuantInt8(
 
 template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_SYM>(
     int8_t* dst, float* src, float* scale, void* stream, float* offset);
-template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_SYM>(
+template void TQuantTest::LaunchTQuantInt8<128, 64, 0, pto::QuantType::INT8_SYM>(
     int8_t* dst, float* src, float* scale, void* stream, float* offset);
 template void TQuantTest::LaunchTQuantInt8<2, 129, 0, pto::QuantType::INT8_SYM>(
     int8_t* dst, float* src, float* scale, void* stream, float* offset);
@@ -152,7 +166,7 @@ template void TQuantTest::LaunchTQuantInt8<64, 65, 0, pto::QuantType::INT8_SYM>(
     int8_t* dst, float* src, float* scale, void* stream, float* offset);
 template void TQuantTest::LaunchTQuantInt8<64, 128, 0, pto::QuantType::INT8_ASYM>(
     uint8_t* dst, float* src, float* scale, void* stream, float* offset);
-template void TQuantTest::LaunchTQuantInt8<128, 128, 0, pto::QuantType::INT8_ASYM>(
+template void TQuantTest::LaunchTQuantInt8<128, 64, 0, pto::QuantType::INT8_ASYM>(
     uint8_t* dst, float* src, float* scale, void* stream, float* offset);
 template void TQuantTest::LaunchTQuantInt8<32, 72, 0, pto::QuantType::INT8_ASYM>(
     uint8_t* dst, float* src, float* scale, void* stream, float* offset);
