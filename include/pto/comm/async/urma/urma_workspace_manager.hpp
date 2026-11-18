@@ -81,7 +81,7 @@ public:
         memory_.Configure(comm, rankId, rankCount, symmetricAddr, symmetricSize, layout);
         channels_.Configure(comm, rankId, rankCount, layout, sqDepth, sharedTagPrefix, memory_.MemHandles());
 
-        if (layout == UrmaLayout::SHARED_POOL && !channels_.BuildRailPlan()) {
+        if (layout == UrmaLayout::SHARED_POOL && !channels_.Routes().BuildRailPlan()) {
             return false;
         }
 

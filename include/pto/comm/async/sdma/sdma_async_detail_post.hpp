@@ -596,26 +596,6 @@ PTO_INTERNAL bool SdmaEventCheck(uint64_t postId, uint32_t queueCount, const Sdm
     return true;
 }
 
-PTO_INTERNAL bool SdmaTestEvent(uint64_t handle, const SdmaSession& session)
-{
-    uint64_t postId = 0ULL;
-    uint32_t queueCount = 0U;
-    if (!DecodeSdmaEventHandle(handle, postId, queueCount)) {
-        return false;
-    }
-    return SdmaEventCheck(postId, queueCount, session, false);
-}
-
-PTO_INTERNAL bool SdmaWaitEvent(uint64_t handle, const SdmaSession& session)
-{
-    uint64_t postId = 0ULL;
-    uint32_t queueCount = 0U;
-    if (!DecodeSdmaEventHandle(handle, postId, queueCount)) {
-        return false;
-    }
-    return SdmaEventCheck(postId, queueCount, session, true);
-}
-
 } // namespace detail
 } // namespace sdma
 } // namespace comm

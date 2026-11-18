@@ -135,6 +135,67 @@ PTO_INTERNAL bool UrmaEventComplete(const AsyncEvent& event, const AsyncSession&
         peer, event.urmaJettyBase, event.urmaJettyCount, event.urmaTargetBbPerJetty, event.urmaTargetCqePerJetty,
         blocking, session);
 }
+
+PTO_INTERNAL uint32_t UrmaEventCompletionRecordCount(const AsyncEvent& event, const AsyncSession& session)
+{
+    const uint16_t eventKind = event.urmaJettyCount;
+    if (urma::detail::IsUrmaGatherEventKind(eventKind)) {
+        return urma::detail::UrmaGatherCompletionRecordCount(event, session);
+    }
+    uint32_t peer = 0U;
+    uint32_t targetBb = 0U;
+    urma::detail::DecodeHandle(event.handle, peer, targetBb);
+    if (targetBb == 0U || event.urmaJettyCount > urma::kUrmaMaxJettiesPerCore) {
+        return kCompletionRecordCountError;
+    }
+
+    if (event.urmaJettyCount != 0U) {
+        // A multi-jetty post parks one CQE per jetty, so the consumer has to wait for all
+        // of them; reporting one would let it retire on the first slice. Validate every
+        // slice here so Count and At cannot disagree about a record's existence.
+        for (uint32_t idx = 0U; idx < event.urmaJettyCount; ++idx) {
+            AsyncCompletionRecord record{};
+            if (!urma::detail::GetUrmaCompletionRecordAt(
+                    session, peer, static_cast<uint32_t>(event.urmaJettyBase) + idx, event.urmaTargetCqePerJetty[idx],
+                    record)) {
+                return kCompletionRecordCountError;
+            }
+        }
+        return event.urmaJettyCount;
+    }
+    AsyncCompletionRecord record{};
+    return urma::detail::GetUrmaCompletionRecord(event.handle, event.urmaTargetCqe, session, record) ?
+               1U :
+               kCompletionRecordCountError;
+}
+
+PTO_INTERNAL AsyncCompletionRecord UrmaEventCompletionRecordAt(
+    const AsyncEvent& event, const AsyncSession& session, uint32_t idx, AsyncCompletionRecord& record)
+{
+    const uint16_t eventKind = event.urmaJettyCount;
+    if (urma::detail::IsUrmaGatherEventKind(eventKind)) {
+        return urma::detail::UrmaGatherCompletionRecordAt(event, session, idx);
+    }
+    uint32_t peer = 0U;
+    uint32_t targetBb = 0U;
+    urma::detail::DecodeHandle(event.handle, peer, targetBb);
+    if (targetBb == 0U) {
+        return record;
+    }
+    if (event.urmaJettyCount != 0U) {
+        if (idx >= event.urmaJettyCount) {
+            return record;
+        }
+        (void)urma::detail::GetUrmaCompletionRecordAt(
+            session, peer, static_cast<uint32_t>(event.urmaJettyBase) + idx, event.urmaTargetCqePerJetty[idx], record);
+        return record;
+    }
+    if (idx == 0U) {
+        (void)urma::detail::GetUrmaCompletionRecord(event.handle, event.urmaTargetCqe, session, record);
+    }
+    return record;
+}
+
 #endif
 
 PTO_INTERNAL bool AsyncEvent::Wait(const AsyncSession& session) const
@@ -203,37 +264,8 @@ PTO_INTERNAL uint32_t AsyncEvent::CompletionRecordCount(const AsyncSession& sess
                        kCompletionRecordCountError;
         }
 #ifdef PTO_URMA_SUPPORTED
-        case DmaEngine::URMA: {
-            const uint16_t eventKind = urmaJettyCount;
-            if (urma::detail::IsUrmaGatherEventKind(eventKind)) {
-                return urma::detail::UrmaGatherCompletionRecordCount(*this, session);
-            }
-            uint32_t peer = 0U;
-            uint32_t targetBb = 0U;
-            urma::detail::DecodeHandle(handle, peer, targetBb);
-            if (targetBb == 0U || urmaJettyCount > urma::kUrmaMaxJettiesPerCore) {
-                return kCompletionRecordCountError;
-            }
-
-            if (urmaJettyCount != 0U) {
-                // A multi-jetty post parks one CQE per jetty, so the consumer has to wait for all
-                // of them; reporting one would let it retire on the first slice. Validate every
-                // slice here so Count and At cannot disagree about a record's existence.
-                for (uint32_t idx = 0U; idx < urmaJettyCount; ++idx) {
-                    AsyncCompletionRecord record{};
-                    if (!urma::detail::GetUrmaCompletionRecordAt(
-                            session, peer, static_cast<uint32_t>(urmaJettyBase) + idx, urmaTargetCqePerJetty[idx],
-                            record)) {
-                        return kCompletionRecordCountError;
-                    }
-                }
-                return urmaJettyCount;
-            }
-            AsyncCompletionRecord record{};
-            return urma::detail::GetUrmaCompletionRecord(handle, urmaTargetCqe, session, record) ?
-                       1U :
-                       kCompletionRecordCountError;
-        }
+        case DmaEngine::URMA:
+            return UrmaEventCompletionRecordCount(*this, session);
 #endif
 #ifdef PTO_RDMA_SUPPORTED
         case DmaEngine::RDMA: {
@@ -266,30 +298,8 @@ PTO_INTERNAL AsyncCompletionRecord AsyncEvent::CompletionRecordAt(const AsyncSes
             return record;
         }
 #ifdef PTO_URMA_SUPPORTED
-        case DmaEngine::URMA: {
-            const uint16_t eventKind = urmaJettyCount;
-            if (urma::detail::IsUrmaGatherEventKind(eventKind)) {
-                return urma::detail::UrmaGatherCompletionRecordAt(*this, session, idx);
-            }
-            uint32_t peer = 0U;
-            uint32_t targetBb = 0U;
-            urma::detail::DecodeHandle(handle, peer, targetBb);
-            if (targetBb == 0U) {
-                return record;
-            }
-            if (urmaJettyCount != 0U) {
-                if (idx >= urmaJettyCount) {
-                    return record;
-                }
-                (void)urma::detail::GetUrmaCompletionRecordAt(
-                    session, peer, static_cast<uint32_t>(urmaJettyBase) + idx, urmaTargetCqePerJetty[idx], record);
-                return record;
-            }
-            if (idx == 0U) {
-                (void)urma::detail::GetUrmaCompletionRecord(handle, urmaTargetCqe, session, record);
-            }
-            return record;
-        }
+        case DmaEngine::URMA:
+            return UrmaEventCompletionRecordAt(*this, session, idx, record);
 #endif
 #ifdef PTO_RDMA_SUPPORTED
         case DmaEngine::RDMA:
