@@ -38,6 +38,7 @@ enum Direction : uint8_t {
     DIR_V2C = 2,                  // Vector → Cube: Vector is producer, Cube is consumer
     DIR_BOTH = DIR_C2V | DIR_V2C, // Support both directions
     DIR_V2C_CTRL = 4,
+    DIR_C2V_CTRL = 8, // Scalar control broadcast from Cube to the selected Vector cores
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(__CPU_SIM)
     DIR_C2V_GM = 5,
     DIR_V2C_GM = 6,
@@ -73,6 +74,32 @@ enum class VecCubeRatio : uint8_t {
     V1C1_VEC0 = 0, // 1 Vector core : 1 Cube core, Vec core only used Vector 0
     V1C1_VEC1 = 1, // 1 Vector core : 1 Cube core, Vec core only used Vector 1
     V2C1_VECS = 2, // 2 Vector cores : 1 Cube core
+};
+
+// Control FIFOs carry uint32_t values. Predicate reductions normalize each
+// active input with value != 0; NONE preserves a single producer's raw value.
+enum class CtrlMergeMode : uint8_t {
+    NONE = 0,
+    OR = 1,
+    AND = 2,
+};
+
+template <
+    CtrlMergeMode Merge = CtrlMergeMode::OR, VecCubeRatio Ratio = VecCubeRatio::V2C1_VECS, bool Forward = true,
+    bool Backward = true>
+struct CtrlPipeConfig {
+    static_assert(
+        Merge == CtrlMergeMode::NONE || Merge == CtrlMergeMode::OR || Merge == CtrlMergeMode::AND,
+        "Unsupported control reduction mode.");
+    static_assert(
+        Ratio == VecCubeRatio::V1C1_VEC0 || Ratio == VecCubeRatio::V1C1_VEC1 || Ratio == VecCubeRatio::V2C1_VECS,
+        "Unsupported control FIFO Vector endpoints.");
+    static constexpr CtrlMergeMode MergeMode = Merge;
+    static constexpr VecCubeRatio AivRatio = Ratio;
+    // Each switch controls both endpoints of an edge, including final drains.
+    // The caller supplies ordering/ownership for any disabled dependency.
+    static constexpr bool EnableForward = Forward;
+    static constexpr bool EnableBackward = Backward;
 };
 
 template <typename DataType, FIFOType FifoType, int Depth, int Period, int LocalDepth = 0, typename Enable = void>

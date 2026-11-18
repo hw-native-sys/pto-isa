@@ -1,5 +1,13 @@
 # TPUSH
 
+## 标量控制 FIFO
+
+A5 NPU 的 `TPipe` 控制通路支持 V2C 的 OR/AND 谓词归约与 C2V 标量广播。
+`CtrlPipeConfig` 可选择参与的 AIV，并独立启用或禁用前向和反向依赖。
+共享的 A6 后端仅支持 AIV0。控制 FIFO 按消息释放槽位，不使用数据 FIFO 的批量释放规则。
+控制通路的模板参数、存储布局及生命周期约定见
+[标量控制 FIFO](../../tests/npu/a5/src/st/testcase/tpushpop_ctrl/README.md)；下文的数据 Tile 约束仍适用于数据 FIFO。
+
 ## 产品支持情况<a name="section73648168211"></a>
 
 <!-- npu="950" id1 -->

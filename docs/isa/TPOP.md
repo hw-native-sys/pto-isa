@@ -68,6 +68,16 @@ template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
 struct TPipe;
 ```
 
+## Scalar control FIFOs
+
+The A5 NPU `TPipe` control path supports V2C predicate reduction (`OR`/`AND`) and
+C2V scalar broadcast. `CtrlPipeConfig` selects the participating AIVs and
+independently enables forward and backward dependencies. The shared A6
+backend supports AIV0 only. Control FIFOs use per-message release credits.
+See [Scalar control FIFOs](../../tests/npu/a5/src/st/testcase/tpushpop_ctrl/README.md) for the control-specific
+template parameters, storage layout, and lifetime contract. The data-tile
+constraints below continue to describe data FIFOs.
+
 ## Constraints
 
 - **TileData consumer**:

@@ -24,44 +24,130 @@ namespace pto {
 
 template <
     uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum = 2,
-    bool IsNoSplit = false, bool EN_UNIT_FLAG = false>
+    bool IsNoSplit = false, bool EN_UNIT_FLAG = false,
+    typename CtrlConfig =
+        CtrlPipeConfig<CtrlMergeMode::OR, IsNoSplit ? VecCubeRatio::V1C1_VEC0 : VecCubeRatio::V2C1_VECS>>
 struct TPipe {
+    static constexpr bool is_v2c_ctrl = (DirType == Direction::DIR_V2C_CTRL);
+    static constexpr bool is_c2v_ctrl = (DirType == Direction::DIR_C2V_CTRL);
+    static constexpr bool is_ctrl_pipe = is_v2c_ctrl || is_c2v_ctrl;
     static constexpr uint8_t DIR_MASK = 0x7;
-    static constexpr uint8_t DIR_TYPE = DIR_MASK & DirType;
-    static constexpr bool is_c2v_ub = (DIR_TYPE == Direction::DIR_C2V);        // 1
-    static constexpr bool is_v2c_mat = (DIR_TYPE == Direction::DIR_V2C);       // 2
-    static constexpr bool is_both = (DIR_TYPE == Direction::DIR_BOTH);         // 3
-    static constexpr bool is_v2c_ctrl = (DIR_TYPE == Direction::DIR_V2C_CTRL); // 4
-    static constexpr bool is_c2v_gm = (DIR_TYPE == Direction::DIR_C2V_GM);     // 5
-    static constexpr bool is_v2c_gm = (DIR_TYPE == Direction::DIR_V2C_GM);     // 6
-    static constexpr bool is_both_gm = (DIR_TYPE == Direction::DIR_BOTH_GM);   // 7
+    static constexpr uint8_t DIR_TYPE = is_ctrl_pipe ? DirType : (DIR_MASK & DirType);
+    static constexpr bool is_c2v_ub = (DIR_TYPE == Direction::DIR_C2V);      // 1
+    static constexpr bool is_v2c_mat = (DIR_TYPE == Direction::DIR_V2C);     // 2
+    static constexpr bool is_both = (DIR_TYPE == Direction::DIR_BOTH);       // 3
+    static constexpr bool is_c2v_gm = (DIR_TYPE == Direction::DIR_C2V_GM);   // 5
+    static constexpr bool is_v2c_gm = (DIR_TYPE == Direction::DIR_V2C_GM);   // 6
+    static constexpr bool is_both_gm = (DIR_TYPE == Direction::DIR_BOTH_GM); // 7
     using FreeCredit = TPipeFreeCredit<SlotNum>;
-    static constexpr uint32_t SyncPeriod = FreeCredit::SyncPeriod;
+    static constexpr uint32_t SyncPeriod = is_ctrl_pipe ? 1 : FreeCredit::SyncPeriod;
     static constexpr uint8_t FlagIDPlusOne = FlagID + 1;
     static constexpr uint8_t FlagIDPlusTwo = FlagID + 2;
     static constexpr uint8_t FlagIDPlusThree = FlagID + 3;
-    static constexpr bool is_c2v = is_c2v_gm || is_c2v_ub;
+    static constexpr bool is_c2v = is_c2v_gm || is_c2v_ub || is_c2v_ctrl;
     static constexpr bool is_v2c = is_v2c_gm || is_v2c_mat || is_v2c_ctrl;
     static_assert(
         is_c2v || is_v2c || is_both || is_both_gm, "Fix: TPipe only supports C2V or V2C or Both communication on A5.");
     static constexpr uint8_t VEC_CORE_ID_OFFSET = 16;
     static_assert(
-        FlagIDPlusOne <= MAX_SYC_ID,
+        is_ctrl_pipe || FlagIDPlusOne <= MAX_SYC_ID,
         "Fix: With Both direction, FlagID + 1 must be less than 15 due to hardware limit.");
+    static_assert(!is_ctrl_pipe || SlotNum > 0, "Control FIFO depth must be positive.");
+    static_assert(!is_ctrl_pipe || SlotSize >= sizeof(uint32_t), "Control FIFO SlotSize must hold a uint32_t payload.");
+    static_assert(
+        !is_ctrl_pipe || !CtrlConfig::EnableForward || FlagID <= MAX_SYC_ID,
+        "Control FIFO forward flag ID exceeds the hardware limit.");
+    static_assert(
+        !is_ctrl_pipe || !CtrlConfig::EnableBackward || FlagID + 1 <= MAX_SYC_ID,
+        "Control FIFO backward flag ID exceeds the hardware limit.");
+    static_assert(
+        !is_ctrl_pipe || CtrlConfig::AivRatio == VecCubeRatio::V1C1_VEC0 ||
+            CtrlConfig::AivRatio == VecCubeRatio::V1C1_VEC1 || CtrlConfig::AivRatio == VecCubeRatio::V2C1_VECS,
+        "Control FIFO requires a valid AIV selection.");
+    static_assert(
+        !is_ctrl_pipe || CtrlConfig::MergeMode == CtrlMergeMode::NONE || CtrlConfig::MergeMode == CtrlMergeMode::OR ||
+            CtrlConfig::MergeMode == CtrlMergeMode::AND,
+        "Control FIFO requires NONE, OR, or AND merge mode.");
+    static_assert(
+        !is_v2c_ctrl || CtrlConfig::MergeMode != CtrlMergeMode::NONE || CtrlConfig::AivRatio != VecCubeRatio::V2C1_VECS,
+        "NONE control merge requires a single active AIV for V2C.");
+#if defined(PTO_NPU_ARCH_A6)
+    static_assert(
+        !is_ctrl_pipe || CtrlConfig::AivRatio == VecCubeRatio::V1C1_VEC0, "A6 control FIFO requires AIV0 only.");
+#endif
+    static constexpr bool ActiveAIV0 = CtrlConfig::AivRatio != VecCubeRatio::V1C1_VEC1;
+    static constexpr bool ActiveAIV1 = CtrlConfig::AivRatio != VecCubeRatio::V1C1_VEC0;
+    // V2C reserves one word per producer; C2V broadcasts one shared word.
+    static constexpr uint32_t CTRL_SLOT_BYTES = is_v2c_ctrl && ActiveAIV0 && ActiveAIV1 ? 8 : 4;
+    static constexpr uint32_t FIFO_BYTES = (is_ctrl_pipe ? CTRL_SLOT_BYTES : SlotSize) * SlotNum;
+
+    PTO_INTERNAL static bool activeVector()
+    {
+#ifdef PTO_COMPILE_VEC
+        return get_subblockid() == 0 ? ActiveAIV0 : ActiveAIV1;
+#else
+        return false;
+#endif
+    }
+
+    // AIC addresses each selected AIV flag lane; AIV uses its local flag ID.
+    template <bool Set, uint8_t Flag>
+    PTO_INTERNAL static void cubeFlags()
+    {
+#ifdef PTO_COMPILE_CUBE
+        if constexpr (ActiveAIV0) {
+            if constexpr (Set) {
+                set_intra_block(PIPE_S, Flag);
+            } else {
+                wait_intra_block(PIPE_S, Flag);
+            }
+        }
+        if constexpr (ActiveAIV1) {
+            if constexpr (Set) {
+                set_intra_block(PIPE_S, Flag + VEC_CORE_ID_OFFSET);
+            } else {
+                wait_intra_block(PIPE_S, Flag + VEC_CORE_ID_OFFSET);
+            }
+        }
+#endif
+    }
+
+    struct DataProducerState {};
+    struct ControlProducerState {
+        uint32_t pushCount = 0;
+        mutable uint32_t waitedCount = 0;
+        PTO_INTERNAL ControlProducerState() = default;
+        ControlProducerState(const ControlProducerState&) = delete;
+        ControlProducerState& operator=(const ControlProducerState&) = delete;
+    };
 
     // -------------------------------------------------------------------------
     // RingFiFo
     // -------------------------------------------------------------------------
-    using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
+    using RingFiFo = RingFIFO<is_ctrl_pipe ? CTRL_SLOT_BYTES : SlotSize, SlotNum, LocalSlotNum>;
 
-    PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex) { return FreeCredit::shouldWaitFree(tileIndex); }
+    PTO_INTERNAL static bool shouldWaitFree(uint32_t tileIndex)
+    {
+        if constexpr (is_ctrl_pipe) {
+            return CtrlConfig::EnableBackward;
+        } else {
+            return FreeCredit::shouldWaitFree(tileIndex);
+        }
+    }
 
-    PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex) { return FreeCredit::shouldNotifyFree(tileIndex); }
+    PTO_INTERNAL static bool shouldNotifyFree(uint32_t tileIndex)
+    {
+        if constexpr (is_ctrl_pipe) {
+            return CtrlConfig::EnableBackward;
+        } else {
+            return FreeCredit::shouldNotifyFree(tileIndex);
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Producer Interface
     // -------------------------------------------------------------------------
-    struct Producer {
+    struct Producer : std::conditional_t<is_ctrl_pipe, ControlProducerState, DataProducerState> {
         uint32_t subTileIndex = 0;
         uint32_t tileIndex = 0;
         bool isRecord = true;
@@ -108,6 +194,26 @@ struct TPipe {
             }
         }
 
+        // Slot repositioning does not reset the count of outstanding releases.
+        PTO_INTERNAL void waitCtrlFree() const
+        {
+            if constexpr (CtrlConfig::EnableBackward) {
+                if constexpr (is_c2v_ctrl) {
+#ifdef PTO_COMPILE_CUBE
+                    cubeFlags<false, FlagID + 1>();
+                    ++this->waitedCount;
+#endif
+                } else {
+#ifdef PTO_COMPILE_VEC
+                    if (activeVector()) {
+                        wait_intra_block(PIPE_S, FlagID + 1);
+                        ++this->waitedCount;
+                    }
+#endif
+                }
+            }
+        }
+
         /**
          * alloc: Request space in FIFO
          * 1. (iter >= Depth): Startup protection. Don't check flags when buffer is empty.
@@ -116,8 +222,14 @@ struct TPipe {
         template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void allocate() const
         {
-            CheckSplitMode<Split>();
-            if constexpr (is_c2v) {
+            if constexpr (!is_ctrl_pipe) {
+                CheckSplitMode<Split>();
+            }
+            if constexpr (is_ctrl_pipe) {
+                if (this->pushCount >= SlotNum) {
+                    waitCtrlFree();
+                }
+            } else if constexpr (is_c2v) {
 #ifdef PTO_COMPILE_CUBE
                 waitIntraBlockBySplit<PIPE_FIX, Split>(FlagIDPlusOne);
 #endif
@@ -134,10 +246,6 @@ struct TPipe {
                     FlagIDPlusThree <= MAX_SYC_ID,
                     "Fix: With Both direction, FlagID + 3 must be less than 15 due to hardware limit.");
                 wait_intra_block(PIPE_MTE3, FlagIDPlusThree);
-#endif
-            } else if constexpr (is_v2c_ctrl) {
-#ifdef PTO_COMPILE_VEC
-                wait_intra_block(PIPE_S, FlagIDPlusOne);
 #endif
             } else if constexpr (is_both_gm) {
 #ifdef PTO_COMPILE_CUBE
@@ -160,8 +268,22 @@ struct TPipe {
         template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void record() const
         {
-            CheckSplitMode<Split>();
-            if constexpr (is_c2v) {
+            if constexpr (!is_ctrl_pipe) {
+                CheckSplitMode<Split>();
+            }
+            if constexpr (is_ctrl_pipe) {
+                if constexpr (CtrlConfig::EnableForward) {
+                    if constexpr (is_c2v_ctrl) {
+                        cubeFlags<true, FlagID>();
+                    } else {
+#ifdef PTO_COMPILE_VEC
+                        if (activeVector()) {
+                            set_intra_block(PIPE_S, FlagID);
+                        }
+#endif
+                    }
+                }
+            } else if constexpr (is_c2v) {
 #ifdef PTO_COMPILE_CUBE
                 setIntraBlockBySplit<PIPE_FIX, Split>(FlagID);
 #endif
@@ -174,8 +296,6 @@ struct TPipe {
 #ifdef PTO_COMPILE_VEC
                 set_intra_block(PIPE_MTE3, FlagIDPlusTwo);
 #endif
-            } else if constexpr (is_v2c_ctrl) {
-                set_intra_block(PIPE_S, FlagID);
             } else if constexpr (is_both_gm) {
 #ifdef PTO_COMPILE_VEC
                 set_intra_block(PIPE_MTE3, FlagIDPlusTwo);
@@ -302,16 +422,6 @@ struct TPipe {
             TSTORE_IMPL(globalData, tile);
         }
 
-        template <typename TileProd>
-        PTO_INTERNAL void pushVec2CtrlFiFo(RingFiFo& fifo, TileProd& tile)
-        {
-            uint32_t slotIndex = (tileIndex % RingFiFo::SLOT_NUM);
-            uint64_t entryBase = slotIndex * sizeof(uint32_t);
-            __ssbuf__ uint32_t* ctrlBuf = (__ssbuf__ uint32_t*)(fifo.V2C_CONSUMER_BUF + entryBase + entryOffset);
-            uint32_t ctrlSignal = *(tile.data());
-            *(ctrlBuf) = ctrlSignal;
-        }
-
         template <typename TileProd, TileSplitAxis Split>
         PTO_INTERNAL void pushVec2FiFoByDir(RingFiFo& fifo, TileProd& tile, int32_t subBlockId)
         {
@@ -319,8 +429,41 @@ struct TPipe {
                 pushVec2MatFiFo<TileProd, Split>(fifo, tile, subBlockId);
             } else if constexpr (is_v2c_gm) {
                 pushVec2GMFiFo<TileProd, Split>(fifo, tile, subBlockId);
-            } else if constexpr (is_v2c_ctrl) {
-                pushVec2CtrlFiFo<TileProd>(fifo, tile);
+            }
+        }
+
+        template <typename TileProd>
+        PTO_INTERNAL void pushCtrl(RingFiFo& fifo, TileProd& tile)
+        {
+            static_assert(
+                TileProd::Loc == TileType::Ctrl || (is_v2c_ctrl && TileProd::Loc == TileType::Vec),
+                "Control FIFO requires a Ctrl producer, or a uint32 Vec producer for V2C.");
+            static_assert(
+                std::is_same_v<typename TileProd::DType, uint32_t>, "Control FIFO payload type must be uint32_t.");
+            const uint32_t base = is_c2v_ctrl ? fifo.C2V_CONSUMER_BUF : fifo.V2C_CONSUMER_BUF;
+            uint64_t address = base + (tileIndex % SlotNum) * CTRL_SLOT_BYTES + entryOffset;
+            if constexpr (is_c2v_ctrl) {
+#ifdef PTO_COMPILE_CUBE
+                *reinterpret_cast<volatile __ssbuf__ uint32_t*>(address) = static_cast<uint32_t>(tile.data());
+                ++this->pushCount;
+#endif
+            } else {
+#ifdef PTO_COMPILE_VEC
+                if (activeVector()) {
+                    if constexpr (ActiveAIV0 && ActiveAIV1) {
+                        address += get_subblockid() * sizeof(uint32_t);
+                    }
+                    uint32_t value;
+                    if constexpr (TileProd::Loc == TileType::Ctrl) {
+                        value = static_cast<uint32_t>(tile.data());
+                    } else {
+                        // The caller completes vector writes before this scalar UB read.
+                        value = *tile.data();
+                    }
+                    *reinterpret_cast<volatile __ssbuf__ uint32_t*>(address) = value;
+                    ++this->pushCount;
+                }
+#endif
             }
         }
 
@@ -328,8 +471,12 @@ struct TPipe {
         template <typename TileProd, TileSplitAxis Split>
         PTO_INTERNAL void push(RingFiFo& fifo, TileProd& tile, int32_t subBlockId)
         {
-            CheckSplitMode<Split>();
-            if constexpr (TileProd::Loc == TileType::Acc) {
+            if constexpr (!is_ctrl_pipe) {
+                CheckSplitMode<Split>();
+            }
+            if constexpr (is_ctrl_pipe) {
+                pushCtrl(fifo, tile);
+            } else if constexpr (TileProd::Loc == TileType::Acc) {
                 if constexpr (is_c2v_ub || is_both) {
                     pushAcc2VecFiFo<TileProd, Split>(fifo, tile);
                 } else if constexpr (is_c2v_gm) {
@@ -477,14 +624,23 @@ struct TPipe {
             }
         }
 
+        PTO_INTERNAL void waitCtrl() const;
+        PTO_INTERNAL void freeCtrl() const;
+        template <typename TileCons>
+        PTO_INTERNAL bool popCtrl(RingFiFo& fifo, TileCons& tile);
+
         /**
          * wait: Block until data is ready
          */
         template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void wait() const
         {
-            CheckSplitMode<Split>();
-            if constexpr (is_c2v_gm) {
+            if constexpr (!is_ctrl_pipe) {
+                CheckSplitMode<Split>();
+            }
+            if constexpr (is_ctrl_pipe) {
+                waitCtrl();
+            } else if constexpr (is_c2v_gm) {
                 wait_intra_block(PIPE_MTE2, FlagID);
             } else if constexpr (is_c2v_ub) {
 #ifdef PTO_COMPILE_VEC
@@ -503,8 +659,6 @@ struct TPipe {
 #ifdef PTO_COMPILE_CUBE // v2c_mat
                 waitIntraBlockBySplit<PIPE_MTE1, Split>(FlagIDPlusTwo);
 #endif
-            } else if constexpr (is_v2c_ctrl) {
-                waitIntraBlockBySplit<PIPE_S, Split>(FlagID);
             } else if constexpr (is_both_gm) {
 #ifdef PTO_COMPILE_VEC
                 wait_intra_block(PIPE_MTE2, FlagIDPlusOne);
@@ -521,8 +675,12 @@ struct TPipe {
         template <TileSplitAxis Split = kDefaultSplitMode>
         PTO_INTERNAL void free() const
         {
-            CheckSplitMode<Split>();
-            if constexpr (is_c2v_gm) {
+            if constexpr (!is_ctrl_pipe) {
+                CheckSplitMode<Split>();
+            }
+            if constexpr (is_ctrl_pipe) {
+                freeCtrl();
+            } else if constexpr (is_c2v_gm) {
 #ifdef PTO_COMPILE_VEC
                 set_intra_block(PIPE_MTE2, FlagIDPlusOne);
 #endif
@@ -543,10 +701,6 @@ struct TPipe {
             } else if constexpr (is_v2c_gm || is_v2c_mat) {
 #ifdef PTO_COMPILE_CUBE
                 setIntraBlockBySplit<PIPE_MTE1, Split>(FlagIDPlusOne);
-#endif
-            } else if constexpr (is_v2c_ctrl) {
-#ifdef PTO_COMPILE_CUBE
-                setIntraBlockBySplit<PIPE_S, Split>(FlagIDPlusOne);
 #endif
             } else if constexpr (is_both_gm) {
 #ifdef PTO_COMPILE_VEC
@@ -640,40 +794,35 @@ struct TPipe {
             TLOAD_IMPL(tile, globalT);
         }
 
-        PTO_INTERNAL void popCtrlFromCtrlFiFo(RingFiFo& fifo)
-        {
-            uint32_t slotIndex = (tileIndex % fifo.SLOT_NUM);
-            size_t entryBase = slotIndex * sizeof(uint32_t);
-            uint64_t ctrlTileBase = fifo.fifoBase + entryBase + entryOffset;
-            fifo.ctrlSignal = (*(__ssbuf__ uint32_t*)(ctrlTileBase) == 1) ? true : false;
-        }
-
         template <typename TileCons, TileSplitAxis Split>
         PTO_INTERNAL bool pop(RingFiFo& fifo, TileCons& tile, int32_t subBlockId)
         {
-            CheckSplitMode<Split>();
-            static_assert(
-                TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat || TileCons::Loc == TileType::Ctrl,
-                "Fix: TPOP has unsupported tile type!");
-            if constexpr (TileCons::Loc == TileType::Vec) {
-                if constexpr (is_c2v_ub || is_both) {
-                    popTileFromVecFiFo<TileCons, Split>(fifo, tile);
-                    return false;
-                } else if constexpr (is_c2v_gm) {
-                    popVecTileFromGMFiFo<TileCons, Split>(fifo, tile, subBlockId);
-                    return true;
+            if constexpr (!is_ctrl_pipe) {
+                CheckSplitMode<Split>();
+            }
+            if constexpr (is_ctrl_pipe) {
+                return popCtrl(fifo, tile);
+            } else {
+                static_assert(
+                    TileCons::Loc == TileType::Vec || TileCons::Loc == TileType::Mat,
+                    "Fix: TPOP has unsupported tile type!");
+                if constexpr (TileCons::Loc == TileType::Vec) {
+                    if constexpr (is_c2v_ub || is_both) {
+                        popTileFromVecFiFo<TileCons, Split>(fifo, tile);
+                        return false;
+                    } else if constexpr (is_c2v_gm) {
+                        popVecTileFromGMFiFo<TileCons, Split>(fifo, tile, subBlockId);
+                        return true;
+                    }
+                } else if constexpr (TileCons::Loc == TileType::Mat) {
+                    if constexpr (is_v2c_mat || is_both) {
+                        popTileFromMatFiFo<TileCons, Split>(fifo, tile);
+                        return false;
+                    } else if constexpr (is_v2c_gm) {
+                        popMatTileFromGMFiFo<TileCons, Split>(fifo, tile);
+                        return true;
+                    }
                 }
-            } else if constexpr (TileCons::Loc == TileType::Mat) {
-                if constexpr (is_v2c_mat || is_both) {
-                    popTileFromMatFiFo<TileCons, Split>(fifo, tile);
-                    return false;
-                } else if constexpr (is_v2c_gm) {
-                    popMatTileFromGMFiFo<TileCons, Split>(fifo, tile);
-                    return true;
-                }
-            } else { // pop ctrl tile
-                popCtrlFromCtrlFiFo(fifo, tile);
-                return false;
             }
         }
     };
@@ -727,7 +876,7 @@ struct TPipe {
             HandShake4MixV2CMode();
         }
 
-        if constexpr (FreeCredit::kInitialFreeCredits > 0) {
+        if constexpr (!is_ctrl_pipe && FreeCredit::kInitialFreeCredits > 0) {
             for (uint32_t credit = 0; credit < FreeCredit::kInitialFreeCredits; ++credit) {
                 if constexpr (IsNoSplit) {
                     cons.template free<TileSplitAxis::TILE_NO_SPLIT>();
@@ -741,8 +890,17 @@ struct TPipe {
     // Drain credits the producer did not wait for. Split pipes wait on both flag lanes.
     PTO_INTERNAL ~TPipe()
     {
-        const uint32_t drainCount = FreeCredit::countPendingFreeCredits(prod.tileIndex);
-        ClearFreeSignal<IsNoSplit>(prod, drainCount);
+        if constexpr (is_ctrl_pipe) {
+            if constexpr (CtrlConfig::EnableBackward) {
+                const uint32_t pending = prod.pushCount - prod.waitedCount;
+                for (uint32_t index = 0; index < pending; ++index) {
+                    prod.waitCtrlFree();
+                }
+            }
+        } else {
+            const uint32_t drainCount = FreeCredit::countPendingFreeCredits(prod.tileIndex);
+            ClearFreeSignal<IsNoSplit>(prod, drainCount);
+        }
     }
 };
 

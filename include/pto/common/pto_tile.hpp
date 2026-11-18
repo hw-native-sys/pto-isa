@@ -1,5 +1,5 @@
 /**
-Copyright (c) 2025 Huawei Technologies Co., Ltd.
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
 This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 CANN Open Software License Agreement Version 2.0 (the "License").
 Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -1702,8 +1702,12 @@ public:
     static_assert(Cols % InnerCols == 0, "Layout cols must be divisible by inner box cols");
 
     static_assert(
-        (BFractal_ == BLayout::RowMajor && SFractal_ == SLayout::NoneBox &&
-         Cols * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
+#if !defined(__CPU_SIM) && !defined(__COSTMODEL)
+        // NPU control tiles hold a scalar rather than an aligned data buffer.
+        (Loc == TileType::Ctrl) ||
+#endif
+            (BFractal_ == BLayout::RowMajor && SFractal_ == SLayout::NoneBox &&
+             Cols * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
             (BFractal_ == BLayout::ColMajor && SFractal_ == SLayout::NoneBox &&
              Rows * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
             (SFractal_ != SLayout::NoneBox) &&

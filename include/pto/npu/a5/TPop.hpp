@@ -17,6 +17,65 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <pto/npu/a5/TPush.hpp>
 
 namespace pto {
+
+template <
+    uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum, bool IsNoSplit,
+    bool EN_UNIT_FLAG, typename CtrlConfig>
+PTO_INTERNAL void
+TPipe<FlagID, DirType, SlotSize, SlotNum, LocalSlotNum, IsNoSplit, EN_UNIT_FLAG, CtrlConfig>::Consumer::waitCtrl() const
+{
+    if constexpr (CtrlConfig::EnableForward) {
+        if constexpr (is_c2v_ctrl) {
+#ifdef PTO_COMPILE_VEC
+            if (activeVector()) {
+                wait_intra_block(PIPE_S, FlagID);
+            }
+#endif
+        } else {
+            cubeFlags<false, FlagID>();
+        }
+    }
+}
+
+template <
+    uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum, bool IsNoSplit,
+    bool EN_UNIT_FLAG, typename CtrlConfig>
+template <typename TileCons>
+PTO_INTERNAL bool
+TPipe<FlagID, DirType, SlotSize, SlotNum, LocalSlotNum, IsNoSplit, EN_UNIT_FLAG, CtrlConfig>::Consumer::popCtrl(
+    RingFiFo& fifo, TileCons& tile)
+{
+    static_assert(TileCons::Loc == TileType::Ctrl, "Control FIFO requires a Ctrl consumer.");
+    static_assert(std::is_same_v<typename TileCons::DType, uint32_t>, "Control FIFO payload type must be uint32_t.");
+    const uint32_t base = is_c2v_ctrl ? fifo.C2V_CONSUMER_BUF : fifo.V2C_CONSUMER_BUF;
+    const uint64_t address = base + (tileIndex % SlotNum) * CTRL_SLOT_BYTES + entryOffset;
+    if constexpr (is_c2v_ctrl) {
+#ifdef PTO_COMPILE_VEC
+        if (activeVector()) {
+            tile.data() = *reinterpret_cast<volatile __ssbuf__ uint32_t*>(address);
+        }
+#endif
+    } else {
+#ifdef PTO_COMPILE_CUBE
+        uint32_t value = *reinterpret_cast<volatile __ssbuf__ uint32_t*>(address);
+        if constexpr (ActiveAIV0 && ActiveAIV1) {
+            const uint32_t other = *reinterpret_cast<volatile __ssbuf__ uint32_t*>(address + sizeof(uint32_t));
+            if constexpr (CtrlConfig::MergeMode == CtrlMergeMode::OR) {
+                value = (value != 0) || (other != 0);
+            } else {
+                value = (value != 0) && (other != 0);
+            }
+        }
+        if constexpr (CtrlConfig::MergeMode != CtrlMergeMode::NONE) {
+            value = value != 0;
+        }
+        tile.data() = value;
+#endif
+    }
+    // Scalar consumers release each popped message with TFREE.
+    return false;
+}
+
 /**
  * TPOP: Pop Tile from FIFO
  * * Flow:

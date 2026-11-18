@@ -17,6 +17,25 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 namespace pto {
 
+template <
+    uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum, uint32_t LocalSlotNum, bool IsNoSplit,
+    bool EN_UNIT_FLAG, typename CtrlConfig>
+PTO_INTERNAL void
+TPipe<FlagID, DirType, SlotSize, SlotNum, LocalSlotNum, IsNoSplit, EN_UNIT_FLAG, CtrlConfig>::Consumer::freeCtrl() const
+{
+    if constexpr (CtrlConfig::EnableBackward) {
+        if constexpr (is_c2v_ctrl) {
+#ifdef PTO_COMPILE_VEC
+            if (activeVector()) {
+                set_intra_block(PIPE_S, FlagID + 1);
+            }
+#endif
+        } else {
+            cubeFlags<true, FlagID + 1>();
+        }
+    }
+}
+
 // free space for tile data
 template <typename Pipe, TileSplitAxis Split>
 PTO_INTERNAL void TFREE_IMPL(Pipe& pipe)
