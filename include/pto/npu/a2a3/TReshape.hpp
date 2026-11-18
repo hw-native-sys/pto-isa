@@ -25,24 +25,19 @@ PTO_INTERNAL void TRESHAPE_IMPL(TileDataOut& dst, TileDataIn& src)
     static_assert(is_tile_data_v<TileDataIn>, "input must be a Tile instance.");
     static_assert(is_tile_data_v<TileDataOut>, "output must be a Tile instance.");
 
-    using DType = typename TileDataIn::DType;
-    using NewElement = typename TileDataOut::DType;
-
     constexpr auto Loc = TileDataIn::Loc;
     constexpr auto NewLoc = TileDataOut::Loc;
-
-    constexpr int Numel = TileDataIn::Numel;
-    constexpr int NewNumel = TileDataOut::Numel;
 
     constexpr auto SFractal = TileDataIn::SFractal;
     constexpr auto NewSFractal = TileDataOut::SFractal;
 
     // 1. TileType must match
     static_assert(Loc == NewLoc, "TRESHAPE: Source and target TileType must be identical.");
-    // 2. Byte size must match
-    static_assert(sizeof(DType) * Numel == sizeof(NewElement) * NewNumel, "TRESHAPE: Total byte size must match.");
+    // 2. Compare physical storage, including packed elements and panel padding.
+    static_assert(TileDataIn::StorageBytes == TileDataOut::StorageBytes, "TRESHAPE: Total byte size must match.");
 
 #if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+    using DType = typename TileDataIn::DType;
     // MX E8M0 scales are byte payloads. A5 quantization uses flat Vec views
     // over boxed scale tiles, so this specific reshape must preserve bytes.
     constexpr bool isPackedE8M0ScaleView = Loc == TileType::Vec &&

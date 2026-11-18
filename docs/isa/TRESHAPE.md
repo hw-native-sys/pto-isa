@@ -38,13 +38,13 @@ PTO_INST RecordEvent TRESHAPE(TileDataOut &dst, TileDataIn &src, WaitEvents &...
 Enforced by `TRESHAPE_IMPL`:
 
 - **Tile type must match**: `TileDataIn::Loc == TileDataOut::Loc`.
-- **Total byte size must match**: `sizeof(InElem) * InNumel == sizeof(OutElem) * OutNumel`.
+- **Total byte size must match**. CPU simulation and manual NPU builds compare `TileDataIn::StorageBytes` and `TileDataOut::StorageBytes`, including element packing and panel padding.
 - **No boxed/non-boxed conversion**:
     - cannot reshape between `SLayout::NoneBox` and boxed layouts.
 
 ## Notes
 
-- **CPU simulation**: implemented as a byte-for-byte copy into `dst`.
+- **CPU simulation**: `dst` aliases the storage of `src`. Writes through either view are visible through the other.
 - **A2/A3**: implemented as an alias (`TASSIGN_IMPL(dst, src.data())`), so `dst` and `src` refer to the same underlying storage.
 
 ## Examples
