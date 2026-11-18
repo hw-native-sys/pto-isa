@@ -15,26 +15,17 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #error "urma_workspace_manager.hpp is a host-only header and cannot be included in device code."
 #endif
 
-#include <algorithm>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <limits>
-#include <string>
-#include <utility>
 #include <vector>
-
-#include "securec.h"
 
 #include "acl/acl.h"
 #include "hccl/hccl.h"
-#include "hccl/hccl_types.h"
 #include "hccl/hccl_res.h"
-#include "hccl/hccl_rank_graph.h"
 
 #include "pto/comm/async/urma/urma_types.hpp"
-#include "pto/comm/async/urma/urma_hccl_defs.hpp"
-#include "pto/comm/async/urma/urma_channel_helper.hpp"
+#include "pto/comm/async/urma/urma_workspace_channels.hpp"
+#include "pto/comm/async/urma/urma_workspace_memory.hpp"
+#include "pto/comm/async/urma/urma_workspace_layout.hpp"
 #include "pto/comm/logger/host_log.hpp"
 
 namespace pto {
@@ -63,40 +54,15 @@ public:
     UrmaWorkspaceManager(const UrmaWorkspaceManager&) = delete;
     UrmaWorkspaceManager& operator=(const UrmaWorkspaceManager&) = delete;
 
-    static constexpr const char* kDefaultSharedTagPrefix = "pto_urma_jetty";
+    static constexpr const char* kDefaultSharedTagPrefix = UrmaWorkspaceChannels::kDefaultSharedTagPrefix;
 
-    static uint32_t QueryDeviceAivCount()
-    {
-        int32_t deviceId = 0;
-        if (aclrtGetDevice(&deviceId) != ACL_SUCCESS) {
-            return 0U;
-        }
-        int64_t queried = 0;
-        const aclError err =
-            aclrtGetDeviceInfo(static_cast<uint32_t>(deviceId), ACL_DEV_ATTR_VECTOR_CORE_NUM, &queried);
-        if (err != ACL_SUCCESS || queried <= 0 ||
-            queried > static_cast<int64_t>(std::numeric_limits<uint32_t>::max())) {
-            return 0U;
-        }
-        return static_cast<uint32_t>(queried);
-    }
+    static uint32_t QueryDeviceAivCount() { return detail::QueryDeviceAivCount(); }
 
     static aclError GetWorkspaceSize(
         uint32_t rankCount, uint64_t* bytes, UrmaLayout layout = UrmaLayout::PER_PEER,
         uint32_t aivCount = kUrmaAutoAivCount, uint32_t jettiesPerCore = 1)
     {
-        if (bytes == nullptr) {
-            return ACL_ERROR_INVALID_PARAM;
-        }
-        *bytes = 0;
-        WorkspaceLayout workspace{};
-        // Without a communicator, reserve the accepted SharedPool rail-count upper bound.
-        const auto status =
-            ComputeLayout(rankCount, layout, aivCount, jettiesPerCore, kUrmaMaxJettiesPerCore, workspace);
-        if (status == ACL_SUCCESS) {
-            *bytes = workspace.totalBytes;
-        }
-        return status;
+        return detail::QueryWorkspaceSize(rankCount, bytes, layout, aivCount, jettiesPerCore);
     }
 
     bool Init(
@@ -106,8 +72,80 @@ public:
         const char* sharedTagPrefix = kDefaultSharedTagPrefix)
     {
         if (initialized_) {
-            return workspaceAddr == urmaInfoDevice_ && workspaceSize >= workspaceBytes_;
+            return memory_.IsBoundTo(workspaceAddr, workspaceSize);
         }
+        if (!ValidateInitParams(rankId, rankCount, symmetricAddr, symmetricSize)) {
+            return false;
+        }
+
+        memory_.Configure(comm, rankId, rankCount, symmetricAddr, symmetricSize, layout);
+        channels_.Configure(comm, rankId, rankCount, layout, sqDepth, sharedTagPrefix, memory_.MemHandles());
+
+        if (layout == UrmaLayout::SHARED_POOL && !channels_.BuildRailPlan()) {
+            return false;
+        }
+
+        if (!memory_.BindWorkspace(channels_, aivCount, jettiesPerCore, workspaceAddr, workspaceSize)) {
+            return false;
+        }
+
+        if (!memory_.AllocateNotifyPool()) {
+            return false;
+        }
+        if (!memory_.RegisterMemory()) {
+            return false;
+        }
+        if (!channels_.BuildChannels()) {
+            return false;
+        }
+        if (!memory_.ExtractAndFillUrmaInfo(channels_, peerBaseAddrs_)) {
+            return false;
+        }
+
+        initialized_ = true;
+        return true;
+    }
+
+    // The owning communication context must stop kernels, drain QPs, and
+    // destroy HCCL communication resources before calling Finalize() and releasing the external workspace.
+    void Finalize()
+    {
+        memory_.ClearWorkspaceViews();
+        channels_.ClearChannelHandles();
+        peerBaseAddrs_.clear();
+        channels_.FinalizeRoutes();
+        memory_.ResetQueueRows();
+        initialized_ = false;
+    }
+
+    void* GetWorkspaceAddr() const { return memory_.GetWorkspaceAddr(); }
+
+    uint64_t PeerBaseAddr(uint32_t peer) const
+    {
+        if (peer >= peerBaseAddrs_.size()) {
+            return 0;
+        }
+        return peerBaseAddrs_[peer];
+    }
+
+    UrmaLayout Layout() const { return memory_.Layout(); }
+    bool IsPerPeer() const { return memory_.IsPerPeer(); }
+
+    uint32_t JettyCount() const { return memory_.JettyCount(); }
+    uint32_t JettiesPerCore() const { return memory_.JettiesPerCore(); }
+    uint32_t RowsPerPeer() const { return memory_.RowsPerPeer(); }
+
+    uint64_t GetWorkspaceSize() const
+    {
+        if (!initialized_) {
+            return 0;
+        }
+        return memory_.GetWorkspaceSize();
+    }
+
+private:
+    static bool ValidateInitParams(uint32_t rankId, uint32_t rankCount, void* symmetricAddr, uint64_t symmetricSize)
+    {
         if (rankCount < 2U || rankId >= rankCount) {
             PTO_HOST_LOG_ERROR(
                 "URMA", "rankId=" << rankId << " rankCount=" << rankCount
@@ -120,453 +158,11 @@ public:
                                                                                     << " size=" << symmetricSize);
             return false;
         }
-
-        comm_ = comm;
-        rankId_ = rankId;
-        rankCount_ = rankCount;
-        symmetricAddr_ = symmetricAddr;
-        symmetricSize_ = symmetricSize;
-        layout_ = layout;
-        sqDepth_ = sqDepth;
-        sharedTagPrefix_ = (sharedTagPrefix != nullptr) ? sharedTagPrefix : kDefaultSharedTagPrefix;
-        railPeerLinks_.clear();
-        railCount_ = 1U;
-        netLayer_ = 0U;
-
-        if (layout == UrmaLayout::SHARED_POOL && !BuildRailPlan()) {
-            return false;
-        }
-
-        WorkspaceLayout workspace{};
-        if (ComputeLayout(rankCount, layout, aivCount, jettiesPerCore, railCount_, workspace) != ACL_SUCCESS ||
-            workspaceAddr == nullptr || workspaceSize < workspace.totalBytes) {
-            PTO_HOST_LOG_ERROR("URMA", "invalid workspace layout or capacity");
-            return false;
-        }
-        aivCount_ = workspace.aivCount;
-        jettiesPerCore_ = workspace.jettiesPerCore;
-        rowsPerPeer_ = workspace.rowsPerPeer;
-        urmaInfoBytes_ = workspace.infoBytes;
-        workspaceBytes_ = workspace.totalBytes;
-        auto* base = static_cast<uint8_t*>(workspaceAddr);
-        urmaInfoDevice_ = base;
-        eidDevice_ = base + workspace.eidOffset;
-        notifyPoolDevice_ = base + workspace.notifyOffset;
-        notifyPoolSize_ = workspace.notifyBytes;
-        const uint64_t gatherQueueCapacity =
-            layout_ == UrmaLayout::PER_PEER ? static_cast<uint64_t>(rankCount_) * jettiesPerCore_ : jettiesPerCore_;
-        if (gatherQueueCapacity > std::numeric_limits<uint16_t>::max() ||
-            JettyCount() > std::numeric_limits<uint16_t>::max()) {
-            PTO_HOST_LOG_ERROR(
-                "URMA", "queue topology exceeds the 16-bit gather queue index: stages=" << gatherQueueCapacity
-                                                                                        << " jetties=" << JettyCount());
-            return false;
-        }
-
-        if (!AllocateNotifyPool()) {
-            return false;
-        }
-        if (!RegisterMemory()) {
-            return false;
-        }
-        if (!BuildChannels()) {
-            return false;
-        }
-        if (!ExtractAndFillUrmaInfo()) {
-            return false;
-        }
-
-        initialized_ = true;
         return true;
     }
 
-    // The owning communication context must stop kernels, drain QPs, and
-    // destroy HCCL communication resources before calling Finalize() and releasing the external workspace.
-    void Finalize()
-    {
-        urmaInfoDevice_ = nullptr;
-        eidDevice_ = nullptr;
-        notifyPoolDevice_ = nullptr;
-        urmaInfoBytes_ = 0;
-        workspaceBytes_ = 0;
-        channelHandles_.clear();
-        peerBaseAddrs_.clear();
-        sharedPeerOrder_.clear();
-        railPeerLinks_.clear();
-        railCount_ = 1U;
-        netLayer_ = 0U;
-        channelsPerJetty_ = 0;
-        rowsPerPeer_ = 1;
-        initialized_ = false;
-    }
-
-    void* GetWorkspaceAddr() const { return urmaInfoDevice_; }
-
-    uint64_t PeerBaseAddr(uint32_t peer) const
-    {
-        if (peer >= peerBaseAddrs_.size()) {
-            return 0;
-        }
-        return peerBaseAddrs_[peer];
-    }
-
-    UrmaLayout Layout() const { return layout_; }
-    bool IsPerPeer() const { return layout_ == UrmaLayout::PER_PEER; }
-
-    uint32_t JettyCount() const { return IsPerPeer() ? rankCount_ * rowsPerPeer_ : aivCount_ * jettiesPerCore_; }
-    uint32_t JettiesPerCore() const { return jettiesPerCore_; }
-    uint32_t RowsPerPeer() const { return IsPerPeer() ? rowsPerPeer_ : 1U; }
-
-    uint64_t GetWorkspaceSize() const
-    {
-        if (!initialized_) {
-            return 0;
-        }
-        return workspaceBytes_;
-    }
-
-private:
-    struct WorkspaceLayout {
-        uint32_t aivCount{0};
-        uint32_t jettiesPerCore{1};
-        uint32_t rowsPerPeer{1};
-        uint64_t infoBytes{0};
-        uint64_t eidOffset{0};
-        uint64_t notifyOffset{0};
-        uint64_t notifyBytes{0};
-        uint64_t totalBytes{0};
-    };
-
-    static bool ResolveLayoutConfig(
-        UrmaLayout layout, uint32_t aivCount, uint32_t jettiesPerCore, uint32_t& resolvedAivCount,
-        uint32_t& resolvedJettiesPerCore, uint32_t& resolvedRowsPerPeer, uint32_t autoSharedJetties)
-    {
-        if (layout == UrmaLayout::PER_PEER) {
-            resolvedAivCount = aivCount;
-            if (resolvedAivCount == kUrmaAutoAivCount) {
-                resolvedAivCount = QueryDeviceAivCount();
-                if (resolvedAivCount == 0U) {
-                    PTO_HOST_LOG_ERROR("URMA", "cannot query the device AIV count; pass aivCount explicitly");
-                    return false;
-                }
-            } else if (resolvedAivCount == 0U) {
-                PTO_HOST_LOG_ERROR(
-                    "URMA", "aivCount=0 is not a PerPeer size; omit it for the device AIV count or pass N >= 1");
-                return false;
-            }
-            if (jettiesPerCore > kUrmaMaxJettiesPerCore) {
-                PTO_HOST_LOG_ERROR(
-                    "URMA", "jettiesPerCore=" << jettiesPerCore << " must be in [1, " << kUrmaMaxJettiesPerCore
-                                              << "] or " << kUrmaAutoJettiesPerCore
-                                              << " for one queue per AIV per peer");
-                return false;
-            }
-            resolvedJettiesPerCore = (jettiesPerCore == kUrmaAutoJettiesPerCore) ? 1U : jettiesPerCore;
-            if (resolvedAivCount > std::numeric_limits<uint32_t>::max() / resolvedJettiesPerCore) {
-                PTO_HOST_LOG_ERROR(
-                    "URMA", "aivCount=" << resolvedAivCount << " * jettiesPerCore=" << resolvedJettiesPerCore
-                                        << " overflows the per-peer queue count");
-                return false;
-            }
-            resolvedRowsPerPeer = resolvedAivCount * resolvedJettiesPerCore;
-            if (resolvedRowsPerPeer == 0U || resolvedRowsPerPeer > kUrmaMaxRowsPerPeer) {
-                PTO_HOST_LOG_ERROR(
-                    "URMA", "PerPeer queues per peer=" << resolvedRowsPerPeer << " must be in [1, "
-                                                       << kUrmaMaxRowsPerPeer << "]");
-                return false;
-            }
-            return true;
-        }
-        if (layout != UrmaLayout::SHARED_POOL) {
-            PTO_HOST_LOG_ERROR("URMA", "unknown layout " << static_cast<uint32_t>(layout));
-            return false;
-        }
-
-        resolvedAivCount = aivCount;
-        if (resolvedAivCount == kUrmaAutoAivCount) {
-            resolvedAivCount = QueryDeviceAivCount();
-            if (resolvedAivCount == 0U) {
-                PTO_HOST_LOG_ERROR("URMA", "cannot query the device AIV count; pass aivCount explicitly");
-                return false;
-            }
-        } else if (resolvedAivCount == 0U) {
-            PTO_HOST_LOG_ERROR(
-                "URMA", "aivCount=0 is not a SharedPool size; omit it for the device AIV "
-                        "count, pass N >= 1, or use UrmaLayout::PER_PEER");
-            return false;
-        }
-        if (jettiesPerCore > kUrmaMaxJettiesPerCore) {
-            PTO_HOST_LOG_ERROR(
-                "URMA", "jettiesPerCore=" << jettiesPerCore << " must be in [1, " << kUrmaMaxJettiesPerCore << "] or "
-                                          << kUrmaAutoJettiesPerCore << " to take the rail count");
-            return false;
-        }
-        if (jettiesPerCore == kUrmaAutoJettiesPerCore && autoSharedJetties > kUrmaMaxJettiesPerCore) {
-            PTO_HOST_LOG_ERROR(
-                "URMA", "rail plan found "
-                            << autoSharedJetties << " ports but a core may own at most " << kUrmaMaxJettiesPerCore
-                            << " jetties; pass jettiesPerCore explicitly or raise kUrmaMaxJettiesPerCore (it sizes "
-                               "AsyncEvent's per-jetty targets)");
-            return false;
-        }
-        resolvedJettiesPerCore = (jettiesPerCore == kUrmaAutoJettiesPerCore) ? autoSharedJetties : jettiesPerCore;
-        if (resolvedAivCount > std::numeric_limits<uint32_t>::max() / resolvedJettiesPerCore) {
-            PTO_HOST_LOG_ERROR(
-                "URMA", "aivCount=" << resolvedAivCount << " * jettiesPerCore=" << resolvedJettiesPerCore
-                                    << " overflows the jetty count");
-            return false;
-        }
-        return true;
-    }
-
-    uint64_t CtxRowCount() const { return JettyCount(); }
-    uint64_t TargetRowCount() const
-    {
-        return IsPerPeer() ? JettyCount() : static_cast<uint64_t>(JettyCount()) * rankCount_;
-    }
-
-    static aclError ComputeLayout(
-        uint32_t rankCount, UrmaLayout layout, uint32_t aivCount, uint32_t jettiesPerCore, uint32_t autoSharedJetties,
-        WorkspaceLayout& out)
-    {
-        WorkspaceLayout result{};
-        if (rankCount < 2U || !ResolveLayoutConfig(
-                                  layout, aivCount, jettiesPerCore, result.aivCount, result.jettiesPerCore,
-                                  result.rowsPerPeer, autoSharedJetties)) {
-            return ACL_ERROR_INVALID_PARAM;
-        }
-        const uint64_t ctxRows = layout == UrmaLayout::PER_PEER ?
-                                     static_cast<uint64_t>(rankCount) * result.rowsPerPeer :
-                                     static_cast<uint64_t>(result.aivCount) * result.jettiesPerCore;
-        const uint64_t targetRows = layout == UrmaLayout::PER_PEER ? ctxRows : ctxRows * rankCount;
-        if (targetRows > UINT32_MAX) {
-            return ACL_ERROR_INVALID_PARAM;
-        }
-        const uint64_t queueMetadataBytes = sizeof(UrmaInfo) +
-                                            ctxRows * (2U * sizeof(UrmaWQCtx) + 2U * sizeof(UrmaCqCtx)) +
-                                            targetRows * sizeof(UrmaMemInfo);
-        const uint64_t gatherQueueCapacity = layout == UrmaLayout::PER_PEER ?
-                                                 static_cast<uint64_t>(rankCount) * result.jettiesPerCore :
-                                                 result.jettiesPerCore;
-        if (gatherQueueCapacity > std::numeric_limits<uint16_t>::max() ||
-            ctxRows > std::numeric_limits<uint16_t>::max()) {
-            return ACL_ERROR_INVALID_PARAM;
-        }
-        const uint64_t gatherCompletionSlotStride =
-            AlignUp(sizeof(UrmaGatherCompletionSlotHeader) + gatherQueueCapacity * sizeof(UrmaCompletionTarget), 16U);
-        const uint64_t gatherRuntimeStride = AlignUp(
-            sizeof(UrmaGatherAivRuntimeHeader) + sizeof(UrmaGatherCompletionPoolState) +
-                gatherQueueCapacity * sizeof(UrmaGatherQueueStage) +
-                gatherQueueCapacity * sizeof(UrmaGatherQueueSubmission) +
-                static_cast<uint64_t>(kDefaultInflightGatherEventsPerAiv) * gatherCompletionSlotStride,
-            kCacheLineSize);
-        result.infoBytes =
-            AlignUp(queueMetadataBytes, kCacheLineSize) + static_cast<uint64_t>(result.aivCount) * gatherRuntimeStride;
-        result.eidOffset = (result.infoBytes + kCacheLineSize - 1) & ~(uint64_t{kCacheLineSize} - 1);
-        constexpr uint64_t notifyAlignment = kUrmaNotifyResourceCachelineBytes;
-        result.notifyOffset =
-            (result.eidOffset + targetRows * kUrmaEidBytes + notifyAlignment - 1) & ~(notifyAlignment - 1);
-        result.notifyBytes = targetRows * sizeof(UrmaNotifyResourceRegion);
-        result.totalBytes = result.notifyOffset + result.notifyBytes;
-        out = result;
-        return ACL_SUCCESS;
-    }
-
-    static uint64_t AlignUp(uint64_t value, uint64_t alignment)
-    {
-        return (value + alignment - 1U) / alignment * alignment;
-    }
-
-    uint32_t GatherQueueStageCapacity() const { return IsPerPeer() ? rankCount_ * jettiesPerCore_ : jettiesPerCore_; }
-
-    uint32_t GatherCompletionSlotStride() const
-    {
-        const uint64_t bytes = sizeof(UrmaGatherCompletionSlotHeader) +
-                               static_cast<uint64_t>(GatherQueueStageCapacity()) * sizeof(UrmaCompletionTarget);
-        return static_cast<uint32_t>(AlignUp(bytes, 16U));
-    }
-
-    uint64_t GatherRuntimeStride() const
-    {
-        const uint64_t queueCapacity = GatherQueueStageCapacity();
-        const uint64_t bytes = sizeof(UrmaGatherAivRuntimeHeader) + sizeof(UrmaGatherCompletionPoolState) +
-                               queueCapacity * sizeof(UrmaGatherQueueStage) +
-                               queueCapacity * sizeof(UrmaGatherQueueSubmission) +
-                               static_cast<uint64_t>(kDefaultInflightGatherEventsPerAiv) * GatherCompletionSlotStride();
-        return AlignUp(bytes, kCacheLineSize);
-    }
-
-    uint64_t QueueMetadataBytes() const
-    {
-        return sizeof(UrmaInfo) + CtxRowCount() * (2U * sizeof(UrmaWQCtx) + 2U * sizeof(UrmaCqCtx)) +
-               TargetRowCount() * sizeof(UrmaMemInfo);
-    }
-
-    bool AllocateNotifyPool()
-    {
-        aclError err = aclrtMemset(notifyPoolDevice_, notifyPoolSize_, 0, notifyPoolSize_);
-        if (err != ACL_SUCCESS) {
-            PTO_HOST_LOG_ERROR("URMA", "aclrtMemset(notifyPool) failed: " << err);
-            return false;
-        }
-        return true;
-    }
-
-    bool RegisterMemory()
-    {
-        CommMem mem{};
-        mem.type = COMM_MEM_TYPE_DEVICE;
-        mem.addr = symmetricAddr_;
-        mem.size = symmetricSize_;
-
-        HcclResult ret = HcclCommMemReg(comm_, kUrmaSymMemTag, &mem, &memHandle_);
-        if (ret != HCCL_SUCCESS) {
-            PTO_HOST_LOG_ERROR("URMA", "HcclCommMemReg failed: " << static_cast<int>(ret));
-            return false;
-        }
-
-        CommMem notifyMem{};
-        notifyMem.type = COMM_MEM_TYPE_DEVICE;
-        notifyMem.addr = notifyPoolDevice_;
-        notifyMem.size = notifyPoolSize_;
-        ret = HcclCommMemReg(comm_, kUrmaNotifyMemTag, &notifyMem, &notifyMemHandle_);
-        if (ret != HCCL_SUCCESS) {
-            PTO_HOST_LOG_ERROR("URMA", "HcclCommMemReg(notifyPool) failed: " << static_cast<int>(ret));
-            return false;
-        }
-        memHandles_[0] = memHandle_;
-        memHandles_[1] = notifyMemHandle_;
-        return true;
-    }
-
-    // One usable UB link to a peer, resolved from the rank graph.
-    struct PeerLink {
-        uint32_t peer{0};
-        CommProtocol proto{};
-        EndpointDesc localEp{};
-        EndpointDesc remoteEp{};
-    };
-
-    bool FindPeerLinkFrom(uint32_t srcRank, uint32_t dstRank, PeerLink& out) const
-    {
-        uint32_t linkNum = 0;
-        CommLink* linkList = nullptr;
-        HcclResult rc = HcclRankGraphGetLinks(comm_, 0, srcRank, dstRank, &linkList, &linkNum);
-        if (rc != HCCL_SUCCESS) {
-            PTO_HOST_LOG_ERROR(
-                "URMA",
-                "HcclRankGraphGetLinks src=" << srcRank << " dst=" << dstRank << " ret=" << static_cast<int>(rc));
-            return false;
-        }
-        for (uint32_t i = 0; i < linkNum; ++i) {
-            CommProtocol proto = linkList[i].linkAttr.linkProtocol;
-            if (proto != kCommProtocolUbcCtp && proto != kCommProtocolUbcTp) {
-                continue;
-            }
-            out = PeerLink{dstRank, proto, linkList[i].srcEndpointDesc, linkList[i].dstEndpointDesc};
-            return true;
-        }
-        PTO_HOST_LOG_ERROR("URMA", "rank=" << srcRank << " no UBC_TP/CTP link to peer=" << dstRank);
-        return false;
-    }
-
-    bool FindPeerLink(uint32_t peer, PeerLink& out) const { return FindPeerLinkFrom(rankId_, peer, out); }
-
-    static uint32_t CanonicalPeerOf(uint32_t rank, uint32_t rankCount)
-    {
-        for (uint32_t peer = 0; peer < rankCount; ++peer) {
-            if (peer != rank) {
-                return peer;
-            }
-        }
-        return rank;
-    }
-
-    bool FindRankCanonicalLocal(uint32_t rank, EndpointDesc& out) const
-    {
-        const uint32_t peer = CanonicalPeerOf(rank, rankCount_);
-        if (peer == rank) {
-            return false;
-        }
-        PeerLink link{};
-        if (!FindPeerLinkFrom(rank, peer, link)) {
-            return false;
-        }
-        out = link.localEp;
-        return true;
-    }
-
-    void FillChannelDesc(HcclChannelDesc& desc, const PeerLink& link)
-    {
-        HcclChannelDescInit(&desc, 1);
-        desc.remoteRank = link.peer;
-        desc.notifyNum = 0;
-        desc.channelProtocol = link.proto;
-        desc.localEndpoint = link.localEp;
-        desc.remoteEndpoint = link.remoteEp;
-        desc.memHandles = memHandles_;
-        desc.memHandleNum = kUrmaRegisteredMemCount;
-        ApplySqDepth(desc);
-    }
-
-    void ApplySqDepth(HcclChannelDesc& desc) const
-    {
-        if (sqDepth_ == 0) {
-            return;
-        }
-        const uint32_t depth = sqDepth_;
-        (void)memcpy_s(desc.raws, sizeof(desc.raws), &depth, sizeof(depth));
-    }
-
-    static bool IsSameLocalEndpoint(const EndpointDesc& a, const EndpointDesc& b)
-    {
-        return a.protocol == b.protocol && a.commAddr.type == b.commAddr.type &&
-               std::memcmp(a.commAddr.raws, b.commAddr.raws, sizeof(a.commAddr.raws)) == 0 &&
-               a.loc.locType == b.loc.locType && std::memcmp(a.loc.raws, b.loc.raws, sizeof(a.loc.raws)) == 0;
-    }
-
-#include "pto/comm/async/urma/urma_workspace_channels.hpp"
-#include "pto/comm/async/urma/urma_workspace_extract.hpp"
-
-    static uint32_t Log2U32(uint32_t n) { return (n <= 1) ? 0 : __builtin_ctz(n); }
-
-    static constexpr const char* kUrmaSymMemTag = "pto_urma_sym";
-    static constexpr const char* kUrmaNotifyMemTag = "pto_urma_notify";
-    static constexpr uint32_t kUrmaRegisteredMemCount = 2U;
-    static constexpr uint64_t kDeviceVaThreshold = 0x100000000000ULL;
-    static constexpr CommProtocol kCommProtocolUbcCtp = static_cast<CommProtocol>(4);
-    static constexpr CommProtocol kCommProtocolUbcTp = static_cast<CommProtocol>(5);
-
-    HcclComm comm_{nullptr};
-    uint32_t rankId_{0};
-    uint32_t rankCount_{0};
-    void* symmetricAddr_{nullptr};
-    uint64_t symmetricSize_{0};
-    HcclMemHandle memHandle_{nullptr};
-    HcclMemHandle notifyMemHandle_{nullptr};
-    HcclMemHandle memHandles_[kUrmaRegisteredMemCount]{};
-
-    UrmaLayout layout_{UrmaLayout::PER_PEER};
-    uint32_t aivCount_{0};
-    uint32_t jettiesPerCore_{1};
-    uint32_t rowsPerPeer_{1};
-    uint32_t sqDepth_{0};
-    std::string sharedTagPrefix_{kDefaultSharedTagPrefix};
-    uint32_t channelsPerJetty_{0};
-    std::vector<uint32_t> sharedPeerOrder_;
-    uint32_t railCount_{1};
-    uint32_t netLayer_{0};
-
-    std::vector<std::vector<PeerLink>> railPeerLinks_;
-
-    std::vector<ChannelHandle> channelHandles_;
-
-    uint64_t urmaInfoBytes_{0};
-    uint64_t workspaceBytes_{0};
-    void* urmaInfoDevice_{nullptr};
-    void* eidDevice_{nullptr};
-    void* notifyPoolDevice_{nullptr};
-    uint64_t notifyPoolSize_{0};
+    UrmaWorkspaceMemory memory_;
+    UrmaWorkspaceChannels channels_;
     std::vector<uint64_t> peerBaseAddrs_;
 
     uint8_t initialized_{0};

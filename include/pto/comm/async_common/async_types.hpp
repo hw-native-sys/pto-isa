@@ -21,7 +21,7 @@ namespace comm {
 
 namespace urma {
 
-// Controls completion generation for the URMA gather TPUT_ASYNC overloads.
+// Controls completion generation for URMA Gather TPUT_ASYNC and Scatter TGET_ASYNC.
 // Existing contiguous URMA operations do not read this field.
 enum class UrmaCqePolicy : uint8_t {
     NoCqe = 0,
@@ -44,6 +44,18 @@ struct GatherSegment {
 
 struct GatherDestination {
     __gm__ uint8_t* addr;
+    uint32_t segCount;
+    uint32_t peer;
+};
+
+// Scatter GET mirrors Gather PUT: contiguous remote source, local destination SGEs.
+struct ScatterSegment {
+    __gm__ uint8_t* addr;
+    uint32_t length;
+};
+
+struct ScatterSource {
+    __gm__ const uint8_t* addr;
     uint32_t segCount;
     uint32_t peer;
 };

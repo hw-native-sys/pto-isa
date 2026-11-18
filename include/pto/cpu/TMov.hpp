@@ -126,6 +126,9 @@ PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
     (void)Phase;
     if constexpr (is_conv_tile_v<SrcTileData>) {
         TEXTRACT(dst, src, 0, 0);
+    } else if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        // A5 L0C->UB transfer with NZ->NCHW/NCDHW conversion is handled by TEXTRACT.
+        TEXTRACT(dst, src, 0, 0);
     } else if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
         TMovAccToMat<DstTileData, SrcTileData, QuantMode_t::NoQuant, false>(dst, src, [](size_t) { return 0; });
     } else if constexpr (
@@ -147,7 +150,10 @@ template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, STPh
 PTO_INTERNAL void TMOV_IMPL(DstTileData& dst, SrcTileData& src)
 {
     (void)Phase;
-    if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        TEXTRACT<DstTileData, SrcTileData, reluMode>(dst, src, 0, 0);
+        return;
+    } else if constexpr (SrcTileData::Loc == TileType::Acc && DstTileData::Loc == TileType::Mat) {
         TMovAccToMat<DstTileData, SrcTileData, QuantMode_t::NoQuant, reluMode == ReluPreMode::NormalRelu>(
             dst, src, [](size_t) { return 0; });
         return;

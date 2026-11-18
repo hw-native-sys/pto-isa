@@ -13,6 +13,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <cassert>
 #include "common.hpp"
+#include "ConvTileTransfer.hpp"
 #include "../common/utils.hpp"
 #include <cmath>
 
@@ -140,7 +141,10 @@ template <
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t idxRow, uint16_t idxCol)
 {
     (void)Phase;
-    if constexpr (is_conv_tile_v<SrcTileData>) {
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
+        AccToConvTileTransfer<false, DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
+    } else if constexpr (is_conv_tile_v<SrcTileData>) {
         TEXTRACT_CONVTILE_IMPL(dst, src, idxRow, idxCol);
     } else {
         constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
@@ -152,7 +156,11 @@ template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPre
 PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, uint32_t idxRow, uint32_t idxCol)
 {
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
-    TExtract_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        AccToConvTileTransfer<false, DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
+    } else {
+        TExtract_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, idxRow, idxCol);
+    }
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, STPhase Phase = STPhase::Unspecified>
@@ -162,9 +170,14 @@ PTO_INTERNAL void TEXTRACT_IMPL(
     (void)Phase;
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
-    std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
-
-    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu, true>(dst, src, idxRow, idxCol, scalars);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        std::vector<uint64_t> scalars(dst.GetValidShape(1), preQuantScalar);
+        AccToConvTileTransfer<false, DstTileData, SrcTileData, quantPre, useRelu, true>(
+            dst, src, idxRow, idxCol, scalars);
+    } else {
+        std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
+        TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu, true>(dst, src, idxRow, idxCol, scalars);
+    }
 }
 
 template <typename DstTileData, typename SrcTileData, AccToVecMode mode, ReluPreMode reluMode>
@@ -173,9 +186,14 @@ PTO_INTERNAL void TEXTRACT_IMPL(
 {
     constexpr QuantMode_t quantPre = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
-    std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
-
-    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu, true>(dst, src, idxRow, idxCol, scalars);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        std::vector<uint64_t> scalars(dst.GetValidShape(1), preQuantScalar);
+        AccToConvTileTransfer<false, DstTileData, SrcTileData, quantPre, useRelu, true>(
+            dst, src, idxRow, idxCol, scalars);
+    } else {
+        std::vector<uint64_t> scalars(dst.GetValidCol(), preQuantScalar);
+        TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu, true>(dst, src, idxRow, idxCol, scalars);
+    }
 }
 
 template <
@@ -192,8 +210,11 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, FpTileData& 
         const size_t quantTileIdx = GetTileElementOffset<FpTileData>(0, i);
         scalars[i] = fp.data()[quantTileIdx];
     }
-
-    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        AccToConvTileTransfer<false, DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    } else {
+        TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    }
 }
 
 template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode, ReluPreMode reluMode>
@@ -207,8 +228,11 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, FpTileData& 
         const size_t quantTileIdx = GetTileElementOffset<FpTileData>(0, i);
         scalars[i] = fp.data()[quantTileIdx];
     }
-
-    TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        AccToConvTileTransfer<false, DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    } else {
+        TExtract_Impl<DstTileData, SrcTileData, quantPre, useRelu>(dst, src, idxRow, idxCol, scalars);
+    }
 }
 
 // Structural checks for the two-destination ND->2xNZ overload. The CPU simulator is

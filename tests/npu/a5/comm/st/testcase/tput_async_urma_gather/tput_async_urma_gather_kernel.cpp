@@ -1648,12 +1648,12 @@ __global__ AICORE void TPutAsyncUrmaGatherPerfKernel(
                 if (submitted && path == 0U) {
                     pto::comm::urma::detail::UrmaRawGatherDestinationList destinationList{destinations};
                     pto::comm::urma::detail::UrmaRawGatherSourceSegmentList sourceList{sourceSegments};
-                    event = pto::comm::urma::detail::SubmitUrmaGatherWriteScalar(
+                    event = pto::comm::urma::detail::SubmitUrmaGatherScalar(
                         destinationList, destinationCount, sourceList, destinationCount * segPerDest, session, runtime);
                 } else if (submitted) {
                     pto::comm::urma::detail::UrmaRawGatherDestinationList destinationList{destinations};
                     pto::comm::urma::detail::UrmaRawGatherSourceSegmentList sourceList{sourceSegments};
-                    submitted = pto::comm::urma::detail::TrySubmitUrmaGatherWriteSimt(
+                    submitted = pto::comm::urma::detail::TrySubmitUrmaGatherSimt(
                         destinationList, destinationCount, sourceList, destinationCount * segPerDest, session, runtime,
                         event);
                 }
@@ -1828,7 +1828,7 @@ __global__ AICORE void TPutAsyncUrmaGatherSplitPerfKernel(
                 pto::comm::urma::detail::UrmaRawGatherDestinationList destinationList{destinations};
                 pto::comm::urma::detail::UrmaRawGatherSourceSegmentList sourceList{sourceSegments};
                 const uint64_t start = pto::comm::urma::detail::UrmaReadSystemCycle();
-                pto::comm::AsyncEvent event = pto::comm::urma::detail::SubmitUrmaGatherWrite(
+                pto::comm::AsyncEvent event = pto::comm::urma::detail::SubmitUrmaGather(
                     destinationList, destinationCount, sourceList, sourceSegmentCount, session);
                 const uint64_t stop = pto::comm::urma::detail::UrmaReadSystemCycle();
                 if (!event.valid() || !event.Wait(session)) {

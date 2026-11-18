@@ -17,6 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 
 #include "common.hpp"
+#include "ConvTileTransfer.hpp"
 
 namespace pto {
 
@@ -49,7 +50,11 @@ PTO_INTERNAL void TInsert_Impl(
 template <typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint32_t idxRow = 0, uint32_t idxCol = 0)
 {
-    TInsert_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, false>(dst, src, idxRow, idxCol);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        AccToConvTileTransfer<true, DstTileData, SrcTileData, QuantMode_t::NoQuant, false>(dst, src, idxRow, idxCol);
+    } else {
+        TInsert_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, false>(dst, src, idxRow, idxCol);
+    }
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, STPhase Phase = STPhase::Unspecified>
@@ -57,7 +62,12 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t inde
 {
     (void)Phase;
     constexpr bool useRelu = reluMode == ReluPreMode::NormalRelu;
-    TInsert_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, indexRow, indexCol);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        AccToConvTileTransfer<true, DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(
+            dst, src, indexRow, indexCol);
+    } else {
+        TInsert_Impl<DstTileData, SrcTileData, QuantMode_t::NoQuant, useRelu>(dst, src, indexRow, indexCol);
+    }
 }
 
 template <typename DstTileData, typename SrcTileData, ReluPreMode reluMode, STPhase Phase = STPhase::Unspecified>
@@ -69,8 +79,12 @@ PTO_INTERNAL void TINSERT_IMPL(
     constexpr QuantMode_t quantMode = GetScalarPreQuantMode<typename SrcTileData::DType, typename DstTileData::DType>();
 
     std::vector<uint64_t> scalars(src.GetValidCol(), preQuantScalar);
-
-    TInsert_Impl<DstTileData, SrcTileData, quantMode, useRelu>(dst, src, indexRow, indexCol, scalars);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        AccToConvTileTransfer<true, DstTileData, SrcTileData, quantMode, useRelu, true>(
+            dst, src, indexRow, indexCol, scalars);
+    } else {
+        TInsert_Impl<DstTileData, SrcTileData, quantMode, useRelu>(dst, src, indexRow, indexCol, scalars);
+    }
 }
 
 template <
@@ -88,7 +102,12 @@ PTO_INTERNAL void TINSERT_IMPL(
         const size_t quantTileIndex = GetTileElementOffset<FpTileData>(0, i);
         scalars[i] = fp.data()[quantTileIndex];
     }
-    TInsert_Impl<DstTileData, SrcTileData, quantMode, useRelu>(dst, src, indexRow, indexCol, scalars);
+    if constexpr (is_conv_tile_v<DstTileData> && SrcTileData::Loc == TileType::Acc) {
+        AccToConvTileTransfer<true, DstTileData, SrcTileData, quantMode, useRelu>(
+            dst, src, indexRow, indexCol, scalars);
+    } else {
+        TInsert_Impl<DstTileData, SrcTileData, quantMode, useRelu>(dst, src, indexRow, indexCol, scalars);
+    }
 }
 
 template <typename DstTileData, typename SrcTileData, typename FpTileData, AccToVecMode mode, ReluPreMode reluMode>

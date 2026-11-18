@@ -1067,3 +1067,123 @@ TEST_F(TINSERTArchDeathTest, InvalidEnvironmentIsRejected)
         testing::ExitedWithCode(0), "");
 }
 #endif
+
+namespace {
+template <typename T, size_t N, size_t C, size_t H, size_t W>
+void testInsertAccToConvTileNCHW()
+{
+    constexpr size_t SRC_ROWS = 16;
+    constexpr size_t SRC_COLS = 16;
+    constexpr size_t SRC_VALID_ROWS = 5;
+    constexpr size_t SRC_VALID_COLS = 2;
+    constexpr uint32_t INDEX_ROW = 3;
+    constexpr uint32_t INDEX_COL = 1;
+    constexpr T SRC_VALUE_BASE = static_cast<T>(100);
+
+    using SrcTile =
+        Tile<TileType::Acc, T, SRC_ROWS, SRC_COLS, BLayout::ColMajor, DYNAMIC, DYNAMIC, SLayout::RowMajor, 1024>;
+    using DstTile = ConvTile<TileType::Vec, T, N * C * H * W * sizeof(T), Layout::NCHW, ConvTileShape<N, C, H, W>>;
+
+    SrcTile src;
+    std::vector<T> srcStorage(SRC_ROWS * SRC_COLS);
+    src.data() = srcStorage.data();
+    src.SetValidRow(SRC_VALID_ROWS);
+    src.SetValidCol(SRC_VALID_COLS);
+
+    for (size_t r = 0; r < SRC_VALID_ROWS; ++r) {
+        for (size_t c = 0; c < SRC_VALID_COLS; ++c) {
+            src.SetElement(r, c, SRC_VALUE_BASE + static_cast<T>(r * 10 + c));
+        }
+    }
+
+    DstTile dst;
+    constexpr T SENTINEL = static_cast<T>(-777);
+    std::vector<T> dstStorage(N * C * H * W, SENTINEL);
+    dst.data() = dstStorage.data();
+    TINSERT(dst, src, INDEX_ROW, INDEX_COL);
+
+    for (size_t n = 0; n < N; ++n) {
+        for (size_t c = 0; c < C; ++c) {
+            for (size_t h = 0; h < H; ++h) {
+                for (size_t w = 0; w < W; ++w) {
+                    const size_t spatialRow = (n * H + h) * W + w;
+                    const size_t dstOffset = ((n * C + c) * H + h) * W + w;
+
+                    T expected = SENTINEL;
+                    if (spatialRow >= INDEX_ROW && spatialRow < INDEX_ROW + SRC_VALID_ROWS && c >= INDEX_COL &&
+                        c < INDEX_COL + SRC_VALID_COLS) {
+                        const size_t srcRow = spatialRow - INDEX_ROW;
+                        const size_t srcCol = c - INDEX_COL;
+                        expected = SRC_VALUE_BASE + static_cast<T>(srcRow * 10 + srcCol);
+                    }
+                    EXPECT_EQ(dstStorage[dstOffset], expected)
+                        << "Mismatch at N=" << n << ", C=" << c << ", H=" << h << ", W=" << w;
+                }
+            }
+        }
+    }
+}
+
+template <typename T, size_t N, size_t C, size_t D, size_t H, size_t W>
+void testInsertAccToConvTileNCDHW()
+{
+    constexpr size_t SRC_ROWS = 16;
+    constexpr size_t SRC_COLS = 16;
+    constexpr size_t SRC_VALID_ROWS = 5;
+    constexpr size_t SRC_VALID_COLS = 2;
+    constexpr uint32_t INDEX_ROW = 5;
+    constexpr uint32_t INDEX_COL = 1;
+    constexpr T SRC_VALUE_BASE = static_cast<T>(100);
+
+    using SrcTile =
+        Tile<TileType::Acc, T, SRC_ROWS, SRC_COLS, BLayout::ColMajor, DYNAMIC, DYNAMIC, SLayout::RowMajor, 1024>;
+    using DstTile =
+        ConvTile<TileType::Vec, T, N * C * D * H * W * sizeof(T), Layout::NCDHW, ConvTileShape<N, C, D, H, W>>;
+
+    SrcTile src;
+    std::vector<T> srcStorage(SRC_ROWS * SRC_COLS);
+    src.data() = srcStorage.data();
+    src.SetValidRow(SRC_VALID_ROWS);
+    src.SetValidCol(SRC_VALID_COLS);
+
+    for (size_t r = 0; r < SRC_VALID_ROWS; ++r) {
+        for (size_t c = 0; c < SRC_VALID_COLS; ++c) {
+            src.SetElement(r, c, SRC_VALUE_BASE + static_cast<T>(r * 10 + c));
+        }
+    }
+
+    DstTile dst;
+    constexpr T SENTINEL = static_cast<T>(-777);
+    std::vector<T> dstStorage(N * C * D * H * W, SENTINEL);
+    dst.data() = dstStorage.data();
+    TINSERT(dst, src, INDEX_ROW, INDEX_COL);
+
+    for (size_t n = 0; n < N; ++n) {
+        for (size_t c = 0; c < C; ++c) {
+            for (size_t d = 0; d < D; ++d) {
+                for (size_t h = 0; h < H; ++h) {
+                    for (size_t w = 0; w < W; ++w) {
+                        const size_t spatialRow = ((n * D + d) * H + h) * W + w;
+                        const size_t dstOffset = (((n * C + c) * D + d) * H + h) * W + w;
+                        T expected = SENTINEL;
+                        if (spatialRow >= INDEX_ROW && spatialRow < INDEX_ROW + SRC_VALID_ROWS && c >= INDEX_COL &&
+                            c < INDEX_COL + SRC_VALID_COLS) {
+                            const size_t srcRow = spatialRow - INDEX_ROW;
+                            const size_t srcCol = c - INDEX_COL;
+                            expected = SRC_VALUE_BASE + static_cast<T>(srcRow * 10 + srcCol);
+                        }
+
+                        EXPECT_EQ(dstStorage[dstOffset], expected)
+                            << "Mismatch at N=" << n << ", C=" << c << ", D=" << d << ", H=" << h << ", W=" << w;
+                    }
+                }
+            }
+        }
+    }
+}
+} // namespace
+
+TEST_F(TINSERTTest, AccToConvTileNCHWFloat) { testInsertAccToConvTileNCHW<float, 2, 4, 2, 3>(); }
+TEST_F(TINSERTTest, AccToConvTileNCDHWFloat) { testInsertAccToConvTileNCDHW<float, 2, 4, 2, 2, 2>(); }
+TEST_F(TINSERTTest, AccToConvTileNCHWInt32) { testInsertAccToConvTileNCHW<int32_t, 2, 4, 2, 3>(); }
+TEST_F(TINSERTTest, AccToConvTileNCDHWInt32) { testInsertAccToConvTileNCDHW<int32_t, 2, 4, 2, 2, 2>(); }
