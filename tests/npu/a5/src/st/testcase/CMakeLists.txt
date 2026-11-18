@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -261,6 +261,7 @@ set(ALL_TESTCASES
     tpushpop_vc
     tpushpop_vc_nosplit
     tpushpop_dir_both
+    tpushpop_ctrl
     tfree
     tpushpop_subblock_dispatch
     texpands_mat
@@ -291,6 +292,7 @@ if (AUTO_MODE)
     tcvt_fp4_lut
     tcvt_fp4_lut_v2c
     tpushpop_dir_both
+    tpushpop_ctrl
     tfree
     tpushpop_subtile
     tpushpop_subblock_dispatch
