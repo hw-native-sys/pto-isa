@@ -17,7 +17,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 namespace pto {
 PTO_CPU_TARGET_NAMESPACE_BEGIN
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
 // 14, 15 are used for handshake between cores, so they are not available for TPipe flag usage
 constexpr int MAX_SYC_ID = 13;
 #else
@@ -39,7 +39,7 @@ enum Direction : uint8_t {
     DIR_BOTH = DIR_C2V | DIR_V2C, // Support both directions
     DIR_V2C_CTRL = 4,
     DIR_C2V_CTRL = 8, // Scalar control broadcast from Cube to the selected Vector cores
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(__CPU_SIM)
+#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2) || defined(__CPU_SIM)
     DIR_C2V_GM = 5,
     DIR_V2C_GM = 6,
     DIR_BOTH_GM = DIR_C2V_GM | DIR_V2C_GM,
@@ -52,6 +52,14 @@ struct RingFIFO {
     uint32_t C2V_CONSUMER_BUF = 0x0;       // UB buffer
     uint32_t V2C_CONSUMER_BUF = 0x0;       // L1 buffer
     uint64_t V2C_CONTROL_BUF = 0x0;        // scalar buffer for control signals
+#if defined(PTO_NPU_ARCH_A6R2)
+    // A6R2 MaxTrack C2V sideband bases (unused / 0 on other arches).
+    uint32_t C2V_GROUPMAX_BUF = 0x0;
+    uint32_t C2V_ROWMAX_BUF = 0x0;
+    // m-strip RowMax slot credits (Cube: rowmaxProd; Vector: rowmaxCons). Not shared across cores.
+    uint32_t rowmaxProd = 0;
+    uint32_t rowmaxCons = 0;
+#endif
     static constexpr uint32_t SLOT_SIZE = SlotSize;
     static constexpr uint32_t SLOT_NUM = SlotNum;
     static constexpr uint32_t SLOT_SYNCT = SlotNum;
@@ -60,6 +68,17 @@ struct RingFIFO {
     PTO_INTERNAL RingFIFO(__gm__ void* gmSlotBuf, uint32_t c2vConsBuf, uint32_t v2cConBuf)
         : GM_SLOT_BUFFER(gmSlotBuf), C2V_CONSUMER_BUF(c2vConsBuf), V2C_CONSUMER_BUF(v2cConBuf)
     {}
+
+#if defined(PTO_NPU_ARCH_A6R2)
+    PTO_INTERNAL RingFIFO(
+        __gm__ void* gmSlotBuf, uint32_t c2vConsBuf, uint32_t v2cConBuf, uint32_t c2vGroupMaxBuf, uint32_t c2vRowMaxBuf)
+        : GM_SLOT_BUFFER(gmSlotBuf),
+          C2V_CONSUMER_BUF(c2vConsBuf),
+          V2C_CONSUMER_BUF(v2cConBuf),
+          C2V_GROUPMAX_BUF(c2vGroupMaxBuf),
+          C2V_ROWMAX_BUF(c2vRowMaxBuf)
+    {}
+#endif
 };
 
 //---------------------------------------------------
@@ -170,7 +189,7 @@ struct DataFIFO<
 };
 
 // A5 defaults to a two-AIV split. A6 has one AIV, so an omitted Split must stay legal.
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
 inline constexpr TileSplitAxis kDefaultSplitMode = TileSplitAxis::TILE_NO_SPLIT;
 #else
 inline constexpr TileSplitAxis kDefaultSplitMode = TileSplitAxis::TILE_UP_DOWN;
@@ -180,7 +199,7 @@ inline constexpr TileSplitAxis kDefaultSplitMode = TileSplitAxis::TILE_UP_DOWN;
 template <TileSplitAxis Split>
 PTO_INTERNAL constexpr void CheckSplitMode()
 {
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
     static_assert(
         Split == TileSplitAxis::TILE_NO_SPLIT,
         "A6 pairs one AIC with one AIV, so TileSplitAxis::TILE_NO_SPLIT is required.");
@@ -234,7 +253,7 @@ template <bool IsNoSplit, typename Producer>
 PTO_INTERNAL void ClearFreeSignal(const Producer& prod, uint32_t drainCount)
 {
     for (uint32_t i = 0; i < drainCount; ++i) {
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
         prod.template allocate<TileSplitAxis::TILE_NO_SPLIT>();
 #else
         if constexpr (IsNoSplit) {

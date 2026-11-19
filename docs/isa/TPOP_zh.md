@@ -25,7 +25,7 @@ A5 NPU 的 `TPipe` 控制通路支持 V2C 的 OR/AND 谓词归约与 C2V 标量�
 
 从 `TPipe` FIFO中弹出消费者tile，用于Cube-Vector通信。
 
-本指令支持显式指定 `TileSplitAxis`、显式指定subblock ID、参数反转且不指定 `Split` 的TileData重载，以及 `GlobalData` 重载。
+本指令支持显式指定 `TileSplitAxis`、显式指定subblock ID、参数反转且不指定 `Split` 的TileData重载，以及 `GlobalData` 重载和 A6R2 MaxTrack 多 Tile 重载。
 
 ## 操作语义
 
@@ -41,6 +41,18 @@ A5 NPU 的 `TPipe` 控制通路支持 V2C 的 OR/AND 谓词归约与 C2V 标量�
 2. `TPUSH(Pipe&, GlobalData&)` 为已经由 `TALLOC` 分配的槽位记录数据就绪同步，将FIFO槽位提交给消费者。它本身不会存储tile数据。
 3. `TPOP(Pipe&, GlobalData&)` 等待数据就绪，将 `gmTensor` 赋值为当前FIFO槽位地址，并递增消费者tile索引。它不会将数据加载到本地tile，也不会释放槽位。消费者可通过 `TLOAD` 等指令从槽位中读取数据。
 4. `TFREE(Pipe&, GlobalData&)` 释放由 `TPOP(Pipe&, GlobalData&)` 返回的FIFO槽位视图，通知生产者该槽位空间已空闲。
+
+### A6R2 MaxTrack（C2V Acc→UB）
+
+在 A6R2 上，当生产者使用带 `FixpipeParams<..., MaxTrack<groupmax_en=true, ...>>` 的 `TPUSH` 时，消费者需同时弹出主 vec tile 与 MaxTrack 旁路：
+
+1. 在 C2V FIFO 上等待数据就绪（与普通 TileData 路径相同）。
+2. 将 `vecTile` 绑定到当前 `C2V_CONSUMER_BUF` 槽位。
+3. 将 `gMaxTile` 绑定到对应的 `C2V_GROUPMAX_BUF` 槽位（`TPOP(pipe, vec, gMax)`）。
+4. 若同时启用了 RowMax，再将 `rMaxTile` 绑定到 `C2V_ROWMAX_BUF`（`TPOP(pipe, vec, gMax, rMax)`）。
+5. 消费完成后调用 `TFREE` 释放 FIFO 槽位。
+
+上述重载仅在定义了 `PTO_NPU_ARCH_A6R2` 时编译。实现位于 `include/pto/npu/a6r2/TPop.hpp`。
 
 ## C++ Intrinsic
 
@@ -61,10 +73,30 @@ PTO_INST RecordEvent TPOP(TileData &tile, Pipe &pipe, WaitEvents &... events);
 template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
+
+#if defined(PTO_NPU_ARCH_A6R2)
+// A6R2 MaxTrack: vec + gMax  /  vec + gMax + rMax
+// TConfig 提供 group_num（与对应 TPUSH 使用同一套 FixpipeParams / MaxTrack 配置）。
+template <typename Pipe, typename VecTile, typename GMaxTile, typename TConfig,
+          TileSplitAxis Split,
+          std::enable_if_t<is_tile_data_v<VecTile> && is_tile_data_v<GMaxTile>, int> = 0,
+          typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, VecTile &vecTile, GMaxTile &gMaxTile,
+                          WaitEvents &... events);
+
+template <typename Pipe, typename VecTile, typename GMaxTile, typename RMaxTile,
+          typename TConfig, TileSplitAxis Split, bool EndRowMaxCmp = false,
+          std::enable_if_t<is_tile_data_v<VecTile> && is_tile_data_v<GMaxTile> &&
+                           is_tile_data_v<RMaxTile>, int> = 0,
+          typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, VecTile &vecTile, GMaxTile &gMaxTile,
+                          RMaxTile &rMaxTile, WaitEvents &... events);
+#endif
 ```
 
 `Pipe` 通常是所选后端 `TPush.hpp` 中声明的 `TPipe`，包括 `include/pto/cpu/TPush.hpp`、
-`include/pto/npu/a2a3/TPush.hpp` 或 `include/pto/npu/a5/TPush.hpp`：
+`include/pto/npu/a2a3/TPush.hpp`、`include/pto/npu/a5/TPush.hpp`，
+以及 `include/pto/npu/a6r2/TPush.hpp` 中的 A6R2 MaxTrack 构造函数：
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -88,6 +120,14 @@ struct TPipe;
     - `TileSplitAxis::TILE_LEFT_RIGHT`：消费左右两个列半区。
 - **A6切分行为**：
     - 仅支持 `TileSplitAxis::TILE_NO_SPLIT`，因为 A6 硬件只支持一个 AIC 与一个 AIV 通信。
+- **A6R2 MaxTrack 重载**：
+    - 仅在定义了 `PTO_NPU_ARCH_A6R2` 时可用；要求 C2V UB FIFO（`Pipe::is_c2v_ub` 或 `Pipe::is_both`）。
+    - `TPOP(pipe, vecTile, gMaxTile)` 对应生产者 `groupmax_en=true, rowmax_en=false`。
+    - `TPOP(pipe, vecTile, gMaxTile, rMaxTile)` 对应生产者 `groupmax_en=true, rowmax_en=true`。
+    - 生产者 MaxTrack 要求 `LayoutMode::NZ2ND` 或 `LayoutMode::NZ2DN`；`vecTile` 须无 fractal（NZ2ND 为 RowMajor，NZ2DN 为 ColMajor）。
+    - 数据类型必须是 `float`、`half` 或 `bfloat16_t`；`vec` / `gMax` / `rMax` 类型须一致。
+    - 消费者 Tile 须与 MaxTrack push 形状一致：NZ2ND/NZ2DN fixpipe vec；GroupMax 的 ValidRow/ValidCol 为 `DYNAMIC`（NZ2ND `[srcValidRow, srcValidCol/group_num]`，NZ2DN 转置）；RowMax 为 `[1, ceil32B(ProdM)]`（`DYNAMIC` validCol）。`TPOP` 需传入 `TConfig`（提供 `group_num`），并根据 `popTile` 与 `TConfig::group_num` 设置 gMax/rMax 的 valid shape。
+    - 弹出后按普通 TileData 路径调用 `TFREE`。
 - **NPU同步**：
     - 每次 `TPOP` 都会执行数据就绪等待。
     - 空闲空间通知是稀疏的，并由 `Pipe::SyncPeriod` 控制。
@@ -189,5 +229,51 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
     TLOAD(tile, slot);
     TFREE<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+}
+```
+
+### A6R2 MaxTrack C2V 弹出
+
+```cpp
+#include <pto/pto-inst.hpp>
+#include <pto/common/fixpipe.hpp>
+
+using namespace pto;
+
+AICORE void example_a6r2_maxtrack_pop()
+{
+    constexpr uint32_t M = 128;
+    constexpr uint32_t N = 128;
+    constexpr uint8_t kGroupNum = 8;
+    constexpr uint16_t FLAG_ID = 0;
+    constexpr uint8_t FIFO_DEPTH = 2;
+
+    using AccTile = TileAcc<float, M, N, M, N>;
+    using VecTile = Tile<TileType::Vec, float, M, N, BLayout::RowMajor, M, N>;
+    using GMaxTile = Tile<TileType::Vec, float, M, N / kGroupNum, BLayout::RowMajor, DYNAMIC, DYNAMIC>;
+    constexpr int kRMaxCols =
+        ((M + static_cast<int>(C0_SIZE_BYTE / sizeof(float)) - 1) / static_cast<int>(C0_SIZE_BYTE / sizeof(float))) *
+        static_cast<int>(C0_SIZE_BYTE / sizeof(float));
+    using RMaxTile = Tile<TileType::Vec, float, 1, kRMaxCols, BLayout::RowMajor, 1, DYNAMIC>;
+    using MaxTrackCfg = MaxTrack<true, true, true, false, true, kGroupNum>;
+    using FixpipeConfig = FixpipeParams<
+        LayoutMode_t::NZ2ND, QuantMode_t::NoQuant, ReluPreMode::NoRelu, STPhase::Unspecified, 0, AtomicType::AtomicNone,
+        ClipReluMode_t::NOCLIP_RELU, false, MaxTrackCfg>;
+    using Pipe = TPipe<FLAG_ID, Direction::DIR_C2V, M * N * sizeof(float), FIFO_DEPTH, 2, true>;
+
+    constexpr uint32_t C2V_BUF = 0x0;
+    constexpr uint32_t GMAX_BUF = 0x20000;
+    constexpr uint32_t RMAX_BUF = 0x28000;
+    Pipe pipe((__gm__ void*)(uint64_t)0x0, C2V_BUF, (uint32_t)0x0, GMAX_BUF, RMAX_BUF);
+
+    VecTile vecTile;
+    GMaxTile gMaxTile(M, N / kGroupNum);
+    RMaxTile rMaxTile(M);
+
+    // 生产者须以 MaxTrack groupmax_en && rowmax_en 推送。
+    TPOP<Pipe, VecTile, GMaxTile, RMaxTile, FixpipeConfig, TileSplitAxis::TILE_NO_SPLIT>(
+        pipe, vecTile, gMaxTile, rMaxTile);
+    // 消费 tile...
+    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
 }
 ```
