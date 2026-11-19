@@ -30,6 +30,7 @@ inline bool TryEstimateA5ReductionCycles(const CostModelInput& input, uint64_t& 
 inline bool TryEstimateA5MatrixTransferCycles(const CostModelInput& input, uint64_t& cycles);
 inline bool TryEstimateA5SequenceCycles(const CostModelInput& input, uint64_t& cycles);
 inline bool TryEstimateA5TransposeCycles(const CostModelInput& input, uint64_t& cycles);
+inline bool TryEstimateA5DefaultInputCycles(const CostModelInput& input, uint64_t& cycles);
 } // namespace a5
 
 inline constexpr const char* DTypeToString(DType dtype)
@@ -183,6 +184,16 @@ inline constexpr const char* PtoOpcodeToString(PtoOpcode op)
         "TGEMV_ACC",
         "TGEMV_BIAS",
         "TGEMV_MX",
+        "TFILLPAD_INPLACE",
+        "TRANDOM",
+        "TQUANT",
+        "THISTOGRAM",
+        "TIMG2COL",
+        "SETFMATRIX",
+        "SET_IMG2COL_RPT",
+        "SET_IMG2COL_PADDING",
+        "SET_QUANT_SCALAR",
+        "SET_QUANT_VECTOR",
     };
     static_assert(names.size() == static_cast<size_t>(PtoOpcode::COUNT));
     static_assert(std::string_view(names[static_cast<size_t>(PtoOpcode::TNOT)]) == "TNOT");
@@ -363,6 +374,14 @@ inline bool TryEstimateA5Cycles(
     const CostModelInput& input, const PredictRuntimeConfig& predict_config, CostModelResult& result)
 {
     uint64_t cycles = 0;
+    if (input.default_input.present) {
+        if (!a5::TryEstimateA5DefaultInputCycles(input, cycles))
+            return WarnAndFallbackToZero(input, result, "unsupported A5 default-input profile/geometry");
+        result.cycles = static_cast<double>(cycles);
+        result.latency_us = evaluator::CyclesToUs(cycles, predict_config.frequency_mhz);
+        result.assumed_input_profile = input.default_input.profile;
+        return true;
+    }
     if (!a5::TryEstimateA5TransposeCycles(input, cycles) && !a5::TryEstimateA5SequenceCycles(input, cycles) &&
         !a5::TryEstimateA5ReductionCycles(input, cycles) && !a5::TryEstimateA5MatrixTransferCycles(input, cycles) &&
         !a5::TryEstimateA5VfCycles(input, cycles)) {
@@ -427,6 +446,7 @@ inline bool TryEstimateElementwiseCycles(
 inline bool EstimateCycles(
     const CostModelInput& input, const PredictRuntimeConfig& predict_config, CostModelResult& result)
 {
+    result.assumed_input_profile = DefaultInputProfile::None;
     if (input.arch == CostModelArch::A5) {
         return TryEstimateA5Cycles(input, predict_config, result);
     }
@@ -459,5 +479,6 @@ inline CostModelResult EstimateCycles(const CostModelInput& input)
 #include <pto/costmodel/a5/matrix_transfer_costmodel.hpp>
 #include <pto/costmodel/a5/sequence_costmodel.hpp>
 #include <pto/costmodel/a5/transpose_costmodel.hpp>
+#include <pto/costmodel/a5/default_input_costmodel.hpp>
 
 #endif

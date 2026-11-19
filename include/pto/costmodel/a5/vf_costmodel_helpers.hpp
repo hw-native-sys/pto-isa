@@ -228,7 +228,9 @@ inline bool TryGetA5ElementsPerRepeat(DType dtype, uint64_t& elements_per_repeat
 inline bool TryGetA5CvtElementsPerRepeat(
     std::string_view src_dtype, std::string_view dst_dtype, fit::ShapePath shape_path, uint64_t& elements_per_repeat)
 {
-    if ((src_dtype == "fp16" || src_dtype == "bf16") && dst_dtype == "fp32") {
+    // FP16-to-I32 expands each B16 source into one B32 lane, like FP16-to-FP32.
+    if (((src_dtype == "fp16" || src_dtype == "bf16") && dst_dtype == "fp32") ||
+        (src_dtype == "fp16" && dst_dtype == "int32")) {
         elements_per_repeat = kElementsPerRepeatB32;
         return true;
     }
@@ -359,17 +361,6 @@ inline fit::ShapePath ResolveShapePath(
     return fit::ShapePath::Path2D;
 }
 
-inline fit::ShapePath ResolveShapePath(PtoOpcode op, int64_t rows, int64_t cols, int64_t valid_cols)
-{
-    if (IsA5ScalarVfOp(op)) {
-        return valid_cols == cols ? fit::ShapePath::Path1D : fit::ShapePath::Path2D;
-    }
-    if (rows == 1 || valid_cols == cols) {
-        return fit::ShapePath::Path1D;
-    }
-    return fit::ShapePath::Path2D;
-}
-
 inline std::string_view ResolveDefaultVfImplKind(PtoOpcode op, fit::ShapePath shape_path)
 {
     if (op == PtoOpcode::TDEQUANT) {
@@ -386,6 +377,16 @@ inline std::string_view ResolveDefaultVfImplKind(PtoOpcode op, fit::ShapePath sh
 
 inline std::string_view ResolveVfImplKind(PtoOpcode op, VFImplKind vf_impl_kind, fit::ShapePath shape_path)
 {
+    if (op == PtoOpcode::TCVT) {
+        // The caller resolves dimensionality from layout plus the explicit
+        // VFIMPL_2D_NO_POST_UPDATE override in implTCVT. Preserve the actual
+        // predicate strategy instead of aliasing an unmeasured implementation.
+        if (shape_path == fit::ShapePath::Path1D || vf_impl_kind == VFImplKind::VFIMPL_1D_NO_POST_UPDATE ||
+            vf_impl_kind == VFImplKind::VFIMPL_2D_NO_POST_UPDATE) {
+            return "NO_POST_UPDATE";
+        }
+        return "POST_UPDATE";
+    }
     switch (vf_impl_kind) {
         case VFImplKind::VFIMPL_1D_NO_POST_UPDATE:
             return "NO_POST_UPDATE";

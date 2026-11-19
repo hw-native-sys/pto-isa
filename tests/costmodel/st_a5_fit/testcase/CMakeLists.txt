@@ -53,8 +53,13 @@ set(ALL_TESTCASES
     bitwise_fit
     sequence_fit
     comparison_layout_fit
+    default_input_fit
+    default_input_accuracy_fit
+    metadata_input_fit
+    metadata_accuracy_fit
     matrix_load_fit
     matrix_completion_fit
+    transpose_fit
     data_movement_fit
     dtype_expansion_fit
 )
@@ -64,4 +69,3 @@ foreach(TESTCASE ${ALL_TESTCASES})
         add_subdirectory(${TESTCASE})
     endif()
 endforeach()
-add_subdirectory(transpose_fit)

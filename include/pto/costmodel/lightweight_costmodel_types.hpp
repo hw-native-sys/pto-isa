@@ -132,6 +132,16 @@ enum class PtoOpcode {
     TGEMV_ACC,
     TGEMV_BIAS,
     TGEMV_MX,
+    TFILLPAD_INPLACE,
+    TRANDOM,
+    TQUANT,
+    THISTOGRAM,
+    TIMG2COL,
+    SETFMATRIX,
+    SET_IMG2COL_RPT,
+    SET_IMG2COL_PADDING,
+    SET_QUANT_SCALAR,
+    SET_QUANT_VECTOR,
     COUNT,
 };
 
@@ -164,6 +174,11 @@ enum class CostModelArch : uint8_t {
 };
 
 enum class A5ShapePathHint : uint8_t {
+    // Legacy geometry-only inference. Runtime valid_cols == cols does not prove
+    // that a multi-row tile has compile-time ValidCol == Cols: dynamic-valid
+    // tiles can execute a row loop even when their runtime extent is full.
+    // Direct callers must pass the actual kernel path when that distinction
+    // matters. Public PTO wrappers derive it from the tile template metadata.
     Auto,
     Path1D,
     Path2D,
@@ -183,6 +198,54 @@ struct TransposeGeometry {
     int64_t dst_valid_rows = 0;
     int64_t dst_valid_cols = 0;
     int64_t dst_row_stride = 0;
+};
+
+// Observable API metadata, not tensor contents or an inferred cache/queue state.
+// Zero valid extents remain distinguishable from missing metadata.
+struct OperandGeometry {
+    int64_t rows = 0;
+    int64_t cols = 0;
+    int64_t valid_rows = 0;
+    int64_t valid_cols = 0;
+    int64_t row_stride = 0;
+    bool has_address = false;
+    uint64_t address = 0;
+};
+
+// A declaration about the NPU binary, not a property of the host argument value.
+// Unknown must not select a newly calibrated comparison code-generation path.
+enum class ComparisonCodegen { Unknown, ConstantFolded, RuntimeDispatch };
+
+struct MetadataGeometry {
+    enum class Kind { Missing, Padding, PaddingExpand, Partial, Select, Triangle, Comparison };
+    Kind kind = Kind::Missing;
+    bool supported_layout = false;
+    OperandGeometry dst{};
+    OperandGeometry src0{};
+    OperandGeometry src1{};
+    OperandGeometry mask{};
+    DType data_dtype = DType::Float;
+    A5ShapePathHint source_shape_path = A5ShapePathHint::Auto;
+    bool runtime_valid_shape = false;
+    bool upper = false;
+    int64_t diagonal = 0;
+    int comparison_mode = -1;
+    ComparisonCodegen comparison_codegen = ComparisonCodegen::Unknown;
+    bool scalar_rhs = false;
+    double scalar_value = 0;
+};
+
+// Performance assumptions, not values observed by dereferencing tensor data.
+enum class DefaultInputProfile { None, ZeroIndex, IdentityBlocks, WarmSameAddressApproximate };
+
+struct DefaultInputGeometry {
+    bool present = false;
+    bool enabled = true;
+    bool supported_layout = false;
+    bool runtime_valid_shape = false;
+    DefaultInputProfile profile = DefaultInputProfile::None;
+    OperandGeometry dst{}, src{}, index{};
+    DType index_dtype = DType::Uint32;
 };
 
 struct CostModelInput {
@@ -231,11 +294,14 @@ struct CostModelInput {
     int64_t concat_src0_cols = 0;
     int64_t concat_src1_cols = 0;
     bool concat_dense_sources = false;
+    MetadataGeometry metadata{};
+    DefaultInputGeometry default_input{};
 };
 
 struct CostModelResult {
     double cycles = 0.0;
     long double latency_us = 0.0L;
+    DefaultInputProfile assumed_input_profile = DefaultInputProfile::None;
 };
 
 struct PredictRuntimeConfig {

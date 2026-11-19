@@ -1487,7 +1487,7 @@ public:
     PTO_INTERNAL void SetRepeatMode(uint8_t repeatMode) { repeatMode_ = repeatMode; }
     PTO_INTERNAL bool GetTranspose() const { return transpose_; }
     PTO_INTERNAL void SetTranspose(bool transpose) { transpose_ = transpose; }
-#ifndef PTO_NPU_ARCH_A2A3
+#if !defined(PTO_NPU_ARCH_A2A3) || defined(__COSTMODEL)
     PTO_INTERNAL void SetDstStride(uint16_t dstStride) { dstStride_ = dstStride; }
     PTO_INTERNAL uint16_t GetDstStride() const { return dstStride_; }
     PTO_INTERNAL void SetDstMposition(uint16_t dstMposition) { dstMposition_ = dstMposition; }
@@ -1513,7 +1513,7 @@ private:
     uint16_t repeatStride_ = 0;
     uint8_t repeatTime_ = 1;
     uint8_t repeatMode_ = 0;
-#ifndef PTO_NPU_ARCH_A2A3
+#if !defined(PTO_NPU_ARCH_A2A3) || defined(__COSTMODEL)
     uint16_t dstStride_ = 0;
     uint16_t dstMposition_ = 0;
 #endif
@@ -1763,6 +1763,10 @@ public:
 #endif
 
 #ifdef __COSTMODEL
+    // Preserve explicit device address metadata without calling data(), whose
+    // host-side lazy allocation would otherwise erase the distinction at zero.
+    bool HasCostModelAssignedAddress() const { return costModelAddressAssigned_; }
+    std::uintptr_t GetCostModelAssignedAddress() const { return costModelAddress_; }
     float cycle;
     AICORE void SetCycle(const float cycle_) { cycle = cycle_; }
 
@@ -1883,8 +1887,19 @@ public:
     }
 #endif
 private:
-    AICORE void assignData(TileDType data) { data_ = data; }
+    AICORE void assignData(TileDType data)
+    {
+        data_ = data;
+#ifdef __COSTMODEL
+        costModelAddress_ = reinterpret_cast<std::uintptr_t>(data);
+        costModelAddressAssigned_ = true;
+#endif
+    }
     bool isKAligned_ = false; // K alignment flag for A3.
+#ifdef __COSTMODEL
+    std::uintptr_t costModelAddress_ = 0;
+    bool costModelAddressAssigned_ = false;
+#endif
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
     mutable std::vector<DType> internalBuffer;

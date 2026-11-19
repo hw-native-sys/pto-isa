@@ -488,6 +488,20 @@ typedef float float32_t;
 #if defined(__has_include) && __has_include(<stdfloat>) && __cplusplus >= 202302L && defined(__STDCPP_BFLOAT16_T__)
 #include <stdfloat>
 typedef std::bfloat16_t bfloat16_t;
+#if defined(__COSTMODEL)
+#define PTO_COSTMODEL_NATIVE_BFLOAT16 1
+#endif
+#elif defined(__COSTMODEL) && !defined(__CPU_SIM) && !defined(PTO_CPU_SIM_ENABLE_BF16) && defined(__clang__) && \
+    defined(__is_identifier)
+#if !__is_identifier(__bf16)
+// Costmodel routing needs BF16 type identity, not a half placeholder. Clang
+// provides this native extension independently of libstdc++'s C++23 typedef.
+// Keep CPU_SIM's stricter numerical-emulation opt-in contract unchanged.
+typedef __bf16 bfloat16_t;
+#define PTO_COSTMODEL_NATIVE_BFLOAT16 1
+#else
+typedef _Float16 bfloat16_t;
+#endif
 #elif defined(PTO_CPU_SIM_ENABLE_BF16)
 #error "PTO_CPU_SIM_ENABLE_BF16 requires C++23 <stdfloat> with std::bfloat16_t support."
 #else
