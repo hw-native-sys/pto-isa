@@ -186,4 +186,117 @@ TEST(A5BitwiseFit, SingleRowSingleRepeatMeasuredProfiles)
         EXPECT_NE(key.op_params, "single_row_single_repeat");
     }
 }
+TEST(A5BitwiseFit, DenseUint16ScalarWideMeasuredProfiles)
+{
+    struct Profile {
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile profiles[] = {{16, 36},     {128, 36},    {512, 39}, {2048, 51}, {8192, 99},
+                                    {16384, 163}, {32768, 291}, {256, 37}, {4096, 67}, {12288, 131}};
+    for (auto op : {PtoOpcode::TANDS, PtoOpcode::TORS, PtoOpcode::TXORS}) {
+        CostModelInput input{};
+        input.arch = CostModelArch::A5;
+        input.op = op;
+        input.dtype = DType::Uint16;
+        input.rows = 1;
+        input.a5_shape_path = A5ShapePathHint::Path1D;
+        for (const auto& profile : profiles) {
+            input.cols = profile.cols;
+            CostModelResult result{};
+            ASSERT_TRUE(EstimateCycles(input, result));
+            EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10);
+        }
+        input.cols = op == PtoOpcode::TORS ? 65456 : 43632;
+        const double boundaryCycles = op == PtoOpcode::TORS ? 547.0 : 376.0;
+        CostModelResult result{};
+        ASSERT_TRUE(EstimateCycles(input, result));
+        EXPECT_NEAR(result.cycles, boundaryCycles, boundaryCycles * 0.10);
+        // Do not extend the measured profile into unvalidated sizes or layouts.
+        input.cols += 128;
+        a5::fit::VfCurveKey key{};
+        uint64_t loop, outer, inner, tail, rowInner;
+        ASSERT_TRUE(a5::BuildVfCurveKeyAndLoopCount(input, key, loop, outer, inner, tail, rowInner));
+        EXPECT_NE(key.op_params, "dense_row1");
+        input.cols = 4096;
+        input.valid_cols = 2048;
+        ASSERT_TRUE(a5::BuildVfCurveKeyAndLoopCount(input, key, loop, outer, inner, tail, rowInner));
+        EXPECT_NE(key.op_params, "dense_row1");
+    }
+}
+TEST(A5BitwiseFit, DenseUint16BinaryBoundaryProfiles)
+{
+    struct Profile {
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile common[] = {
+        {1024, 44},     {1984, 57},  {2048, 52},  {2112, 58},     {4032, 87},     {4096, 84},     {4160, 90},
+        {8128, 152},    {8192, 152}, {8256, 155}, {16320, 284.1}, {16384, 286.1}, {16448, 287.1}, {32640, 530.1},
+        {32768, 558.1}, {1536, 48},  {3072, 68},  {6144, 118},    {12224, 218.1}, {24576, 422.1}, {32704, 548.1}};
+    for (auto op : {PtoOpcode::TAND, PtoOpcode::TOR, PtoOpcode::TXOR}) {
+        CostModelInput input{};
+        input.arch = CostModelArch::A5;
+        input.op = op;
+        input.dtype = DType::Uint16;
+        input.rows = 1;
+        input.a5_shape_path = A5ShapePathHint::Path1D;
+        auto check = [&](Profile profile) {
+            input.cols = profile.cols;
+            CostModelResult result{};
+            ASSERT_TRUE(EstimateCycles(input, result));
+            EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10);
+        };
+        for (const auto& profile : common) {
+            check(profile);
+        }
+        if (op == PtoOpcode::TAND || op == PtoOpcode::TOR) {
+            for (auto profile :
+                 {Profile{36864, 624.2}, Profile{40960, 692.2}, Profile{43520, 734.2}, Profile{34816, 590.1},
+                  Profile{43008, 726.2}, Profile{43648, 702.2}}) {
+                check(profile);
+            }
+        } else {
+            check({32736, 581.1});
+        }
+        input.cols = 4096;
+        input.valid_cols = 2048;
+        a5::fit::VfCurveKey key{};
+        uint64_t loop, outer, inner, tail, rowInner;
+        ASSERT_TRUE(a5::BuildVfCurveKeyAndLoopCount(input, key, loop, outer, inner, tail, rowInner));
+        EXPECT_NE(key.op_params, "dense_row1_wide");
+    }
+}
+TEST(A5BitwiseFit, DenseNotFullAndHalfVectorTailProfiles)
+{
+    struct Profile {
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile profiles[] = {
+        {1024, 43},     {1984, 51},     {2048, 51},     {2112, 52},     {4032, 71},     {4096, 67},     {4160, 72},
+        {8128, 122},    {8192, 99},     {8256, 123},    {16320, 228},   {16384, 163},   {16448, 230},   {32640, 291.1},
+        {32768, 291.1}, {40960, 355.1}, {49152, 419.1}, {57344, 483.1}, {65280, 545.1}, {65408, 547.1}, {65536, 547.1},
+        {1536, 47},     {3072, 59},     {6144, 83},     {12224, 175},   {24576, 227.1}, {32704, 442.1}, {45056, 387.1},
+        {53248, 451.1}, {61440, 515.1}, {65344, 866.1}, {65472, 868.1}};
+    for (auto dtype : {DType::Int16, DType::Uint16}) {
+        CostModelInput input{};
+        input.arch = CostModelArch::A5;
+        input.op = PtoOpcode::TNOT;
+        input.dtype = dtype;
+        input.rows = 1;
+        input.a5_shape_path = A5ShapePathHint::Path1D;
+        for (const auto& profile : profiles) {
+            input.cols = profile.cols;
+            CostModelResult result{};
+            ASSERT_TRUE(EstimateCycles(input, result));
+            EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10);
+        }
+        input.cols = 65504; // An unmeasured residual width must not select this profile.
+        a5::fit::VfCurveKey key{};
+        uint64_t loop, outer, inner, tail, rowInner;
+        ASSERT_TRUE(a5::BuildVfCurveKeyAndLoopCount(input, key, loop, outer, inner, tail, rowInner));
+        EXPECT_NE(key.op_params, "dense_row1_wide");
+    }
+}
 } // namespace

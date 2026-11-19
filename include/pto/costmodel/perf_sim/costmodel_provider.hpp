@@ -45,6 +45,22 @@ static constexpr uint64_t kDefaultElemsPerUnit = 32;
 struct CostModelRuntimeCtx {
     uint32_t block_dim = 1;
     uint32_t npu_arch = kDefaultNpuArch;
+    mocker::lightweight::ComparisonCodegen comparison_codegen = mocker::lightweight::ComparisonCodegen::Unknown;
+    // Missing tensor values use documented profiles, never inferred contents.
+    // Set false for strict rejection of these assumption-based estimates.
+    bool assume_default_inputs = true;
+    mocker::lightweight::DefaultInputProfile last_assumed_input_profile =
+        mocker::lightweight::DefaultInputProfile::None;
+    // Shadow explicit B-bank image configuration within this simulation context.
+    // Resetting the context also invalidates all manual image configuration.
+    struct ImageManualState {
+        int fmapH = -1;
+        int fmapW = -1;
+        bool zeroPadding = false;
+        bool zeroPadValue = false;
+        bool repeatOne = false;
+        int dstStride = -1;
+    } imageManual;
 };
 
 inline CostModelRuntimeCtx& GetCostModelCtx()
@@ -52,6 +68,29 @@ inline CostModelRuntimeCtx& GetCostModelCtx()
     static thread_local CostModelRuntimeCtx ctx;
     return ctx;
 }
+
+using ComparisonCodegen = mocker::lightweight::ComparisonCodegen;
+
+// CPU-only configuration; it neither inspects nor changes the NPU binary.
+// Declare ConstantFolded only when the target VF has no runtime mode dispatch.
+// The public wrapper snapshots this setting into each instruction's metadata.
+// Context reset replaces the default; do not reset a context inside a scope.
+class [[nodiscard]] ScopedComparisonCodegen final {
+public:
+    explicit ScopedComparisonCodegen(ComparisonCodegen codegen) noexcept
+        : previous_(GetCostModelCtx().comparison_codegen)
+    {
+        GetCostModelCtx().comparison_codegen = codegen;
+    }
+    ~ScopedComparisonCodegen() noexcept { GetCostModelCtx().comparison_codegen = previous_; }
+    ScopedComparisonCodegen(const ScopedComparisonCodegen&) = delete;
+    ScopedComparisonCodegen& operator=(const ScopedComparisonCodegen&) = delete;
+    ScopedComparisonCodegen(ScopedComparisonCodegen&&) = delete;
+    ScopedComparisonCodegen& operator=(ScopedComparisonCodegen&&) = delete;
+
+private:
+    ComparisonCodegen previous_;
+};
 
 // ── String → lightweight::PtoOpcode mapping (X-macro, single source of truth) ──
 // Enum names in lightweight::PtoOpcode match opcode strings exactly.
@@ -83,7 +122,7 @@ inline CostModelRuntimeCtx& GetCostModelCtx()
                     X(TCONCAT) X(TGATHER) X(TGATHERB) X(TFILLPAD) X(TFILLPAD_EXPAND) X(TTRI) X(TDEQUANT) X(TRESHAPE) \
                     X(TSHL) X(TSHR) X(TSHLS) X(TSHRS) X(TPARTARGMAX) X(TPARTARGMIN) X(TCI) \
                     X(TINTERLEAVE) X(TDEINTERLEAVE) X(TMATMUL_ACC) X(TMATMUL_BIAS) X(TMATMUL_MX) \
-                    X(TGEMV_ACC) X(TGEMV_BIAS) X(TGEMV_MX)
+                    X(TGEMV_ACC) X(TGEMV_BIAS) X(TGEMV_MX) X(TFILLPAD_INPLACE) X(TRANDOM) X(TQUANT) X(THISTOGRAM) X(TIMG2COL) X(SETFMATRIX) X(SET_IMG2COL_RPT) X(SET_IMG2COL_PADDING) X(SET_QUANT_SCALAR) X(SET_QUANT_VECTOR)
 // clang-format on
 
 inline bool TryMapOpcode(const std::string& opcode, ::pto::mocker::lightweight::PtoOpcode& out)
@@ -165,6 +204,8 @@ struct LightweightEstimateOptions {
     int concat_src0_cols = 0;
     int concat_src1_cols = 0;
     bool concat_dense_sources = false;
+    ::pto::mocker::lightweight::MetadataGeometry metadata{};
+    ::pto::mocker::lightweight::DefaultInputGeometry default_input{};
 };
 
 inline uint64_t EstimateLightweightCycles(
@@ -214,6 +255,20 @@ inline uint64_t EstimateLightweightCycles(
     input.concat_src0_cols = options.concat_src0_cols;
     input.concat_src1_cols = options.concat_src1_cols;
     input.concat_dense_sources = options.concat_dense_sources;
+    input.metadata = options.metadata;
+    input.default_input = options.default_input;
+    input.default_input.enabled = GetCostModelCtx().assume_default_inputs;
+    if (input.arch == CostModelArch::A5 &&
+        (input.metadata.kind == mocker::lightweight::MetadataGeometry::Kind::Select ||
+         input.metadata.kind == mocker::lightweight::MetadataGeometry::Kind::Comparison)) {
+        const auto& geometry = input.metadata;
+        input.rows = geometry.src0.rows;
+        input.cols = geometry.src0.cols;
+        input.valid_rows = geometry.src0.valid_rows;
+        input.valid_cols = geometry.src0.valid_cols;
+        input.dtype = geometry.data_dtype;
+        input.a5_shape_path = geometry.source_shape_path;
+    }
     input.data_size = static_cast<int64_t>(input.valid_rows) * input.valid_cols;
     input.tile_type = tile_type;
 
@@ -231,6 +286,7 @@ inline uint64_t EstimateLightweightCycles(
         input.dst_dtype = options.matrix.accumulator;
     }
     CostModelResult result = EstimateCycles(input);
+    GetCostModelCtx().last_assumed_input_profile = result.assumed_input_profile;
     if (result.cycles > 0.0)
         return static_cast<uint64_t>(result.cycles);
     return 0;

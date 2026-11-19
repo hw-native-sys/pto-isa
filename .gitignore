@@ -49,3 +49,5 @@ oat_reports/
 log/
 include/pto/costmodel/a2a3/cce_costmodel/cce_cycle_profiles_generated.hpp
 build*/
+include/pto/costmodel/a2a3/formula_costmodel/formula_params_generated.hpp
+include/pto/costmodel/a5/formula_costmodel/formula_params_generated.hpp

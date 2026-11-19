@@ -1,0 +1,284 @@
+{
+  "scope": "default zero-index/identity-block profiles plus explicitly provisional warm 4KiB-aligned TLOAD",
+  "prediction_supported_rows": 175,
+  "unique_supported_contracts": 162,
+  "accuracy_qualified_rows": 172,
+  "provisional_tload": {
+    "approval_date": "2026-11-19",
+    "accuracy_target_met": false,
+    "profile": "WarmSameAddressApproximate",
+    "scope": "half/float/int32 full runtime Vec RowMajor/NoneBox 16x16 at UB zero, contiguous ND GM 1x1x1x16x16 aligned to 4096B, NormalFirstVictim, warm same-address MTE2 increment only",
+    "source_report": "reports_final/load_4k_training_01.json",
+    "source_report_sha256": "ddb71fd71b9f30b2d878a853e035a39f61a86bb0eac1f4b4a55412404f50407a",
+    "source_measurements": "reports_final/load_4k_train_analysis.json",
+    "source_measurements_sha256": "cd5a2581ae63e4fc5c230e78cdbb64b7dec0368ae67455867bd8356b6836aeb1",
+    "fit": "rank-1 minimax relative error: 2*min*max/(min+max), training only",
+    "training_gm_offsets": [0, 8192, 16384],
+    "independent_gm_offsets_not_evaluated": [4096, 12288],
+    "half": {"coefficient": 153.46615813412387, "rounded_cycles": 153, "training_count": 6, "max_training_error": 0.11760549379060097},
+    "float_int32": {"coefficient": 176.97873708736967, "rounded_cycles": 177, "training_count": 12, "max_training_error": 0.10056477745127244},
+    "reason": "Measured variation persists at identical observable shape/cache hint/4KiB alignment; physical mapping/cache/memory state are unmeasured possibilities, not proven causes. No card-specific parameters. No independent-shape or end-to-end accuracy claim."
+  },
+  "provenance": {
+    "selected_vector_v2.json": "fa4c6913841d5983c4a06119879cf0c903a726a56fedf5afa71779bf4d908a7f",
+    "selected_vector_v3.json": "ca949d58b97e21cd9c22c9add6888a56aa0606c5799f8a0aa55999bb630b62cf"
+  },
+  "note": "Unchanged families retain v2 parameters. TGATHERB uses 27 training shapes per width; four identifiable parameters; training threshold is requested 10%, not the earlier optional 8% margin.",
+  "original_csv_rows": 175,
+  "accuracy_qualified_unique_contracts": 159,
+  "training_count": 247,
+  "nontraining_count": 256,
+  "max_nontraining_error": 0.09523627348260513,
+  "not_accuracy_qualified": [
+    "TLOAD half 16x16",
+    "TLOAD float 16x16",
+    "TLOAD int32 16x16"
+  ],
+  "models": {
+    "TGATHERB_b16_i32": {
+      "features": [
+        "max_blocks"
+      ],
+      "coefficients": [
+        2.596758759989482,
+        50.00717546293442,
+        4.0802060759097465,
+        16.759712279651296
+      ],
+      "rank": 4,
+      "identifiable": true,
+      "training_count": 27,
+      "max_training_error": 0.08537158809988203
+    },
+    "TGATHERB_b32_i32": {
+      "features": [
+        "max_blocks"
+      ],
+      "coefficients": [
+        2.596738840251682,
+        50.00738753084391,
+        4.080189356400279,
+        16.760802520230953
+      ],
+      "rank": 4,
+      "identifiable": true,
+      "training_count": 27,
+      "max_training_error": 0.08536987538910881
+    },
+    "TGATHERB_b8_i32": {
+      "features": [
+        "max_blocks"
+      ],
+      "coefficients": [
+        2.596743216237696,
+        50.00741234872756,
+        4.080208988069625,
+        16.759422264906853
+      ],
+      "rank": 4,
+      "identifiable": true,
+      "training_count": 27,
+      "max_training_error": 0.08536725992369691
+    },
+    "TGATHER_b16_i16_grid": {
+      "features": [
+        "max_pipeline"
+      ],
+      "coefficients": [
+        2.0000599016431533,
+        50.999740038911355,
+        6.000082163743931,
+        17.99113164810483,
+        4.006886862420259,
+        14.842838906833968
+      ],
+      "rank": 6,
+      "identifiable": true,
+      "training_count": 23,
+      "max_training_error": 0.028909376749263246
+    },
+    "TGATHER_b16_i16_row1": {
+      "features": [
+        "q",
+        "q_after16",
+        "one"
+      ],
+      "coefficients": [
+        1.9681989072842951,
+        1.9510300772169924,
+        51.05234851976618
+      ],
+      "rank": 3,
+      "identifiable": true,
+      "training_count": 7,
+      "max_training_error": 0.022642354082095303
+    },
+    "TGATHER_b16_i32_grid": {
+      "features": [
+        "max_nested"
+      ],
+      "coefficients": [
+        0.9997757485206578,
+        51.00100156386867,
+        1.00000817532521,
+        4.99999307711974,
+        17.999646818551497,
+        3.091947956743522,
+        7.029527493657264
+      ],
+      "rank": 7,
+      "identifiable": true,
+      "training_count": 17,
+      "max_training_error": 0.02640204210480552
+    },
+    "TGATHER_b16_i32_row1": {
+      "features": [
+        "q",
+        "q_after16",
+        "one"
+      ],
+      "coefficients": [
+        0.5970753177748783,
+        2.3699225868645515,
+        52.01144762357526
+      ],
+      "rank": 3,
+      "identifiable": true,
+      "training_count": 7,
+      "max_training_error": 0.019228541636098537
+    },
+    "TGATHER_b32_i32_grid": {
+      "features": [
+        "max_pipeline"
+      ],
+      "coefficients": [
+        1.9999596795554027,
+        51.00053602986636,
+        5.999999071209713,
+        18.00000293896703,
+        4.032157243749484,
+        14.35609778413091
+      ],
+      "rank": 6,
+      "identifiable": true,
+      "training_count": 15,
+      "max_training_error": 0.015384210475569
+    },
+    "TGATHER_b32_i32_row1": {
+      "features": [
+        "q",
+        "q_after16",
+        "one"
+      ],
+      "coefficients": [
+        1.9681623277969191,
+        1.9510672655101071,
+        51.05266639119391
+      ],
+      "rank": 3,
+      "identifiable": true,
+      "training_count": 7,
+      "max_training_error": 0.022642658159457256
+    },
+    "TSCATTER_b16_i16_grid": {
+      "features": [
+        "rq",
+        "lane64",
+        "init",
+        "one"
+      ],
+      "coefficients": [
+        6.003205163580121,
+        4.061323950242786,
+        -1.8275810974495716,
+        49.131291018908406
+      ],
+      "rank": 4,
+      "identifiable": true,
+      "training_count": 15,
+      "max_training_error": 0.07229564141784327
+    },
+    "TSCATTER_b16_i16_row1": {
+      "features": [
+        "q",
+        "q_after8",
+        "one"
+      ],
+      "coefficients": [
+        8.807696763975224,
+        4.814021718730827,
+        64.50014916950443
+      ],
+      "rank": 3,
+      "identifiable": true,
+      "training_count": 7,
+      "max_training_error": 0.028160652043936845
+    },
+    "TSCATTER_b32_i32_grid": {
+      "features": [
+        "max_pipeline_init"
+      ],
+      "coefficients": [
+        2.637659557141029,
+        61.54456398746123,
+        5.995266415755017,
+        29.853100024480984,
+        4.752480593738761,
+        18.441123274567403,
+        1.0153793765683834
+      ],
+      "rank": 7,
+      "identifiable": true,
+      "training_count": 15,
+      "max_training_error": 0.01408193162826276
+    },
+    "TSCATTER_b32_i32_row1": {
+      "features": [
+        "q",
+        "q_after16",
+        "one"
+      ],
+      "coefficients": [
+        3.5256954175102417,
+        1.7241911506563579,
+        63.134611217295834
+      ],
+      "rank": 3,
+      "identifiable": true,
+      "training_count": 7,
+      "max_training_error": 0.0247946819197002
+    },
+    "TSCATTER_b8_i16_grid": {
+      "features": [
+        "max_scatter_packed"
+      ],
+      "coefficients": [
+        2.141721044227985,
+        4.13394480722825,
+        64.00991994508763,
+        5.841812078486161,
+        3.5560823790656633,
+        17.001024751630077,
+        0.0000031736200623879145
+      ],
+      "rank": 7,
+      "identifiable": true,
+      "training_count": 39,
+      "max_training_error": 0.039756279662769706
+    },
+    "TSCATTER_b8_i16_row1": {
+      "features": [
+        "q",
+        "one"
+      ],
+      "coefficients": [
+        12.46272113571718,
+        56.696830922543164
+      ],
+      "rank": 2,
+      "identifiable": true,
+      "training_count": 7,
+      "max_training_error": 0.06363511822241019
+    }
+  }
+}
