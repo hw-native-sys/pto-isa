@@ -2976,6 +2976,33 @@ PTO_INST RecordEvent TPOP(Pipe& pipe, TileCons& tile, int32_t subBlockId, WaitEv
     return {};
 }
 
+#if defined(PTO_NPU_ARCH_A6R2)
+// A6R2 MaxTrack only: TPOP(vecTile, gMaxTile) / TPOP(vecTile, gMaxTile, rMaxTile).
+// TConfig supplies group_num (same FixpipeParams / MaxTrack cfg used by the matching TPUSH).
+// TPOP_IMPL lives in a6r2/TPop.hpp (included only for dav-920r2).
+template <
+    typename Pipe, typename VecTile, typename GMaxTile, typename TConfig, TileSplitAxis Split,
+    std::enable_if_t<is_tile_data_v<VecTile> && is_tile_data_v<GMaxTile>, int> = 0, typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe& pipe, VecTile& vecTile, GMaxTile& gMaxTile, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    TPOP_IMPL<Pipe, VecTile, GMaxTile, TConfig, Split>(pipe, vecTile, gMaxTile);
+    return {};
+}
+
+template <
+    typename Pipe, typename VecTile, typename GMaxTile, typename RMaxTile, typename TConfig, TileSplitAxis Split,
+    bool EndRowMaxCmp = false,
+    std::enable_if_t<is_tile_data_v<VecTile> && is_tile_data_v<GMaxTile> && is_tile_data_v<RMaxTile>, int> = 0,
+    typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe& pipe, VecTile& vecTile, GMaxTile& gMaxTile, RMaxTile& rMaxTile, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    TPOP_IMPL<Pipe, VecTile, GMaxTile, RMaxTile, TConfig, Split, EndRowMaxCmp>(pipe, vecTile, gMaxTile, rMaxTile);
+    return {};
+}
+#endif // PTO_NPU_ARCH_A6R2
+
 template <typename Pipe, TileSplitAxis Split, typename... WaitEvents>
 PTO_INST RecordEvent TFREE(Pipe& pipe, WaitEvents&... events)
 {

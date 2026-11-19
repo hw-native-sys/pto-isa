@@ -21,7 +21,7 @@
 
 Pop a consumer tile from a `TPipe` FIFO for Cube-Vector communication.
 
-This page describes the TileData overloads with an explicit `TileSplitAxis`, an explicit subblock ID, or reversed parameters without `Split`, plus the `GlobalData` overload.
+This page describes the TileData overloads with an explicit `TileSplitAxis`, an explicit subblock ID, or reversed parameters without `Split`, plus the `GlobalData` overload and the A6R2 MaxTrack multi-tile overloads.
 
 ## Operation Semantics
 
@@ -37,6 +37,18 @@ For the GlobalData flow:
 2. `TPUSH(Pipe&, GlobalData&)` records data-ready synchronization for a slot already allocated by `TALLOC`, committing the FIFO slot to the consumer. It does not store tile data by itself.
 3. `TPOP(Pipe&, GlobalData&)` waits for data-ready, assigns `gmTensor` to the current FIFO slot address, and increments the consumer tile index. It does not load data into a local tile and does not release the slot. The consumer can read data from the slot using instructions such as `TLOAD`.
 4. `TFREE(Pipe&, GlobalData&)` releases the FIFO slot view returned by `TPOP(Pipe&, GlobalData&)`, notifying the producer that the slot space is free.
+
+### A6R2 MaxTrack (C2V Acc→UB)
+
+On A6R2, when the producer used `TPUSH` with `FixpipeParams<..., MaxTrack<groupmax_en=true, ...>>`, the consumer pops the main vec tile plus MaxTrack sidebands:
+
+1. Wait for data-ready on the C2V FIFO (same as the ordinary TileData path).
+2. Bind `vecTile` to the current `C2V_CONSUMER_BUF` slot.
+3. Bind `gMaxTile` to the matching `C2V_GROUPMAX_BUF` slot (`TPOP(pipe, vec, gMax)`).
+4. When RowMax was also enabled, bind `rMaxTile` to `C2V_ROWMAX_BUF` (`TPOP(pipe, vec, gMax, rMax)`).
+5. Call `TFREE` to release the FIFO slot after consuming the tiles.
+
+These overloads are compiled only when `PTO_NPU_ARCH_A6R2` is defined. Implementation lives in `include/pto/npu/a6r2/TPop.hpp`.
 
 ## C++ Intrinsic
 
@@ -57,10 +69,30 @@ PTO_INST RecordEvent TPOP(TileData &tile, Pipe &pipe, WaitEvents &... events);
 template <typename Pipe, typename GlobalData, TileSplitAxis Split,
           std::enable_if_t<is_global_data_v<GlobalData>, int> = 0, typename... WaitEvents>
 PTO_INST RecordEvent TPOP(Pipe &pipe, GlobalData &gmTensor, WaitEvents &... events);
+
+#if defined(PTO_NPU_ARCH_A6R2)
+// A6R2 MaxTrack: vec + gMax  /  vec + gMax + rMax
+// TConfig supplies group_num (same FixpipeParams / MaxTrack cfg as the matching TPUSH).
+template <typename Pipe, typename VecTile, typename GMaxTile, typename TConfig,
+          TileSplitAxis Split,
+          std::enable_if_t<is_tile_data_v<VecTile> && is_tile_data_v<GMaxTile>, int> = 0,
+          typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, VecTile &vecTile, GMaxTile &gMaxTile,
+                          WaitEvents &... events);
+
+template <typename Pipe, typename VecTile, typename GMaxTile, typename RMaxTile,
+          typename TConfig, TileSplitAxis Split, bool EndRowMaxCmp = false,
+          std::enable_if_t<is_tile_data_v<VecTile> && is_tile_data_v<GMaxTile> &&
+                           is_tile_data_v<RMaxTile>, int> = 0,
+          typename... WaitEvents>
+PTO_INST RecordEvent TPOP(Pipe &pipe, VecTile &vecTile, GMaxTile &gMaxTile,
+                          RMaxTile &rMaxTile, WaitEvents &... events);
+#endif
 ```
 
 `Pipe` is typically a `TPipe` declared by the selected backend's `TPush.hpp`, including
-`include/pto/cpu/TPush.hpp`, `include/pto/npu/a2a3/TPush.hpp`, or `include/pto/npu/a5/TPush.hpp`:
+`include/pto/cpu/TPush.hpp`, `include/pto/npu/a2a3/TPush.hpp`, `include/pto/npu/a5/TPush.hpp`,
+or the A6R2 MaxTrack ctor in `include/pto/npu/a6r2/TPush.hpp`:
 
 ```cpp
 template <uint8_t FlagID, uint8_t DirType, uint32_t SlotSize, uint32_t SlotNum,
@@ -94,6 +126,14 @@ constraints below continue to describe data FIFOs.
     - `TileSplitAxis::TILE_LEFT_RIGHT`: vector subblocks consume column halves.
 - **A6 split behavior**:
     - Only `TileSplitAxis::TILE_NO_SPLIT` is supported, because A6 hardware allows one AIC to communicate with one AIV.
+- **A6R2 MaxTrack overloads**:
+    - Available only when `PTO_NPU_ARCH_A6R2` is defined; require a C2V UB FIFO (`Pipe::is_c2v_ub` or `Pipe::is_both`).
+    - `TPOP(pipe, vecTile, gMaxTile)` matches producer `groupmax_en=true, rowmax_en=false`.
+    - `TPOP(pipe, vecTile, gMaxTile, rMaxTile)` matches producer `groupmax_en=true, rowmax_en=true`.
+    - Producer MaxTrack requires `LayoutMode::NZ2ND` or `LayoutMode::NZ2DN`; `vecTile` must have no fractal (NZ2ND RowMajor or NZ2DN ColMajor).
+    - Dtype must be `float`, `half`, or `bfloat16_t`; `vec` / `gMax` / `rMax` dtypes must match.
+    - Consumer tiles must match MaxTrack push shapes: NZ2ND/NZ2DN fixpipe vec; GroupMax ValidRow/ValidCol `DYNAMIC` (NZ2ND `[srcValidRow, srcValidCol/group_num]`, NZ2DN transposed); RowMax `[1, ceil32B(ProdM)]` with `DYNAMIC` validCol. `TPOP` takes `TConfig` (provides `group_num`) and sets gMax/rMax valid shapes from `popTile` + `TConfig::group_num`.
+    - After pop, call `TFREE` as on the ordinary TileData path.
 - **NPU synchronization**:
     - Data-ready wait is performed for each `TPOP`.
     - Free-space notifications are sparse and controlled by `Pipe::SyncPeriod`.
@@ -196,5 +236,51 @@ AICORE void example_globaldata(__gm__ void *fifoMem)
     TPOP<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
     TLOAD(tile, slot);
     TFREE<Pipe, SlotGlobal, TileSplitAxis::TILE_UP_DOWN>(pipe, slot);
+}
+```
+
+### A6R2 MaxTrack C2V Pop
+
+```cpp
+#include <pto/pto-inst.hpp>
+#include <pto/common/fixpipe.hpp>
+
+using namespace pto;
+
+AICORE void example_a6r2_maxtrack_pop()
+{
+    constexpr uint32_t M = 128;
+    constexpr uint32_t N = 128;
+    constexpr uint8_t kGroupNum = 8;
+    constexpr uint16_t FLAG_ID = 0;
+    constexpr uint8_t FIFO_DEPTH = 2;
+
+    using AccTile = TileAcc<float, M, N, M, N>;
+    using VecTile = Tile<TileType::Vec, float, M, N, BLayout::RowMajor, M, N>;
+    using GMaxTile = Tile<TileType::Vec, float, M, N / kGroupNum, BLayout::RowMajor, DYNAMIC, DYNAMIC>;
+    constexpr int kRMaxCols =
+        ((M + static_cast<int>(C0_SIZE_BYTE / sizeof(float)) - 1) / static_cast<int>(C0_SIZE_BYTE / sizeof(float))) *
+        static_cast<int>(C0_SIZE_BYTE / sizeof(float));
+    using RMaxTile = Tile<TileType::Vec, float, 1, kRMaxCols, BLayout::RowMajor, 1, DYNAMIC>;
+    using MaxTrackCfg = MaxTrack<true, true, true, false, true, kGroupNum>;
+    using FixpipeConfig = FixpipeParams<
+        LayoutMode_t::NZ2ND, QuantMode_t::NoQuant, ReluPreMode::NoRelu, STPhase::Unspecified, 0, AtomicType::AtomicNone,
+        ClipReluMode_t::NOCLIP_RELU, false, MaxTrackCfg>;
+    using Pipe = TPipe<FLAG_ID, Direction::DIR_C2V, M * N * sizeof(float), FIFO_DEPTH, 2, true>;
+
+    constexpr uint32_t C2V_BUF = 0x0;
+    constexpr uint32_t GMAX_BUF = 0x20000;
+    constexpr uint32_t RMAX_BUF = 0x28000;
+    Pipe pipe((__gm__ void*)(uint64_t)0x0, C2V_BUF, (uint32_t)0x0, GMAX_BUF, RMAX_BUF);
+
+    VecTile vecTile;
+    GMaxTile gMaxTile(M, N / kGroupNum);
+    RMaxTile rMaxTile(M);
+
+    // Producer must have pushed with MaxTrack groupmax_en && rowmax_en.
+    TPOP<Pipe, VecTile, GMaxTile, RMaxTile, FixpipeConfig, TileSplitAxis::TILE_NO_SPLIT>(
+        pipe, vecTile, gMaxTile, rMaxTile);
+    // Consume tiles...
+    TFREE<Pipe, TileSplitAxis::TILE_NO_SPLIT>(pipe);
 }
 ```

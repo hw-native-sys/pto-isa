@@ -44,6 +44,19 @@ A5 NPU 的 `TPipe` 控制通路支持 V2C 的 OR/AND 谓词归约与 C2V 标量�
 
 对于 `TConfig` 重载 `TPUSH<Pipe, TileProd, TConfig>(pipe, tile)`，`TConfig` 模板参数用于配置fixpipe转换和布局。NPU后端将其应用于L0C->GM/UB路径，CPU_SIM则将转换结果写入主机FIFO槽位。
 
+### A6R2 MaxTrack（C2V Acc→UB）
+
+在 A6R2 上，当 `TConfig` 嵌入的 `MaxTrack` 满足 `groupmax_en=true` 时，同一 `TPUSH<Pipe, TileProd, TConfig>` 重载还会把 MaxTrack 旁路结果写入 C2V UB FIFO：
+
+1. 使用带 MaxTrack 的 `TPipe` 构造函数，在常规 C2V 消费者缓冲之外绑定 `C2V_GROUPMAX_BUF` / `C2V_ROWMAX_BUF`。
+2. `TPUSH<Pipe, AccTile, FixpipeParams<..., MaxTrack<...>>>` 执行 Acc→UB fixpipe（`TMovCcToUb`），配置 `set_fixp_max_cfg`，并写入：
+   - 主结果到 `C2V_CONSUMER_BUF`（与既有路径相同），
+   - 当 `groupmax_en` 时写入 GroupMax 到 `C2V_GROUPMAX_BUF`，
+   - 当 `groupmax_en && rowmax_en` 时写入 RowMax 到 `C2V_ROWMAX_BUF`。
+3. 消费者侧使用 A6R2 MaxTrack `TPOP` 重载（`vec`+`gMax`，或 `vec`+`gMax`+`rMax`），再调用 `TFREE`。
+
+当 `groupmax_en=false` 时，行为与既有 A5/A6 C2V Acc→UB 路径一致（仅 vec）。实现位于 `include/pto/npu/a6r2/TPush.hpp`。
+
 ## C++ Intrinsic
 
 声明位置：`include/pto/common/pto_instr.hpp`：
@@ -105,6 +118,17 @@ struct TPipe;
 - **TConfig接口**：
     - `TConfig` 是决定推送行为的配置类型（实现定义）。
     - `TileProd::Loc` 必须为 `TileType::Acc`、`TileType::Vec` 或 `TileType::Ctrl`。
+- **A6R2 MaxTrack（`groupmax_en=true`）**：
+    - 仅支持 A6R2 的 C2V UB FIFO（`Pipe::is_c2v_ub` 或 `Pipe::is_both`）。
+    - 使用 `TPipe(gm, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF, C2V_GROUPMAX_BUF, C2V_ROWMAX_BUF)` 构造管道。
+    - `groupmax_en` / `rowmax_en` 仅在 `LayoutMode` 为 `NZ2ND` 或 `NZ2DN` 时生效。
+    - 经 `FixpipeConsDType` 后的结果类型必须是 `float`、`half` 或 `bfloat16_t`。
+    - `TileProd::Cols` 必须能被 `group_num` 整除；GroupMax 每行字节数必须 32B 对齐。
+    - 当 `rowmax_en=1`，或当 `groupmax_en=1` 且为 `NZ2DN` 时：`srcTile` 的 `validRow` 必须 `<= 128`。
+    - 当 `groupmax_en=1` 且为 `NZ2ND` 时：`N / group_num` 必须 `<= 16`。
+    - `groupmax_en=true, rowmax_en=false` → 输出 vec + gMax；`groupmax_en=true, rowmax_en=true` → 输出 vec + gMax + rMax。
+    - MaxTrack 推送内部使用 `TILE_NO_SPLIT` 的 allocate/record。
+    - 写入 `set_fixp_max_cfg` 的 GroupMax / RowMax UB 地址以 C0（32B）为单位。
 - **NPU同步**：
     - 空闲空间等待是稀疏的，并由 `Pipe::SyncPeriod` 控制。
     - 每次 `TPUSH` 都会发出数据就绪记录。
@@ -135,6 +159,17 @@ struct TPipe;
 声明于 `include/pto/common/fixpipe.hpp`：
 
 ```cpp
+template <bool absEn = false, bool groupmaxEn = false, bool rowmaxEn = false,
+          bool rowmaxCompareEn = false, bool rowmaxOutput = false, uint8_t groupNum = 8>
+struct MaxTrack {
+    static constexpr bool abs_en = absEn;
+    static constexpr bool groupmax_en = groupmaxEn;
+    static constexpr bool rowmax_en = rowmaxEn;
+    static constexpr bool rowmax_compare_en = rowmaxCompareEn;
+    static constexpr bool rowmax_output = rowmaxOutput;
+    static constexpr uint8_t group_num = groupNum;
+};
+
 template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND,
           QuantMode_t quantMode = QuantMode_t::NoQuant,
           ReluPreMode reluMode = ReluPreMode::NoRelu,
@@ -142,7 +177,8 @@ template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND,
           uint8_t subBlockId = 0,
           AtomicType atomicT = AtomicType::AtomicNone,
           ClipReluMode_t clipReluMode = ClipReluMode_t::NOCLIP_RELU,
-          bool isChannelSplit = false>
+          bool isChannelSplit = false,
+          typename MaxTrackCfg = MaxTrack<>>
 struct FixpipeParams {
     static constexpr LayoutMode_t LayoutMode = layoutMode;
     static constexpr QuantMode_t QuantPre = quantMode;
@@ -152,6 +188,13 @@ struct FixpipeParams {
     static constexpr AtomicType AtomicT = atomicT;
     static constexpr ClipReluMode_t ClipReluMode = clipReluMode;
     static constexpr bool IsChannelSplit = isChannelSplit;
+    using MaxTrackT = MaxTrackCfg;
+    static constexpr bool abs_en = MaxTrackCfg::abs_en;
+    static constexpr bool groupmax_en = MaxTrackCfg::groupmax_en;
+    static constexpr bool rowmax_en = MaxTrackCfg::rowmax_en;
+    static constexpr bool rowmax_compare_en = MaxTrackCfg::rowmax_compare_en;
+    static constexpr bool rowmax_output = MaxTrackCfg::rowmax_output;
+    static constexpr uint8_t group_num = MaxTrackCfg::group_num;
 };
 ```
 
@@ -167,6 +210,24 @@ struct FixpipeParams {
 | `AtomicT` | `AtomicType` | GM写入的原子操作类型：`AtomicNone` 或 `AtomicAdd`。默认值：`AtomicNone`。 |
 | `ClipReluMode` | `ClipReluMode_t` | Clip ReLU模式：`NOCLIP_RELU` 或 `CLIP_RELU`。默认值：`NOCLIP_RELU`。 |
 | `IsChannelSplit` | `bool` | 是否启用通道切分。默认值：`false`。 |
+| `MaxTrackCfg` | `typename` | A6R2 MaxTrack 旁路配置（`MaxTrack<...>`）。默认值：`MaxTrack<>`（关闭）。 |
+
+### MaxTrack字段说明（A6R2）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `abs_en` | `bool` | 求最大前是否取绝对值。默认值：`false`。 |
+| `groupmax_en` | `bool` | 是否输出 GroupMax 旁路。NZ2ND 形状为 `[srcValidRow, srcValidCol/group_num]`；NZ2DN 转置为 `[srcValidCol/group_num, srcValidRow]`。开启后走 MaxTrack C2V 路径。默认值：`false`。 |
+| `rowmax_en` | `bool` | 是否输出 RowMax 旁路（一维，validCol = 源 validRow）。依赖 `groupmax_en`。默认值：`false`。 |
+| `rowmax_compare_en` | `bool` | `set_fixp_max_cfg` 的 rowmax compare 使能。默认值：`false`。 |
+| `rowmax_output` | `bool` | `set_fixp_max_cfg` 的 rowmax output 使能。默认值：`false`。 |
+| `group_num` | `uint8_t` | 每个 GroupMax 组的元素数。默认值：`8`。 |
+
+MaxTrack push 内部根据 `TileProd` / `TConfig` 推导消费者 Tile 形状：
+
+- Fixpipe vec tile：NZ2ND 为 RowMajor / NZ2DN 为 ColMajor / 否则为 NZ（尺寸与 Acc 相同）。
+- GroupMax（RowMajor，ValidRow/ValidCol 为 `DYNAMIC`）：NZ2ND 为 `[srcValidRow, srcValidCol/group_num]`；NZ2DN 转置为 `[srcValidCol/group_num, srcValidRow]`。
+- RowMax：`[1, ceil32B(ProdM)]`，RowMajor，`ValidCol=DYNAMIC`（构造或由 TPOP 按 `srcValidRow` 设置）。
 
 ### TConfig使用示例
 
@@ -194,6 +255,42 @@ AICORE void example_tconfig_push(__gm__ void *fifoMem)
     TASSIGN(acc, 0x0);
 
     TPUSH<Pipe, AccTile, MyConfig>(pipe, acc);
+}
+```
+
+### A6R2 MaxTrack C2V 推送
+
+```cpp
+#include <pto/pto-inst.hpp>
+#include <pto/common/fixpipe.hpp>
+
+using namespace pto;
+
+AICORE void example_a6r2_maxtrack_push()
+{
+    constexpr uint32_t M = 128;
+    constexpr uint32_t N = 128;
+    constexpr uint8_t kGroupNum = 8;
+    constexpr uint16_t FLAG_ID = 0;
+    constexpr uint8_t FIFO_DEPTH = 2;
+
+    using AccTile = TileAcc<float, M, N, M, N>;
+    using MaxTrackCfg = MaxTrack</*abs*/false, /*gmax*/true, /*rmax*/true,
+                                 /*cmp*/false, /*out*/true, kGroupNum>;
+    using FixpipeConfig = FixpipeParams<
+        LayoutMode_t::NZ2ND, QuantMode_t::NoQuant, ReluPreMode::NoRelu, STPhase::Unspecified, 0,
+        AtomicType::AtomicNone, ClipReluMode_t::NOCLIP_RELU, false, MaxTrackCfg>;
+    using Pipe = TPipe<FLAG_ID, Direction::DIR_C2V, M * N * sizeof(float), FIFO_DEPTH, 2, true>;
+
+    constexpr uint32_t C2V_BUF = 0x0;
+    constexpr uint32_t GMAX_BUF = 0x20000;
+    constexpr uint32_t RMAX_BUF = 0x28000;
+    Pipe pipe((__gm__ void*)(uint64_t)0x0, C2V_BUF, (uint32_t)0x0, GMAX_BUF, RMAX_BUF);
+
+    AccTile acc;
+    TASSIGN(acc, 0x0);
+    // 推送前先用 TMATMUL 等填充 acc。
+    TPUSH<Pipe, AccTile, FixpipeConfig>(pipe, acc);
 }
 ```
 
