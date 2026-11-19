@@ -841,8 +841,12 @@ struct TPipe {
 #endif
 #ifdef PTO_COMPILE_CUBE
         // wait before TPUSH
-        wait_intra_block(PIPE_FIX, FlagIDCWaitV);
-        wait_intra_block(PIPE_FIX, FlagIDCWaitV + VEC_CORE_ID_OFFSET);
+        if constexpr (IsNoSplit) {
+            wait_intra_block(PIPE_FIX, FlagIDCWaitV);
+        } else {
+            wait_intra_block(PIPE_FIX, FlagIDCWaitV);
+            wait_intra_block(PIPE_FIX, FlagIDCWaitV + VEC_CORE_ID_OFFSET);
+        }
 #endif
     }
 
@@ -856,16 +860,18 @@ struct TPipe {
 #endif
 #ifdef PTO_COMPILE_CUBE
         // set before TPOP
-        set_intra_block(PIPE_MTE2, FlagIDVWaitC);
-        set_intra_block(PIPE_MTE2, FlagIDVWaitC + VEC_CORE_ID_OFFSET);
+        if constexpr (IsNoSplit) {
+            set_intra_block(PIPE_MTE2, FlagIDVWaitC);
+        } else {
+            set_intra_block(PIPE_MTE2, FlagIDVWaitC);
+            set_intra_block(PIPE_MTE2, FlagIDVWaitC + VEC_CORE_ID_OFFSET);
+        }
 #endif
     }
 
-    // The first SlotNum pushes already occupy empty slots. FreeCredit::kInitialFreeCredits
-    // is 0, including for split local pipes: SyncPeriod constructor credits would satisfy
-    // the first wrap wait before the consumer retires that tile (issue 390).
-    PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
-        : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
+    // Shared post-ctor init used by the default ctor and any arch-injected extra ctors
+    // (see PTO_TPIPE_EXTRA_CTORS_HEADER).
+    PTO_INTERNAL void InitPipeAfterConstruct()
     {
         if constexpr (is_c2v_ub) {
             HandShake4MixC2VMode();
@@ -886,6 +892,21 @@ struct TPipe {
             }
         }
     }
+
+    // The first SlotNum pushes already occupy empty slots. FreeCredit::kInitialFreeCredits
+    // is 0, including for split local pipes: SyncPeriod constructor credits would satisfy
+    // the first wrap wait before the consumer retires that tile (issue 390).
+    PTO_INTERNAL explicit TPipe(__gm__ void* GM_SLOT_BUFFER, uint32_t C2V_CONSUMER_BUF, uint32_t V2C_CONSUMER_BUF)
+        : fifo(GM_SLOT_BUFFER, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF), prod(), cons()
+    {
+        InitPipeAfterConstruct();
+    }
+
+    // Optional arch-specific TPipe constructors. Arch headers may define
+    // PTO_TPIPE_EXTRA_CTORS_HEADER before including this file to inject extras.
+#ifdef PTO_TPIPE_EXTRA_CTORS_HEADER
+#include PTO_TPIPE_EXTRA_CTORS_HEADER
+#endif
 
     // Drain credits the producer did not wait for. Split pipes wait on both flag lanes.
     PTO_INTERNAL ~TPipe()
@@ -967,8 +988,9 @@ PTO_INTERNAL void TPUSH_IMPL(Pipe& pipe, GlobalData& gmTensor)
     pipe.prod.template record<Split>();
 }
 
-// TPUSH interface with quant(Noquant, cast, scalar, vector, scalar)
-template <typename Pipe, typename TileProd, typename TConfig>
+// TPUSH interface with quant(Noquant, cast, scalar, vector, scalar).
+// MaxTrack (groupmax_en) is handled by A6R2's TPUSH_IMPL overload.
+template <typename Pipe, typename TileProd, typename TConfig, std::enable_if_t<!TConfig::groupmax_en, int> = 0>
 PTO_INTERNAL void TPUSH_IMPL(Pipe& pipe, TileProd& tile)
 {
     bool isAllocate = pipe.prod.getAllocateStatus() && Pipe::shouldWaitFree(pipe.prod.tileIndex);

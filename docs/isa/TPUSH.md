@@ -40,6 +40,19 @@ For the GlobalData flow:
 
 For the `TConfig` overload `TPUSH<Pipe, TileProd, TConfig>(pipe, tile)`, the `TConfig` template parameter configures fixpipe conversion and layout. NPU backends apply it to their L0C→GM/UB path, while CPU_SIM writes the converted result to the host FIFO slot.
 
+### A6R2 MaxTrack (C2V Acc→UB)
+
+On A6R2, when `TConfig` embeds `MaxTrack` with `groupmax_en=true`, the same `TPUSH<Pipe, TileProd, TConfig>` overload also writes MaxTrack sideband tiles into the C2V UB FIFO:
+
+1. Construct `TPipe` with the MaxTrack ctor that binds `C2V_GROUPMAX_BUF` / `C2V_ROWMAX_BUF` in addition to the usual C2V consumer buffer.
+2. `TPUSH<Pipe, AccTile, FixpipeParams<..., MaxTrack<...>>>` runs Acc→UB fixpipe (`TMovCcToUb`), programs `set_fixp_max_cfg`, and stores:
+   - main result into `C2V_CONSUMER_BUF` (as usual),
+   - GroupMax into `C2V_GROUPMAX_BUF` when `groupmax_en`,
+   - RowMax into `C2V_ROWMAX_BUF` when `groupmax_en && rowmax_en`.
+3. The matching consumer uses the A6R2 MaxTrack `TPOP` overloads (`vec`+`gMax`, or `vec`+`gMax`+`rMax`), then `TFREE`.
+
+When `groupmax_en=false`, behavior matches the existing A5/A6 C2V Acc→UB path (vec only). Implementation lives in `include/pto/npu/a6r2/TPush.hpp`.
+
 ## C++ Intrinsic
 
 Declared in `include/pto/common/pto_instr.hpp`:
@@ -111,6 +124,17 @@ constraints below continue to describe data FIFOs.
 - **TConfig overload**:
     - `TConfig` is a configuration type that determines push behavior (implementation-defined).
     - `TileProd::Loc` must be `TileType::Acc`, `TileType::Vec`, or `TileType::Ctrl`.
+- **A6R2 MaxTrack (`groupmax_en=true`)**:
+    - Supported only on A6R2 C2V UB FIFO (`Pipe::is_c2v_ub` or `Pipe::is_both`).
+    - Construct `TPipe` with `TPipe(gm, C2V_CONSUMER_BUF, V2C_CONSUMER_BUF, C2V_GROUPMAX_BUF, C2V_ROWMAX_BUF)`.
+    - `groupmax_en` / `rowmax_en` are effective only when `LayoutMode` is `NZ2ND` or `NZ2DN`.
+    - Result dtype after `FixpipeConsDType` must be `float`, `half`, or `bfloat16_t`.
+    - `TileProd::Cols` must be a multiple of `group_num`; GroupMax row bytes must be 32B-aligned.
+    - When `rowmax_en=1`, or when `groupmax_en=1` and `NZ2DN`: `srcTile` `validRow` must be `<= 128`.
+    - When `groupmax_en=1` and `NZ2ND`: `N / group_num` must be `<= 16`.
+    - `groupmax_en=true, rowmax_en=false` → outputs vec + gMax; `groupmax_en=true, rowmax_en=true` → vec + gMax + rMax.
+    - MaxTrack push uses `TILE_NO_SPLIT` allocation/record internally.
+    - GroupMax / RowMax UB addresses programmed into `set_fixp_max_cfg` are in C0 (32B) units.
 - **NPU synchronization**:
     - Free-space waits are sparse and controlled by `Pipe::SyncPeriod`.
     - Data-ready record is emitted for each `TPUSH`.
@@ -143,6 +167,17 @@ The `TConfig` template parameter for the `TPUSH<Pipe, TileProd, TConfig>(pipe, t
 Declared in `include/pto/common/fixpipe.hpp`:
 
 ```cpp
+template <bool absEn = false, bool groupmaxEn = false, bool rowmaxEn = false,
+          bool rowmaxCompareEn = false, bool rowmaxOutput = false, uint8_t groupNum = 8>
+struct MaxTrack {
+    static constexpr bool abs_en = absEn;
+    static constexpr bool groupmax_en = groupmaxEn;
+    static constexpr bool rowmax_en = rowmaxEn;
+    static constexpr bool rowmax_compare_en = rowmaxCompareEn;
+    static constexpr bool rowmax_output = rowmaxOutput;
+    static constexpr uint8_t group_num = groupNum;
+};
+
 template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND,
           QuantMode_t quantMode = QuantMode_t::NoQuant,
           ReluPreMode reluMode = ReluPreMode::NoRelu,
@@ -150,7 +185,8 @@ template <LayoutMode_t layoutMode = LayoutMode_t::NZ2ND,
           uint8_t subBlockId = 0,
           AtomicType atomicT = AtomicType::AtomicNone,
           ClipReluMode_t clipReluMode = ClipReluMode_t::NOCLIP_RELU,
-          bool isChannelSplit = false>
+          bool isChannelSplit = false,
+          typename MaxTrackCfg = MaxTrack<>>
 struct FixpipeParams {
     static constexpr LayoutMode_t LayoutMode = layoutMode;
     static constexpr QuantMode_t QuantPre = quantMode;
@@ -160,6 +196,13 @@ struct FixpipeParams {
     static constexpr AtomicType AtomicT = atomicT;
     static constexpr ClipReluMode_t ClipReluMode = clipReluMode;
     static constexpr bool IsChannelSplit = isChannelSplit;
+    using MaxTrackT = MaxTrackCfg;
+    static constexpr bool abs_en = MaxTrackCfg::abs_en;
+    static constexpr bool groupmax_en = MaxTrackCfg::groupmax_en;
+    static constexpr bool rowmax_en = MaxTrackCfg::rowmax_en;
+    static constexpr bool rowmax_compare_en = MaxTrackCfg::rowmax_compare_en;
+    static constexpr bool rowmax_output = MaxTrackCfg::rowmax_output;
+    static constexpr uint8_t group_num = MaxTrackCfg::group_num;
 };
 ```
 
@@ -175,6 +218,24 @@ struct FixpipeParams {
 | `AtomicT` | `AtomicType` | Atomic operation type for GM store: `AtomicNone` or `AtomicAdd`. Default: `AtomicNone`. |
 | `ClipReluMode` | `ClipReluMode_t` | Clip ReLU mode: `NOCLIP_RELU` or `CLIP_RELU`. Default: `NOCLIP_RELU`. |
 | `IsChannelSplit` | `bool` | Whether channel split is enabled. Default: `false`. |
+| `MaxTrackCfg` | `typename` | A6R2 MaxTrack sideband config (`MaxTrack<...>`). Default: `MaxTrack<>` (disabled). |
+
+### MaxTrack Fields (A6R2)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `abs_en` | `bool` | Absolute-value before max tracking. Default: `false`. |
+| `groupmax_en` | `bool` | Emit GroupMax sideband. NZ2ND shape `[srcValidRow, srcValidCol/group_num]`; NZ2DN transposed `[srcValidCol/group_num, srcValidRow]`. Enables MaxTrack C2V path. Default: `false`. |
+| `rowmax_en` | `bool` | Emit RowMax sideband (1D, validCol = src validRow). Requires `groupmax_en`. Default: `false`. |
+| `rowmax_compare_en` | `bool` | Hardware rowmax compare enable for `set_fixp_max_cfg`. Default: `false`. |
+| `rowmax_output` | `bool` | Hardware rowmax output enable for `set_fixp_max_cfg`. Default: `false`. |
+| `group_num` | `uint8_t` | Elements per GroupMax group. Default: `8`. |
+
+MaxTrack push defines consumer tile shapes internally from `TileProd` / `TConfig`:
+
+- Fixpipe vec tile: NZ2ND RowMajor / NZ2DN ColMajor / else NZ (same size as Acc).
+- GroupMax (RowMajor, ValidRow/ValidCol `DYNAMIC`): NZ2ND `[srcValidRow, srcValidCol/group_num]`; NZ2DN transposed `[srcValidCol/group_num, srcValidRow]`.
+- RowMax: `[1, ceil32B(ProdM)]`, RowMajor, `ValidCol=DYNAMIC` (construct / TPOP-set with `srcValidRow`).
 
 ### TConfig Usage Example
 
@@ -202,6 +263,42 @@ AICORE void example_tconfig_push(__gm__ void *fifoMem)
     TASSIGN(acc, 0x0);
 
     TPUSH<Pipe, AccTile, MyConfig>(pipe, acc);
+}
+```
+
+### A6R2 MaxTrack C2V Push
+
+```cpp
+#include <pto/pto-inst.hpp>
+#include <pto/common/fixpipe.hpp>
+
+using namespace pto;
+
+AICORE void example_a6r2_maxtrack_push()
+{
+    constexpr uint32_t M = 128;
+    constexpr uint32_t N = 128;
+    constexpr uint8_t kGroupNum = 8;
+    constexpr uint16_t FLAG_ID = 0;
+    constexpr uint8_t FIFO_DEPTH = 2;
+
+    using AccTile = TileAcc<float, M, N, M, N>;
+    using MaxTrackCfg = MaxTrack</*abs*/false, /*gmax*/true, /*rmax*/true,
+                                 /*cmp*/false, /*out*/true, kGroupNum>;
+    using FixpipeConfig = FixpipeParams<
+        LayoutMode_t::NZ2ND, QuantMode_t::NoQuant, ReluPreMode::NoRelu, STPhase::Unspecified, 0,
+        AtomicType::AtomicNone, ClipReluMode_t::NOCLIP_RELU, false, MaxTrackCfg>;
+    using Pipe = TPipe<FLAG_ID, Direction::DIR_C2V, M * N * sizeof(float), FIFO_DEPTH, 2, true>;
+
+    constexpr uint32_t C2V_BUF = 0x0;
+    constexpr uint32_t GMAX_BUF = 0x20000;
+    constexpr uint32_t RMAX_BUF = 0x28000;
+    Pipe pipe((__gm__ void*)(uint64_t)0x0, C2V_BUF, (uint32_t)0x0, GMAX_BUF, RMAX_BUF);
+
+    AccTile acc;
+    TASSIGN(acc, 0x0);
+    // Fill acc (e.g. TMATMUL) before pushing.
+    TPUSH<Pipe, AccTile, FixpipeConfig>(pipe, acc);
 }
 ```
 

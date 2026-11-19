@@ -418,7 +418,40 @@ PTO_INTERNAL void pto_copy_matrix_cc_to_cbuf(
 }
 #endif
 
-#if defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
+#if defined(PTO_NPU_ARCH_A6R2)
+// A6R2 (dav-9202) mirrors copy_matrix_cc_to_ub parameter order exactly:
+// dual_dst_ctl, sub_blockid, row_max_en, group_max_en, quant_pre_rnd, ...
+template <typename T, typename U>
+PTO_INTERNAL void pto_copy_matrix_cc_to_ub(
+    __ubuf__ T* dst, __cc__ U* src, uint16_t nSize, uint16_t mSize, uint32_t dstStride, uint16_t srcStride,
+    uint8_t dualDstCtl, bool subBlockid, bool rowMaxEn, bool groupMaxEn, bool quantPreRnd, uint8_t clipReluPre,
+    uint8_t unitFlagCtl, uint64_t quantPre, uint8_t reluPre, bool splitEn, bool nz2ndEn, uint64_t quantPost,
+    uint8_t reluPost, bool clipReluPost, bool loopEnhanceEn, uint8_t eltwiseOp, bool eltwiseAntqEn,
+    bool loopEnhanceMergeEn, bool c0PadEn, bool winoPostEn, bool broadcastEn, bool nz2dnEn)
+{
+    copy_matrix_cc_to_ub(
+        dst, src, nSize, mSize, dstStride, srcStride, dualDstCtl, subBlockid, rowMaxEn, groupMaxEn, quantPreRnd,
+        clipReluPre, unitFlagCtl, quantPre, reluPre, splitEn, nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn,
+        eltwiseOp, eltwiseAntqEn, loopEnhanceMergeEn, c0PadEn, winoPostEn, broadcastEn, nz2dnEn);
+}
+
+// Compat for a5-order call sites (sid after src); MaxTrack disables by default.
+template <typename T, typename U>
+PTO_INTERNAL void pto_copy_matrix_cc_to_ub(
+    __ubuf__ T* dst, __cc__ U* src, uint8_t sid, uint16_t nSize, uint16_t mSize, uint32_t dstStride, uint16_t srcStride,
+    uint8_t dualDstCtl, bool subBlockid, uint8_t clipReluPre, uint8_t unitFlagCtl, uint64_t quantPre, uint8_t reluPre,
+    bool splitEn, bool nz2ndEn, uint64_t quantPost, uint8_t reluPost, bool clipReluPost, bool loopEnhanceEn,
+    uint8_t eltwiseOp, bool eltwiseAntqEn, bool loopEnhanceMergeEn, bool c0PadEn, bool winoPostEn, bool broadcastEn,
+    bool nz2dnEn)
+{
+    (void)sid;
+    pto_copy_matrix_cc_to_ub(
+        dst, src, nSize, mSize, dstStride, srcStride, dualDstCtl, subBlockid, false /* rowMaxEn */,
+        false /* groupMaxEn */, false /* quantPreRnd */, clipReluPre, unitFlagCtl, quantPre, reluPre, splitEn, nz2ndEn,
+        quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn, loopEnhanceMergeEn, c0PadEn,
+        winoPostEn, broadcastEn, nz2dnEn);
+}
+#elif defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_KIRIN9030) || \
     defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90)
 template <typename T, typename U>
 PTO_INTERNAL void pto_copy_matrix_cc_to_ub(
@@ -438,16 +471,23 @@ PTO_INTERNAL void pto_copy_matrix_cc_to_ub(
     // the platform wrapper hard-fills positions 7-9 with 0/false/false and its
     // 3510-signature compat layer drops dual_dst_ctl/sub_blockid entirely.
     // Position 9 is the quant_pre_rnd slot (false = default rounding).
+    (void)dualDstCtl;
+    (void)subBlockid;
+    (void)sid;
     copy_matrix_cc_to_ub(
         dst, src, nSize, mSize, dstStride, srcStride, 0, false, false, clipReluPre, unitFlagCtl, quantPre, reluPre,
         splitEn, nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn,
         loopEnhanceMergeEn, c0PadEn, winoPostEn, broadcastEn, nz2dnEn);
 #elif defined(PTO_NPU_ARCH_KIRIN9030)
+    (void)dualDstCtl;
+    (void)subBlockid;
     copy_matrix_cc_to_ub(
         dst, src, sid, nSize, mSize, dstStride, srcStride, clipReluPre, unitFlagCtl, quantPre, reluPre, splitEn,
         nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn, loopEnhanceMergeEn,
         c0PadEn, winoPostEn, broadcastEn, nz2dnEn);
 #elif defined(PTO_NPU_ARCH_KIRINX90)
+    (void)dualDstCtl;
+    (void)subBlockid;
     copy_matrix_cc_to_ub(
         dst, src, sid, nSize, mSize, dstStride, srcStride, clipReluPre, unitFlagCtl, quantPre, reluPre, splitEn,
         nz2ndEn, quantPost, reluPost, clipReluPost, loopEnhanceEn, eltwiseOp, eltwiseAntqEn, loopEnhanceMergeEn,
