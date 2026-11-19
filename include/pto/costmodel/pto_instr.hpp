@@ -27,7 +27,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/costmodel/perf_sim/tile_dep_tracker.hpp"
 #include "pto/costmodel/perf_sim/latency.hpp"
 #include "pto/costmodel/perf_sim/costmodel_provider.hpp"
-#include "pto/costmodel/hybrid_costmodel.hpp"
+#include "pto/costmodel/a2a3/hybrid_costmodel.hpp"
 namespace perf_sim = ::pto::perf_sim;
 #endif
 #if !defined(PTO_COMM_NOT_SUPPORTED)
