@@ -1269,7 +1269,7 @@ extern "C" __global__ AICORE void launchTEXTRACT_COMPACT_1(
 
     constexpr uint16_t baseM = 128;
     constexpr uint16_t baseN = 256;
-    constexpr uint16_t baseK = 128;
+    constexpr uint16_t baseK = 64;
 
     constexpr bool isAtranspose = true;
     constexpr bool isBtranspose = false;
@@ -1339,7 +1339,7 @@ extern "C" __global__ AICORE void launchTEXTRACT_COMPACT_11(
 
     constexpr uint16_t baseM = 128;
     constexpr uint16_t baseN = 256;
-    constexpr uint16_t baseK = 128;
+    constexpr uint16_t baseK = 64;
 
     constexpr bool isAtranspose = false;
     constexpr bool isBtranspose = true;
@@ -1410,7 +1410,7 @@ extern "C" __global__ AICORE void launchTEXTRACT_COMPACT_21(
 
     constexpr uint16_t baseM = 128;
     constexpr uint16_t baseN = 256;
-    constexpr uint16_t baseK = 128;
+    constexpr uint16_t baseK = 64;
 
     constexpr bool isAtranspose = false;
     constexpr bool isBtranspose = false;
@@ -1480,7 +1480,7 @@ extern "C" __global__ AICORE void launchTEXTRACT_COMPACT_31(
 
     constexpr uint16_t baseM = 128;
     constexpr uint16_t baseN = 256;
-    constexpr uint16_t baseK = 128;
+    constexpr uint16_t baseK = 64;
 
     constexpr bool isAtranspose = true;
     constexpr bool isBtranspose = true;
