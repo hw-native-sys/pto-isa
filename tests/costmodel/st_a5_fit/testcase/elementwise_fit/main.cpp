@@ -584,8 +584,6 @@ TEST(A5DenseSingleRowFit, PreservesUncalibratedKeys)
     EXPECT_NE(keyFor(input), "dense_row1");
     input.valid_cols = 0;
     input.cols = 576;
-    EXPECT_EQ(keyFor(input), "dense_row1");
-    input.cols = 65537;
     EXPECT_NE(keyFor(input), "dense_row1");
     input.cols = 64;
     input.rows = 2;

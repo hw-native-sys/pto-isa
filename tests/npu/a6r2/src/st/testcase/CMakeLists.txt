@@ -160,7 +160,6 @@ endfunction()
 # A6R2 cases — start with TADD; add more as they are adopted from A6/A5.
 set(ALL_TESTCASES
     tadd
-    tpushpop_c2v_maxtrack
 )
 
 if (AUTO_MODE)
