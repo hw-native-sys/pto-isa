@@ -51,7 +51,7 @@ struct TPipe {
     static constexpr uint8_t VEC_CORE_ID_OFFSET = 16;
     static_assert(
         is_ctrl_pipe || FlagIDPlusOne <= MAX_SYC_ID,
-        "Fix: With Both direction, FlagID + 1 must be less than 15 due to hardware limit.");
+        "Fix: With Both direction, FlagID + 1 must be <= MAX_SYC_ID due to hardware limit.");
     static_assert(!is_ctrl_pipe || SlotNum > 0, "Control FIFO depth must be positive.");
     static_assert(!is_ctrl_pipe || SlotSize >= sizeof(uint32_t), "Control FIFO SlotSize must hold a uint32_t payload.");
     static_assert(
@@ -244,7 +244,7 @@ struct TPipe {
 #ifdef PTO_COMPILE_VEC
                 static_assert(
                     FlagIDPlusThree <= MAX_SYC_ID,
-                    "Fix: With Both direction, FlagID + 3 must be less than 15 due to hardware limit.");
+                    "Fix: With Both direction, FlagID + 3 must be <= MAX_SYC_ID due to hardware limit.");
                 wait_intra_block(PIPE_MTE3, FlagIDPlusThree);
 #endif
             } else if constexpr (is_both_gm) {
@@ -254,7 +254,7 @@ struct TPipe {
 #ifdef PTO_COMPILE_VEC
                 static_assert(
                     FlagIDPlusThree <= MAX_SYC_ID,
-                    "Fix: With Both direction, FlagID + 3 must be less than 15 due to hardware limit.");
+                    "Fix: With Both direction, FlagID + 3 must be <= MAX_SYC_ID due to hardware limit.");
                 wait_intra_block(PIPE_MTE3, FlagIDPlusThree);
 #endif
             }
@@ -695,7 +695,7 @@ struct TPipe {
 #ifdef PTO_COMPILE_CUBE
                 static_assert(
                     FlagIDPlusThree <= MAX_SYC_ID,
-                    "Fix: With Both direction, FlagID + 3 must be less than 15 due to hardware limit.");
+                    "Fix: With Both direction, FlagID + 3 must be <= MAX_SYC_ID due to hardware limit.");
                 setIntraBlockBySplit<PIPE_MTE1, Split>(FlagIDPlusThree);
 #endif
             } else if constexpr (is_v2c_gm || is_v2c_mat) {
@@ -709,7 +709,7 @@ struct TPipe {
 #ifdef PTO_COMPILE_CUBE
                 static_assert(
                     FlagIDPlusThree <= MAX_SYC_ID,
-                    "Fix: With Both direction, FlagID + 3 must be less than 15 due to hardware limit.");
+                    "Fix: With Both direction, FlagID + 3 must be <= MAX_SYC_ID due to hardware limit.");
                 setIntraBlockBySplit<PIPE_MTE1, Split>(FlagIDPlusThree);
 #endif
             }
@@ -831,57 +831,10 @@ struct TPipe {
     Producer prod;
     Consumer cons;
 
-    PTO_INTERNAL void HandShake4MixC2VMode()
-    {
-        // Mixed task need wait AIV-only task finished before start to push data to UB FIFO
-        constexpr uint8_t FlagIDCWaitV = 14;
-#ifdef PTO_COMPILE_VEC
-        // set before TPOP
-        set_intra_block(PIPE_V, FlagIDCWaitV);
-#endif
-#ifdef PTO_COMPILE_CUBE
-        // wait before TPUSH
-        if constexpr (IsNoSplit) {
-            wait_intra_block(PIPE_FIX, FlagIDCWaitV);
-        } else {
-            wait_intra_block(PIPE_FIX, FlagIDCWaitV);
-            wait_intra_block(PIPE_FIX, FlagIDCWaitV + VEC_CORE_ID_OFFSET);
-        }
-#endif
-    }
-
-    PTO_INTERNAL void HandShake4MixV2CMode()
-    {
-        // Mixed task need wait AIC-only task finished before start to push data to L1 FIFO
-        constexpr uint8_t FlagIDVWaitC = 15;
-#ifdef PTO_COMPILE_VEC
-        // wait before TINSERT
-        wait_intra_block(PIPE_MTE3, FlagIDVWaitC);
-#endif
-#ifdef PTO_COMPILE_CUBE
-        // set before TPOP
-        if constexpr (IsNoSplit) {
-            set_intra_block(PIPE_MTE2, FlagIDVWaitC);
-        } else {
-            set_intra_block(PIPE_MTE2, FlagIDVWaitC);
-            set_intra_block(PIPE_MTE2, FlagIDVWaitC + VEC_CORE_ID_OFFSET);
-        }
-#endif
-    }
-
     // Shared post-ctor init used by the default ctor and any arch-injected extra ctors
     // (see PTO_TPIPE_EXTRA_CTORS_HEADER).
     PTO_INTERNAL void InitPipeAfterConstruct()
     {
-        if constexpr (is_c2v_ub) {
-            HandShake4MixC2VMode();
-        } else if constexpr (is_v2c_mat) {
-            HandShake4MixV2CMode();
-        } else if constexpr (is_both) {
-            HandShake4MixC2VMode();
-            HandShake4MixV2CMode();
-        }
-
         if constexpr (!is_ctrl_pipe && FreeCredit::kInitialFreeCredits > 0) {
             for (uint32_t credit = 0; credit < FreeCredit::kInitialFreeCredits; ++credit) {
                 if constexpr (IsNoSplit) {
@@ -1032,7 +985,7 @@ struct TMPipe {
     static constexpr int VEC_CORE_ID_OFFSET = 16;
     static_assert(
         FlagIDPlusOne <= MAX_SYC_ID,
-        "Fix: With single direction, FlagID + 1 must be less than 15 due to hardware limit.");
+        "Fix: With single direction, FlagID + 1 must be <= MAX_SYC_ID due to hardware limit.");
 
     using DataFiFo = std::conditional_t<
         (FiFoType == FIFOType::GM_FIFO),
