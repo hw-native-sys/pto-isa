@@ -1,5 +1,5 @@
 /**
-Copyright (c) 2025 Huawei Technologies Co., Ltd.
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
 This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 CANN Open Software License Agreement Version 2.0 (the "License").
 Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -16,6 +16,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 
 #include <pto/common/arch_macro.hpp>
+#if !defined(__CPU_SIM) && !defined(__COSTMODEL) &&                                        \
+    (defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
+     defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90))
+#include <pto/common/buffer_limits.hpp>
+#endif
 #include "pto/common/memory.hpp"
 #include <pto/common/type.hpp>
 #include <pto/common/constants.hpp>
@@ -1487,7 +1492,7 @@ public:
     PTO_INTERNAL void SetRepeatMode(uint8_t repeatMode) { repeatMode_ = repeatMode; }
     PTO_INTERNAL bool GetTranspose() const { return transpose_; }
     PTO_INTERNAL void SetTranspose(bool transpose) { transpose_ = transpose; }
-#ifndef PTO_NPU_ARCH_A2A3
+#if !defined(PTO_NPU_ARCH_A2A3) || defined(__COSTMODEL)
     PTO_INTERNAL void SetDstStride(uint16_t dstStride) { dstStride_ = dstStride; }
     PTO_INTERNAL uint16_t GetDstStride() const { return dstStride_; }
     PTO_INTERNAL void SetDstMposition(uint16_t dstMposition) { dstMposition_ = dstMposition; }
@@ -1513,7 +1518,7 @@ private:
     uint16_t repeatStride_ = 0;
     uint8_t repeatTime_ = 1;
     uint8_t repeatMode_ = 0;
-#ifndef PTO_NPU_ARCH_A2A3
+#if !defined(PTO_NPU_ARCH_A2A3) || defined(__COSTMODEL)
     uint16_t dstStride_ = 0;
     uint16_t dstMposition_ = 0;
 #endif
@@ -1623,6 +1628,32 @@ public:
         Cols;
     static constexpr size_t StorageBytes = StorageNumel / kPackedElementsPerByte * sizeof(DType);
 
+#if !defined(__CPU_SIM) && !defined(__COSTMODEL) &&                                        \
+    (defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
+     defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90))
+    static_assert(
+        Loc != TileType::Vec || StorageBytes <= PTO_UBUF_SIZE_BYTES, "Vec tile storage size exceeds UB capacity");
+    static_assert(
+        Loc != TileType::Mat || StorageBytes <= PTO_CBUF_SIZE_BYTES, "Mat tile storage size exceeds L1 capacity");
+    static_assert(
+        Loc != TileType::Left || StorageBytes <= PTO_L0A_SIZE_BYTES, "Left tile storage size exceeds L0A capacity");
+    static_assert(
+        Loc != TileType::Right || StorageBytes <= PTO_L0B_SIZE_BYTES, "Right tile storage size exceeds L0B capacity");
+    static_assert(
+        Loc != TileType::Acc || StorageBytes <= PTO_L0C_SIZE_BYTES, "Acc tile storage size exceeds L0C capacity");
+    static_assert(
+        Loc != TileType::Bias || StorageBytes <= PTO_BIAS_SIZE_BYTES, "Bias tile storage size exceeds Bias capacity");
+    static_assert(
+        Loc != TileType::Scaling || StorageBytes <= PTO_FBUF_SIZE_BYTES,
+        "Scaling tile storage size exceeds FBUF capacity");
+    static_assert(
+        Loc != TileType::ScaleLeft || StorageBytes <= PTO_SCALELEFT_SIZE_BYTES,
+        "ScaleLeft tile storage size exceeds ScaleLeft capacity");
+    static_assert(
+        Loc != TileType::ScaleRight || StorageBytes <= PTO_SCALERIGHT_SIZE_BYTES,
+        "ScaleRight tile storage size exceeds ScaleRight capacity");
+#endif
+
     __tf__ AICORE void SetValue(const uint32_t offset, const DType val)
     {
         static_assert(Loc == TileType::Vec, "Location of tile must be Location::Vec.");
@@ -1702,8 +1733,12 @@ public:
     static_assert(Cols % InnerCols == 0, "Layout cols must be divisible by inner box cols");
 
     static_assert(
-        (BFractal_ == BLayout::RowMajor && SFractal_ == SLayout::NoneBox &&
-         Cols * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
+#if !defined(__CPU_SIM) && !defined(__COSTMODEL)
+        // NPU control tiles hold a scalar rather than an aligned data buffer.
+        (Loc == TileType::Ctrl) ||
+#endif
+            (BFractal_ == BLayout::RowMajor && SFractal_ == SLayout::NoneBox &&
+             Cols * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
             (BFractal_ == BLayout::ColMajor && SFractal_ == SLayout::NoneBox &&
              Rows * sizeof(DType) % (kPackedElementsPerByte * TileConfig::alignedSize) == 0) ||
             (SFractal_ != SLayout::NoneBox) &&
@@ -1759,6 +1794,10 @@ public:
 #endif
 
 #ifdef __COSTMODEL
+    // Preserve explicit device address metadata without calling data(), whose
+    // host-side lazy allocation would otherwise erase the distinction at zero.
+    bool HasCostModelAssignedAddress() const { return costModelAddressAssigned_; }
+    std::uintptr_t GetCostModelAssignedAddress() const { return costModelAddress_; }
     float cycle;
     AICORE void SetCycle(const float cycle_) { cycle = cycle_; }
 
@@ -1879,8 +1918,19 @@ public:
     }
 #endif
 private:
-    AICORE void assignData(TileDType data) { data_ = data; }
+    AICORE void assignData(TileDType data)
+    {
+        data_ = data;
+#ifdef __COSTMODEL
+        costModelAddress_ = reinterpret_cast<std::uintptr_t>(data);
+        costModelAddressAssigned_ = true;
+#endif
+    }
     bool isKAligned_ = false; // K alignment flag for A3.
+#ifdef __COSTMODEL
+    std::uintptr_t costModelAddress_ = 0;
+    bool costModelAddressAssigned_ = false;
+#endif
 
 #if defined(__CPU_SIM) || defined(__COSTMODEL)
     mutable std::vector<DType> internalBuffer;

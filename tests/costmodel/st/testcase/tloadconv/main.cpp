@@ -47,6 +47,9 @@ void runTloadConv()
     TLOAD(convTile, srcGlobal);
 
     EXPECT_CYCLE_NEAR(profiling, accuracy);
+    // Both public overloads must preserve the convolution implementation.
+    TLOAD<TLoadL2Hint::NormalFirstVictim>(convTile, srcGlobal);
+    EXPECT_CYCLE_NEAR(profiling, accuracy);
 }
 
 template <typename T, int C1, int H, int W, int N, float profiling, float accuracy>

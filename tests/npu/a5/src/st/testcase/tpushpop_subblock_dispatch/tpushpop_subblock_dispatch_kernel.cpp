@@ -92,9 +92,6 @@ __global__ AICORE void runTPushPopSubBlockDispatchV2C(__gm__ T* out, __gm__ T* s
     constexpr uint16_t FLAG_ID = 0;
     constexpr uint8_t FIFO_DEPTH = 2;
 
-    using MatPipe = TPipe<FLAG_ID, Direction::DIR_V2C, K * N * sizeof(T), FIFO_DEPTH, 2, IS_NO_SPLIT>;
-    MatPipe mPipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x10000);
-
     constexpr uint32_t blockAlign = C0_SIZE_BYTE / sizeof(T);
     constexpr uint32_t ALIGNED_M = CeilAlign<uint32_t>(M, 16);
     constexpr uint32_t ALIGNED_K = CeilAlign<uint32_t>(K, blockAlign);
@@ -122,6 +119,9 @@ __global__ AICORE void runTPushPopSubBlockDispatchV2C(__gm__ T* out, __gm__ T* s
         }
 
         if (isProducer) {
+            using MatPipe = TPipe<FLAG_ID, Direction::DIR_V2C, K * N * sizeof(T), FIFO_DEPTH, 2, IS_NO_SPLIT>;
+            MatPipe mPipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x10000);
+
             VecTileProd bTile;
             VecTileNZ bTileNZ;
             TASSIGN(bTile, 0x0);
@@ -151,6 +151,8 @@ __global__ AICORE void runTPushPopSubBlockDispatchV2C(__gm__ T* out, __gm__ T* s
     }
 
     if constexpr (DAV_CUBE) {
+        using MatPipe = TPipe<FLAG_ID, Direction::DIR_V2C, K * N * sizeof(T), FIFO_DEPTH, 2, IS_NO_SPLIT>;
+        MatPipe mPipe((__gm__ void*)(uint64_t)0x0, (uint32_t)0x0, (uint32_t)0x10000);
         TileMatA aMatTile;
         PopTile matFifoTile;
         LeftTile aTile;

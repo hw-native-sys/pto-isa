@@ -17,235 +17,12 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 
 #include <pto/common/type.hpp>
+#include <pto/costmodel/lightweight_costmodel_types.hpp>
 #include <pto/costmodel/a2a3/formula_costmodel/formula_backend_transfer.hpp>
 #include <pto/costmodel/a2a3/formula_costmodel/formula_backend_compute.hpp>
 #include <pto/costmodel/arch_config.hpp>
 
 namespace pto::mocker::lightweight {
-
-enum class PtoOpcode {
-    TADD,
-    TSUB,
-    TMUL,
-    TDIV,
-    TRECIP,
-    TADDS,
-    TSUBS,
-    TMULS,
-    TDIVS,
-    TMINS,
-    TMAXS,
-    TABS,
-    TNEG,
-    TEXP,
-    TSQRT,
-    TRSQRT,
-    TLOG,
-    TRELU,
-    TLRELU,
-    TNOT,
-    TROWSUM,
-    TROWMAX,
-    TROWMIN,
-    TROWPROD,
-    TCOLSUM,
-    TCOLMAX,
-    TCOLMIN,
-    TCOLPROD,
-    TMATMUL,
-    TGEMV,
-    TCVT,
-    TMOV,
-    TLOAD,
-    TSTORE,
-    TTRANS,
-    TSORT32,
-    TMRGSORT,
-    TSEL,
-    TSCATTER,
-    TEXTRACT,
-    TINSERT,
-    TROWEXPAND,
-    TCOLEXPAND,
-    TLOADCONV,
-    TPREFETCH,
-    TMAX,
-    TMIN,
-    TAND,
-    TOR,
-    TANDS,
-    TORS,
-    TXOR,
-    TXORS,
-    TFMOD,
-    TFMODS,
-    TREM,
-    TREMS,
-    TPOW,
-    TPOWS,
-    TMADD,
-    TMULA,
-    TPRELU,
-    TPARTADD,
-    TPARTMUL,
-    TPARTMAX,
-    TPARTMIN,
-    TAXPY,
-    TCMP,
-    TCMPS,
-    TROWARGMAX,
-    TROWARGMIN,
-    TCOLARGMAX,
-    TCOLARGMIN,
-    TROWEXPANDADD,
-    TROWEXPANDSUB,
-    TROWEXPANDMUL,
-    TROWEXPANDDIV,
-    TROWEXPANDMAX,
-    TROWEXPANDMIN,
-    TROWEXPANDEXPDIF,
-    TCOLEXPANDADD,
-    TCOLEXPANDSUB,
-    TCOLEXPANDMUL,
-    TCOLEXPANDDIV,
-    TCOLEXPANDMAX,
-    TCOLEXPANDMIN,
-    TCOLEXPANDEXPDIF,
-    TEXPANDS,
-    TSELS,
-    TCONCAT,
-    TGATHER,
-    TGATHERB,
-    TFILLPAD,
-    TFILLPAD_EXPAND,
-    TTRI,
-    TDEQUANT,
-    TRESHAPE,
-    TSHL,
-    TSHR,
-    TSHLS,
-    TSHRS,
-    TPARTARGMAX,
-    TPARTARGMIN,
-    TCI,
-    TINTERLEAVE,
-    TDEINTERLEAVE,
-    TMATMUL_ACC,
-    TMATMUL_BIAS,
-    TMATMUL_MX,
-    TGEMV_ACC,
-    TGEMV_BIAS,
-    TGEMV_MX,
-    COUNT,
-};
-
-enum class DType : uint8_t {
-    Float,
-    Half,
-    Int8,
-    Int16,
-    Int32,
-    Uint8,
-    Uint16,
-    Uint32,
-    BFloat16,
-    Float8E4M3,
-    Float8E5M2,
-    HFloat8,
-    Float4E1M2,
-    Float4E2M1,
-};
-
-using MemLayout = ::pto::Layout;
-using RoundMode = ::pto::RoundMode;
-using SaturationMode = ::pto::SaturationMode;
-using TransferTileType = fit::TransferTileType;
-using VFImplKind = ::pto::VFImplKind;
-
-enum class CostModelArch : uint8_t {
-    A2A3,
-    A5,
-};
-
-enum class A5ShapePathHint : uint8_t {
-    Auto,
-    Path1D,
-    Path2D,
-};
-
-// Explicit source/destination geometry: transpose dispatch uses physical source
-// dimensions, while its loops use valid dimensions and its indices use strides.
-struct TransposeGeometry {
-    bool ordinary_row_major = false;
-    int64_t src_rows = 0;
-    int64_t src_cols = 0;
-    int64_t src_valid_rows = 0;
-    int64_t src_valid_cols = 0;
-    int64_t src_row_stride = 0;
-    int64_t dst_rows = 0;
-    int64_t dst_cols = 0;
-    int64_t dst_valid_rows = 0;
-    int64_t dst_valid_cols = 0;
-    int64_t dst_row_stride = 0;
-};
-
-struct CostModelInput {
-    PtoOpcode op;
-    DType dtype;
-    int64_t rows;
-    int64_t cols;
-    CostModelArch arch = CostModelArch::A2A3;
-
-    DType dtype2 = DType::Float;
-    bool has_dtype2 = false;
-    int64_t k = 0;
-
-    DType dst_dtype = DType::Float;
-    RoundMode round_mode = RoundMode::CAST_NONE;
-
-    MemLayout layout = MemLayout::ND;
-
-    int64_t dst_rows = 0;
-    int64_t dst_cols = 0;
-
-    int64_t block_len = 0;
-    int64_t src_count = 1;
-
-    int64_t channels = 0;
-    int64_t height = 0;
-    int64_t width = 0;
-
-    TransferTileType tile_type = TransferTileType::Unknown;
-    int64_t data_size = 0;
-
-    int64_t valid_rows = 0;
-    int64_t valid_cols = 0;
-    A5ShapePathHint a5_shape_path = A5ShapePathHint::Auto;
-    VFImplKind vf_impl_kind = VFImplKind::VFIMPL_DEFAULT;
-    SaturationMode saturation_mode = SaturationMode::ON;
-    std::string_view a5_op_params{};
-    TransposeGeometry transpose{};
-    // Pattern overloads are distinct from indexed gather/scatter, including P1111.
-    bool has_mask_pattern = false;
-    MaskPattern mask_pattern = MaskPattern::P1111;
-    GatherAxis gather_axis = GatherAxis::GATHER_ROW;
-    ScatterAxis scatter_axis = ScatterAxis::SCATTER_ROW;
-    int64_t dst_valid_rows = 0;
-    int64_t dst_valid_cols = 0;
-    int64_t concat_src0_cols = 0;
-    int64_t concat_src1_cols = 0;
-    bool concat_dense_sources = false;
-};
-
-struct CostModelResult {
-    double cycles = 0.0;
-    long double latency_us = 0.0L;
-};
-
-struct PredictRuntimeConfig {
-    long double frequency_mhz = 0.0L;
-    evaluator::BandwidthTable bandwidth_bytes_per_us{};
-};
 
 namespace a5 {
 inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles);
@@ -253,6 +30,7 @@ inline bool TryEstimateA5ReductionCycles(const CostModelInput& input, uint64_t& 
 inline bool TryEstimateA5MatrixTransferCycles(const CostModelInput& input, uint64_t& cycles);
 inline bool TryEstimateA5SequenceCycles(const CostModelInput& input, uint64_t& cycles);
 inline bool TryEstimateA5TransposeCycles(const CostModelInput& input, uint64_t& cycles);
+inline bool TryEstimateA5DefaultInputCycles(const CostModelInput& input, uint64_t& cycles);
 } // namespace a5
 
 inline constexpr const char* DTypeToString(DType dtype)
@@ -406,6 +184,16 @@ inline constexpr const char* PtoOpcodeToString(PtoOpcode op)
         "TGEMV_ACC",
         "TGEMV_BIAS",
         "TGEMV_MX",
+        "TFILLPAD_INPLACE",
+        "TRANDOM",
+        "TQUANT",
+        "THISTOGRAM",
+        "TIMG2COL",
+        "SETFMATRIX",
+        "SET_IMG2COL_RPT",
+        "SET_IMG2COL_PADDING",
+        "SET_QUANT_SCALAR",
+        "SET_QUANT_VECTOR",
     };
     static_assert(names.size() == static_cast<size_t>(PtoOpcode::COUNT));
     static_assert(std::string_view(names[static_cast<size_t>(PtoOpcode::TNOT)]) == "TNOT");
@@ -586,6 +374,14 @@ inline bool TryEstimateA5Cycles(
     const CostModelInput& input, const PredictRuntimeConfig& predict_config, CostModelResult& result)
 {
     uint64_t cycles = 0;
+    if (input.default_input.present) {
+        if (!a5::TryEstimateA5DefaultInputCycles(input, cycles))
+            return WarnAndFallbackToZero(input, result, "unsupported A5 default-input profile/geometry");
+        result.cycles = static_cast<double>(cycles);
+        result.latency_us = evaluator::CyclesToUs(cycles, predict_config.frequency_mhz);
+        result.assumed_input_profile = input.default_input.profile;
+        return true;
+    }
     if (!a5::TryEstimateA5TransposeCycles(input, cycles) && !a5::TryEstimateA5SequenceCycles(input, cycles) &&
         !a5::TryEstimateA5ReductionCycles(input, cycles) && !a5::TryEstimateA5MatrixTransferCycles(input, cycles) &&
         !a5::TryEstimateA5VfCycles(input, cycles)) {
@@ -650,6 +446,7 @@ inline bool TryEstimateElementwiseCycles(
 inline bool EstimateCycles(
     const CostModelInput& input, const PredictRuntimeConfig& predict_config, CostModelResult& result)
 {
+    result.assumed_input_profile = DefaultInputProfile::None;
     if (input.arch == CostModelArch::A5) {
         return TryEstimateA5Cycles(input, predict_config, result);
     }
@@ -682,5 +479,6 @@ inline CostModelResult EstimateCycles(const CostModelInput& input)
 #include <pto/costmodel/a5/matrix_transfer_costmodel.hpp>
 #include <pto/costmodel/a5/sequence_costmodel.hpp>
 #include <pto/costmodel/a5/transpose_costmodel.hpp>
+#include <pto/costmodel/a5/default_input_costmodel.hpp>
 
 #endif

@@ -367,6 +367,9 @@ stages:
         container:
           image: swr.cn-south-1.myhuaweicloud.com/pre_smoke/${{ jobs.JOB_image.outputs.PreSmoke_npupool }}
       PreSmoke_A5:
+        permissions:
+          repository: read
+          id-token: write
         name: PreSmoke_A5
         steps:
           -
@@ -377,13 +380,20 @@ stages:
               ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
               allow-unsafe-pr-checkout: true
           -
+            name: oidc_auth
+            uses: huaweicloud-oidc-auth
+            with:
+              audience: ${{ secrets.audience }}
+              agency_urn: ${{ secrets.agency_urn }}
+              provider_urn: ${{ secrets.provider_urn }}
+              region: cn-north-4
+              duration: 3600
+          -
             name: download pr files
             uses: obs-download
             with:
               endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
               bucket: "ascend-ci"
-              access-key: ${{ secrets.AK }}
-              secret-key: ${{ secrets.SK }}
               key: |
                 ${{ env.obs_path }}/pr_filelist.txt
                 ${{ env.obs_path }}/pr_filelist_mod.txt
@@ -401,8 +411,6 @@ stages:
                 export repo_name=${{env.repo_name}}
                 export obs_smoke_path=${{ env.obs_smoke_path }}
                 export pr_id=${{ env.MERGE_ID }}
-                export AK=${{secrets.AK}}
-                export SK=${{secrets.SK}}
                 export soc_version=a5
                 # Four cards today; an 8-card job only changes this value and
                 # the npu runner label below.
@@ -413,12 +421,10 @@ stages:
             with:
               endpoint: "https://obs.cn-north-4.myhuaweicloud.com"
               bucket: "ascend-ci"
-              access-key: ${{ secrets.AK }}
-              secret-key: ${{ secrets.SK }}
               artifact-path: "${{ steps.process_checkout.outputs.path }}/slog.tar.gz"
               object-prefix: ${obs_smoke_path}/plog/
         if: env.TARGET_BRANCH == 'master'
-        runs-on: ['self-hosted','npu=4','smoke=501']
+        runs-on: ['self-hosted','npu=4','smoke=501_ptoisa']
         container:
           image: swr.cn-north-4.myhuaweicloud.com/pre_smoke/ubuntu24.04_x86:pre_mindspore_A5_conda_v1.1002
     pre:

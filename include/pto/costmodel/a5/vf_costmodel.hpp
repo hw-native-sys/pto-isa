@@ -18,377 +18,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <utility>
 
 #include <pto/costmodel/a5/formula_costmodel/formula_backend_vf.hpp>
+#include <pto/costmodel/a5/vf_costmodel_helpers.hpp>
 
 namespace pto::mocker::lightweight::a5 {
 
-inline constexpr uint64_t kEvenModulo = 2;
-inline constexpr uint64_t kElementsPerRepeatB32 = 64;
-inline constexpr uint64_t kElementsPerRepeatB16 = 128;
-inline constexpr uint64_t kElementsPerRepeatB8 = 256;
-inline constexpr uint64_t kSort32ElementsPerRepeat = 32;
-
-struct ScatterIndexFitParams {
-    double baseCycles;
-    double loopLogSlope;
-    double tileSizeSlope;
-    double initRepeatSquareSlope;
-    double rowInitInteractionSlope;
-};
-
-struct ContinuousPiecewiseFitParams {
-    double initialSlope;
-    double bias;
-    double largeSlope;
-    double breakpoint;
-};
-
-// TSCATTER initializes the complete physical destination tile before executing
-// its row/repeat loop.  The benchmark initializes every index to zero, so the
-// fitted interaction term also represents the resulting write conflicts.
-inline constexpr ScatterIndexFitParams kScatterIndexB16Fp16Fit = {
-    42.73689546, 1.31912775, 1.2301575, 0.25136473, -0.11392576};
-inline constexpr ContinuousPiecewiseFitParams kScatterIndexB16Fp16Row1Fit = {
-    10.03889047, 64.35634627, 13.8580264, 16.0};
-
-inline double EvalContinuousPiecewise(double loopCount, const ContinuousPiecewiseFitParams& fit)
-{
-    return fit.initialSlope * std::min(loopCount, fit.breakpoint) + fit.bias +
-           fit.largeSlope * std::max(loopCount - fit.breakpoint, 0.0);
-}
-
-inline uint64_t CeilDivU64(uint64_t x, uint64_t y) { return y == 0 ? 0 : (x + y - 1) / y; }
-
-inline std::string_view PtoOpcodeToKey(PtoOpcode op)
-{
-    constexpr std::array kOpcodeKeys = {
-        std::pair{PtoOpcode::TADD, std::string_view("TADD")},
-        std::pair{PtoOpcode::TSUB, std::string_view("TSUB")},
-        std::pair{PtoOpcode::TMUL, std::string_view("TMUL")},
-        std::pair{PtoOpcode::TDIV, std::string_view("TDIV")},
-        std::pair{PtoOpcode::TRECIP, std::string_view("TRECIP")},
-        std::pair{PtoOpcode::TADDS, std::string_view("TADDS")},
-        std::pair{PtoOpcode::TSUBS, std::string_view("TSUBS")},
-        std::pair{PtoOpcode::TMULS, std::string_view("TMULS")},
-        std::pair{PtoOpcode::TDIVS, std::string_view("TDIVS")},
-        std::pair{PtoOpcode::TMINS, std::string_view("TMINS")},
-        std::pair{PtoOpcode::TMAXS, std::string_view("TMAXS")},
-        std::pair{PtoOpcode::TABS, std::string_view("TABS")},
-        std::pair{PtoOpcode::TNEG, std::string_view("TNEG")},
-        std::pair{PtoOpcode::TEXP, std::string_view("TEXP")},
-        std::pair{PtoOpcode::TSQRT, std::string_view("TSQRT")},
-        std::pair{PtoOpcode::TRSQRT, std::string_view("TRSQRT")},
-        std::pair{PtoOpcode::TLOG, std::string_view("TLOG")},
-        std::pair{PtoOpcode::TRELU, std::string_view("TRELU")},
-        std::pair{PtoOpcode::TLRELU, std::string_view("TLRELU")},
-        std::pair{PtoOpcode::TNOT, std::string_view("TNOT")},
-        std::pair{PtoOpcode::TCVT, std::string_view("TCVT")},
-        std::pair{PtoOpcode::TSEL, std::string_view("TSEL")},
-        std::pair{PtoOpcode::TMAX, std::string_view("TMAX")},
-        std::pair{PtoOpcode::TMIN, std::string_view("TMIN")},
-        std::pair{PtoOpcode::TAND, std::string_view("TAND")},
-        std::pair{PtoOpcode::TOR, std::string_view("TOR")},
-        std::pair{PtoOpcode::TANDS, std::string_view("TANDS")},
-        std::pair{PtoOpcode::TORS, std::string_view("TORS")},
-        std::pair{PtoOpcode::TXOR, std::string_view("TXOR")},
-        std::pair{PtoOpcode::TXORS, std::string_view("TXORS")},
-        std::pair{PtoOpcode::TFMOD, std::string_view("TFMOD")},
-        std::pair{PtoOpcode::TFMODS, std::string_view("TFMODS")},
-        std::pair{PtoOpcode::TREM, std::string_view("TREM")},
-        std::pair{PtoOpcode::TREMS, std::string_view("TREMS")},
-        std::pair{PtoOpcode::TPOW, std::string_view("TPOW")},
-        std::pair{PtoOpcode::TPOWS, std::string_view("TPOWS")},
-        std::pair{PtoOpcode::TMADD, std::string_view("TMADD")},
-        std::pair{PtoOpcode::TMULA, std::string_view("TMULA")},
-        std::pair{PtoOpcode::TPRELU, std::string_view("TPRELU")},
-        std::pair{PtoOpcode::TPARTADD, std::string_view("TPARTADD")},
-        std::pair{PtoOpcode::TPARTMUL, std::string_view("TPARTMUL")},
-        std::pair{PtoOpcode::TPARTMAX, std::string_view("TPARTMAX")},
-        std::pair{PtoOpcode::TPARTMIN, std::string_view("TPARTMIN")},
-        std::pair{PtoOpcode::TAXPY, std::string_view("TAXPY")},
-        std::pair{PtoOpcode::TCMP, std::string_view("TCMP")},
-        std::pair{PtoOpcode::TCMPS, std::string_view("TCMPS")},
-        std::pair{PtoOpcode::TROWARGMAX, std::string_view("TROWARGMAX")},
-        std::pair{PtoOpcode::TROWARGMIN, std::string_view("TROWARGMIN")},
-        std::pair{PtoOpcode::TCOLARGMAX, std::string_view("TCOLARGMAX")},
-        std::pair{PtoOpcode::TCOLARGMIN, std::string_view("TCOLARGMIN")},
-        std::pair{PtoOpcode::TROWSUM, std::string_view("TROWSUM")},
-        std::pair{PtoOpcode::TROWMAX, std::string_view("TROWMAX")},
-        std::pair{PtoOpcode::TROWMIN, std::string_view("TROWMIN")},
-        std::pair{PtoOpcode::TROWPROD, std::string_view("TROWPROD")},
-        std::pair{PtoOpcode::TCOLSUM, std::string_view("TCOLSUM")},
-        std::pair{PtoOpcode::TCOLMAX, std::string_view("TCOLMAX")},
-        std::pair{PtoOpcode::TCOLMIN, std::string_view("TCOLMIN")},
-        std::pair{PtoOpcode::TCOLPROD, std::string_view("TCOLPROD")},
-        std::pair{PtoOpcode::TROWEXPAND, std::string_view("TROWEXPAND")},
-        std::pair{PtoOpcode::TROWEXPANDADD, std::string_view("TROWEXPANDADD")},
-        std::pair{PtoOpcode::TROWEXPANDSUB, std::string_view("TROWEXPANDSUB")},
-        std::pair{PtoOpcode::TROWEXPANDMUL, std::string_view("TROWEXPANDMUL")},
-        std::pair{PtoOpcode::TROWEXPANDDIV, std::string_view("TROWEXPANDDIV")},
-        std::pair{PtoOpcode::TROWEXPANDMAX, std::string_view("TROWEXPANDMAX")},
-        std::pair{PtoOpcode::TROWEXPANDMIN, std::string_view("TROWEXPANDMIN")},
-        std::pair{PtoOpcode::TROWEXPANDEXPDIF, std::string_view("TROWEXPANDEXPDIF")},
-        std::pair{PtoOpcode::TCOLEXPAND, std::string_view("TCOLEXPAND")},
-        std::pair{PtoOpcode::TCOLEXPANDADD, std::string_view("TCOLEXPANDADD")},
-        std::pair{PtoOpcode::TCOLEXPANDSUB, std::string_view("TCOLEXPANDSUB")},
-        std::pair{PtoOpcode::TCOLEXPANDMUL, std::string_view("TCOLEXPANDMUL")},
-        std::pair{PtoOpcode::TCOLEXPANDDIV, std::string_view("TCOLEXPANDDIV")},
-        std::pair{PtoOpcode::TCOLEXPANDMAX, std::string_view("TCOLEXPANDMAX")},
-        std::pair{PtoOpcode::TCOLEXPANDMIN, std::string_view("TCOLEXPANDMIN")},
-        std::pair{PtoOpcode::TCOLEXPANDEXPDIF, std::string_view("TCOLEXPANDEXPDIF")},
-        std::pair{PtoOpcode::TEXPANDS, std::string_view("TEXPANDS")},
-        std::pair{PtoOpcode::TSELS, std::string_view("TSELS")},
-        std::pair{PtoOpcode::TCONCAT, std::string_view("TCONCAT")},
-        std::pair{PtoOpcode::TGATHER, std::string_view("TGATHER")},
-        std::pair{PtoOpcode::TGATHERB, std::string_view("TGATHERB")},
-        std::pair{PtoOpcode::TSCATTER, std::string_view("TSCATTER")},
-        std::pair{PtoOpcode::TMOV, std::string_view("TMOV")},
-        std::pair{PtoOpcode::TSORT32, std::string_view("TSORT32")},
-        std::pair{PtoOpcode::TMRGSORT, std::string_view("TMRGSORT")},
-        std::pair{PtoOpcode::TFILLPAD, std::string_view("TFILLPAD")},
-        std::pair{PtoOpcode::TFILLPAD_EXPAND, std::string_view("TFILLPAD_EXPAND")},
-        std::pair{PtoOpcode::TTRI, std::string_view("TTRI")},
-        std::pair{PtoOpcode::TDEQUANT, std::string_view("TDEQUANT")},
-    };
-    for (const auto& [opcode, key] : kOpcodeKeys) {
-        if (opcode == op) {
-            return key;
-        }
-    }
-    return "";
-}
-
-inline std::string_view DTypeToKey(DType dtype)
-{
-    switch (dtype) {
-        case DType::Float:
-            return "fp32";
-        case DType::Half:
-            return "fp16";
-        case DType::Float8E4M3:
-            return "fp8_e4m3";
-        case DType::Float8E5M2:
-            return "fp8_e5m2";
-        case DType::HFloat8:
-            return "hif8";
-        case DType::Float4E1M2:
-            return "fp4_e1m2";
-        case DType::Float4E2M1:
-            return "fp4_e2m1";
-        case DType::Int8:
-            return "int8";
-        case DType::Int16:
-            return "int16";
-        case DType::Int32:
-            return "int32";
-        case DType::Uint8:
-            return "uint8";
-        case DType::Uint16:
-            return "uint16";
-        case DType::Uint32:
-            return "uint32";
-        case DType::BFloat16:
-            return "bf16";
-        default:
-            return "";
-    }
-}
-
-inline bool TryGetA5ElementsPerRepeatByDTypeKey(std::string_view dtype_key, uint64_t& elements_per_repeat)
-{
-    if (dtype_key == "fp4_e1m2" || dtype_key == "fp4_e2m1") {
-        elements_per_repeat = kElementsPerRepeatB8;
-        return true;
-    }
-    if (dtype_key == "fp16" || dtype_key == "bf16") {
-        elements_per_repeat = kElementsPerRepeatB16;
-        return true;
-    }
-    if (dtype_key == "fp32" || dtype_key == "int32" || dtype_key == "uint32" || dtype_key == "fp8_e4m3" ||
-        dtype_key == "fp8_e5m2" || dtype_key == "hif8") {
-        elements_per_repeat = kElementsPerRepeatB32;
-        return true;
-    }
-    if (dtype_key == "int8" || dtype_key == "uint8") {
-        elements_per_repeat = kElementsPerRepeatB8;
-        return true;
-    }
-    if (dtype_key == "int16" || dtype_key == "uint16") {
-        elements_per_repeat = kElementsPerRepeatB16;
-        return true;
-    }
-    return false;
-}
-
-inline bool TryGetA5ElementsPerRepeat(DType dtype, uint64_t& elements_per_repeat)
-{
-    return TryGetA5ElementsPerRepeatByDTypeKey(DTypeToKey(dtype), elements_per_repeat);
-}
-
-inline bool TryGetA5CvtElementsPerRepeat(
-    std::string_view src_dtype, std::string_view dst_dtype, fit::ShapePath shape_path, uint64_t& elements_per_repeat)
-{
-    if ((src_dtype == "fp16" || src_dtype == "bf16") && dst_dtype == "fp32") {
-        elements_per_repeat = kElementsPerRepeatB32;
-        return true;
-    }
-    if (shape_path == fit::ShapePath::Path1D) {
-        return TryGetA5ElementsPerRepeatByDTypeKey(src_dtype, elements_per_repeat);
-    }
-    if ((src_dtype == "fp32" && (dst_dtype == "fp16" || dst_dtype == "bf16" || dst_dtype == "fp8_e4m3" ||
-                                 dst_dtype == "fp8_e5m2" || dst_dtype == "hif8")) ||
-        ((src_dtype == "fp16" || src_dtype == "bf16") &&
-         (dst_dtype == "fp16" || dst_dtype == "fp4_e1m2" || dst_dtype == "fp4_e2m1" || dst_dtype == "hif8"))) {
-        elements_per_repeat = kElementsPerRepeatB16;
-        return true;
-    }
-    return TryGetA5ElementsPerRepeatByDTypeKey(src_dtype, elements_per_repeat);
-}
-
-inline std::string_view TselOpParams(DType dtype, fit::ShapePath shape_path, uint64_t inner_iter)
-{
-    if (dtype == DType::Float || dtype == DType::Int32 || dtype == DType::Uint32) {
-        if (shape_path == fit::ShapePath::Path1D) {
-            return (inner_iter % kEvenModulo == 0) ? "TSel_b32_even" : "TSel_b32_odd";
-        }
-        return "TSel_b32";
-    }
-    if (dtype == DType::Half || dtype == DType::BFloat16 || dtype == DType::Int16 || dtype == DType::Uint16 ||
-        dtype == DType::Int8 || dtype == DType::Uint8) {
-        return "TSel_b16_8";
-    }
-    return "";
-}
-
-inline std::string_view DefaultOpParams(PtoOpcode op)
-{
-    switch (op) {
-        case PtoOpcode::TRECIP:
-            return "default";
-        default:
-            return "";
-    }
-}
-
-inline std::string_view IndexOpParams(DType index_dtype)
-{
-    switch (index_dtype) {
-        case DType::Int16:
-        case DType::Uint16:
-            return "index_b16";
-        case DType::Int32:
-        case DType::Uint32:
-            return "index_b32";
-        default:
-            return "";
-    }
-}
-
-inline std::string_view CvtOpParams(RoundMode round_mode, SaturationMode saturation_mode)
-{
-    if (round_mode == RoundMode::CAST_NONE && saturation_mode == SaturationMode::ON) {
-        return "CAST_NONE_SAT_ON_normal";
-    }
-    if (round_mode == RoundMode::CAST_RINT && saturation_mode == SaturationMode::ON) {
-        return "CAST_RINT_SAT_ON_normal";
-    }
-    if (round_mode == RoundMode::CAST_TRUNC && saturation_mode == SaturationMode::OFF) {
-        return "CAST_TRUNC_SAT_OFF_normal";
-    }
-    return "";
-}
-
-inline bool IsA5ScalarVfOp(PtoOpcode op)
-{
-    switch (op) {
-        case PtoOpcode::TADDS:
-        case PtoOpcode::TSUBS:
-        case PtoOpcode::TMULS:
-        case PtoOpcode::TDIVS:
-        case PtoOpcode::TMINS:
-        case PtoOpcode::TMAXS:
-        case PtoOpcode::TNEG:
-        case PtoOpcode::TANDS:
-        case PtoOpcode::TORS:
-        case PtoOpcode::TXORS:
-        case PtoOpcode::TFMODS:
-        case PtoOpcode::TREMS:
-        case PtoOpcode::TPOWS:
-            return true;
-        default:
-            return false;
-    }
-}
-
-inline bool IsA5PathIndependentVfOp(PtoOpcode op)
-{
-    switch (op) {
-        case PtoOpcode::TCMPS:
-        case PtoOpcode::TCOLARGMAX:
-        case PtoOpcode::TCOLARGMIN:
-        case PtoOpcode::TGATHER:
-        case PtoOpcode::TMOV:
-        case PtoOpcode::TROWARGMAX:
-        case PtoOpcode::TSCATTER:
-        case PtoOpcode::TSORT32:
-        case PtoOpcode::TTRI:
-            return true;
-        default:
-            return false;
-    }
-}
-
-inline fit::ShapePath ResolveShapePath(
-    PtoOpcode op, int64_t rows, int64_t cols, int64_t valid_cols, A5ShapePathHint shape_path_hint)
-{
-    if (shape_path_hint == A5ShapePathHint::Path1D) {
-        return fit::ShapePath::Path1D;
-    }
-    if (shape_path_hint == A5ShapePathHint::Path2D) {
-        return fit::ShapePath::Path2D;
-    }
-    if (op == PtoOpcode::TDEQUANT) {
-        return rows == 1 ? fit::ShapePath::Path1D : fit::ShapePath::Path2D;
-    }
-    if (IsA5ScalarVfOp(op)) {
-        return valid_cols == cols ? fit::ShapePath::Path1D : fit::ShapePath::Path2D;
-    }
-    if (rows == 1 || valid_cols == cols) {
-        return fit::ShapePath::Path1D;
-    }
-    return fit::ShapePath::Path2D;
-}
-
-inline std::string_view ResolveDefaultVfImplKind(PtoOpcode op, fit::ShapePath shape_path)
-{
-    if (op == PtoOpcode::TDEQUANT) {
-        return "POST_UPDATE";
-    }
-    if (op == PtoOpcode::TCVT) {
-        return (shape_path == fit::ShapePath::Path1D) ? "NO_POST_UPDATE" : "POST_UPDATE";
-    }
-    if (op == PtoOpcode::TSEL) {
-        return (shape_path == fit::ShapePath::Path1D) ? "NO_POST_UPDATE" : "DEFAULT";
-    }
-    return (shape_path == fit::ShapePath::Path1D) ? "POST_UPDATE" : "NO_POST_UPDATE";
-}
-
-inline std::string_view ResolveVfImplKind(PtoOpcode op, VFImplKind vf_impl_kind, fit::ShapePath shape_path)
-{
-    switch (vf_impl_kind) {
-        case VFImplKind::VFIMPL_1D_NO_POST_UPDATE:
-            return "NO_POST_UPDATE";
-        case VFImplKind::VFIMPL_2D_NO_POST_UPDATE:
-            return "NO_POST_UPDATE";
-        case VFImplKind::VFIMPL_1D_POST_UPDATE:
-            return "POST_UPDATE";
-        case VFImplKind::VFIMPL_2D_POST_UPDATE:
-            return "POST_UPDATE";
-        case VFImplKind::VFIMPL_DEFAULT:
-        default:
-            return ResolveDefaultVfImplKind(op, shape_path);
-    }
-}
-
+inline bool TryEstimateA5MetadataCycles(const CostModelInput& input, uint64_t& cycles);
 struct VfCurveContext {
     int64_t valid_rows_i = 0;
     int64_t valid_cols_i = 0;
@@ -413,6 +47,12 @@ inline bool TryInitVfCurveContext(const CostModelInput& input, VfCurveContext& c
         return false;
     }
     context.shape_path = ResolveShapePath(input.op, input.rows, input.cols, context.valid_cols_i, input.a5_shape_path);
+    // implTCVT explicitly selects castData_2D_NoPostUpdate for this mode,
+    // even for an otherwise flattenable layout. Do not substitute a measured
+    // POST_UPDATE curve when this distinct implementation has no fitted row.
+    if (input.op == PtoOpcode::TCVT && input.vf_impl_kind == VFImplKind::VFIMPL_2D_NO_POST_UPDATE) {
+        context.shape_path = fit::ShapePath::Path2D;
+    }
     context.src_dtype = DTypeToKey(input.dtype);
     context.op_params = input.a5_op_params;
     return !context.src_dtype.empty();
@@ -460,6 +100,26 @@ inline bool TryResolveVfOpParams(const CostModelInput& input, VfCurveContext& co
                     std::string_view("CAST_RINT_SAT_ON_normal") :
                     CvtOpParams(input.round_mode, input.saturation_mode);
         }
+        // This conversion's dense 2D profile calibrates the per-row and inner
+        // loop costs independently; padded layouts retain their own lookup.
+        if (input.op == PtoOpcode::TCVT && input.dtype == DType::Half && input.dst_dtype == DType::Int32 &&
+            context.shape_path == fit::ShapePath::Path2D && input.rows == context.valid_rows_i &&
+            input.cols == context.valid_cols_i && context.op_params == "CAST_RINT_SAT_ON_normal") {
+            context.op_params = "CAST_RINT_SAT_ON_dense";
+        }
+        // Runtime-dynamic cast16to32: independently measured row and inner-loop
+        // contributions. Preserve legacy curves for static/1D, padded, unknown
+        // destination geometry, explicit VF modes and inputs outside this domain.
+        if (input.op == PtoOpcode::TCVT && input.dtype == DType::Half && input.dst_dtype == DType::Float &&
+            input.round_mode == RoundMode::CAST_NONE && input.saturation_mode == SaturationMode::ON &&
+            input.vf_impl_kind == VFImplKind::VFIMPL_DEFAULT && context.shape_path == fit::ShapePath::Path2D &&
+            context.op_params == "CAST_RINT_SAT_ON_normal" && input.layout == MemLayout::ND &&
+            input.rows == context.valid_rows_i && input.cols == context.valid_cols_i && input.dst_rows == input.rows &&
+            input.dst_cols == input.cols && (input.dst_valid_rows == 0 || input.dst_valid_rows == input.rows) &&
+            (input.dst_valid_cols == 0 || input.dst_valid_cols == input.cols) && input.rows >= 8 && input.rows <= 128 &&
+            input.rows % 8 == 0 && input.cols >= 32 && input.cols <= 256 && input.cols % 16 == 0) {
+            context.op_params = "CAST_NONE_dense_fp16_fp32";
+        }
     } else if (
         (input.op == PtoOpcode::TGATHER || input.op == PtoOpcode::TSCATTER) && input.has_dtype2 &&
         context.op_params.empty()) {
@@ -476,6 +136,77 @@ inline bool TryResolveVfOpParams(const CostModelInput& input, VfCurveContext& co
 
 inline bool TryResolveElementsPerRepeat(const CostModelInput& input, VfCurveContext& context)
 {
+    // Dense Vec-to-Vec TMOV always retains the row loop, even without padding.
+    // Bounds describe the measured domain; multi-repeat rows were sampled only
+    // at short row counts. Do not extrapolate their Cartesian product.
+    constexpr int64_t kMoveMaxBytes = 128 * 1024;
+    constexpr int64_t kMoveMaxRows = 4092;
+    constexpr int64_t kMoveMultiRepeatMaxRows = 48;
+    constexpr int64_t kMoveMaxRowRepeats = 4;
+    constexpr int64_t kMoveAlignmentBytes = 32;
+    constexpr int64_t kMoveTailPartitions = 4;
+    const bool moveB16 = input.dtype == DType::BFloat16 || input.dtype == DType::Int16 || input.dtype == DType::Uint16;
+    const bool moveB32 = input.dtype == DType::Float || input.dtype == DType::Int32 || input.dtype == DType::Uint32;
+    const int64_t moveBytes = moveB16 ? sizeof(uint16_t) : sizeof(uint32_t);
+    const int64_t moveWidth = moveB16 ? kElementsPerRepeatB16 : kElementsPerRepeatB32;
+    const int64_t moveRows = context.valid_rows_i;
+    const int64_t moveCols = context.valid_cols_i;
+    const bool moveRow = moveRows == 1 && (moveCols <= moveWidth || moveCols % (moveWidth / kMoveTailPartitions) == 0);
+    const bool moveGrid =
+        moveRows > 1 && moveRows <= kMoveMaxRows &&
+        (moveCols <= moveWidth || (moveRows <= kMoveMultiRepeatMaxRows && moveCols <= kMoveMaxRowRepeats * moveWidth));
+    if (input.op == PtoOpcode::TMOV && (moveB16 || moveB32) && context.op_params.empty() && input.rows == moveRows &&
+        input.cols == moveCols && moveCols > 0 && moveCols % (kMoveAlignmentBytes / moveBytes) == 0 &&
+        moveRows <= kMoveMaxBytes / moveBytes / moveCols && (moveRow || moveGrid) &&
+        (input.dst_rows <= 0 || input.dst_rows == moveRows) && (input.dst_cols <= 0 || input.dst_cols == moveCols) &&
+        (input.dst_valid_rows <= 0 || input.dst_valid_rows == moveRows) &&
+        (input.dst_valid_cols <= 0 || input.dst_valid_cols == moveCols)) {
+        context.elements_per_repeat = static_cast<uint64_t>(moveWidth);
+        context.shape_path = moveRows == 1 ? fit::ShapePath::Path1D : fit::ShapePath::Path2D;
+        context.op_params = "dense_vec_move";
+        return true;
+    }
+    // TCmps B32 packs a pair of predicates per iteration; B8/B16 use one vector.
+    // These limits describe the dense calibration domain, not instruction costs.
+    constexpr int64_t kCompareMinCols = 32;
+    constexpr int64_t kCompare2DMaxCols = 384;
+    constexpr int64_t kCompareB8MaxRows = 362;
+    constexpr int64_t kCompareB16MaxRows = 295;
+    constexpr int64_t kCompareB32MaxRows = 229;
+    constexpr int64_t kCompareB8MaxElements = 130944;
+    constexpr int64_t kCompareB16MaxElements = 87296;
+    constexpr int64_t kCompareB32MaxElements = 51296;
+    constexpr int64_t kCompareB32MaxRowCols = 49152;
+    const bool compareB8 = input.dtype == DType::Int8 || input.dtype == DType::Uint8;
+    const bool compareB16 = input.dtype == DType::BFloat16 || input.dtype == DType::Uint16;
+    const bool compareB32 = input.dtype == DType::Float || input.dtype == DType::Int32 || input.dtype == DType::Uint32;
+    const int64_t compareWidth = compareB8 ? kElementsPerRepeatB8 : kElementsPerRepeatB16;
+    const int64_t compareMaxRows =
+        compareB8 ? kCompareB8MaxRows : (compareB16 ? kCompareB16MaxRows : kCompareB32MaxRows);
+    const int64_t compareMaxElements =
+        compareB8 ? kCompareB8MaxElements : (compareB16 ? kCompareB16MaxElements : kCompareB32MaxElements);
+    const bool compareRow = context.shape_path == fit::ShapePath::Path1D && context.valid_rows_i == 1 &&
+                            context.valid_cols_i <= (compareB32 ? kCompareB32MaxRowCols : compareMaxElements);
+    const bool compareGrid = context.shape_path == fit::ShapePath::Path2D && context.valid_rows_i > 1 &&
+                             context.valid_rows_i <= compareMaxRows && context.valid_cols_i > compareWidth &&
+                             context.valid_cols_i <= kCompare2DMaxCols &&
+                             context.valid_rows_i <= compareMaxElements / context.valid_cols_i;
+    if (input.op == PtoOpcode::TCMPS && (compareB8 || compareB16 || compareB32) && input.rows == context.valid_rows_i &&
+        input.cols == context.valid_cols_i && context.valid_cols_i >= kCompareMinCols && context.op_params.empty() &&
+        (compareRow || compareGrid)) {
+        context.elements_per_repeat = static_cast<uint64_t>(compareWidth);
+        context.op_params = "dense_packed_compare";
+        return true;
+    }
+    if (input.op == PtoOpcode::TCMP && (input.dtype == DType::Float || input.dtype == DType::Int32) &&
+        context.shape_path == fit::ShapePath::Path2D && input.rows == context.valid_rows_i &&
+        input.cols == context.valid_cols_i && context.op_params.empty()) {
+        // TCmp_32B combines two B32 predicates in each inner iteration.
+        constexpr uint64_t kPredicatesPerCompareIteration = 2;
+        context.elements_per_repeat = kPredicatesPerCompareIteration * kElementsPerRepeatB32;
+        context.op_params = "packed_predicate_dense";
+        return true;
+    }
     if (input.op == PtoOpcode::TSORT32) {
         context.elements_per_repeat = kSort32ElementsPerRepeat;
         return true;
@@ -513,12 +244,59 @@ inline void ResolveLoopCounts(
     tail_count = valid_cols % context.elements_per_repeat;
 }
 
+// The legacy overload reports one outer iteration for flattened 1D tiles.
+inline void ResolveLoopCounts(
+    const VfCurveContext& context, uint64_t& loop_count, uint64_t& outer_iter, uint64_t& inner_iter,
+    uint64_t& tail_count)
+{
+    uint64_t row_inner_iter = 0;
+    ResolveLoopCounts(context, loop_count, outer_iter, inner_iter, tail_count, row_inner_iter);
+    if (context.shape_path == fit::ShapePath::Path1D) {
+        outer_iter = 1;
+    }
+}
+
 inline bool TryResolveTselOpParams(const CostModelInput& input, uint64_t inner_iter, VfCurveContext& context)
 {
     if (input.op != PtoOpcode::TSEL) {
         return true;
     }
     if (context.op_params.empty()) {
+        // B32 selection processes vector pairs, then traverses the rows again
+        // for an odd remainder. Keep the two measured schedules separate.
+        constexpr int64_t kSelectB16MaxDenseRowCols = 28032;
+        constexpr int64_t kSelectB32MaxDenseRowCols = 15096;
+        constexpr int64_t kSelectB32MaxOddRowCols = 320;
+        constexpr int64_t kSelectB32MaxDenseRows = 64;
+        constexpr int64_t kSelectB32MaxDenseCols = 384;
+        constexpr int64_t kSelectB32MaxSingleVectorRows = 471;
+        constexpr int64_t kSelectB32MaxSinglePairRows = 123;
+        const bool dense = input.rows == context.valid_rows_i && input.cols == context.valid_cols_i;
+        const bool paired = inner_iter % kEvenModulo == 0;
+        if (dense && context.shape_path == fit::ShapePath::Path1D && input.rows == 1) {
+            if (input.dtype == DType::Uint16 && input.cols <= kSelectB16MaxDenseRowCols) {
+                context.op_params = "TSel_b16_dense_row";
+                return true;
+            }
+            if (input.dtype == DType::Uint32 &&
+                input.cols <= (paired ? kSelectB32MaxDenseRowCols : kSelectB32MaxOddRowCols)) {
+                context.op_params = paired ? "TSel_b32_dense_row_even" : "TSel_b32_dense_row_odd";
+                return true;
+            }
+        }
+        const bool measuredDenseRows = (input.rows <= kSelectB32MaxDenseRows && input.cols <= kSelectB32MaxDenseCols) ||
+                                       (inner_iter == 1 && input.rows <= kSelectB32MaxSingleVectorRows) ||
+                                       (inner_iter == kEvenModulo && input.rows <= kSelectB32MaxSinglePairRows);
+        if (dense && input.dtype == DType::Uint32 && context.shape_path == fit::ShapePath::Path2D &&
+            measuredDenseRows) {
+            context.op_params = paired ? "TSel_b32_dense_even" : "TSel_b32_dense_odd";
+            return true;
+        }
+        if (input.dtype == DType::Uint16 && context.shape_path == fit::ShapePath::Path2D &&
+            input.rows == context.valid_rows_i && input.cols == context.valid_cols_i) {
+            context.op_params = "TSel_b16_8_dense";
+            return true;
+        }
         context.op_params = TselOpParams(input.dtype, context.shape_path, inner_iter);
     }
     return !context.op_params.empty();
@@ -616,10 +394,45 @@ inline bool BuildVfCurveKeyAndLoopCount(
     // multi-row and padded paths. Keep existing keys outside the measured range
     // and preserve explicit semantic parameters (mask, conversion mode, etc.).
     constexpr uint64_t kCalibratedRowRepeats = 8;
+    // Additional dense uint16 scalar profiles validate the same linear curve
+    // over a wider range. These are measured-domain limits, not cycle constants.
+    constexpr int64_t kCalibratedAndXorScalarCols = 43632;
+    constexpr int64_t kCalibratedOrScalarCols = 65456;
+    constexpr int64_t kCalibratedExpandB16Cols = 130928;
+    constexpr int64_t kCalibratedExpandB32Cols = 65536;
+    const bool calibratedExpandRow =
+        input.op == PtoOpcode::TEXPANDS &&
+        ((input.dtype == DType::Int16 && context.valid_cols_i <= kCalibratedExpandB16Cols) ||
+         ((input.dtype == DType::Float || input.dtype == DType::Int32) &&
+          context.valid_cols_i <= kCalibratedExpandB32Cols));
+    const bool calibratedScalarRow = input.dtype == DType::Uint16 &&
+                                     (((input.op == PtoOpcode::TANDS || input.op == PtoOpcode::TXORS) &&
+                                       context.valid_cols_i <= kCalibratedAndXorScalarCols) ||
+                                      (input.op == PtoOpcode::TORS && context.valid_cols_i <= kCalibratedOrScalarCols));
     const bool defaultRowParams = key.op_params.empty() || key.op_params == "single_row_single_repeat" ||
                                   key.op_params == "multi_inner" || key.op_params == "TSel_b16_8";
+    constexpr int64_t kCalibratedAndOrCols = 43648;
+    constexpr int64_t kCalibratedXorCols = 32768;
+    constexpr int64_t kCalibratedNotCols = 65536;
+    // Wide unary profiles cover aligned rows and half-vector tails. Do not
+    // extrapolate the measured tail throughput to other residual widths.
+    const bool calibratedNotRow =
+        input.op == PtoOpcode::TNOT && (input.dtype == DType::Int16 || input.dtype == DType::Uint16) &&
+        context.valid_cols_i <= kCalibratedNotCols && (tail_count == 0 || tail_count == kElementsPerRepeatB16 / 2);
+    const bool calibratedBinaryRow =
+        input.dtype == DType::Uint16 && (((input.op == PtoOpcode::TAND || input.op == PtoOpcode::TOR) &&
+                                          context.valid_cols_i <= kCalibratedAndOrCols) ||
+                                         (input.op == PtoOpcode::TXOR && context.valid_cols_i <= kCalibratedXorCols));
+    // Wide dense-row profiles capture the measured short/long loop throughput
+    // transition without changing the established short-row calibration.
     if (key.shape_path == fit::ShapePath::Path1D && context.valid_rows_i == 1 && input.rows == 1 &&
-        input.cols == context.valid_cols_i && loop_count <= kCalibratedRowRepeats && defaultRowParams &&
+        input.cols == context.valid_cols_i && loop_count > kCalibratedRowRepeats &&
+        (calibratedBinaryRow || calibratedNotRow) && defaultRowParams && input.a5_op_params.empty()) {
+        key.op_params = "dense_row1_wide";
+    }
+    if (key.shape_path == fit::ShapePath::Path1D && context.valid_rows_i == 1 && input.rows == 1 &&
+        input.cols == context.valid_cols_i &&
+        (loop_count <= kCalibratedRowRepeats || calibratedScalarRow || calibratedExpandRow) && defaultRowParams &&
         input.a5_op_params.empty()) {
         auto rowKey = key;
         rowKey.op_params = "dense_row1";
@@ -627,6 +440,21 @@ inline bool BuildVfCurveKeyAndLoopCount(
         if (fit::TryLookupVfFormulaParam(rowKey, rowParam)) {
             key = rowKey;
         }
+    }
+    return true;
+}
+
+// Use current curve keys while preserving the legacy outer-loop convention.
+inline bool BuildVfCurveKeyAndLoopCount(
+    const CostModelInput& input, fit::VfCurveKey& key, uint64_t& loop_count, uint64_t& outer_iter, uint64_t& inner_iter,
+    uint64_t& tail_count)
+{
+    uint64_t row_inner_iter = 0;
+    if (!BuildVfCurveKeyAndLoopCount(input, key, loop_count, outer_iter, inner_iter, tail_count, row_inner_iter)) {
+        return false;
+    }
+    if (key.shape_path == fit::ShapePath::Path1D) {
+        outer_iter = 1;
     }
     return true;
 }
@@ -726,6 +554,246 @@ inline bool TryEstimateA5ConcatCycles(const CostModelInput& input, uint64_t& cyc
 
 inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles)
 {
+    if (input.metadata.kind != MetadataGeometry::Kind::Missing) {
+        return TryEstimateA5MetadataCycles(input, cycles);
+    }
+    if (input.op == PtoOpcode::SET_QUANT_VECTOR) {
+        // Public tag validates Scaling geometry and explicit aligned address;
+        // uint64 tile data need not be representable by the generic dtype enum.
+        if (input.a5_op_params != "quant_vector_scaling_u64_128") {
+            return false;
+        }
+        const fit::VfCurveKey key{"SET_QUANT_VECTOR",     "uint64",         "none",
+                                  fit::ShapePath::Path2D, "NO_POST_UPDATE", fit::TailKind::Full,
+                                  input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        // Measured FIX register-write increment, not address packing or initialization.
+        cycles = fit::EvalVfFormula(*param, 1, 1, 1, 0, 1);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::SET_QUANT_SCALAR) {
+        // No tile operand: the public wrapper validates OutType and scale in this tag.
+        if (input.a5_op_params != "quant_scalar_half_positive") {
+            return false;
+        }
+        const fit::VfCurveKey key{"SET_QUANT_SCALAR",     "fp16",           "none",
+                                  fit::ShapePath::Path2D, "NO_POST_UPDATE", fit::TailKind::Full,
+                                  input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        // FIX register-write increment; excludes scalar packing and end-to-end API latency.
+        cycles = fit::EvalVfFormula(*param, 1, 1, 1, 0, 1);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::SETFMATRIX || input.op == PtoOpcode::SET_IMG2COL_RPT ||
+        input.op == PtoOpcode::SET_IMG2COL_PADDING) {
+        if (input.a5_op_params != "image_config_manual_half" || input.dtype != DType::Half) {
+            return false;
+        }
+        const char* op = input.op == PtoOpcode::SETFMATRIX      ? "SETFMATRIX" :
+                         input.op == PtoOpcode::SET_IMG2COL_RPT ? "SET_IMG2COL_RPT" :
+                                                                  "SET_IMG2COL_PADDING";
+        const fit::VfCurveKey key{
+            op, "fp16", "none", fit::ShapePath::Path2D, "NO_POST_UPDATE", fit::TailKind::Full, input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        // Measured MTE1 register-configuration increment, not scalar packing or total API latency.
+        cycles = fit::EvalVfFormula(*param, 1, 1, 1, 0, 1);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::TIMG2COL) {
+        if (input.a5_op_params != "image_left_manual_1x1" || input.dtype != DType::Half || input.rows < 16 ||
+            input.rows > 96 || input.rows % 16 != 0 || input.cols < 16 || input.cols > 128 || input.cols % 16 != 0 ||
+            input.valid_rows != input.rows || input.valid_cols != input.cols) {
+            return false;
+        }
+        const fit::VfCurveKey key{
+            "TIMG2COL",        "fp16", "none", fit::ShapePath::Path2D, "NO_POST_UPDATE", fit::TailKind::Full,
+            input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        // AIC MTE1 service cycles, excluding the fixed initialization cost.
+        cycles = fit::EvalVfFormula(*param, input.rows * input.cols, input.rows, input.cols, 0, 1);
+        return cycles > 0;
+    }
+    if ((input.op == PtoOpcode::TEXTRACT || input.op == PtoOpcode::TINSERT) &&
+        input.a5_op_params == "fp_acc_vec_offset64_relu") {
+        const bool insert = input.op == PtoOpcode::TINSERT;
+        const auto rows = input.rows - 1;
+        const auto cols = input.cols - 96;
+        if (input.dtype != DType::Half || rows < 16 || rows > 64 || rows % 8 != 0 || cols < 32 || cols > 256 ||
+            cols % 16 != 0 || input.valid_rows != (insert ? input.rows : rows) ||
+            input.valid_cols != (insert ? input.cols : cols)) {
+            return false;
+        }
+        const fit::VfCurveKey key{
+            insert ? "TINSERT_FP" : "TEXTRACT_FP",
+            "fp32",
+            "fp16",
+            fit::ShapePath::Path2D,
+            "POST_UPDATE",
+            fit::TailKind::Full,
+            input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        // Empirical FIX service granularity, validated only in the bounded domain above.
+        uint64_t chunks = 1;
+        const auto required = CeilDivU64(static_cast<uint64_t>(cols), 64);
+        while (chunks < required) {
+            chunks *= 2;
+        }
+        cycles = fit::EvalVfFormula(*param, static_cast<uint64_t>(rows) * chunks, rows, chunks, 0, chunks);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::TEXTRACT || input.op == PtoOpcode::TINSERT) {
+        constexpr int64_t kMeasuredOffsetBytes = 32;
+        constexpr int64_t kMeasuredOffsetRows = 1;
+        constexpr int64_t kMaxMeasuredRows = 16;
+        constexpr int64_t kMinMeasuredCols = 32;
+        constexpr int64_t kMaxMeasuredCols = 1024;
+        constexpr int64_t kMeasuredColAlignment = 32;
+        if (input.a5_op_params != "dynamic_slice_offset1_32B" ||
+            (input.dtype != DType::Half && input.dtype != DType::Float && input.dtype != DType::Int32)) {
+            return false;
+        }
+        const int64_t elementBytes = input.dtype == DType::Half ? sizeof(uint16_t) : sizeof(uint32_t);
+        // Record dimensions describe the destination. TINSERT's source is
+        // the smaller copied window, certified by the public-wrapper tag.
+        const bool insert = input.op == PtoOpcode::TINSERT;
+        const int64_t rows = input.rows - (insert ? kMeasuredOffsetRows : 0);
+        const int64_t cols = input.cols - (insert ? kMeasuredOffsetBytes / elementBytes : 0);
+        if (rows < 1 || rows > kMaxMeasuredRows || cols < kMinMeasuredCols || cols > kMaxMeasuredCols ||
+            cols % kMeasuredColAlignment != 0) {
+            return false;
+        }
+        const fit::VfCurveKey key{
+            insert ? "TINSERT" : "TEXTRACT",
+            DTypeToKey(input.dtype),
+            "none",
+            fit::ShapePath::Path2D,
+            "POST_UPDATE",
+            fit::TailKind::Full,
+            input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        const auto width = input.dtype == DType::Half ? kElementsPerRepeatB16 : kElementsPerRepeatB32;
+        const auto inner = CeilDivU64(static_cast<uint64_t>(cols), width);
+        cycles = fit::EvalVfFormula(*param, rows * inner, rows, inner, 0, inner);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::THISTOGRAM) {
+        constexpr int64_t kMaxMeasuredRows = 16;
+        constexpr int64_t kMinMeasuredCols = 32;
+        constexpr int64_t kMaxMeasuredCols = 1024;
+        constexpr int64_t kMeasuredColAlignment = 32;
+        constexpr uint64_t kHistogramElementsPerIteration = 256;
+        const auto rows = input.valid_rows > 0 ? input.valid_rows : input.rows;
+        const auto cols = input.valid_cols > 0 ? input.valid_cols : input.cols;
+        if (input.a5_op_params != "u32_byte3_padded256" || input.dtype != DType::Uint32 || rows < 1 ||
+            rows > kMaxMeasuredRows || rows != input.rows || cols < kMinMeasuredCols || cols > kMaxMeasuredCols ||
+            cols % kMeasuredColAlignment != 0 ||
+            input.cols != CeilDivU64(static_cast<uint64_t>(cols), kHistogramElementsPerIteration) *
+                              kHistogramElementsPerIteration) {
+            return false;
+        }
+        const fit::VfCurveKey key{"THISTOGRAM",        "uint32",          "none", fit::ShapePath::Path2D, "POST_UPDATE",
+                                  fit::TailKind::Full, input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        const auto inner = CeilDivU64(static_cast<uint64_t>(cols), kHistogramElementsPerIteration);
+        cycles = fit::EvalVfFormula(*param, rows * inner, rows, inner, 0, inner);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::TQUANT) {
+        constexpr int64_t kMaxMeasuredRows = 16;
+        constexpr int64_t kMinMeasuredCols = 32;
+        constexpr int64_t kMaxMeasuredCols = 1024;
+        constexpr int64_t kMeasuredColAlignment = 32;
+        const bool symmetric = input.a5_op_params == "dense_fp32_int8_sym" && input.dtype == DType::Int8;
+        const bool asymmetric = input.a5_op_params == "dense_fp32_int8_asym" && input.dtype == DType::Uint8;
+        if ((!symmetric && !asymmetric) || input.rows < 1 || input.rows > kMaxMeasuredRows ||
+            input.cols < kMinMeasuredCols || input.cols > kMaxMeasuredCols || input.cols % kMeasuredColAlignment != 0 ||
+            (input.valid_rows > 0 && input.valid_rows != input.rows) ||
+            (input.valid_cols > 0 && input.valid_cols != input.cols)) {
+            return false;
+        }
+        const fit::VfCurveKey key{"TQUANT",
+                                  "fp32",
+                                  DTypeToKey(input.dtype),
+                                  fit::ShapePath::Path2D,
+                                  "POST_UPDATE",
+                                  fit::TailKind::Full,
+                                  input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        // Quantization operates on fp32 source lanes, not the byte output lanes.
+        const auto inner = CeilDivU64(static_cast<uint64_t>(input.cols), kElementsPerRepeatB32);
+        cycles = fit::EvalVfFormula(*param, input.rows * inner, input.rows, inner, 0, inner);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::TRANDOM) {
+        constexpr int64_t kMaxMeasuredRows = 16;
+        constexpr int64_t kMinMeasuredCols = 32;
+        constexpr int64_t kMaxMeasuredCols = 1024;
+        constexpr int64_t kMeasuredColAlignment = 32;
+        // Each Philox inner iteration produces four 64-element registers.
+        constexpr uint64_t kRandomElementsPerIteration = 256;
+        if ((input.a5_op_params != "dense_rounds7" && input.a5_op_params != "dense_rounds10") || input.rows < 1 ||
+            input.rows > kMaxMeasuredRows || input.cols < kMinMeasuredCols || input.cols > kMaxMeasuredCols ||
+            input.cols % kMeasuredColAlignment != 0 || (input.valid_rows > 0 && input.valid_rows != input.rows) ||
+            (input.valid_cols > 0 && input.valid_cols != input.cols)) {
+            return false;
+        }
+        const fit::VfCurveKey key{
+            "TRANDOM",           DTypeToKey(input.dtype), "none", fit::ShapePath::Path2D, "POST_UPDATE",
+            fit::TailKind::Full, input.a5_op_params};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        const auto inner = CeilDivU64(static_cast<uint64_t>(input.cols), kRandomElementsPerIteration);
+        cycles = fit::EvalVfFormula(*param, input.rows * inner, input.rows, inner, 0, inner);
+        return cycles > 0;
+    }
+    if (input.op == PtoOpcode::TFILLPAD_INPLACE) {
+        // Only the measured suffix-fill path is represented: no valid-element
+        // copy and no additional bottom rows. Other geometries need separate fits.
+        constexpr int64_t kMaxMeasuredRows = 16;
+        constexpr int64_t kMinMeasuredCols = 32;
+        constexpr int64_t kMaxMeasuredCols = 256;
+        constexpr int64_t kMeasuredColAlignment = 32;
+        if (input.a5_op_params != "suffix32B_no_bottom" || input.rows < 1 || input.rows > kMaxMeasuredRows ||
+            input.cols < kMinMeasuredCols || input.cols > kMaxMeasuredCols || input.cols % kMeasuredColAlignment != 0 ||
+            input.valid_rows != std::max<int64_t>(input.rows - 1, 1)) {
+            return false;
+        }
+        const fit::VfCurveKey key{"TFILLPAD_INPLACE",     DTypeToKey(input.dtype), "none",
+                                  fit::ShapePath::Path2D, "POST_UPDATE",           fit::TailKind::Full,
+                                  "suffix32B_no_bottom"};
+        const fit::VfFormulaParam* param = nullptr;
+        if (!fit::TryLookupVfFormulaParam(key, param)) {
+            return false;
+        }
+        cycles = fit::EvalVfFormula(*param, input.valid_rows, 0, 0, 0, 0);
+        return cycles > 0;
+    }
     if (input.op == PtoOpcode::TCONCAT && (input.concat_src0_cols != 0 || input.concat_src1_cols != 0)) {
         return TryEstimateA5ConcatCycles(input, cycles);
     }
@@ -802,5 +870,7 @@ inline bool TryEstimateA5VfCycles(const CostModelInput& input, uint64_t& cycles)
 }
 
 } // namespace pto::mocker::lightweight::a5
+
+#include <pto/costmodel/a5/metadata_costmodel.hpp>
 
 #endif

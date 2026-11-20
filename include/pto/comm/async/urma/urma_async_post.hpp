@@ -12,7 +12,117 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #define PTO_COMM_ASYNC_URMA_POST_HPP
 
 // Included from urma_async_intrin.hpp inside namespace detail.
-// Posts WRITE/READ and WRITE+notify WQEs (payload first, signal last).
+// Advances CQ progress for backpressure and posts WRITE/READ and WRITE+notify WQEs.
+
+AICORE inline __gm__ UrmaJfcCqeCtx* GetUrmaCqe(__gm__ UrmaCqCtx* cq, uint32_t sequence, uint32_t cqeSize)
+{
+    return reinterpret_cast<__gm__ UrmaJfcCqeCtx*>(cq->bufAddr + cqeSize * (sequence & (cq->depth - 1U)));
+}
+
+AICORE inline bool IsUrmaCqePrefixReady(__gm__ UrmaCqCtx* cq, uint32_t begin, uint32_t end, uint32_t cqeSize)
+{
+    for (uint32_t sequence = begin; sequence != end; ++sequence) {
+        __gm__ UrmaJfcCqeCtx* cqe = GetUrmaCqe(cq, sequence, cqeSize);
+        const bool validOwner = (sequence / cq->depth) & 1U;
+        DcciCachelines(reinterpret_cast<__gm__ uint8_t*>(cqe), sizeof(UrmaJfcCqeCtx));
+        if ((validOwner ^ cqe->owner) == 0U) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Same SYS_CNT read as AscendC::GetSystemCycle. This header is included from every
+// A5 kernel, and that declaration's header is only on the comm ST include path.
+AICORE inline uint64_t UrmaReadSystemCycle()
+{
+#if defined(__CCE_AICORE__)
+    uint64_t sysCnt = 0;
+    asm volatile("MOV %0, SYS_CNT\n" : "+l"(sysCnt));
+    return sysCnt;
+#else
+    return 0U;
+#endif
+}
+
+AICORE inline bool WaitForUrmaCqe(__gm__ UrmaCqCtx* cq, uint32_t sequence, uint32_t cqeSize, __gm__ UrmaJfcCqeCtx*& cqe)
+{
+    cqe = GetUrmaCqe(cq, sequence, cqeSize);
+    const bool validOwner = (sequence / cq->depth) & 1U;
+    const uint64_t startCycles = UrmaReadSystemCycle();
+    uint32_t polls = 0U;
+    DcciCachelines(reinterpret_cast<__gm__ uint8_t*>(cqe), sizeof(UrmaJfcCqeCtx));
+    while ((validOwner ^ cqe->owner) == 0U) {
+        if ((++polls & (kUrmaPollCycleStride - 1U)) == 0U &&
+            UrmaReadSystemCycle() - startCycles >= kUrmaPollCqTimeoutCycles) {
+            return false;
+        }
+        DcciCachelines(reinterpret_cast<__gm__ uint8_t*>(cqe), sizeof(UrmaJfcCqeCtx));
+    }
+    return true;
+}
+
+AICORE inline bool RetireUrmaCqePrefix(
+    __gm__ UrmaWQCtx* wq, __gm__ UrmaCqCtx* cq, uint32_t beginCqeSequence, uint32_t endCqeSequence, uint32_t cqeSize,
+    uint32_t& completedBbSequence)
+{
+    for (uint32_t sequence = beginCqeSequence; sequence != endCqeSequence; ++sequence) {
+        __gm__ UrmaJfcCqeCtx* cqe = nullptr;
+        if (!WaitForUrmaCqe(cq, sequence, cqeSize, cqe)) {
+            return false;
+        }
+        constexpr uint32_t kStatusShift = 8U;
+        const uint32_t cqeError =
+            (static_cast<uint32_t>(cqe->status) << kStatusShift) | static_cast<uint32_t>(cqe->substatus);
+        if (cqeError != 0U) {
+            return false;
+        }
+        completedBbSequence =
+            AdvanceUrmaCompletedBbSequence(completedBbSequence, static_cast<uint32_t>(cqe->entryIdx), wq->depth);
+    }
+    return true;
+}
+
+AICORE inline bool UrmaPollCqAt(
+    const AsyncSession& session, uint32_t peer, uint32_t jettyIdx, uint32_t targetBb, uint32_t targetCqe, bool blocking,
+    bool& completed)
+{
+    completed = false;
+    if (!ValidateUrmaSessionAt(session, peer, jettyIdx)) {
+        return false;
+    }
+    __gm__ UrmaCqCtx* cq = GetCqContextAt(session, peer, jettyIdx);
+    __gm__ UrmaWQCtx* wq = GetWqContextAt(session, peer, jettyIdx);
+    const uint32_t completedCqe = ld_dev(reinterpret_cast<__gm__ uint32_t*>(cq->tailAddr), 0);
+    if (SequenceReached(completedCqe, targetCqe)) {
+        const uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+        completed = SequenceReached(completedBb, targetBb);
+        return true;
+    }
+    const uint32_t cqeSize = 1U << cq->cqeShiftSize;
+    if (!blocking && !IsUrmaCqePrefixReady(cq, completedCqe, targetCqe, cqeSize)) {
+        return true;
+    }
+    uint32_t completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+    if (!RetireUrmaCqePrefix(wq, cq, completedCqe, targetCqe, cqeSize, completedBb)) {
+        dsb(DSB_DDR);
+        UrmaPostSendUpdateInfo(ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->headAddr), 0), wq);
+        pipe_barrier(PIPE_ALL);
+        completedBb = ld_dev(reinterpret_cast<__gm__ uint32_t*>(wq->tailAddr), 0);
+        if (!RetireUrmaCqePrefix(wq, cq, completedCqe, targetCqe, cqeSize, completedBb)) {
+            return false;
+        }
+    }
+    PublishCqAndWqTails(completedBb, targetCqe, cq, wq);
+    completed = SequenceReached(completedBb, targetBb);
+    return true;
+}
+
+AICORE inline bool UrmaPollCq(
+    const AsyncSession& session, uint32_t peer, uint32_t targetBb, uint32_t targetCqe, bool blocking, bool& completed)
+{
+    return UrmaPollCqAt(session, peer, session.qpIdxBase, targetBb, targetCqe, blocking, completed);
+}
 
 constexpr uint32_t kUrmaSqeFlagCqe = 0x20U;
 constexpr uint32_t kUrmaPlaceOrderNone = 0x00U;
@@ -369,6 +479,17 @@ AICORE inline bool PostNotifyPayload(
     return true;
 }
 
+AICORE inline UrmaPostResult FinishUrmaNotifyPost(
+    const AsyncSession& session, uint32_t peer, uint32_t targetBb, UrmaNotifyPostState& state, UrmaPostResult& result)
+{
+    state.submittedWqeCount += 1U; // the signal contributes exactly one completion (FAA's second BB carries no CQE)
+    CommitPostedWqes(state.wq, targetBb, state.submittedWqeCount);
+    session.rt.urma.nextWqeSeq += 1U;
+    result.handle = EncodeHandle(peer, targetBb);
+    result.targetCqe = state.submittedWqeCount;
+    return result;
+}
+
 AICORE inline UrmaPostResult UrmaPostNotify(
     __gm__ uint8_t* remotePayload, __gm__ uint8_t* localPayload, uint64_t messageLen, __gm__ int32_t* remoteSignal,
     int32_t signalValue, NotifyOp notifyOp, const AsyncSession& session, uint32_t peer)
@@ -424,13 +545,7 @@ AICORE inline UrmaPostResult UrmaPostNotify(
     FillNotifySignalAt(
         state.wq, state.remoteMem, region, remoteSignal, signalValue, isAtomicAdd, setSlotIndex, state.pendingHead);
     const uint32_t targetBb = state.pendingHead + signalBb;
-    state.submittedWqeCount += 1U; // the signal contributes exactly one completion (FAA's second BB carries no CQE)
-
-    CommitPostedWqes(state.wq, targetBb, state.submittedWqeCount);
-    session.rt.urma.nextWqeSeq += 1U;
-    result.handle = EncodeHandle(peer, targetBb);
-    result.targetCqe = state.submittedWqeCount;
-    return result;
+    return FinishUrmaNotifyPost(session, peer, targetBb, state, result);
 }
 
 #endif // PTO_COMM_ASYNC_URMA_POST_HPP

@@ -76,9 +76,9 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include "pto/npu/a2a3/TPow.hpp"
 #include "pto/npu/a2a3/TImg2col.hpp"
 #include "pto/npu/a2a3/SetFmatrix.hpp"
-#ifndef __COSTMODEL
 #include "pto/npu/a2a3/SetImg2colRpt.hpp"
 #include "pto/npu/a2a3/SetImg2colPadding.hpp"
+#ifndef __COSTMODEL
 #include "pto/npu/a2a3/SetQuantScalar.hpp"
 #include "pto/npu/a2a3/SetQuantVector.hpp"
 #endif

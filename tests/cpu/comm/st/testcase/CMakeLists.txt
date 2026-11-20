@@ -20,6 +20,15 @@ function(pto_cpu_sim_comm_st NAME)
     # (which asserts PTO_URMA_SUPPORTED is off for CPU target selection) stays clean.
     if(NAME MATCHES "urma")
         target_compile_definitions(${NAME} PRIVATE PTO_URMA_SUPPORTED)
+        find_path(PTO_SECUREC_INCLUDE_DIR securec.h HINTS "$ENV{ASCEND_HOME_PATH}/include")
+        find_library(PTO_SECUREC_LIBRARY NAMES c_sec securec HINTS "$ENV{ASCEND_HOME_PATH}/lib64")
+        if(NOT PTO_SECUREC_INCLUDE_DIR OR NOT PTO_SECUREC_LIBRARY)
+            message(FATAL_ERROR
+                "CPU-SIM URMA requires securec. Set PTO_SECUREC_INCLUDE_DIR and PTO_SECUREC_LIBRARY, "
+                "or source the CANN set_env.sh before configuring.")
+        endif()
+        target_include_directories(${NAME} SYSTEM PRIVATE "${PTO_SECUREC_INCLUDE_DIR}")
+        target_link_libraries(${NAME} PRIVATE "${PTO_SECUREC_LIBRARY}")
     endif()
     target_include_directories(${NAME} PRIVATE
         ${PROJECT_SOURCE_DIR}/../../../../include/

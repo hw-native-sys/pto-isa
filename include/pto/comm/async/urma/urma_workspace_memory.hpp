@@ -58,7 +58,8 @@ public:
         uint64_t workspaceSize)
     {
         detail::WorkspaceLayout workspace{};
-        if (detail::ComputeLayout(rankCount_, layout_, aivCount, jettiesPerCore, channels.RailCount(), workspace) !=
+        if (detail::ComputeLayout(
+                rankCount_, layout_, aivCount, jettiesPerCore, channels.Routes().RailCount(), workspace) !=
                 ACL_SUCCESS ||
             workspaceAddr == nullptr || workspaceSize < workspace.totalBytes) {
             PTO_HOST_LOG_ERROR("URMA", "invalid workspace layout or capacity");

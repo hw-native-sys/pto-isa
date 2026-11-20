@@ -580,4 +580,113 @@ TEST(A5TcvtFit, FloatToInt32TwoDimensionalHardwareProfiles)
     }
 }
 
+TEST(A5TcvtFit, ImplKindFollowsOperandLayout)
+{
+    namespace model = pto::mocker::lightweight;
+    using Path = model::a5::fit::ShapePath;
+    constexpr VFImplKind kinds[] = {
+        VFImplKind::VFIMPL_DEFAULT, VFImplKind::VFIMPL_1D_NO_POST_UPDATE, VFImplKind::VFIMPL_1D_POST_UPDATE,
+        VFImplKind::VFIMPL_2D_NO_POST_UPDATE, VFImplKind::VFIMPL_2D_POST_UPDATE};
+    for (auto kind : kinds) {
+        EXPECT_EQ(model::a5::ResolveVfImplKind(PtoOpcode::TCVT, kind, Path::Path1D), "NO_POST_UPDATE");
+        const bool manualPredicate =
+            kind == VFImplKind::VFIMPL_1D_NO_POST_UPDATE || kind == VFImplKind::VFIMPL_2D_NO_POST_UPDATE;
+        EXPECT_EQ(
+            model::a5::ResolveVfImplKind(PtoOpcode::TCVT, kind, Path::Path2D),
+            manualPredicate ? "NO_POST_UPDATE" : "POST_UPDATE");
+    }
+}
+
+TEST(A5TcvtFit, ExplicitTwoDimensionalNoPostUpdateDoesNotAliasMeasuredCurves)
+{
+    namespace model = pto::mocker::lightweight;
+    CostModelInput input{};
+    input.op = PtoOpcode::TCVT;
+    input.dtype = DType::Float;
+    input.dst_dtype = DType::Half;
+    input.arch = CostModelArch::A5;
+    input.rows = input.valid_rows = 1;
+    input.cols = input.valid_cols = 128;
+    input.round_mode = RoundMode::CAST_RINT;
+    input.saturation_mode = SaturationMode::ON;
+    input.a5_shape_path = model::A5ShapePathHint::Path1D;
+    input.vf_impl_kind = VFImplKind::VFIMPL_1D_NO_POST_UPDATE;
+    model::CostModelResult result{};
+    ASSERT_TRUE(model::EstimateCycles(input, result));
+    EXPECT_GT(result.cycles, 0);
+
+    // implTCVT explicitly calls castData_2D_NoPostUpdate for this enum, even
+    // for a single row. The CSV has no measurement for this implementation.
+    input.vf_impl_kind = VFImplKind::VFIMPL_2D_NO_POST_UPDATE;
+    for (auto path : {model::A5ShapePathHint::Path1D, model::A5ShapePathHint::Path2D}) {
+        input.a5_shape_path = path;
+        model::a5::fit::VfCurveKey key{};
+        uint64_t loops = 0, outer = 0, inner = 0, tail = 0, rowInner = 0;
+        ASSERT_TRUE(model::a5::BuildVfCurveKeyAndLoopCount(input, key, loops, outer, inner, tail, rowInner));
+        EXPECT_EQ(key.shape_path, model::a5::fit::ShapePath::Path2D);
+        EXPECT_EQ(key.vf_impl_kind, "NO_POST_UPDATE");
+        EXPECT_FALSE(model::EstimateCycles(input, result));
+    }
+}
+
+TEST(A5TcvtFit, PaddedLowPrecisionOneDimensionalEnumUsesTwoDimensionalProfile)
+{
+    namespace model = pto::mocker::lightweight;
+    constexpr std::pair<DType, DType> types[] = {
+        {DType::BFloat16, DType::Float4E1M2},
+        {DType::BFloat16, DType::Float4E2M1},
+        {DType::Float, DType::Float8E4M3},
+        {DType::Float, DType::Float8E5M2},
+        {DType::Float, DType::HFloat8}};
+    for (const auto& [src, dst] : types) {
+        CostModelInput input{};
+        input.op = PtoOpcode::TCVT;
+        input.dtype = src;
+        input.dst_dtype = dst;
+        input.arch = CostModelArch::A5;
+        input.rows = 10;
+        input.cols = 192;
+        input.valid_rows = 10;
+        input.valid_cols = 128;
+        input.a5_shape_path = model::A5ShapePathHint::Path2D;
+        input.vf_impl_kind = VFImplKind::VFIMPL_1D_POST_UPDATE;
+        model::CostModelResult explicitResult{};
+        ASSERT_TRUE(model::EstimateCycles(input, explicitResult));
+        input.vf_impl_kind = VFImplKind::VFIMPL_DEFAULT;
+        model::CostModelResult defaultResult{};
+        ASSERT_TRUE(model::EstimateCycles(input, defaultResult));
+        EXPECT_GT(explicitResult.cycles, 0);
+        EXPECT_EQ(explicitResult.cycles, defaultResult.cycles);
+    }
+}
+
+TEST(A5TcvtFit, HalfToInt32DenseMeasuredProfiles)
+{
+    using namespace pto::mocker::lightweight;
+    struct Profile {
+        int64_t rows;
+        int64_t cols;
+        double cycles;
+    };
+    constexpr Profile profiles[] = {
+        {128, 128, 914.2}, {16, 16, 114},    {16, 256, 147},  {16, 64, 114},    {32, 32, 210.1}, {64, 128, 466.1},
+        {64, 64, 402.1},   {2, 32, 39},      {4, 64, 42},     {8, 128, 74},     {16, 32, 114},   {16, 128, 130},
+        {32, 64, 210.1},   {32, 128, 242.1}, {64, 32, 402.1}, {64, 256, 531.1}, {3, 64, 40},     {7, 128, 67},
+        {17, 64, 120},     {33, 128, 249},   {2, 64, 39},     {2, 128, 41},     {2, 256, 45},    {2, 512, 53},
+        {3, 32, 40},       {3, 128, 43},     {3, 256, 49},    {4, 128, 46},     {2, 192, 43},    {3, 192, 46},
+        {5, 128, 53},      {5, 256, 59}};
+    for (const auto& profile : profiles) {
+        CostModelInput input{};
+        input.arch = CostModelArch::A5;
+        input.op = PtoOpcode::TCVT;
+        input.dtype = DType::Half;
+        input.dst_dtype = DType::Int32;
+        input.rows = profile.rows;
+        input.cols = profile.cols;
+        input.a5_shape_path = A5ShapePathHint::Path2D;
+        CostModelResult result{};
+        ASSERT_TRUE(EstimateCycles(input, result));
+        EXPECT_NEAR(result.cycles, profile.cycles, profile.cycles * 0.10);
+    }
+}
 } // namespace
