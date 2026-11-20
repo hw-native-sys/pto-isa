@@ -256,22 +256,22 @@ if __name__ == "__main__":
         ###Compact Case
         ## A KM， B KN
         # TEXTRACT
-        TextractParams(np.float32, np.float32, np.float32, 20, 215, 22, 0, 0, 0, 1, 0, 128, 256, 128),
+        TextractParams(np.float32, np.float32, np.float32, 20, 215, 22, 0, 0, 0, 1, 0, 128, 256, 64),
         TextractParams(np.int8, np.int8, np.int32, 46, 36, 203, 0, 0, 0, 1, 0, 128, 128, 256),
         TextractParams(bfloat16, bfloat16, np.float32, 220, 25, 30, 0, 0, 0, 1, 0, 256, 128, 128),
         ## A MK B NK
         # # TEXTRACT
-        TextractParams(np.float32, np.float32, np.float32, 20, 215, 22, 0, 0, 0, 0, 1, 128, 256, 128),
+        TextractParams(np.float32, np.float32, np.float32, 20, 215, 22, 0, 0, 0, 0, 1, 128, 256, 64),
         TextractParams(np.int8, np.int8, np.int32, 46, 36, 203, 0, 0, 0, 0, 1, 128, 128, 256),
         TextractParams(bfloat16, bfloat16, np.float32, 220, 25, 30, 0, 0, 0, 0, 1, 256, 128, 128),
         ## A MK B KN
         # TEXTRACT
-        TextractParams(np.float32, np.float32, np.float32, 36, 215, 22, 16, 16, 16, 0, 0, 128, 256, 128),
+        TextractParams(np.float32, np.float32, np.float32, 36, 215, 22, 16, 16, 16, 0, 0, 128, 256, 64),
         TextractParams(np.int8, np.int8, np.int32, 46, 36, 203, 32, 32, 32, 0, 0, 128, 128, 256),
         TextractParams(bfloat16, bfloat16, np.float32, 220, 25, 30, 16, 16, 16, 0, 0, 256, 128, 128),
         ## A KM， B NK
         # # TEXTRACT
-        TextractParams(np.float32, np.float32, np.float32, 20, 215, 22, 16, 16, 16, 1, 1, 128, 256, 128),
+        TextractParams(np.float32, np.float32, np.float32, 20, 215, 22, 16, 16, 16, 1, 1, 128, 256, 64),
         TextractParams(np.int8, np.int8, np.int32, 46, 36, 203, 32, 32, 32, 1, 1, 128, 128, 256),
         TextractParams(bfloat16, bfloat16, np.float32, 220, 25, 30, 16, 16, 16, 1, 1, 256, 128, 128),
 

@@ -16,6 +16,11 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <type_traits>
 
 #include <pto/common/arch_macro.hpp>
+#if !defined(__CPU_SIM) && !defined(__COSTMODEL) &&                                        \
+    (defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
+     defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90))
+#include <pto/common/buffer_limits.hpp>
+#endif
 #include "pto/common/memory.hpp"
 #include <pto/common/type.hpp>
 #include <pto/common/constants.hpp>
@@ -1622,6 +1627,32 @@ public:
              static_cast<size_t>(Rows)) *
         Cols;
     static constexpr size_t StorageBytes = StorageNumel / kPackedElementsPerByte * sizeof(DType);
+
+#if !defined(__CPU_SIM) && !defined(__COSTMODEL) &&                                        \
+    (defined(PTO_NPU_ARCH_A2A3) || defined(PTO_NPU_ARCH_A5) || defined(PTO_NPU_ARCH_A6) || \
+     defined(PTO_NPU_ARCH_KIRIN9030) || defined(PTO_NPU_ARCH_KIRIN9050) || defined(PTO_NPU_ARCH_KIRINX90))
+    static_assert(
+        Loc != TileType::Vec || StorageBytes <= PTO_UBUF_SIZE_BYTES, "Vec tile storage size exceeds UB capacity");
+    static_assert(
+        Loc != TileType::Mat || StorageBytes <= PTO_CBUF_SIZE_BYTES, "Mat tile storage size exceeds L1 capacity");
+    static_assert(
+        Loc != TileType::Left || StorageBytes <= PTO_L0A_SIZE_BYTES, "Left tile storage size exceeds L0A capacity");
+    static_assert(
+        Loc != TileType::Right || StorageBytes <= PTO_L0B_SIZE_BYTES, "Right tile storage size exceeds L0B capacity");
+    static_assert(
+        Loc != TileType::Acc || StorageBytes <= PTO_L0C_SIZE_BYTES, "Acc tile storage size exceeds L0C capacity");
+    static_assert(
+        Loc != TileType::Bias || StorageBytes <= PTO_BIAS_SIZE_BYTES, "Bias tile storage size exceeds Bias capacity");
+    static_assert(
+        Loc != TileType::Scaling || StorageBytes <= PTO_FBUF_SIZE_BYTES,
+        "Scaling tile storage size exceeds FBUF capacity");
+    static_assert(
+        Loc != TileType::ScaleLeft || StorageBytes <= PTO_SCALELEFT_SIZE_BYTES,
+        "ScaleLeft tile storage size exceeds ScaleLeft capacity");
+    static_assert(
+        Loc != TileType::ScaleRight || StorageBytes <= PTO_SCALERIGHT_SIZE_BYTES,
+        "ScaleRight tile storage size exceeds ScaleRight capacity");
+#endif
 
     __tf__ AICORE void SetValue(const uint32_t offset, const DType val)
     {

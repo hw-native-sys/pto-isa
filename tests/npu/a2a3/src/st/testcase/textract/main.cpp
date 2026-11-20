@@ -338,7 +338,7 @@ void textract_compact_test(
 
 TEST_F(TEXTRACT_Compact_Test, case1_float_1_0_param)
 {
-    textract_compact_test<1, float, float, float>(20, 215, 22, 0, 0, 0, 128, 256, 128);
+    textract_compact_test<1, float, float, float>(20, 215, 22, 0, 0, 0, 128, 256, 64);
 }
 TEST_F(TEXTRACT_Compact_Test, case2_int8_1_0_param)
 {
@@ -350,7 +350,7 @@ TEST_F(TEXTRACT_Compact_Test, case3_bfloat16_1_0_param)
 }
 TEST_F(TEXTRACT_Compact_Test, case11_float_0_1_param)
 {
-    textract_compact_test<11, float, float, float>(20, 215, 22, 0, 0, 0, 128, 256, 128);
+    textract_compact_test<11, float, float, float>(20, 215, 22, 0, 0, 0, 128, 256, 64);
 }
 TEST_F(TEXTRACT_Compact_Test, case12_int8_0_1_param)
 {
@@ -362,7 +362,7 @@ TEST_F(TEXTRACT_Compact_Test, case13_bfloat16_0_1_param)
 }
 TEST_F(TEXTRACT_Compact_Test, case21_float_0_0_param)
 {
-    textract_compact_test<21, float, float, float>(36, 215, 22, 16, 16, 16, 128, 256, 128);
+    textract_compact_test<21, float, float, float>(36, 215, 22, 16, 16, 16, 128, 256, 64);
 }
 TEST_F(TEXTRACT_Compact_Test, case22_int8_0_0_param)
 {
@@ -374,7 +374,7 @@ TEST_F(TEXTRACT_Compact_Test, case23_bfloat16_0_0_param)
 }
 TEST_F(TEXTRACT_Compact_Test, case31_float_1_1_param)
 {
-    textract_compact_test<31, float, float, float>(20, 215, 22, 16, 16, 16, 128, 256, 128);
+    textract_compact_test<31, float, float, float>(20, 215, 22, 16, 16, 16, 128, 256, 64);
 }
 TEST_F(TEXTRACT_Compact_Test, case32_int8_1_1_param)
 {

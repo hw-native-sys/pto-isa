@@ -177,7 +177,7 @@ AICORE inline void runTIMG2COLSplitK(__gm__ T* out, __gm__ U* src0, __gm__ U* sr
     static_assert(bMatTile.totalDimCount == 5);
     TASSIGN(bMatTile, 0x40000);
 
-    using LeftTile = TileLeft<U, 2 * M, 2 * baseK, validM, baseK>; // test compact mode works properly
+    using LeftTile = TileLeft<U, M, 2 * baseK, validM, baseK>; // test compact mode works properly
     using RightTile = TileRight<U, 2 * baseK, 2 * N, baseK, validN>;
     using AccTile = TileAcc<T, M, N, validM, validN>;
     LeftTile aTile;
@@ -297,7 +297,7 @@ AICORE inline void runTIMG2COLFractalZ4D(__gm__ T* out, __gm__ U* src0, __gm__ U
     static_assert(bMatTile.totalDimCount == 4);
     TASSIGN(bMatTile, 0x40000);
 
-    using LeftTile = TileLeft<U, 2 * M, 2 * baseK, validM, baseK>; // test compact mode works properly
+    using LeftTile = TileLeft<U, M, 2 * baseK, validM, baseK>; // test compact mode works properly
     using RightTile = TileRight<U, 2 * baseK, 2 * N, baseK, validN>;
     using AccTile = TileAcc<T, M, N, validM, validN>;
     LeftTile aTile;
