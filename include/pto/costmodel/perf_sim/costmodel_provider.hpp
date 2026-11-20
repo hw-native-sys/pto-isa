@@ -208,32 +208,13 @@ struct LightweightEstimateOptions {
     ::pto::mocker::lightweight::DefaultInputGeometry default_input{};
 };
 
-inline uint64_t EstimateLightweightCycles(
-    const std::string& opcode, int rows, int cols, const std::string& src_dtype,
-    const std::string& dst_dtype = "unknown", int64_t inner_dimension = 0,
-    ::pto::mocker::lightweight::TransferTileType tile_type = ::pto::mocker::lightweight::TransferTileType::Unknown,
-    const LightweightEstimateOptions& options = {})
+inline void ApplyLightweightGeometry(
+    ::pto::mocker::lightweight::CostModelInput& input, int rows, int cols, const LightweightEstimateOptions& options)
 {
     using namespace ::pto::mocker::lightweight;
-
-    PtoOpcode pto_op;
-    if (!TryMapOpcode(opcode, pto_op))
-        return 0;
-
-    CostModelInput input{};
-    input.op = pto_op;
-    const uint32_t npu_arch = GetCostModelCtx().npu_arch;
-    input.arch =
-        (npu_arch == kAscend950Arch || npu_arch == kAscend950UrmaArch) ? CostModelArch::A5 : CostModelArch::A2A3;
-    input.dtype = MapDType(src_dtype);
-    input.dtype2 = options.has_dtype2 ? options.dtype2 : input.dtype;
-    input.has_dtype2 = options.has_dtype2;
-    if (dst_dtype != "unknown") {
-        input.dst_dtype = MapDType(dst_dtype);
-    }
     // A5 vector paths use physical strides to select their implementation.
     // Legacy formulas and matrix M/N dimensions describe valid work instead.
-    const bool usePhysicalShape = input.arch == CostModelArch::A5 && !a5::IsMatrixOpcode(pto_op);
+    const bool usePhysicalShape = input.arch == CostModelArch::A5 && !a5::IsMatrixOpcode(input.op);
     input.rows = usePhysicalShape && options.physical_rows > 0 ? options.physical_rows : rows;
     input.cols = usePhysicalShape && options.physical_cols > 0 ? options.physical_cols : cols;
     input.valid_rows = options.valid_rows > 0 ? options.valid_rows : rows;
@@ -269,13 +250,35 @@ inline uint64_t EstimateLightweightCycles(
         input.dtype = geometry.data_dtype;
         input.a5_shape_path = geometry.source_shape_path;
     }
+}
+
+inline uint64_t EstimateLightweightCycles(
+    const std::string& opcode, int rows, int cols, const std::string& src_dtype,
+    const std::string& dst_dtype = "unknown", int64_t inner_dimension = 0,
+    ::pto::mocker::lightweight::TransferTileType tile_type = ::pto::mocker::lightweight::TransferTileType::Unknown,
+    const LightweightEstimateOptions& options = {})
+{
+    using namespace ::pto::mocker::lightweight;
+    PtoOpcode pto_op;
+    if (!TryMapOpcode(opcode, pto_op))
+        return 0;
+    CostModelInput input{};
+    input.op = pto_op;
+    const uint32_t npu_arch = GetCostModelCtx().npu_arch;
+    input.arch =
+        (npu_arch == kAscend950Arch || npu_arch == kAscend950UrmaArch) ? CostModelArch::A5 : CostModelArch::A2A3;
+    input.dtype = MapDType(src_dtype);
+    input.dtype2 = options.has_dtype2 ? options.dtype2 : input.dtype;
+    input.has_dtype2 = options.has_dtype2;
+    if (dst_dtype != "unknown") {
+        input.dst_dtype = MapDType(dst_dtype);
+    }
+    ApplyLightweightGeometry(input, rows, cols, options);
     input.data_size = static_cast<int64_t>(input.valid_rows) * input.valid_cols;
     input.tile_type = tile_type;
-
     if (a5::IsMatrixOpcode(pto_op)) {
         input.k = inner_dimension > 0 ? inner_dimension : cols;
     }
-
     if (input.arch == CostModelArch::A5 && a5::IsMatrixOpcode(pto_op) && options.matrix.present) {
         input.rows = options.matrix.m;
         input.k = options.matrix.k;

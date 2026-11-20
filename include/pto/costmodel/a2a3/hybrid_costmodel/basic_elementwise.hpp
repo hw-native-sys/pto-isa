@@ -76,7 +76,19 @@ inline CycleEstimate EstimateIntegerBinaryTargetPipe(const PtoCycleContext& ctx)
         ModelKind::CCE_TARGET_PIPE_PROJECTION};
 }
 
-inline CycleEstimate EstimateSerializedVectorLeaf(const PtoCycleContext& ctx)
+struct SerializedLeafProfile {
+    std::string_view opcode;
+    std::string_view leaf;
+    uint64_t integer_startup;
+    uint64_t default_startup;
+    bool floating_only = false;
+};
+
+inline bool IsSerializedIntegerType(std::string_view dtype) { return dtype == "int16" || dtype == "int32"; }
+
+inline bool IsSerializedFloatingType(std::string_view dtype) { return dtype == "fp16" || dtype == "fp32"; }
+
+inline bool TryResolveSerializedLeaf(const PtoCycleContext& ctx, std::string_view& leaf, uint64_t& startup)
 {
     constexpr uint64_t kAddSubStartupCycles = 6;
     constexpr uint64_t kIntegerMinMaxStartupCycles = 5;
@@ -88,8 +100,44 @@ inline CycleEstimate EstimateSerializedVectorLeaf(const PtoCycleContext& ctx)
     constexpr uint64_t kFpMulScalarStartupCycles = 7;
     constexpr uint64_t kLeakyReluStartupCycles = 7;
     constexpr uint64_t kShiftStartupCycles = 6;
-    constexpr uint64_t kFp16ElementsPerRepeat = 128;
-    constexpr uint64_t kOtherElementsPerRepeat = 64;
+    constexpr SerializedLeafProfile profiles[] = {
+        {"TADD", "vadd", kAddSubStartupCycles, kAddSubStartupCycles, true},
+        {"TPARTADD", "vadd", kAddSubStartupCycles, kAddSubStartupCycles, true},
+        {"TSUB", "vsub", kAddSubStartupCycles, kAddSubStartupCycles, true},
+        {"TPARTSUB", "vsub", kAddSubStartupCycles, kAddSubStartupCycles, true},
+        {"TMAX", "vmax", kIntegerMinMaxStartupCycles, kFpMinMaxStartupCycles},
+        {"TPARTMAX", "vmax", kIntegerMinMaxStartupCycles, kFpMinMaxStartupCycles},
+        {"TMIN", "vmin", kIntegerMinMaxStartupCycles, kFpMinMaxStartupCycles},
+        {"TPARTMIN", "vmin", kIntegerMinMaxStartupCycles, kFpMinMaxStartupCycles},
+        {"TMUL", "vmul", kMulStartupCycles, kMulStartupCycles, true},
+        {"TPARTMUL", "vmul", kMulStartupCycles, kMulStartupCycles, true},
+        {"TADDS", "vadds", kIntegerAddScalarStartupCycles, kFpAddScalarStartupCycles},
+        // A2/A3 lowers subtraction by a scalar to VADDS(-x).
+        {"TSUBS", "vadds", kIntegerAddScalarStartupCycles, kFpAddScalarStartupCycles},
+        {"TMULS", "vmuls", kIntegerMulScalarStartupCycles, kFpMulScalarStartupCycles},
+        {"TNEG", "vmuls", kIntegerMulScalarStartupCycles, kFpMulScalarStartupCycles},
+        {"TMAXS", "vmaxs", kIntegerMinMaxStartupCycles, kFpMinMaxStartupCycles},
+        {"TMINS", "vmins", kIntegerMinMaxStartupCycles, kFpMinMaxStartupCycles},
+        {"TLRELU", "vlrelu", kLeakyReluStartupCycles, kLeakyReluStartupCycles},
+        {"TSHLS", "vshl", kShiftStartupCycles, kShiftStartupCycles},
+        {"TSHRS", "vshr", kShiftStartupCycles, kShiftStartupCycles},
+    };
+    for (const auto& profile : profiles) {
+        if (ctx.opcode == profile.opcode) {
+            if (profile.floating_only && !IsSerializedFloatingType(ctx.src_dtype)) {
+                return false;
+            }
+            leaf = profile.leaf;
+            startup = IsSerializedIntegerType(ctx.src_dtype) ? profile.integer_startup : profile.default_startup;
+            return true;
+        }
+    }
+    return false;
+}
+
+inline bool TryEstimateSerializedBankProjection(
+    const PtoCycleContext& ctx, std::string_view leaf, uint64_t nativeWidth, CycleEstimate& result)
+{
     constexpr uint64_t kAddScalarIntegerBankNumerator = 29;
     constexpr uint64_t kAddScalarFpBankNumerator = 31;
     constexpr uint64_t kAddScalarBankRoundOffset = 8;
@@ -104,107 +152,56 @@ inline CycleEstimate EstimateSerializedVectorLeaf(const PtoCycleContext& ctx)
     constexpr uint64_t kIntegerMinMaxBankRoundOffset = 8;
     constexpr uint64_t kIntegerMinMaxBankDenominator = 16;
     constexpr int kLongRowThreshold = 64;
+    if (ctx.cols <= static_cast<int>(nativeWidth)) {
+        return false;
+    }
+    uint64_t cycles;
+    if (leaf == "vadds") {
+        // Multi-repeat rows revisit the UB bank phase: 31/16 for FP, 29/16 for integers.
+        const uint64_t numerator =
+            IsSerializedIntegerType(ctx.src_dtype) ? kAddScalarIntegerBankNumerator : kAddScalarFpBankNumerator;
+        cycles = (ctx.stub_cycles * numerator + kAddScalarBankRoundOffset) / kAddScalarBankDenominator;
+    } else if (
+        ctx.rows >= kLongRowThreshold && ((leaf == "vlrelu" && ctx.src_dtype == "fp32") ||
+                                          (leaf == "vmuls" && IsSerializedFloatingType(ctx.src_dtype)))) {
+        // Long floating-point rows share the same 7/4 repeated-row bank phase.
+        cycles =
+            (ctx.stub_cycles * kRepeatedRowBankNumerator + kRepeatedRowBankRoundOffset) / kRepeatedRowBankDenominator;
+    } else if (leaf == "vmuls" && IsSerializedIntegerType(ctx.src_dtype)) {
+        cycles = (ctx.stub_cycles * kIntegerMulBankNumerator + kIntegerMulBankRoundOffset) / kIntegerMulBankDenominator;
+    } else if (leaf == "vmaxs" || leaf == "vmins") {
+        cycles = (ctx.stub_cycles * kIntegerMinMaxBankNumerator + kIntegerMinMaxBankRoundOffset) /
+                 kIntegerMinMaxBankDenominator;
+    } else {
+        return false;
+    }
+    result = {cycles, ModelKind::CCE_TARGET_PIPE_PROJECTION};
+    return true;
+}
+
+inline bool IsFullWidthSerializedLeaf(std::string_view leaf)
+{
+    return leaf == "vadd" || leaf == "vsub" || leaf == "vmax" || leaf == "vmin" || leaf == "vmul" || leaf == "vadds" ||
+           leaf == "vmuls" || leaf == "vmaxs" || leaf == "vmins" || leaf == "vshl" || leaf == "vshr";
+}
+
+inline CycleEstimate EstimateSerializedVectorLeaf(const PtoCycleContext& ctx)
+{
+    constexpr uint64_t kFp16ElementsPerRepeat = 128;
+    constexpr uint64_t kOtherElementsPerRepeat = 64;
     if (ctx.trace == nullptr || ctx.stub_cycles == 0) {
         return {};
     }
-
     std::string_view leaf;
     uint64_t startup = 0;
-    if ((ctx.opcode == "TADD" || ctx.opcode == "TPARTADD") && (ctx.src_dtype == "fp16" || ctx.src_dtype == "fp32")) {
-        leaf = "vadd";
-        startup = kAddSubStartupCycles;
-    } else if (
-        (ctx.opcode == "TSUB" || ctx.opcode == "TPARTSUB") && (ctx.src_dtype == "fp16" || ctx.src_dtype == "fp32")) {
-        leaf = "vsub";
-        startup = kAddSubStartupCycles;
-    } else if (ctx.opcode == "TMAX" || ctx.opcode == "TPARTMAX") {
-        leaf = "vmax";
-        startup = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ? kIntegerMinMaxStartupCycles :
-                                                                           kFpMinMaxStartupCycles;
-    } else if (ctx.opcode == "TMIN" || ctx.opcode == "TPARTMIN") {
-        leaf = "vmin";
-        startup = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ? kIntegerMinMaxStartupCycles :
-                                                                           kFpMinMaxStartupCycles;
-    } else if (
-        (ctx.opcode == "TMUL" || ctx.opcode == "TPARTMUL") && (ctx.src_dtype == "fp16" || ctx.src_dtype == "fp32")) {
-        leaf = "vmul";
-        startup = kMulStartupCycles;
-    } else if (ctx.opcode == "TADDS") {
-        leaf = "vadds";
-        startup = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ? kIntegerAddScalarStartupCycles :
-                                                                           kFpAddScalarStartupCycles;
-    } else if (ctx.opcode == "TSUBS") {
-        leaf = "vadds"; // A2/A3 lowers subtraction by a scalar to VADDS(-x).
-        startup = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ? kIntegerAddScalarStartupCycles :
-                                                                           kFpAddScalarStartupCycles;
-    } else if (ctx.opcode == "TMULS" || ctx.opcode == "TNEG") {
-        leaf = "vmuls";
-        startup = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ? kIntegerMulScalarStartupCycles :
-                                                                           kFpMulScalarStartupCycles;
-    } else if (ctx.opcode == "TMAXS") {
-        leaf = "vmaxs";
-        startup = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ? kIntegerMinMaxStartupCycles :
-                                                                           kFpMinMaxStartupCycles;
-    } else if (ctx.opcode == "TMINS") {
-        leaf = "vmins";
-        startup = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ? kIntegerMinMaxStartupCycles :
-                                                                           kFpMinMaxStartupCycles;
-    } else if (ctx.opcode == "TLRELU") {
-        leaf = "vlrelu";
-        startup = kLeakyReluStartupCycles;
-    } else if (ctx.opcode == "TSHLS") {
-        leaf = "vshl";
-        startup = kShiftStartupCycles;
-    } else if (ctx.opcode == "TSHRS") {
-        leaf = "vshr";
-        startup = kShiftStartupCycles;
-    } else {
+    if (!TryResolveSerializedLeaf(ctx, leaf, startup)) {
         return {};
     }
-
     const uint64_t nativeWidth =
         (ctx.src_dtype == "fp16" || ctx.src_dtype == "int16") ? kFp16ElementsPerRepeat : kOtherElementsPerRepeat;
-    if (leaf == "vadds" && ctx.cols > static_cast<int>(nativeWidth)) {
-        // The PTO multi-repeat row layout revisits the same UB bank phase on
-        // source and destination.  Project the calibrated one-beat contiguous leaf
-        // through the observed A3 bank phase: 31/16 for FP and 29/16 for the
-        // integer path. This is a lowering/layout projection, not a replacement
-        // CCE fit, and applies only when each row spans multiple native repeats.
-        const uint64_t numerator = (ctx.src_dtype == "int16" || ctx.src_dtype == "int32") ?
-                                       kAddScalarIntegerBankNumerator :
-                                       kAddScalarFpBankNumerator;
-        return {
-            (ctx.stub_cycles * numerator + kAddScalarBankRoundOffset) / kAddScalarBankDenominator,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    if (leaf == "vlrelu" && ctx.src_dtype == "fp32" && ctx.rows >= kLongRowThreshold &&
-        ctx.cols > static_cast<int>(nativeWidth)) {
-        // FP32 VLRELU multi-repeat rows expose a 7/4 bank-phase projection of
-        // the calibrated contiguous one-cycle issue stream.
-        return {
-            (ctx.stub_cycles * kRepeatedRowBankNumerator + kRepeatedRowBankRoundOffset) / kRepeatedRowBankDenominator,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    if (leaf == "vmuls" && ctx.rows >= kLongRowThreshold && ctx.cols > static_cast<int>(nativeWidth) &&
-        (ctx.src_dtype == "fp16" || ctx.src_dtype == "fp32")) {
-        // Norm-mode column chunking with a repeat count of at least 64 enters
-        // the same 7/4 repeated-row bank phase. Short 16-row chunks remain at
-        // the calibrated native issue rate and deliberately bypass this projection.
-        return {
-            (ctx.stub_cycles * kRepeatedRowBankNumerator + kRepeatedRowBankRoundOffset) / kRepeatedRowBankDenominator,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    if (leaf == "vmuls" && ctx.cols > static_cast<int>(nativeWidth) &&
-        (ctx.src_dtype == "int16" || ctx.src_dtype == "int32")) {
-        return {
-            (ctx.stub_cycles * kIntegerMulBankNumerator + kIntegerMulBankRoundOffset) / kIntegerMulBankDenominator,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    if ((leaf == "vmaxs" || leaf == "vmins") && ctx.cols > static_cast<int>(nativeWidth)) {
-        return {
-            (ctx.stub_cycles * kIntegerMinMaxBankNumerator + kIntegerMinMaxBankRoundOffset) /
-                kIntegerMinMaxBankDenominator,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
+    CycleEstimate projection;
+    if (TryEstimateSerializedBankProjection(ctx, leaf, nativeWidth, projection)) {
+        return projection;
     }
     if (leaf == "vlrelu" && ctx.src_dtype == "fp16" && ctx.cols > static_cast<int>(nativeWidth)) {
         return {};
@@ -212,24 +209,12 @@ inline CycleEstimate EstimateSerializedVectorLeaf(const PtoCycleContext& ctx)
     if (leaf == "vlrelu" && ctx.src_dtype == "fp32" && ctx.cols == static_cast<int>(nativeWidth)) {
         return {};
     }
-
-    const bool fullWidthIssueStream = leaf == "vadd" || leaf == "vsub" || leaf == "vmax" || leaf == "vmin" ||
-                                      leaf == "vmul" || leaf == "vadds" || leaf == "vmuls" || leaf == "vmaxs" ||
-                                      leaf == "vmins" || leaf == "vshl" || leaf == "vshr";
-    if (fullWidthIssueStream) {
-        if (ctx.cols > 0 && static_cast<uint64_t>(ctx.cols) % nativeWidth == 0) {
-            // A full-width row forms one continuous issue stream and does not
-            // expose a per-call completion endpoint in aiv_vec_time.
-            return {};
-        }
+    if (IsFullWidthSerializedLeaf(leaf) && ctx.cols > 0 && static_cast<uint64_t>(ctx.cols) % nativeWidth == 0) {
+        // Full-width rows form one continuous issue stream without a per-call endpoint.
+        return {};
     }
-
-    // Apply only to a true one-leaf PTO lowering.  The CCE profile prices such a call
-    // as startup + repeat*slope.  The stub queue correctly overlaps CCEs
-    // inside one PTO instruction, but it also overlaps startup across adjacent
-    // public PTO calls; the A3 target-pipe measurement retains that boundary.
-    // Restoring exactly one native startup per PTO call fixes the projection
-    // without changing the measured leaf profile or recorder behaviour.
+    // Restore one native startup only for a true one-leaf PTO lowering. The stub queue
+    // overlaps this boundary across public calls, while the target-pipe measurement retains it.
     if (CountCceCalls(*ctx.trace, leaf) != 1) {
         return {};
     }

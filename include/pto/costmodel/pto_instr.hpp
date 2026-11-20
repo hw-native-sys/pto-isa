@@ -327,27 +327,61 @@ inline A5SequenceFitTag QuantFitTag(const D& dst, const S& src, const P& scale, 
 // manual image path. Configuration execution has a separately calibrated domain.
 inline auto& ImageManualFitState() { return perf_sim::GetCostModelCtx().imageManual; }
 
+inline constexpr int kImageConfigFmapWidth = 0;
+inline constexpr int kImageConfigDstStride = 1;
+inline constexpr int kImageConfigPadValue = 2;
+
+template <typename S>
+inline bool HasManualImageConfigLayout(const S& src)
+{
+    constexpr int kNc1hwc0Dimensions = 5;
+    constexpr int kCalibratedChannelBlocks = 2;
+    constexpr int kCalibratedImageWidth = 16;
+    constexpr int kChannelsPerBlock = 16;
+    return std::is_same_v<typename S::DType, half> && S::Loc == TileType::Mat && S::layout == Layout::NC1HWC0 &&
+           S::totalDimCount == kNc1hwc0Dimensions && src.GetShape(0) == 1 &&
+           src.GetShape(1) == kCalibratedChannelBlocks && src.GetShape(2) == 1 &&
+           src.GetShape(3) == kCalibratedImageWidth && src.GetShape(4) == kChannelsPerBlock;
+}
+
+template <typename S>
+inline bool HasManualImageConfigKernel(const S& src)
+{
+    constexpr int kCalibratedChannels = 32;
+    return src.GetFmapH() == 1 && src.GetFilterH() == 1 && src.GetFilterW() == 1 && src.GetStrideH() == 1 &&
+           src.GetStrideW() == 1 && src.GetDilationH() == 1 && src.GetDilationW() == 1 &&
+           src.GetChannelSize() == kCalibratedChannels && !src.GetTranspose() && src.GetRepeatTime() == 1 &&
+           src.GetRepeatMode() == 0 && src.GetRepeatStride() == 0 && src.GetDstMposition() == 0;
+}
+
 template <int Kind, auto Mode, typename S>
 inline A5SequenceFitTag ImageConfigFitTag(const S& src)
 {
+    constexpr int kPaddingSides = 4;
+    constexpr int kMinFmapWidth = 8;
+    constexpr int kMaxFmapWidth = 65;
+    constexpr int kDefaultFmapWidth = 16;
+    constexpr int kMinDstStride = 1;
+    constexpr int kMaxDstStride = 10;
+    constexpr int kMinPadValue = 0;
+    constexpr int kMaxPadValue = 9;
     bool supported = (Mode == SetFmatrixMode::FMATRIX_A_MANUAL || Mode == SetFmatrixMode::FMATRIX_B_MANUAL) &&
-                     std::is_same_v<typename S::DType, half> && S::Loc == TileType::Mat &&
-                     S::layout == Layout::NC1HWC0 && S::totalDimCount == 5 && src.GetShape(0) == 1 &&
-                     src.GetShape(1) == 2 && src.GetShape(2) == 1 && src.GetShape(3) == 16 && src.GetShape(4) == 16 &&
-                     src.GetFmapH() == 1 && src.GetFilterH() == 1 && src.GetFilterW() == 1 && src.GetStrideH() == 1 &&
-                     src.GetStrideW() == 1 && src.GetDilationH() == 1 && src.GetDilationW() == 1 &&
-                     src.GetChannelSize() == 32 && !src.GetTranspose() && src.GetRepeatTime() == 1 &&
-                     src.GetRepeatMode() == 0 && src.GetRepeatStride() == 0 && src.GetDstMposition() == 0;
+                     HasManualImageConfigLayout(src) && HasManualImageConfigKernel(src);
     for (int i = 0; i < S::totalDimCount; ++i) {
         supported = supported && src.GetShape(i) == src.GetValidShape(i);
     }
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < kPaddingSides; ++i) {
         supported = supported && src.GetPadList(i) == 0;
     }
     const float pad = static_cast<float>(src.GetPadValue());
-    supported = supported && (Kind == 0 ? src.GetFmapW() >= 8 && src.GetFmapW() <= 65 : src.GetFmapW() == 16) &&
-                (Kind == 1 ? src.GetDstStride() >= 1 && src.GetDstStride() <= 10 : src.GetDstStride() == 1) &&
-                (Kind == 2 ? pad >= 0 && pad <= 9 && pad == static_cast<int>(pad) : pad == 0);
+    supported =
+        supported &&
+        (Kind == kImageConfigFmapWidth ? src.GetFmapW() >= kMinFmapWidth && src.GetFmapW() <= kMaxFmapWidth :
+                                         src.GetFmapW() == kDefaultFmapWidth) &&
+        (Kind == kImageConfigDstStride ? src.GetDstStride() >= kMinDstStride && src.GetDstStride() <= kMaxDstStride :
+                                         src.GetDstStride() == kMinDstStride) &&
+        (Kind == kImageConfigPadValue ? pad >= kMinPadValue && pad <= kMaxPadValue && pad == static_cast<int>(pad) :
+                                        pad == kMinPadValue);
     return {supported ? "image_config_manual_half" : "unsupported_image_config"};
 }
 
@@ -563,7 +597,8 @@ inline constexpr bool IsApproximateDefaultLoad()
     if constexpr (is_conv_tile_v<D>) {
         return false;
     } else {
-        return D::Loc == TileType::Vec && D::Rows == 16 && D::Cols == 16 &&
+        constexpr int kDefaultLoadTileExtent = 16;
+        return D::Loc == TileType::Vec && D::Rows == kDefaultLoadTileExtent && D::Cols == kDefaultLoadTileExtent &&
                (std::is_same_v<typename D::DType, half> || std::is_same_v<typename D::DType, float> ||
                 std::is_same_v<typename D::DType, int32_t>);
     }
@@ -644,16 +679,38 @@ inline bool PreserveLegacyScalarComparison(const D& dst, const S& src, typename 
         return false;
     using T = typename S::DType;
     if constexpr (std::is_same_v<T, float> || std::is_same_v<T, int32_t> || std::is_same_v<T, uint16_t>) {
-        if (mode != CmpMode::EQ || (scalar != T(1) && scalar != T(2)))
+        constexpr T kLegacyUnitScalar = T(1);
+        constexpr T kLegacyDoubleScalar = T(2);
+        constexpr uint64_t kA5UbCapacityBytes = 256 * 1024;
+        if (mode != CmpMode::EQ || (scalar != kLegacyUnitScalar && scalar != kLegacyDoubleScalar))
             return false;
         const auto d = ObservableOperandGeometry(dst);
         const auto s = ObservableOperandGeometry(src);
         // Existing mock-only EQ profiles also accept host buffers. Preserve
         // that old route when device addresses are not observable; never
         // reinterpret host pointers as UB addresses for the new fitted route.
-        return !d.has_address || !s.has_address || d.address >= 262144 || s.address >= 262144;
+        return !d.has_address || !s.has_address || d.address >= kA5UbCapacityBytes || s.address >= kA5UbCapacityBytes;
     }
     return false;
+}
+
+template <typename SrcType>
+inline constexpr bool IsObservableScalarComparisonType()
+{
+    return std::is_same_v<SrcType, bfloat16_t> || std::is_same_v<SrcType, float> || std::is_same_v<SrcType, int32_t> ||
+           std::is_same_v<SrcType, uint32_t> || std::is_same_v<SrcType, int16_t> || std::is_same_v<SrcType, uint16_t> ||
+           std::is_same_v<SrcType, int8_t> || std::is_same_v<SrcType, uint8_t>;
+}
+
+template <typename D, typename S>
+inline bool MatchesLegacyScalarComparisonFixture(const D& dst, const S& src, typename S::DType scalar, CmpMode mode)
+{
+    constexpr int kLegacyImmediateEqScalar = 2;
+    return IsA5SequenceFit() && mode == CmpMode::EQ &&
+           scalar == static_cast<typename S::DType>(kLegacyImmediateEqScalar) && src.GetValidRow() == S::Rows &&
+           src.GetValidCol() == S::Cols && dst.GetValidRow() == src.GetValidRow() &&
+           dst.GetValidCol() == src.GetValidCol() && D::Rows == S::Rows && D::Cols == S::Cols &&
+           D::RowStride == D::Cols && S::RowStride == S::Cols;
 }
 
 template <int Direction, typename D>
@@ -784,24 +841,9 @@ inline lightweight::TransferTileType ResolveCostModelTransferTileType(const char
     return lightweight::TransferTileType::Unknown;
 }
 
-inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_tiles)
+inline void ExtractRecordedWorkShape(
+    perf_sim::InstrRecord& r, const char* opcode, auto&& first_tile, auto&&... rest_tiles)
 {
-    // Look up pipeline stage from opcode name and tile types (TLOAD/TSTORE need tile routing)
-    perf_sim::PipeStage stage = perf_sim::ResolvePipeStageArgs(opcode, first_tile, rest_tiles...);
-
-    // 1. Track data dependencies (cross-pipe waits + signal event for this instr)
-    auto dep = perf_sim::TileDepTracker::TrackByAddr(opcode, stage, first_tile, rest_tiles...);
-
-    // 2. Build InstrRecord
-    perf_sim::InstrRecord r;
-    r.opcode = opcode;
-    r.stage = stage;
-    r.signal_event = dep.signal_event;
-    for (int i = 0; i < dep.wait_count && i < perf_sim::InstrRecord::MAX_WAIT_EVENTS; ++i) {
-        r.wait_events[i] = dep.wait_events[i];
-    }
-    r.wait_count = dep.wait_count;
-
     // Tile dimensions + dtype: try each tile argument in order, use first one with info.
     // For TSTORE(dst=GlobalData, src=TileData), this skips GlobalData and uses TileData.
     // Reduction outputs are 1 x cols. Their work is determined by the source
@@ -825,31 +867,11 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
     } else {
         ExtractFirstTileInfo(r.rows, r.cols, r.dtype, first_tile);
     }
+}
 
-    int dstRows = 0;
-    int dstCols = 0;
-    std::string dstDtype;
-    TryTileInfo(dstRows, dstCols, dstDtype, first_tile);
-    int srcRows = 0;
-    int srcCols = 0;
-    std::string srcDtype;
-    if constexpr (sizeof...(rest_tiles) > 0) {
-        if constexpr (sizeof...(rest_tiles) >= 3) {
-            if (IsIndexReductionOpcode(opcode)) {
-                auto restTuple = std::forward_as_tuple(rest_tiles...);
-                TryTileInfo(srcRows, srcCols, srcDtype, std::get<1>(restTuple));
-            } else {
-                ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
-            }
-        } else {
-            ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
-        }
-    }
-    const auto transferTileType =
-        ResolveCostModelTransferTileType<decltype(first_tile), decltype(rest_tiles)...>(opcode);
-    const int64_t innerDimension = std::string_view(opcode) == "TMATMUL" ? srcCols : 0;
-
-    CostModelTileInfo modelTileInfo;
+inline void ExtractRecordedModelTileInfo(
+    CostModelTileInfo& modelTileInfo, const char* opcode, auto&& first_tile, auto&&... rest_tiles)
+{
     if constexpr (sizeof...(rest_tiles) > 0) {
         // Comparison destinations pack bits; their width is not the input work size.
         if (UsesSourceWorkShape(opcode) || std::string_view(opcode) == "TCMPS") {
@@ -869,13 +891,11 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
     } else {
         ExtractFirstCostModelTileInfo(modelTileInfo, first_tile);
     }
-    perf_sim::LightweightEstimateOptions estimateOptions{
-        .physical_rows = modelTileInfo.physical_rows,
-        .physical_cols = modelTileInfo.physical_cols,
-        .valid_rows = modelTileInfo.valid_rows,
-        .valid_cols = modelTileInfo.valid_cols,
-        .a5_shape_path = modelTileInfo.a5_shape_path,
-    };
+}
+
+inline void UpdateIndexedInstrEstimateOptions(
+    perf_sim::LightweightEstimateOptions& estimateOptions, const char* opcode, auto&&... rest_tiles)
+{
     if constexpr (sizeof...(rest_tiles) >= 2) {
         if (std::string_view(opcode) == "TGATHER" || std::string_view(opcode) == "TSCATTER") {
             auto restTuple = std::forward_as_tuple(rest_tiles...);
@@ -886,10 +906,16 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
             }
         }
         if (std::string_view(opcode) == "TSORT32") {
-            estimateOptions.a5_op_params = sizeof...(rest_tiles) >= 3 ? "with_tmp" : "no_tmp_subrepeat";
+            constexpr auto kSort32TemporaryOperandCount = 3;
+            estimateOptions.a5_op_params =
+                sizeof...(rest_tiles) >= kSort32TemporaryOperandCount ? "with_tmp" : "no_tmp_subrepeat";
         }
     }
-    (UpdateLightweightEstimateOptions(estimateOptions, rest_tiles), ...);
+}
+
+inline void UpdateConversionInstrEstimateOptions(
+    perf_sim::LightweightEstimateOptions& estimateOptions, const char* opcode, auto&& first_tile, auto&&... rest_tiles)
+{
     if (std::string_view(opcode) == "TCVT") {
         CostModelTileInfo sourceInfo;
         CostModelTileInfo destinationInfo;
@@ -927,6 +953,45 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
             }
         }
     }
+}
+
+inline void UpdatePatternInstrEstimateOptions(
+    perf_sim::LightweightEstimateOptions& estimateOptions, auto&& first_tile, auto&&... rest_tiles)
+{
+    if (estimateOptions.has_mask_pattern) {
+        CostModelTileInfo sourceInfo;
+        CostModelTileInfo destinationInfo;
+        if constexpr (sizeof...(rest_tiles) > 0) {
+            ExtractFirstCostModelTileInfo(sourceInfo, rest_tiles...);
+        }
+        TryCostModelTileInfo(destinationInfo, first_tile);
+        estimateOptions.physical_rows = sourceInfo.physical_rows;
+        estimateOptions.physical_cols = sourceInfo.physical_cols;
+        estimateOptions.valid_rows = sourceInfo.valid_rows;
+        estimateOptions.valid_cols = sourceInfo.valid_cols;
+        estimateOptions.a5_shape_path = sourceInfo.a5_shape_path;
+        estimateOptions.dst_rows = destinationInfo.physical_rows;
+        estimateOptions.dst_cols = destinationInfo.physical_cols;
+        estimateOptions.dst_valid_rows = destinationInfo.valid_rows;
+        estimateOptions.dst_valid_cols = destinationInfo.valid_cols;
+    }
+}
+
+inline perf_sim::LightweightEstimateOptions BuildRecordedEstimateOptions(
+    const char* opcode, auto&& first_tile, auto&&... rest_tiles)
+{
+    CostModelTileInfo modelTileInfo;
+    ExtractRecordedModelTileInfo(modelTileInfo, opcode, first_tile, rest_tiles...);
+    perf_sim::LightweightEstimateOptions estimateOptions{
+        .physical_rows = modelTileInfo.physical_rows,
+        .physical_cols = modelTileInfo.physical_cols,
+        .valid_rows = modelTileInfo.valid_rows,
+        .valid_cols = modelTileInfo.valid_cols,
+        .a5_shape_path = modelTileInfo.a5_shape_path,
+    };
+    UpdateIndexedInstrEstimateOptions(estimateOptions, opcode, rest_tiles...);
+    (UpdateLightweightEstimateOptions(estimateOptions, rest_tiles), ...);
+    UpdateConversionInstrEstimateOptions(estimateOptions, opcode, first_tile, rest_tiles...);
     if constexpr (sizeof...(rest_tiles) == 3) {
         if (std::string_view(opcode) == "TCMPS") {
             auto sources = std::forward_as_tuple(rest_tiles...);
@@ -953,24 +1018,15 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
             }
         }
     }
-    if (estimateOptions.has_mask_pattern) {
-        CostModelTileInfo sourceInfo;
-        CostModelTileInfo destinationInfo;
-        if constexpr (sizeof...(rest_tiles) > 0) {
-            ExtractFirstCostModelTileInfo(sourceInfo, rest_tiles...);
-        }
-        TryCostModelTileInfo(destinationInfo, first_tile);
-        estimateOptions.physical_rows = sourceInfo.physical_rows;
-        estimateOptions.physical_cols = sourceInfo.physical_cols;
-        estimateOptions.valid_rows = sourceInfo.valid_rows;
-        estimateOptions.valid_cols = sourceInfo.valid_cols;
-        estimateOptions.a5_shape_path = sourceInfo.a5_shape_path;
-        estimateOptions.dst_rows = destinationInfo.physical_rows;
-        estimateOptions.dst_cols = destinationInfo.physical_cols;
-        estimateOptions.dst_valid_rows = destinationInfo.valid_rows;
-        estimateOptions.dst_valid_cols = destinationInfo.valid_cols;
-    }
+    UpdatePatternInstrEstimateOptions(estimateOptions, first_tile, rest_tiles...);
+    return estimateOptions;
+}
 
+inline uint64_t ResolveRecordedInstrCycles(
+    const char* opcode, const perf_sim::InstrRecord& r, const std::string& dstDtype, const std::string& srcDtype,
+    int64_t innerDimension, lightweight::TransferTileType transferTileType,
+    const perf_sim::LightweightEstimateOptions& estimateOptions)
+{
     const uint64_t measured_cycles = GetLastPtoInstrCycles();
     uint64_t cycles = measured_cycles;
     const auto& trace = GetTrace();
@@ -1005,8 +1061,53 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
             trace.executed_pto.back().total_cycles = cycles;
         }
     }
-    r.estimated_cycles = cycles;
+    return cycles;
+}
 
+inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_tiles)
+{
+    // Look up pipeline stage from opcode name and tile types (TLOAD/TSTORE need tile routing)
+    perf_sim::PipeStage stage = perf_sim::ResolvePipeStageArgs(opcode, first_tile, rest_tiles...);
+
+    // 1. Track data dependencies (cross-pipe waits + signal event for this instr)
+    auto dep = perf_sim::TileDepTracker::TrackByAddr(opcode, stage, first_tile, rest_tiles...);
+
+    // 2. Build InstrRecord
+    perf_sim::InstrRecord r;
+    r.opcode = opcode;
+    r.stage = stage;
+    r.signal_event = dep.signal_event;
+    for (int i = 0; i < dep.wait_count && i < perf_sim::InstrRecord::MAX_WAIT_EVENTS; ++i) {
+        r.wait_events[i] = dep.wait_events[i];
+    }
+    r.wait_count = dep.wait_count;
+
+    ExtractRecordedWorkShape(r, opcode, first_tile, rest_tiles...);
+    std::string dstDtype;
+    int srcCols = 0;
+    std::string srcDtype;
+    int dstRows = 0;
+    int dstCols = 0;
+    TryTileInfo(dstRows, dstCols, dstDtype, first_tile);
+    int srcRows = 0;
+    if constexpr (sizeof...(rest_tiles) > 0) {
+        if constexpr (sizeof...(rest_tiles) >= 3) {
+            if (IsIndexReductionOpcode(opcode)) {
+                auto restTuple = std::forward_as_tuple(rest_tiles...);
+                TryTileInfo(srcRows, srcCols, srcDtype, std::get<1>(restTuple));
+            } else {
+                ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
+            }
+        } else {
+            ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
+        }
+    }
+    const auto transferTileType =
+        ResolveCostModelTransferTileType<decltype(first_tile), decltype(rest_tiles)...>(opcode);
+    const int64_t innerDimension = std::string_view(opcode) == "TMATMUL" ? srcCols : 0;
+    const auto estimateOptions = BuildRecordedEstimateOptions(opcode, first_tile, rest_tiles...);
+    r.estimated_cycles =
+        ResolveRecordedInstrCycles(opcode, r, dstDtype, srcDtype, innerDimension, transferTileType, estimateOptions);
     perf_sim::CvSyncRecorder::ApplyPending(opcode, r);
     perf_sim::PtoRecorder::Record(std::move(r));
 }
@@ -2042,10 +2143,7 @@ TCMPS(TileDataDst& dst, TileDataSrc& src0, typename TileDataSrc::DType src1, Cmp
         return RecordEvent{};
     }
     using SrcType = typename TileDataSrc::DType;
-    if constexpr (
-        std::is_same_v<SrcType, bfloat16_t> || std::is_same_v<SrcType, float> || std::is_same_v<SrcType, int32_t> ||
-        std::is_same_v<SrcType, uint32_t> || std::is_same_v<SrcType, int16_t> || std::is_same_v<SrcType, uint16_t> ||
-        std::is_same_v<SrcType, int8_t> || std::is_same_v<SrcType, uint8_t>) {
+    if constexpr (::pto::mocker::IsObservableScalarComparisonType<SrcType>()) {
         if (::pto::mocker::UseObservableComparison(dst, src0) &&
             !::pto::mocker::PreserveLegacyScalarComparison(dst, src0, src1, mode)) {
             RECORD_INSTR_ONLY(
@@ -2069,11 +2167,7 @@ TCMPS(TileDataDst& dst, TileDataSrc& src0, typename TileDataSrc::DType src1, Cmp
         if constexpr (
             TileDataDst::Loc == TileType::Vec && TileDataSrc::Loc == TileType::Vec && TileDataDst::isRowMajor &&
             TileDataSrc::isRowMajor && std::is_same_v<typename TileDataDst::DType, uint8_t>) {
-            if (::pto::mocker::IsA5SequenceFit() && mode == CmpMode::EQ && src1 == static_cast<SrcType>(2) &&
-                src0.GetValidRow() == TileDataSrc::Rows && src0.GetValidCol() == TileDataSrc::Cols &&
-                dst.GetValidRow() == src0.GetValidRow() && dst.GetValidCol() == src0.GetValidCol() &&
-                TileDataDst::Rows == TileDataSrc::Rows && TileDataDst::Cols == TileDataSrc::Cols &&
-                TileDataDst::RowStride == TileDataDst::Cols && TileDataSrc::RowStride == TileDataSrc::Cols) {
+            if (::pto::mocker::MatchesLegacyScalarComparisonFixture(dst, src0, src1, mode)) {
                 ::RecordInstrFromFirst("TCMPS", dst, src0, src1, mode);
             }
         }
@@ -3131,7 +3225,7 @@ PTO_INST RecordEvent SETFMATRIX(ConvTileData& src, WaitEvents&... events)
         }
     }
     if (::pto::perf_sim::GetCostModelCtx().npu_arch == ::pto::perf_sim::kAscend950Arch) {
-        const auto tag = ::pto::mocker::ImageConfigFitTag<0, FmatrixMode>(src);
+        const auto tag = ::pto::mocker::ImageConfigFitTag<::pto::mocker::kImageConfigFmapWidth, FmatrixMode>(src);
         RECORD_INSTR_ONLY(SETFMATRIX, src, tag);
     } else {
         MAP_INSTR_IMPL_T(SETFMATRIX, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);
@@ -3151,7 +3245,7 @@ PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData& src, WaitEvents&... events)
         state.dstStride = src.GetDstStride();
     }
     if (::pto::mocker::IsA5SequenceFit()) {
-        const auto tag = ::pto::mocker::ImageConfigFitTag<1, FmatrixMode>(src);
+        const auto tag = ::pto::mocker::ImageConfigFitTag<::pto::mocker::kImageConfigDstStride, FmatrixMode>(src);
         RECORD_INSTR_ONLY(SET_IMG2COL_RPT, src, tag);
     } else {
         MAP_INSTR_IMPL_T(SET_IMG2COL_RPT, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);
@@ -3167,7 +3261,7 @@ PTO_INST RecordEvent SET_IMG2COL_PADDING(ConvTileData& src, WaitEvents&... event
         ::pto::mocker::ImageManualFitState().zeroPadValue = src.GetPadValue() == 0;
     }
     if (::pto::mocker::IsA5SequenceFit()) {
-        const auto tag = ::pto::mocker::ImageConfigFitTag<2, FmatrixMode>(src);
+        const auto tag = ::pto::mocker::ImageConfigFitTag<::pto::mocker::kImageConfigPadValue, FmatrixMode>(src);
         RECORD_INSTR_ONLY(SET_IMG2COL_PADDING, src, tag);
     } else {
         MAP_INSTR_IMPL_T(SET_IMG2COL_PADDING, PTO_TEMPLATE_ARGS(ConvTileData, FmatrixMode), src);

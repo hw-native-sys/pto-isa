@@ -321,119 +321,52 @@ inline CycleEstimate EstimatePreluTargetPipe(const PtoCycleContext& ctx)
 
 inline CycleEstimate EstimatePtoCycles(const PtoCycleContext& ctx)
 {
-    if (auto estimate = EstimateColumnReduce(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateFmod(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateCompareTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateMaddTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateMulaTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimatePowTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateIntegerBinaryTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateSerializedVectorLeaf(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateMultiCallShiftTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateTinyFp16UnaryFloor(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateAxpyTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateNotTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateSingleCallCvtTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateGatherPatternTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateScalarLoopShift(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateMaskedDivTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateScalarBitwiseComposite(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateBinaryXorComposite(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateBinaryBitwiseRowStream(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRemainderTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateIntegerRowMinMaxTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRowArgCompositeTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRowSumTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRowExpandDivTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRowExpandAddSubTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRowExpandMulMinMaxTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRowExpandExpDifTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateRecipTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateUbToUbTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateConcatTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateGemvTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateColArgTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimatePartArgTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimatePreluTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateDequantTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateSelsTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateExpandsTargetPipe(ctx)) {
-        return estimate;
-    }
-    if (auto estimate = EstimateImg2ColTargetPipe(ctx)) {
-        return estimate;
+    using Estimator = CycleEstimate (*)(const PtoCycleContext&);
+    // Preserve the first matching model and the original estimator priority.
+    static constexpr Estimator estimators[] = {
+        EstimateColumnReduce,
+        EstimateFmod,
+        EstimateCompareTargetPipe,
+        EstimateMaddTargetPipe,
+        EstimateMulaTargetPipe,
+        EstimatePowTargetPipe,
+        EstimateIntegerBinaryTargetPipe,
+        EstimateSerializedVectorLeaf,
+        EstimateMultiCallShiftTargetPipe,
+        EstimateTinyFp16UnaryFloor,
+        EstimateAxpyTargetPipe,
+        EstimateNotTargetPipe,
+        EstimateSingleCallCvtTargetPipe,
+        EstimateGatherPatternTargetPipe,
+        EstimateScalarLoopShift,
+        EstimateMaskedDivTargetPipe,
+        EstimateScalarBitwiseComposite,
+        EstimateBinaryXorComposite,
+        EstimateBinaryBitwiseRowStream,
+        EstimateRemainderTargetPipe,
+        EstimateIntegerRowMinMaxTargetPipe,
+        EstimateRowArgCompositeTargetPipe,
+        EstimateRowSumTargetPipe,
+        EstimateRowExpandDivTargetPipe,
+        EstimateRowExpandAddSubTargetPipe,
+        EstimateRowExpandMulMinMaxTargetPipe,
+        EstimateRowExpandExpDifTargetPipe,
+        EstimateRecipTargetPipe,
+        EstimateUbToUbTargetPipe,
+        EstimateConcatTargetPipe,
+        EstimateGemvTargetPipe,
+        EstimateColArgTargetPipe,
+        EstimatePartArgTargetPipe,
+        EstimatePreluTargetPipe,
+        EstimateDequantTargetPipe,
+        EstimateSelsTargetPipe,
+        EstimateExpandsTargetPipe,
+        EstimateImg2ColTargetPipe,
+    };
+    for (const auto estimate : estimators) {
+        if (auto result = estimate(ctx)) {
+            return result;
+        }
     }
     return {};
 }

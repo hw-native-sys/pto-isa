@@ -38,10 +38,83 @@ inline bool LookupSequenceFit(const CostModelInput& input, std::string_view bran
     return fit::TryLookupVfFormulaParam(key, param);
 }
 
+inline bool IsSequenceShift(PtoOpcode op)
+{
+    return op == PtoOpcode::TSHL || op == PtoOpcode::TSHR || op == PtoOpcode::TSHLS || op == PtoOpcode::TSHRS;
+}
+
+inline bool ValidSequenceGeometry(const CostModelInput& input, int64_t rows, int64_t cols, bool integerFamily)
+{
+    if (rows <= 0 || cols <= 0 || rows != input.rows || cols != input.cols || rows > kSequenceMaxRows)
+        return false;
+    if (integerFamily)
+        return input.dtype == DType::Int16 || input.dtype == DType::Int32;
+    return input.dtype == DType::Half || input.dtype == DType::Float;
+}
+
+inline bool TryEstimateSequenceCiCycles(
+    const CostModelInput& input, int64_t rows, int64_t cols, uint64_t repeat, uint64_t& cycles)
+{
+    if (rows != 1 || cols < kShiftMinCols || cols > kCiMaxCols ||
+        (input.a5_op_params != "ci_scalar" && input.a5_op_params != "ci_vector"))
+        return false;
+    const fit::VfFormulaParam* param = nullptr;
+    if (!LookupSequenceFit(input, input.a5_op_params, param))
+        return false;
+    cycles = fit::EvalVfFormula(*param, input.a5_op_params == "ci_scalar" ? cols : repeat, 1, 1, 0, 1);
+    return true;
+}
+
+inline bool TryEstimateSequenceShiftOrPartialCycles(
+    const CostModelInput& input, int64_t rows, int64_t cols, uint64_t repeat, bool part, bool shift, uint64_t& cycles)
+{
+    if (cols < kShiftMinCols || cols > kShiftMaxCols)
+        return false;
+    if (rows > 1 && cols > (part ? kPartialArgMultiRowMaxCols : kShiftMultiRowMaxCols))
+        return false;
+    // Only physical single rows or the measured dynamic-valid 2D path.
+    if (rows > 1 && input.a5_shape_path != A5ShapePathHint::Path2D)
+        return false;
+    // The fp32 partial-arg two-row startup has not met the accuracy target.
+    if (part && input.dtype == DType::Float && rows == 2)
+        return false;
+    const fit::VfFormulaParam* param = nullptr;
+    if (!LookupSequenceFit(input, rows == 1 ? "sequence_row1" : "sequence_rows", param))
+        return false;
+    cycles = fit::EvalVfFormula(*param, repeat, rows, repeat, 0, repeat);
+    if (shift && rows > 1) {
+        const fit::VfFormulaParam* single = nullptr;
+        if (!LookupSequenceFit(input, "sequence_row1", single))
+            return false;
+        // Short row loops retain the single-row latency floor. Coefficients
+        // are shared with the independently measured single-row curve.
+        const double floor = single->param0 * static_cast<double>(rows * repeat) + single->param1;
+        cycles = std::max(cycles, fit::RoundToCycles(floor));
+    }
+    return true;
+}
+
+inline bool TryEstimateSequenceInterleaveCycles(
+    const CostModelInput& input, int64_t rows, int64_t cols, int64_t bytes, uint64_t& cycles)
+{
+    const int64_t maxCols = bytes == sizeof(int16_t) ? kInterleaveHalfMaxCols : kInterleaveFloatMaxCols;
+    if (cols > maxCols || cols % kHalfRowDivisor != 0)
+        return false;
+    const bool aligned = (cols * bytes / kHalfRowDivisor) % kSequenceBlockBytes == 0;
+    if (!aligned && input.op == PtoOpcode::TDEINTERLEAVE)
+        return false;
+    const fit::VfFormulaParam* param = nullptr;
+    if (!LookupSequenceFit(input, aligned ? "interleave_aligned" : "interleave_unaligned", param))
+        return false;
+    const uint64_t halfRepeat =
+        (cols / kHalfRowDivisor + kSequenceVectorBytes / bytes - 1) / (kSequenceVectorBytes / bytes);
+    cycles = fit::EvalVfFormula(*param, halfRepeat, rows, halfRepeat, 0, halfRepeat);
+    return true;
+}
+
 inline bool TryEstimateA5SequenceCycles(const CostModelInput& input, uint64_t& cycles)
 {
-    const bool shift = input.op == PtoOpcode::TSHL || input.op == PtoOpcode::TSHR || input.op == PtoOpcode::TSHLS ||
-                       input.op == PtoOpcode::TSHRS;
+    const bool shift = IsSequenceShift(input.op);
     const bool part = input.op == PtoOpcode::TPARTARGMAX || input.op == PtoOpcode::TPARTARGMIN;
     const bool interleave = input.op == PtoOpcode::TINTERLEAVE || input.op == PtoOpcode::TDEINTERLEAVE;
     const bool ci = input.op == PtoOpcode::TCI;
@@ -49,11 +122,7 @@ inline bool TryEstimateA5SequenceCycles(const CostModelInput& input, uint64_t& c
         return false;
     const int64_t rows = input.valid_rows > 0 ? input.valid_rows : input.rows;
     const int64_t cols = input.valid_cols > 0 ? input.valid_cols : input.cols;
-    if (rows <= 0 || cols <= 0 || rows != input.rows || cols != input.cols || rows > kSequenceMaxRows)
-        return false;
-    if ((shift || ci) && input.dtype != DType::Int16 && input.dtype != DType::Int32)
-        return false;
-    if ((part || interleave) && input.dtype != DType::Half && input.dtype != DType::Float)
+    if (!ValidSequenceGeometry(input, rows, cols, shift || ci))
         return false;
     const int64_t bytes =
         (input.dtype == DType::Half || input.dtype == DType::Int16) ? sizeof(int16_t) : sizeof(int32_t);
@@ -61,55 +130,13 @@ inline bool TryEstimateA5SequenceCycles(const CostModelInput& input, uint64_t& c
         return false;
     const uint64_t repeat =
         static_cast<uint64_t>((cols + kSequenceVectorBytes / bytes - 1) / (kSequenceVectorBytes / bytes));
-    const fit::VfFormulaParam* param = nullptr;
-    if (ci) {
-        if (rows != 1 || cols < kShiftMinCols || cols > kCiMaxCols ||
-            (input.a5_op_params != "ci_scalar" && input.a5_op_params != "ci_vector"))
-            return false;
-        if (!LookupSequenceFit(input, input.a5_op_params, param))
-            return false;
-        cycles = fit::EvalVfFormula(*param, input.a5_op_params == "ci_scalar" ? cols : repeat, 1, 1, 0, 1);
-        return true;
-    }
+    if (ci)
+        return TryEstimateSequenceCiCycles(input, rows, cols, repeat, cycles);
     if (input.a5_op_params != (part ? "dense_index32" : "dense"))
         return false;
-    if (shift || part) {
-        if (cols < kShiftMinCols || cols > kShiftMaxCols)
-            return false;
-        if (rows > 1 && cols > (part ? kPartialArgMultiRowMaxCols : kShiftMultiRowMaxCols))
-            return false;
-        // Only physical single rows or the measured dynamic-valid 2D path.
-        if (rows > 1 && input.a5_shape_path != A5ShapePathHint::Path2D)
-            return false;
-        // The fp32 partial-arg two-row startup has not met the accuracy target.
-        if (part && input.dtype == DType::Float && rows == 2)
-            return false;
-        if (!LookupSequenceFit(input, rows == 1 ? "sequence_row1" : "sequence_rows", param))
-            return false;
-        cycles = fit::EvalVfFormula(*param, repeat, rows, repeat, 0, repeat);
-        if (shift && rows > 1) {
-            const fit::VfFormulaParam* single = nullptr;
-            if (!LookupSequenceFit(input, "sequence_row1", single))
-                return false;
-            // Short row loops retain the single-row latency floor. Coefficients
-            // are shared with the independently measured single-row curve.
-            const double floor = single->param0 * static_cast<double>(rows * repeat) + single->param1;
-            cycles = std::max(cycles, fit::RoundToCycles(floor));
-        }
-        return true;
-    }
-    const int64_t maxCols = bytes == sizeof(int16_t) ? kInterleaveHalfMaxCols : kInterleaveFloatMaxCols;
-    if (cols > maxCols || cols % kHalfRowDivisor != 0)
-        return false;
-    const bool aligned = (cols * bytes / kHalfRowDivisor) % kSequenceBlockBytes == 0;
-    if (!aligned && input.op == PtoOpcode::TDEINTERLEAVE)
-        return false;
-    if (!LookupSequenceFit(input, aligned ? "interleave_aligned" : "interleave_unaligned", param))
-        return false;
-    const uint64_t halfRepeat =
-        (cols / kHalfRowDivisor + kSequenceVectorBytes / bytes - 1) / (kSequenceVectorBytes / bytes);
-    cycles = fit::EvalVfFormula(*param, halfRepeat, rows, halfRepeat, 0, halfRepeat);
-    return true;
+    if (shift || part)
+        return TryEstimateSequenceShiftOrPartialCycles(input, rows, cols, repeat, part, shift, cycles);
+    return TryEstimateSequenceInterleaveCycles(input, rows, cols, bytes, cycles);
 }
 } // namespace pto::mocker::lightweight::a5
 #endif
