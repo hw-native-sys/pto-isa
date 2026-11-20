@@ -286,22 +286,44 @@ inline CycleEstimate EstimateBinaryBitwiseRowStream(const PtoCycleContext& ctx)
     return {kCyclesPerRow * static_cast<uint64_t>(ctx.rows) + kEndpointCycles, ModelKind::CCE_TARGET_PIPE_PROJECTION};
 }
 
+inline CycleEstimate EstimateXorScalarBitwise(const PtoCycleContext& ctx, uint64_t rows, uint64_t repeatsPerRow)
+{
+    constexpr uint64_t kAndLeavesPerXor = 2;
+    constexpr uint64_t kCyclesPerRepeat = 9;
+    constexpr uint64_t kEndpointCycles = 62;
+    constexpr uint64_t kRowWiseCyclesPerRow = 14;
+    constexpr uint64_t kRowWiseEndpointCycles = 22;
+    constexpr int kInt32RowWidth = 64;
+    constexpr int kRowWiseThreshold = 64;
+    constexpr uint64_t kBarrierCount = 5;
+    const bool rowWiseInt32 = ctx.src_dtype == "int32" && ctx.cols == kInt32RowWidth &&
+                              CountCceCalls(*ctx.trace, "vor") == rows &&
+                              CountCceCalls(*ctx.trace, "vand") == kAndLeavesPerXor * rows;
+    if (CountCceCalls(*ctx.trace, "vector_dup") != kAndLeavesPerXor * rows ||
+        (CountCceCalls(*ctx.trace, "vor") != 1 && !rowWiseInt32) || CountCceCalls(*ctx.trace, "vnot") != 1 ||
+        (CountCceCalls(*ctx.trace, "vand") != kAndLeavesPerXor && !rowWiseInt32) ||
+        CountCceCalls(*ctx.trace, "pipe_barrier") != kBarrierCount) {
+        return {};
+    }
+    // TXORS is TORS + TANDS + VNOT + final VAND with five serialized boundaries:
+    // nine issue cycles per row-repeat and one shared endpoint.
+    uint64_t cycles = kCyclesPerRepeat * rows * repeatsPerRow + kEndpointCycles;
+    if (rowWiseInt32 && ctx.rows >= kRowWiseThreshold) {
+        cycles = kRowWiseCyclesPerRow * rows + kRowWiseEndpointCycles;
+    }
+    return {cycles, ModelKind::PTO_COMPOSITE_ANALYTIC};
+}
+
 inline CycleEstimate EstimateScalarBitwiseComposite(const PtoCycleContext& ctx)
 {
     constexpr uint64_t kInt16ElementsPerRepeat = 128;
     constexpr uint64_t kInt32ElementsPerRepeat = 64;
-    constexpr uint64_t kAndLeavesPerXor = 2;
     constexpr uint64_t kSimpleCyclesPerRepeat = 3;
     constexpr uint64_t kSimpleEndpointCycles = 18;
     constexpr uint64_t kSimpleRowWiseCyclesPerRow = 6;
     constexpr uint64_t kSimpleRowWiseEndpointCycles = 12;
-    constexpr uint64_t kXorCyclesPerRepeat = 9;
-    constexpr uint64_t kXorEndpointCycles = 62;
-    constexpr uint64_t kXorRowWiseCyclesPerRow = 14;
-    constexpr uint64_t kXorRowWiseEndpointCycles = 22;
     constexpr int kInt32RowWidth = 64;
     constexpr int kRowWiseThreshold = 64;
-    constexpr uint64_t kXorBarrierCount = 5;
     const bool simple = ctx.opcode == "TANDS" || ctx.opcode == "TORS";
     const bool xorScalar = ctx.opcode == "TXORS";
     if ((!simple && !xorScalar) || ctx.trace == nullptr || ctx.rows <= 0 || ctx.cols <= 0 ||
@@ -334,23 +356,7 @@ inline CycleEstimate EstimateScalarBitwiseComposite(const PtoCycleContext& ctx)
         return {cycles, ModelKind::PTO_COMPOSITE_ANALYTIC};
     }
 
-    const bool rowWiseInt32 = ctx.src_dtype == "int32" && ctx.cols == kInt32RowWidth &&
-                              CountCceCalls(*ctx.trace, "vor") == rows &&
-                              CountCceCalls(*ctx.trace, "vand") == kAndLeavesPerXor * rows;
-    if (CountCceCalls(*ctx.trace, "vector_dup") != kAndLeavesPerXor * rows ||
-        (CountCceCalls(*ctx.trace, "vor") != 1 && !rowWiseInt32) || CountCceCalls(*ctx.trace, "vnot") != 1 ||
-        (CountCceCalls(*ctx.trace, "vand") != kAndLeavesPerXor && !rowWiseInt32) ||
-        CountCceCalls(*ctx.trace, "pipe_barrier") != kXorBarrierCount) {
-        return {};
-    }
-    // TXORS is TORS + TANDS + VNOT + final VAND with five serialized
-    // boundaries.  Projecting the real dependency graph gives nine issue
-    // cycles per row-repeat and one shared endpoint.
-    uint64_t cycles = kXorCyclesPerRepeat * rows * repeatsPerRow + kXorEndpointCycles;
-    if (rowWiseInt32 && ctx.rows >= kRowWiseThreshold) {
-        cycles = kXorRowWiseCyclesPerRow * rows + kXorRowWiseEndpointCycles;
-    }
-    return {cycles, ModelKind::PTO_COMPOSITE_ANALYTIC};
+    return EstimateXorScalarBitwise(ctx, rows, repeatsPerRow);
 }
 
 inline CycleEstimate EstimateColArgTargetPipe(const PtoCycleContext& ctx)

@@ -68,16 +68,27 @@ inline CycleEstimate EstimateGatherPatternTargetPipe(const PtoCycleContext& ctx)
     return {cycles, ModelKind::PTO_COMPOSITE_ANALYTIC};
 }
 
+inline uint64_t EstimateFp32RowExpandDivCycles(uint64_t rows, uint64_t cols)
+{
+    constexpr uint64_t kElementsPerRepeat = 64;
+    constexpr uint64_t kShortRowNumerator = 3;
+    constexpr uint64_t kShortRowDenominator = 2;
+    constexpr uint64_t kShortEndpointCycles = 10;
+    constexpr uint64_t kFullWidthNumerator = 5;
+    constexpr uint64_t kFullWidthDenominator = 2;
+    constexpr uint64_t kMultiRepeatCycles = 3;
+    if (cols < kElementsPerRepeat) {
+        return (kShortRowNumerator * rows) / kShortRowDenominator + kShortEndpointCycles;
+    }
+    const uint64_t repeats = rows * ((cols + kElementsPerRepeat - 1) / kElementsPerRepeat);
+    return cols == kElementsPerRepeat ? (kFullWidthNumerator * repeats) / kFullWidthDenominator :
+                                        kMultiRepeatCycles * repeats;
+}
+
 inline CycleEstimate EstimateRowExpandDivTargetPipe(const PtoCycleContext& ctx)
 {
     constexpr uint64_t kFp16ElementsPerRepeat = 128;
     constexpr uint64_t kFp32ElementsPerRepeat = 64;
-    constexpr uint64_t kFp32ShortRowNumerator = 3;
-    constexpr uint64_t kFp32ShortRowDenominator = 2;
-    constexpr uint64_t kFp32ShortEndpointCycles = 10;
-    constexpr uint64_t kFp32FullWidthNumerator = 5;
-    constexpr uint64_t kFp32FullWidthDenominator = 2;
-    constexpr uint64_t kFp32MultiRepeatCycles = 3;
     constexpr uint64_t kFp16LongRowThreshold = 64;
     constexpr uint64_t kFp16LongRowNumerator = 5;
     constexpr uint64_t kFp16LongRowDenominator = 2;
@@ -99,16 +110,7 @@ inline CycleEstimate EstimateRowExpandDivTargetPipe(const PtoCycleContext& ctx)
         return {};
     }
     if (ctx.src_dtype == "fp32") {
-        if (cols < kFp32ElementsPerRepeat) {
-            return {
-                (kFp32ShortRowNumerator * rows) / kFp32ShortRowDenominator + kFp32ShortEndpointCycles,
-                ModelKind::CCE_TARGET_PIPE_PROJECTION};
-        }
-        const uint64_t repeats = rows * ((cols + kFp32ElementsPerRepeat - 1) / kFp32ElementsPerRepeat);
-        return {
-            cols == kFp32ElementsPerRepeat ? (kFp32FullWidthNumerator * repeats) / kFp32FullWidthDenominator :
-                                             kFp32MultiRepeatCycles * repeats,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
+        return {EstimateFp32RowExpandDivCycles(rows, cols), ModelKind::CCE_TARGET_PIPE_PROJECTION};
     }
     if (cols < kFp16ElementsPerRepeat) {
         const uint64_t cycles = rows >= kFp16LongRowThreshold ?
@@ -178,10 +180,29 @@ inline CycleEstimate EstimateRowExpandAddSubTargetPipe(const PtoCycleContext& ct
     return {ctx.stub_cycles + kTinyRowStartupCycles, ModelKind::CCE_TARGET_PIPE_PROJECTION};
 }
 
-inline CycleEstimate EstimateRowExpandMulMinMaxTargetPipe(const PtoCycleContext& ctx)
+inline uint64_t EstimateRowExpandMulCycles(const PtoCycleContext& ctx, uint64_t rows)
 {
-    constexpr uint64_t kFp16ElementsPerRepeat = 128;
-    constexpr uint64_t kFp32ElementsPerRepeat = 64;
+    constexpr uint64_t kFp32Numerator = 29;
+    constexpr uint64_t kFp32RoundOffset = 8;
+    constexpr uint64_t kFp32Denominator = 16;
+    constexpr uint64_t kShortRowThreshold = 32;
+    constexpr uint64_t kShortNumerator = 7;
+    constexpr uint64_t kShortRoundOffset = 2;
+    constexpr uint64_t kShortDenominator = 4;
+    constexpr uint64_t kLongNumerator = 23;
+    constexpr uint64_t kLongRoundOffset = 8;
+    constexpr uint64_t kLongDenominator = 16;
+    if (ctx.src_dtype == "fp32") {
+        return (kFp32Numerator * rows + kFp32RoundOffset) / kFp32Denominator;
+    }
+    if (rows < kShortRowThreshold) {
+        return (kShortNumerator * rows + kShortRoundOffset) / kShortDenominator;
+    }
+    return (kLongNumerator * rows + kLongRoundOffset) / kLongDenominator;
+}
+
+inline CycleEstimate ProjectRowExpandMulMinMax(const PtoCycleContext& ctx, bool isMul, uint64_t nativeWidth)
+{
     constexpr uint64_t kFullWidthNumerator = 3;
     constexpr uint64_t kFullWidthRoundOffset = 1;
     constexpr uint64_t kFullWidthDenominator = 2;
@@ -189,20 +210,44 @@ inline CycleEstimate EstimateRowExpandMulMinMaxTargetPipe(const PtoCycleContext&
     constexpr uint64_t kFp16BlockElements = 32;
     constexpr uint64_t kMulStartupCycles = 7;
     constexpr uint64_t kMinMaxStartupCycles = 4;
-    constexpr uint64_t kFp32MulNumerator = 29;
-    constexpr uint64_t kFp32MulRoundOffset = 8;
-    constexpr uint64_t kFp32MulDenominator = 16;
     constexpr uint64_t kShortRowThreshold = 32;
-    constexpr uint64_t kShortMulNumerator = 7;
-    constexpr uint64_t kShortMulRoundOffset = 2;
-    constexpr uint64_t kShortMulDenominator = 4;
-    constexpr uint64_t kLongMulNumerator = 23;
-    constexpr uint64_t kLongMulRoundOffset = 8;
-    constexpr uint64_t kLongMulDenominator = 16;
     constexpr uint64_t kShortMinMaxExtraCycles = 1;
     constexpr uint64_t kLongMinMaxNumerator = 43;
     constexpr uint64_t kLongMinMaxRoundOffset = 16;
     constexpr uint64_t kLongMinMaxDenominator = 32;
+    const uint64_t rows = static_cast<uint64_t>(ctx.rows);
+    const uint64_t cols = static_cast<uint64_t>(ctx.cols);
+    if (cols > nativeWidth) {
+        return {};
+    }
+    if (cols == nativeWidth) {
+        return {
+            (kFullWidthNumerator * rows + kFullWidthRoundOffset) / kFullWidthDenominator,
+            ModelKind::CCE_TARGET_PIPE_PROJECTION};
+    }
+    if (ctx.src_dtype == "fp16" && rows == kTinyFp16Rows && cols < kFp16BlockElements) {
+        // One legal 32-byte zero-stride broadcast block lowers to a single leaf.
+        // Restore that leaf's CCE startup once per PTO call.
+        const uint64_t startup = isMul ? kMulStartupCycles : kMinMaxStartupCycles;
+        return {ctx.stub_cycles + startup, ModelKind::CCE_TARGET_PIPE_PROJECTION};
+    }
+    if (isMul) {
+        return {EstimateRowExpandMulCycles(ctx, rows), ModelKind::CCE_TARGET_PIPE_PROJECTION};
+    }
+    if (ctx.src_dtype == "fp32" || rows < kShortRowThreshold) {
+        return {
+            (kFullWidthNumerator * rows + kFullWidthRoundOffset) / kFullWidthDenominator + kShortMinMaxExtraCycles,
+            ModelKind::CCE_TARGET_PIPE_PROJECTION};
+    }
+    return {
+        (kLongMinMaxNumerator * rows + kLongMinMaxRoundOffset) / kLongMinMaxDenominator,
+        ModelKind::CCE_TARGET_PIPE_PROJECTION};
+}
+
+inline CycleEstimate EstimateRowExpandMulMinMaxTargetPipe(const PtoCycleContext& ctx)
+{
+    constexpr uint64_t kFp16ElementsPerRepeat = 128;
+    constexpr uint64_t kFp32ElementsPerRepeat = 64;
     const bool isMul = ctx.opcode == "TROWEXPANDMUL";
     const bool isMax = ctx.opcode == "TROWEXPANDMAX";
     const bool isMin = ctx.opcode == "TROWEXPANDMIN";
@@ -215,54 +260,12 @@ inline CycleEstimate EstimateRowExpandMulMinMaxTargetPipe(const PtoCycleContext&
         CountCceCalls(*ctx.trace, "pipe_barrier") != 0) {
         return {};
     }
-    const uint64_t rows = static_cast<uint64_t>(ctx.rows);
-    const uint64_t cols = static_cast<uint64_t>(ctx.cols);
     const uint64_t nativeWidth = ctx.src_dtype == "fp16" ? kFp16ElementsPerRepeat : kFp32ElementsPerRepeat;
-    if (cols > nativeWidth) {
-        return {};
-    }
-    if (cols == nativeWidth) {
-        return {
-            (kFullWidthNumerator * rows + kFullWidthRoundOffset) / kFullWidthDenominator,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    if (ctx.src_dtype == "fp16" && rows == kTinyFp16Rows && cols < kFp16BlockElements) {
-        // As above, one legal 32-byte zero-stride broadcast block lowers to a
-        // single leaf. Restore that leaf's CCE startup once per PTO call.
-        const uint64_t startup = isMul ? kMulStartupCycles : kMinMaxStartupCycles;
-        return {ctx.stub_cycles + startup, ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    if (isMul) {
-        if (ctx.src_dtype == "fp32") {
-            return {
-                (kFp32MulNumerator * rows + kFp32MulRoundOffset) / kFp32MulDenominator,
-                ModelKind::CCE_TARGET_PIPE_PROJECTION};
-        }
-        if (rows < kShortRowThreshold) {
-            return {
-                (kShortMulNumerator * rows + kShortMulRoundOffset) / kShortMulDenominator,
-                ModelKind::CCE_TARGET_PIPE_PROJECTION};
-        }
-        return {
-            (kLongMulNumerator * rows + kLongMulRoundOffset) / kLongMulDenominator,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    if (ctx.src_dtype == "fp32" || rows < kShortRowThreshold) {
-        return {
-            (kFullWidthNumerator * rows + kFullWidthRoundOffset) / kFullWidthDenominator + kShortMinMaxExtraCycles,
-            ModelKind::CCE_TARGET_PIPE_PROJECTION};
-    }
-    return {
-        (kLongMinMaxNumerator * rows + kLongMinMaxRoundOffset) / kLongMinMaxDenominator,
-        ModelKind::CCE_TARGET_PIPE_PROJECTION};
+    return ProjectRowExpandMulMinMax(ctx, isMul, nativeWidth);
 }
 
-inline CycleEstimate EstimateRowExpandExpDifTargetPipe(const PtoCycleContext& ctx)
+inline bool TryProjectRowExpandSubCycles(const PtoCycleContext& ctx, uint64_t nativeWidth, uint64_t& cycles)
 {
-    constexpr uint64_t kFp16ElementsPerRepeat = 128;
-    constexpr uint64_t kFp32ElementsPerRepeat = 64;
-    constexpr uint64_t kTinyFp16Rows = 16;
-    constexpr uint64_t kFp16BlockElements = 32;
     constexpr uint64_t kFullWidthNumerator = 13;
     constexpr uint64_t kFullWidthRoundOffset = 4;
     constexpr uint64_t kFullWidthDenominator = 8;
@@ -273,6 +276,29 @@ inline CycleEstimate EstimateRowExpandExpDifTargetPipe(const PtoCycleContext& ct
     constexpr uint64_t kFp16LongNumerator = 45;
     constexpr uint64_t kFp16LongRoundOffset = 16;
     constexpr uint64_t kFp16LongDenominator = 32;
+    constexpr uint64_t kFp16BlockElements = 32;
+    const uint64_t rows = static_cast<uint64_t>(ctx.rows);
+    const uint64_t cols = static_cast<uint64_t>(ctx.cols);
+    if (cols == nativeWidth) {
+        cycles = (kFullWidthNumerator * rows + kFullWidthRoundOffset) / kFullWidthDenominator;
+    } else if (ctx.src_dtype == "fp32") {
+        cycles = (kFp32Numerator * rows + kFp32RoundOffset) / kFp32Denominator;
+    } else if (rows >= kFp16LongRowThreshold) {
+        cycles = (kFp16LongNumerator * rows + kFp16LongRoundOffset) / kFp16LongDenominator;
+    } else if (cols >= kFp16BlockElements) {
+        cycles = (kFp32Numerator * rows + kFp32RoundOffset) / kFp32Denominator;
+    } else {
+        return false;
+    }
+    return true;
+}
+
+inline CycleEstimate EstimateRowExpandExpDifTargetPipe(const PtoCycleContext& ctx)
+{
+    constexpr uint64_t kFp16ElementsPerRepeat = 128;
+    constexpr uint64_t kFp32ElementsPerRepeat = 64;
+    constexpr uint64_t kTinyFp16Rows = 16;
+    constexpr uint64_t kFp16BlockElements = 32;
     if (ctx.opcode != "TROWEXPANDEXPDIF" || ctx.trace == nullptr || ctx.rows <= 0 || ctx.cols <= 0 ||
         (ctx.src_dtype != "fp16" && ctx.src_dtype != "fp32") || CountCceCalls(*ctx.trace, "vsub") != 1 ||
         CountCceCalls(*ctx.trace, "vexp") != 1 || CountCceCalls(*ctx.trace, "pipe_barrier") != 1) {
@@ -295,19 +321,10 @@ inline CycleEstimate EstimateRowExpandExpDifTargetPipe(const PtoCycleContext& ct
         return {};
     }
     uint64_t projectedSubCycles;
-    if (cols == nativeWidth) {
-        projectedSubCycles = (kFullWidthNumerator * rows + kFullWidthRoundOffset) / kFullWidthDenominator;
-    } else if (ctx.src_dtype == "fp32") {
-        projectedSubCycles = (kFp32Numerator * rows + kFp32RoundOffset) / kFp32Denominator;
-    } else if (rows >= kFp16LongRowThreshold) {
-        projectedSubCycles = (kFp16LongNumerator * rows + kFp16LongRoundOffset) / kFp16LongDenominator;
-    } else if (cols >= kFp16BlockElements) {
-        projectedSubCycles = (kFp32Numerator * rows + kFp32RoundOffset) / kFp32Denominator;
-    } else {
+    if (!TryProjectRowExpandSubCycles(ctx, nativeWidth, projectedSubCycles)) {
         return {};
     }
-    // Preserve the native VEXP and explicit barrier exactly; only replace the
-    // zero-stride VSUB leaf with the row-expand projection validated above.
+    // Preserve native VEXP and the explicit barrier; replace only the VSUB projection.
     return {ctx.stub_cycles - nativeSubCycles + projectedSubCycles, ModelKind::PTO_COMPOSITE_ANALYTIC};
 }
 

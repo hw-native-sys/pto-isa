@@ -24,18 +24,23 @@ struct TransposeFeatures {
     int64_t indexed_stride_bytes = 0;
 };
 
+inline bool ValidTransposeGeometry(const TransposeGeometry& g, int64_t bytes)
+{
+    constexpr int64_t kBlockBytes = 32;
+    return g.ordinary_row_major && g.src_rows > 0 && g.src_cols > 0 && g.src_valid_rows > 0 && g.src_valid_cols > 0 &&
+           g.src_valid_rows <= g.src_rows && g.src_valid_cols <= g.src_cols && g.dst_rows > 0 && g.dst_cols > 0 &&
+           g.dst_valid_rows <= g.dst_rows && g.dst_valid_cols <= g.dst_cols && g.dst_valid_rows == g.src_valid_cols &&
+           g.dst_valid_cols == g.src_valid_rows && g.src_row_stride >= g.src_cols && g.dst_row_stride >= g.dst_cols &&
+           g.src_cols % (kBlockBytes / bytes) == 0 && g.dst_cols % (kBlockBytes / bytes) == 0;
+}
+
 inline bool BuildTransposeFeatures(const CostModelInput& input, TransposeFeatures& features)
 {
     constexpr int64_t kVectorBytes = 256;
-    constexpr int64_t kBlockBytes = 32;
     const auto& g = input.transpose;
     const int64_t bytes = input.dtype == DType::Half ? sizeof(int16_t) : sizeof(int32_t);
     if (input.op != PtoOpcode::TTRANS || (input.dtype != DType::Half && input.dtype != DType::Float) ||
-        !g.ordinary_row_major || g.src_rows <= 0 || g.src_cols <= 0 || g.src_valid_rows <= 0 || g.src_valid_cols <= 0 ||
-        g.src_valid_rows > g.src_rows || g.src_valid_cols > g.src_cols || g.dst_rows <= 0 || g.dst_cols <= 0 ||
-        g.dst_valid_rows > g.dst_rows || g.dst_valid_cols > g.dst_cols || g.dst_valid_rows != g.src_valid_cols ||
-        g.dst_valid_cols != g.src_valid_rows || g.src_row_stride < g.src_cols || g.dst_row_stride < g.dst_cols ||
-        g.src_cols % (kBlockBytes / bytes) != 0 || g.dst_cols % (kBlockBytes / bytes) != 0) {
+        !ValidTransposeGeometry(g, bytes)) {
         return false;
     }
     features.scatter = g.src_rows < g.src_cols;

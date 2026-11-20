@@ -55,28 +55,10 @@ inline bool TryLookupVfFormulaParam(const VfCurveKey& key, const VfFormulaParam*
     return false;
 }
 
-inline uint64_t EvalVfFormula(
-    const VfFormulaParam& param, uint64_t loop_count, uint64_t outer_iter, uint64_t inner_iter, uint64_t tail_count,
-    uint64_t row_inner_iter, uint64_t init_repeats = 0)
+inline double EvalSingleLoopVfFormula(const VfFormulaParam& param, uint64_t loop_count, uint64_t tail_count)
 {
     double value = 0.0;
     switch (param.formula_kind) {
-        case FormulaKind::CubeThroughputFloor:
-            // Cube callers supply padded M, K and N, not vector loop counts.
-            // Parameters: cycles/MAC, minimum effective M*N area, cycle floor, startup.
-            // The utilization floor applies to the output tile, not to every
-            // M row independently; increasing M can compensate for a small N.
-            value = std::max(
-                        param.param2,
-                        param.param0 * static_cast<double>(outer_iter) *
-                            std::max(param.param1, static_cast<double>(loop_count) * static_cast<double>(inner_iter))) +
-                    param.param3;
-            break;
-        case FormulaKind::ScatterPatternRow:
-            // The destination clear and the source row/repeat expansion are separate VFs.
-            value = param.param0 + param.param1 * static_cast<double>(outer_iter) +
-                    param.param2 * static_cast<double>(loop_count) + param.param3 * static_cast<double>(init_repeats);
-            break;
         case FormulaKind::Linear:
             value = param.param0 * static_cast<double>(loop_count) + param.param1;
             break;
@@ -96,14 +78,24 @@ inline uint64_t EvalVfFormula(
             value = param.param0 * std::min(loop, breakpoint) + param.param1 +
                     param.param2 * std::max(loop - breakpoint, 0.0);
         } break;
-        case FormulaKind::LinearRows:
-            value = param.param0 * static_cast<double>(loop_count) + param.param1 * static_cast<double>(outer_iter) +
-                    param.param2;
-            break;
         case FormulaKind::LinearTail:
             value = param.param0 * static_cast<double>(loop_count) + param.param1 * static_cast<double>(tail_count) +
                     param.param2;
             break;
+        case FormulaKind::LinearFloor:
+            value = std::max(param.param0 * static_cast<double>(loop_count) + param.param1, param.param2);
+            break;
+        default:
+            return 0.0;
+    }
+    return value;
+}
+
+inline double EvalNestedLoopVfFormula(
+    const VfFormulaParam& param, uint64_t loop_count, uint64_t outer_iter, uint64_t inner_iter, uint64_t row_inner_iter)
+{
+    double value = 0.0;
+    switch (param.formula_kind) {
         case FormulaKind::NestedLoop: {
             const double inner = static_cast<double>(inner_iter);
             value =
@@ -128,13 +120,57 @@ inline uint64_t EvalVfFormula(
                 kRowLoopStartupCycles;
             value = std::max(flat_path, row_path);
         } break;
-        case FormulaKind::LinearFloor:
-            value = std::max(param.param0 * static_cast<double>(loop_count) + param.param1, param.param2);
-            break;
         case FormulaKind::AffineGrid:
             value = param.param0 + param.param1 * static_cast<double>(outer_iter) +
                     param.param2 * static_cast<double>(row_inner_iter) +
                     param.param3 * static_cast<double>(outer_iter * row_inner_iter);
+            break;
+        default:
+            return 0.0;
+    }
+    return value;
+}
+
+inline uint64_t EvalVfFormula(
+    const VfFormulaParam& param, uint64_t loop_count, uint64_t outer_iter, uint64_t inner_iter, uint64_t tail_count,
+    uint64_t row_inner_iter, uint64_t init_repeats = 0)
+{
+    double value = 0.0;
+    switch (param.formula_kind) {
+        case FormulaKind::CubeThroughputFloor:
+            // Cube callers supply padded M, K and N, not vector loop counts.
+            // Parameters: cycles/MAC, minimum effective M*N area, cycle floor, startup.
+            // The utilization floor applies to the output tile, not to every
+            // M row independently; increasing M can compensate for a small N.
+            value = std::max(
+                        param.param2,
+                        param.param0 * static_cast<double>(outer_iter) *
+                            std::max(param.param1, static_cast<double>(loop_count) * static_cast<double>(inner_iter))) +
+                    param.param3;
+            break;
+        case FormulaKind::ScatterPatternRow:
+            // The destination clear and the source row/repeat expansion are separate VFs.
+            value = param.param0 + param.param1 * static_cast<double>(outer_iter) +
+                    param.param2 * static_cast<double>(loop_count) + param.param3 * static_cast<double>(init_repeats);
+            break;
+        case FormulaKind::LinearRows:
+            value = param.param0 * static_cast<double>(loop_count) + param.param1 * static_cast<double>(outer_iter) +
+                    param.param2;
+            break;
+        case FormulaKind::Linear:
+        case FormulaKind::LinearSmallLoop:
+        case FormulaKind::LinearTwoStartup:
+        case FormulaKind::ContinuousPiecewiseLinear:
+        case FormulaKind::LinearTail:
+        case FormulaKind::LinearFloor:
+            value = EvalSingleLoopVfFormula(param, loop_count, tail_count);
+            break;
+        case FormulaKind::NestedLoop:
+        case FormulaKind::NestedLoopInnerBias:
+        case FormulaKind::DualLoopMax:
+        case FormulaKind::DualLoopMaxScaled:
+        case FormulaKind::AffineGrid:
+            value = EvalNestedLoopVfFormula(param, loop_count, outer_iter, inner_iter, row_inner_iter);
             break;
         default:
             return 0;

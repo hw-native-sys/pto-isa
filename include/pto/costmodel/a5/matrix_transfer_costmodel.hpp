@@ -24,25 +24,11 @@ inline bool IsMatrixOpcode(PtoOpcode op)
            op == PtoOpcode::TGEMV_BIAS || op == PtoOpcode::TGEMV_MX;
 }
 
-// Single MAD completion model; excludes operand transfers and inter-instruction overlap.
-// GEMV, accumulation and bias reuse its compute baseline, without an unmeasured surcharge.
-inline bool TryEstimateA5MadCompletionCycles(const CostModelInput& input, uint64_t& cycles)
+inline uint64_t ResolveA5MadWorkElements(const CostModelInput& input, bool mx)
 {
-    constexpr int64_t kMaxMadDimension = 4095;
-    constexpr uint64_t kFractalSide = 16;
-    constexpr uint64_t kMinimumLongSideFractals = 3;
-    constexpr uint64_t kStartupCycles = 25;
-    constexpr uint64_t kMxKAlignment = 64;
     constexpr uint64_t kHalfWorkElements = 16;
     constexpr uint64_t kByteWorkElements = 32;
     constexpr uint64_t kNibbleWorkElements = 64;
-    if (!IsMatrixOpcode(input.op) || input.rows <= 0 || input.cols <= 0 || input.k <= 0 ||
-        input.rows > kMaxMadDimension || input.cols > kMaxMadDimension || input.k > kMaxMadDimension) {
-        return false;
-    }
-    const bool mx = input.op == PtoOpcode::TMATMUL_MX || input.op == PtoOpcode::TGEMV_MX;
-    const bool gemv = input.op == PtoOpcode::TGEMV || input.op == PtoOpcode::TGEMV_ACC ||
-                      input.op == PtoOpcode::TGEMV_BIAS || input.op == PtoOpcode::TGEMV_MX;
     const auto fp8 = [](DType t) { return t == DType::Float8E4M3 || t == DType::Float8E5M2; };
     const auto fp4 = [](DType t) { return t == DType::Float4E1M2 || t == DType::Float4E2M1; };
     const DType rhs = input.has_dtype2 ? input.dtype2 : input.dtype;
@@ -63,6 +49,26 @@ inline bool TryEstimateA5MadCompletionCycles(const CostModelInput& input, uint64
                 workElements = 1; // Full-precision FP32, not HF32.
         }
     }
+    return workElements;
+}
+
+// Single MAD completion model; excludes operand transfers and inter-instruction overlap.
+// GEMV, accumulation and bias reuse its compute baseline, without an unmeasured surcharge.
+inline bool TryEstimateA5MadCompletionCycles(const CostModelInput& input, uint64_t& cycles)
+{
+    constexpr int64_t kMaxMadDimension = 4095;
+    constexpr uint64_t kFractalSide = 16;
+    constexpr uint64_t kMinimumLongSideFractals = 3;
+    constexpr uint64_t kStartupCycles = 25;
+    constexpr uint64_t kMxKAlignment = 64;
+    if (!IsMatrixOpcode(input.op) || input.rows <= 0 || input.cols <= 0 || input.k <= 0 ||
+        input.rows > kMaxMadDimension || input.cols > kMaxMadDimension || input.k > kMaxMadDimension) {
+        return false;
+    }
+    const bool mx = input.op == PtoOpcode::TMATMUL_MX || input.op == PtoOpcode::TGEMV_MX;
+    const bool gemv = input.op == PtoOpcode::TGEMV || input.op == PtoOpcode::TGEMV_ACC ||
+                      input.op == PtoOpcode::TGEMV_BIAS || input.op == PtoOpcode::TGEMV_MX;
+    const uint64_t workElements = ResolveA5MadWorkElements(input, mx);
     if (workElements == 0)
         return false;
     const auto ceilDiv = [](uint64_t value, uint64_t divisor) { return (value - 1) / divisor + 1; };
@@ -92,11 +98,16 @@ inline uint64_t RoundA5MatrixTransferCycles(double cycles)
     return cycles <= 0.0 ? 0 : static_cast<uint64_t>(std::llround(cycles));
 }
 
+inline bool HasResidentMatmulGeometry(const CostModelInput& input)
+{
+    return input.op == PtoOpcode::TMATMUL && input.dtype == input.dtype2 && input.rows > 0 && input.k > 0 &&
+           input.cols > 0 &&
+           (input.dtype == DType::BFloat16 || input.dtype == DType::Float || input.dtype == DType::Int8);
+}
+
 inline bool TryEstimateA5MatmulCycles(const CostModelInput& input, uint64_t& cycles)
 {
-    if (input.op == PtoOpcode::TMATMUL && input.dtype == input.dtype2 && input.rows > 0 && input.k > 0 &&
-        input.cols > 0 &&
-        (input.dtype == DType::BFloat16 || input.dtype == DType::Float || input.dtype == DType::Int8)) {
+    if (HasResidentMatmulGeometry(input)) {
         // The resident-L0 instruction rounds M to one cube block. K and N
         // must already satisfy the calibrated operand blocking contract.
         constexpr uint64_t kCubeBlockM = 16;

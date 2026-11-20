@@ -41,6 +41,7 @@ inline constexpr double kRowExtremaSingleRepeatCyclesPerRow = 35.0;
 inline constexpr double kRowExtremaDualAccumCyclesPerRow = 45.0;
 inline constexpr double kRowExtremaOddRepeatCyclesPerRow = 5.0;
 inline constexpr uint64_t kRowExtremaPairPipelineDepth = 3;
+inline constexpr uint64_t kRowExtremaRepeatsPerPair = 2;
 inline constexpr double kRowExtremaCyclesPerExtraPair = 2.0;
 inline constexpr double kRowExtremaTailCyclesPerRow = 1.0;
 
@@ -120,11 +121,11 @@ inline double EvalA5RowExtrema(double rows, uint64_t repeats, bool hasTail)
         return kRowExtremaStartupCycles +
                rows * (kRowExtremaSingleRepeatCyclesPerRow + (hasTail ? kRowExtremaTailCyclesPerRow : 0.0));
     }
-    const uint64_t repeatPairs = repeats / 2;
+    const uint64_t repeatPairs = repeats / kRowExtremaRepeatsPerPair;
     const uint64_t extraPairs =
         repeatPairs > kRowExtremaPairPipelineDepth ? repeatPairs - kRowExtremaPairPipelineDepth : 0;
     double cyclesPerRow = kRowExtremaDualAccumCyclesPerRow;
-    if (repeats % 2 != 0) {
+    if (repeats % kRowExtremaRepeatsPerPair != 0) {
         cyclesPerRow += kRowExtremaOddRepeatCyclesPerRow;
     }
     cyclesPerRow += static_cast<double>(extraPairs) * kRowExtremaCyclesPerExtraPair;
