@@ -55,7 +55,7 @@ PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe& pi
 template <typename Pipe, typename TileCons, TileSplitAxis Split>
 PTO_INTERNAL std::enable_if_t<is_tile_data_v<TileCons>, void> TPOP_IMPL(Pipe& pipe, TileCons& tile, int32_t subBlockId)
 {
-    // 1. Cross-Core: Wait for Data
+    // // 1. Cross-Core: Wait for Data
     bool isWait = pipe.cons.getWaitStatus();
     if (isWait) {
         pipe.cons.template wait<Split>();
