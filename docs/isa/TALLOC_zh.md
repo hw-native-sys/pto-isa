@@ -13,6 +13,10 @@
 <!-- end id3 -->
 
 
+## 指令示意图
+
+> 未提供 `TALLOC.svg`。`TALLOC` 是一种**FIFO 控制面**原语：它在 `TPipe` 中分配一个生产者槽位，并将其暴露为 `GlobalTensor` 视图。其语义是「预留下一个生产者槽位，并绑定到调用方的 `GlobalData` 句柄」。
+
 ## 简介
 
 从 `TPipe` 中分配一个生产者FIFO槽位，并将其暴露为 `GlobalTensor` 视图。
