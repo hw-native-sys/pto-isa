@@ -1,0 +1,127 @@
+/**
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+*/
+
+#ifndef SPARSE_FLASH_MLA_CUSTOM_TSOFTMAXPROB_HPP_
+#define SPARSE_FLASH_MLA_CUSTOM_TSOFTMAXPROB_HPP_
+
+#include "common.hpp"
+
+#if defined(__CCE_AICORE__)
+namespace flash_mla_bf16 {
+namespace custom {
+using ProbabilityTile =
+    Tile<TileType::Vec, bfloat16_t, P_NZ_ROWS, N, BLayout::ColMajor, AIV_M, N, SLayout::RowMajor, 512>;
+
+namespace detail {
+template <bool AllValid, bool FirstTile>
+PTO_INTERNAL void softMaxProbImpl(
+    float scale, __ubuf__ float* score, __ubuf__ bfloat16_t* dst, __ubuf__ float* anchors, __ubuf__ float* sums,
+    __ubuf__ float* alphas, __ubuf__ float* mask, __ubuf__ float* rowScratch)
+{
+    constexpr uint32_t STORE_CONFIG = P_NZ_ROWS << 16;
+    __VEC_SCOPE__
+    {
+        const auto all = pset_b32(PAT_ALL);
+        const auto rows = pset_b32(PAT_VL32);
+        const auto packed = pset_b16(PAT_VL64);
+        vector_f32 zero;
+        vbr(zero, 0.0f);
+        MaskReg valid0, valid1;
+        if constexpr (!AllValid) {
+            vector_f32 flags;
+            vlds(flags, mask, 0, NORM);
+            vcmp_ne(valid0, flags, zero, all);
+            if constexpr (N == 128) {
+                vlds(flags, mask, 64, NORM);
+                vcmp_ne(valid1, flags, zero, all);
+            }
+        }
+        mem_bar(VST_VLD);
+        mem_bar(VLD_VST);
+        {
+            UnalignReg stream;
+            auto* out = rowScratch;
+#pragma unroll 1
+            for (uint16_t row = 0; row < AIV_M; ++row) {
+                vector_f32 maximum, p0, p1, sum;
+                vector_bf16 converted;
+                vector_u16 compact;
+                vlds(maximum, anchors, row, BRC_B32);
+                vlds(p0, score, row * N, NORM);
+                vmuls(p0, p0, scale, all, MODE_ZEROING);
+                vsub(p0, p0, maximum, all, MODE_ZEROING);
+                vexp(p0, p0, all, MODE_ZEROING);
+                if constexpr (!AllValid)
+                    vsel(p0, p0, zero, valid0);
+                if constexpr (N == 128) {
+                    vlds(p1, score, row * N + 64, NORM);
+                    vmuls(p1, p1, scale, all, MODE_ZEROING);
+                    vsub(p1, p1, maximum, all, MODE_ZEROING);
+                    vexp(p1, p1, all, MODE_ZEROING);
+                    if constexpr (!AllValid)
+                        vsel(p1, p1, zero, valid1);
+                    vadd(sum, p0, p1, all, MODE_ZEROING);
+                } else {
+                    sum = p0;
+                }
+                vcadd(sum, sum, all, MODE_ZEROING);
+                vstus(stream, 1, sum, out, POST_UPDATE);
+                vcvt(converted, p0, all, ROUND_R, RS_DISABLE, PART_EVEN);
+                vpack(compact, (vector_u32&)converted, LOWER);
+                vsstb((vector_bf16&)compact, dst + row * 16, STORE_CONFIG, packed);
+                if constexpr (N == 128) {
+                    vcvt(converted, p1, all, ROUND_R, RS_DISABLE, PART_EVEN);
+                    vpack(compact, (vector_u32&)converted, LOWER);
+                    vsstb((vector_bf16&)compact, dst + row * 16 + 4 * P_NZ_ROWS * 16, STORE_CONFIG, packed);
+                }
+            }
+            vstas(stream, out, 0, POST_UPDATE);
+        }
+        mem_bar(VST_VLD);
+        {
+            vector_f32 localSum;
+            vlds(localSum, rowScratch, 0, NORM);
+            if constexpr (FirstTile) {
+                // The first denominator equals the local probability sum.
+                vsts(localSum, sums, 0, NORM_B32, rows);
+            } else {
+                vector_f32 oldSum, alpha, sum;
+                vlds(oldSum, sums, 0, NORM);
+                vlds(alpha, alphas, 0, NORM);
+                vmul(sum, oldSum, alpha, rows, MODE_ZEROING);
+                vadd(sum, sum, localSum, rows, MODE_ZEROING);
+                vsts(sum, sums, 0, NORM_B32, rows);
+            }
+        }
+    }
+}
+
+} // namespace detail
+
+// Public instruction memory operands are tiles. The caller owns UB allocation
+// and cross-pipe handoffs. Each instruction issues one VF launch.
+// Wait events follow PTO conventions.
+template <bool AllValid, bool FirstTile, typename... WaitEvents>
+PTO_INST RecordEvent TSoftMaxProb(
+    ProbabilityTile& dst, RowStateTile& sums, SoftMaxScratchTile& scratch, VecScore& score, RowStateTile& anchors,
+    RowStateTile& alphas, IndexMaskTile& mask, float scale, WaitEvents&... events)
+{
+    WaitAllEvents(events...);
+    detail::softMaxProbImpl<AllValid, FirstTile>(
+        scale, (__ubuf__ float*)score.data(), (__ubuf__ bfloat16_t*)dst.data(), (__ubuf__ float*)anchors.data(),
+        (__ubuf__ float*)sums.data(), (__ubuf__ float*)alphas.data(), (__ubuf__ float*)mask.data(),
+        (__ubuf__ float*)scratch.data());
+    return {};
+}
+
+} // namespace custom
+} // namespace flash_mla_bf16
+#endif // __CCE_AICORE__
+#endif // SPARSE_FLASH_MLA_CUSTOM_TSOFTMAXPROB_HPP_
