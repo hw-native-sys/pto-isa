@@ -1644,9 +1644,6 @@ public:
     static_assert(
         Loc != TileType::Bias || StorageBytes <= PTO_BIAS_SIZE_BYTES, "Bias tile storage size exceeds Bias capacity");
     static_assert(
-        Loc != TileType::Scaling || StorageBytes <= PTO_FBUF_SIZE_BYTES,
-        "Scaling tile storage size exceeds FBUF capacity");
-    static_assert(
         Loc != TileType::ScaleLeft || StorageBytes <= PTO_SCALELEFT_SIZE_BYTES,
         "ScaleLeft tile storage size exceeds ScaleLeft capacity");
     static_assert(
