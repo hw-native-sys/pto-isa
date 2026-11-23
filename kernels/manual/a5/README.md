@@ -5,6 +5,7 @@ This directory contains manual, performance-oriented kernel examples targeting A
 ## Examples
 
 - Flash-Attention kernel: [flash_atten](flash_atten/README.md)
+- Sparse FlashMLA (BF16 compute, FP4 cache): [sparseFlashMLA](sparseFlashMLA/README.md)
 - MXFP4 matrix multiplication performance kernel: [matmul_mxfp4_performance](matmul_mxfp4_performance/README.md)
 - MXFP8 matrix multiplication performance kernel: [matmul_mxfp8_performance](matmul_mxfp8_performance/README.md)
 

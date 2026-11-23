@@ -5,6 +5,7 @@
 ## 示例
 
 - Flash-Attention kernel：[flash_atten](flash_atten/README_zh.md)
+- 稀疏 FlashMLA（BF16 计算、FP4 KV 缓存）：[sparseFlashMLA](sparseFlashMLA/README.md)
 - MXFP4 矩阵乘法性能 kernel：[matmul_mxfp4_performance](matmul_mxfp4_performance/README_zh.md)
 - MXFP8 矩阵乘法性能 kernel：[matmul_mxfp8_performance](matmul_mxfp8_performance/README_zh.md)
 
