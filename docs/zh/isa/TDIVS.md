@@ -1,0 +1,111 @@
+# TDIVS
+
+## 产品支持情况<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT系列产品：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3系列产品：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2系列产品：支持
+<!-- end id3 -->
+
+
+## 指令示意图
+
+![TDIVS tile operation](../../figures/isa/TDIVS.svg)
+
+## 简介
+
+与标量的逐元素除法（Tile/标量或标量/Tile）。
+
+## 数学语义
+
+对有效区域内的每个元素 `(i, j)`：
+
+- Tile/标量形式：
+
+  $$ \mathrm{dst}_{i,j} = \frac{\mathrm{src}_{i,j}}{\mathrm{scalar}} $$
+
+- 标量/Tile形式：
+
+  $$ \mathrm{dst}_{i,j} = \frac{\mathrm{scalar}}{\mathrm{src}_{i,j}} $$
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+```cpp
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
+          typename... WaitEvents>
+PTO_INST RecordEvent TDIVS(TileDataDst &dst, TileDataSrc &src0, typename TileDataSrc::DType scalar,
+                           WaitEvents &... events);
+
+template <auto PrecisionType = DivAlgorithm::DEFAULT, typename TileDataDst, typename TileDataSrc,
+          typename... WaitEvents>
+PTO_INST RecordEvent TDIVS(TileDataDst &dst, typename TileDataDst::DType scalar, TileDataSrc &src0,
+                           WaitEvents &... events)
+```
+
+`PrecisionType`可指定以下值：
+
+* `DivAlgorithm::DEFAULT`：普通算法，速度快但精度较低。
+* `DivAlgorithm::HIGH_PRECISION`：高精度算法，速度较慢。
+
+## 约束
+
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**（两个重载）:
+    - `TileData::DType` 必须是以下之一：`int32_t`、`int`、`int16_t`、`half`、`float16_t`、`float`、`float32_t`。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+- **实现检查 (Ascend 950PR/Ascend 950DT)**（两个重载）:
+    - `TileData::DType` 必须是以下之一：`uint16_t`、`int16_t`、`uint32_t`、`int32_t`、`int64_t`、`uint64_t`、`half`、`float`。
+    - Tile位置必须是向量（`TileData::Loc == TileType::Vec`）。
+    - 静态有效边界：`TileData::ValidRow <= TileData::Rows` 且 `TileData::ValidCol <= TileData::Cols`。
+    - 运行时：`src0.GetValidRow() == dst.GetValidRow()` 且 `src0.GetValidCol() == dst.GetValidCol()`。
+    - Tile布局必须是行主序（`TileData::isRowMajor`）。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **除零**:
+    - 行为由目标定义；在Ascend 950PR/Ascend 950DT上，Tile/标量形式映射到乘以倒数，并对 `scalar == 0` 使用 `1/0 -> +inf`。
+- **高精度算法**
+    - 仅在Ascend 950PR/Ascend 950DT上有效，`PrecisionType`选项在Atlas A3 训练系列产品/Atlas A3 推理系列产品上将被忽略。
+
+## 示例
+
+### 自动（Auto）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT src, dst;
+  TDIVS(dst, src, 2.0f);
+  TDIVS<DivAlgorithm::HIGH_PRECISION>(dst, src, 2.0f);
+}
+```
+
+### 手动（Manual）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT src, dst;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TDIVS(dst, 2.0f, src);
+  TDIVS<DivAlgorithm::HIGH_PRECISION>(dst, 2.0f, src);
+}
+```

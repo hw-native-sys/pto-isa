@@ -34,14 +34,15 @@ from typing import Dict, List
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MANUAL_DIR = REPO_ROOT / "docs" / "mkdocs" / "src" / "manual"
+MANUAL_DIR_EN = REPO_ROOT / "docs" / "en" / "manual"
+MANUAL_DIR_ZH = REPO_ROOT / "docs" / "zh" / "manual"
 MKDOCS_YML = REPO_ROOT / "docs" / "mkdocs" / "mkdocs.yml"
 MANIFEST_PATH = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
 HEADER_PATH = REPO_ROOT / "include" / "pto" / "common" / "pto_instr.hpp"
-ENTRY_EN = REPO_ROOT / "docs" / "PTO-Virtual-ISA-Manual.md"
-ENTRY_ZH = REPO_ROOT / "docs" / "PTO-Virtual-ISA-Manual_zh.md"
-APP_D_EN = MANUAL_DIR / "appendix-d-instruction-family-matrix.md"
-APP_D_ZH = MANUAL_DIR / "appendix-d-instruction-family-matrix_zh.md"
+ENTRY_EN = REPO_ROOT / "docs" / "en" / "PTO-Virtual-ISA-Manual.md"
+ENTRY_ZH = REPO_ROOT / "docs" / "zh" / "PTO-Virtual-ISA-Manual.md"
+APP_D_EN = MANUAL_DIR_EN / "appendix-d-instruction-family-matrix.md"
+APP_D_ZH = MANUAL_DIR_ZH / "appendix-d-instruction-family-matrix.md"
 
 EXPECTED_MANUAL_EN = [
     "index.md",
@@ -63,77 +64,61 @@ EXPECTED_MANUAL_EN = [
 ]
 
 EXPECTED_MANUAL_ZH = [
-    "index_zh.md",
-    "01-overview_zh.md",
-    "02-machine-model_zh.md",
-    "03-state-and-types_zh.md",
-    "04-tiles-and-globaltensor_zh.md",
-    "05-synchronization_zh.md",
-    "06-instructions_zh.md",
-    "07-programming_zh.md",
-    "08-virtual-isa-and-ir_zh.md",
-    "09-bytecode-and-toolchain_zh.md",
-    "10-memory-ordering-and-consistency_zh.md",
-    "11-backend-profiles-and-conformance_zh.md",
-    "appendix-a-glossary_zh.md",
-    "appendix-b-instruction-contract-template_zh.md",
-    "appendix-c-diagnostics-taxonomy_zh.md",
-    "appendix-d-instruction-family-matrix_zh.md",
+    "index.md",
+    "01-overview.md",
+    "02-machine-model.md",
+    "03-state-and-types.md",
+    "04-tiles-and-globaltensor.md",
+    "05-synchronization.md",
+    "06-instructions.md",
+    "07-programming.md",
+    "08-virtual-isa-and-ir.md",
+    "09-bytecode-and-toolchain.md",
+    "10-memory-ordering-and-consistency.md",
+    "11-backend-profiles-and-conformance.md",
+    "appendix-a-glossary.md",
+    "appendix-b-instruction-contract-template.md",
+    "appendix-c-diagnostics-taxonomy.md",
+    "appendix-d-instruction-family-matrix.md",
 ]
 
-EXPECTED_HEADINGS: Dict[str, List[str]] = {
+EXPECTED_HEADINGS_EN: Dict[str, List[str]] = {
     "index.md": ["# PTO Virtual Instruction Set Architecture Manual", "## 0.1 Scope", "## 0.4 Conformance language"],
-    "index_zh.md": ["# PTO 虚拟指令集架构手册", "## 0.1 范围", "## 0.4 规范性术语"],
     "10-memory-ordering-and-consistency.md": [
         "# 10. Memory Ordering and Consistency",
         "## 10.1 Scope",
         "## 10.4 Ordering guarantees",
     ],
-    "10-memory-ordering-and-consistency_zh.md": ["# 10. 内存顺序与一致性", "## 10.1 范围", "## 10.4 顺序保证"],
     "11-backend-profiles-and-conformance.md": [
         "# 11. Backend Profiles and Conformance",
         "## 11.1 Scope",
         "## 11.5 Conformance levels",
     ],
-    "11-backend-profiles-and-conformance_zh.md": ["# 11. 后端画像与一致性", "## 11.1 范围", "## 11.5 一致性等级"],
+}
+
+EXPECTED_HEADINGS_ZH: Dict[str, List[str]] = {
+    "index.md": ["# PTO 虚拟指令集架构手册", "## 0.1 范围", "## 0.4 规范性术语"],
+    "10-memory-ordering-and-consistency.md": ["# 10. 内存顺序与一致性", "## 10.1 范围", "## 10.4 顺序保证"],
+    "11-backend-profiles-and-conformance.md": ["# 11. 后端画像与一致性", "## 11.1 范围", "## 11.5 一致性等级"],
 }
 
 EXPECTED_NAV_EN = [
-    "manual/index.md",
-    "manual/01-overview.md",
-    "manual/02-machine-model.md",
-    "manual/03-state-and-types.md",
-    "manual/04-tiles-and-globaltensor.md",
-    "manual/05-synchronization.md",
-    "manual/06-instructions.md",
-    "manual/07-programming.md",
-    "manual/08-virtual-isa-and-ir.md",
-    "manual/09-bytecode-and-toolchain.md",
-    "manual/10-memory-ordering-and-consistency.md",
-    "manual/11-backend-profiles-and-conformance.md",
-    "manual/appendix-a-glossary.md",
-    "manual/appendix-b-instruction-contract-template.md",
-    "manual/appendix-c-diagnostics-taxonomy.md",
-    "manual/appendix-d-instruction-family-matrix.md",
-]
-
-EXPECTED_NAV_ZH = [
-    "manual/index_zh.md",
-    "manual/01-overview_zh.md",
-    "manual/02-machine-model_zh.md",
-    "manual/03-state-and-types_zh.md",
-    "manual/04-tiles-and-globaltensor_zh.md",
-    "manual/05-synchronization_zh.md",
-    "manual/06-instructions_zh.md",
-    "manual/07-programming_zh.md",
-    "manual/08-virtual-isa-and-ir_zh.md",
-    "manual/09-bytecode-and-toolchain_zh.md",
-    "manual/10-memory-ordering-and-consistency_zh.md",
-    "manual/11-backend-profiles-and-conformance_zh.md",
-    "manual/appendix-a-glossary_zh.md",
-    "manual/appendix-b-instruction-contract-template_zh.md",
-    "manual/appendix-c-diagnostics-taxonomy_zh.md",
-    "manual/appendix-d-instruction-family-matrix_zh.md",
+    "docs/en/manual/index.md",
+    "docs/en/manual/01-overview.md",
+    "docs/en/manual/02-machine-model.md",
+    "docs/en/manual/03-state-and-types.md",
+    "docs/en/manual/04-tiles-and-globaltensor.md",
+    "docs/en/manual/05-synchronization.md",
+    "docs/en/manual/06-instructions.md",
+    "docs/en/manual/07-programming.md",
+    "docs/en/manual/08-virtual-isa-and-ir.md",
+    "docs/en/manual/09-bytecode-and-toolchain.md",
+    "docs/en/manual/10-memory-ordering-and-consistency.md",
+    "docs/en/manual/11-backend-profiles-and-conformance.md",
+    "docs/en/manual/appendix-a-glossary.md",
+    "docs/en/manual/appendix-b-instruction-contract-template.md",
+    "docs/en/manual/appendix-c-diagnostics-taxonomy.md",
+    "docs/en/manual/appendix-d-instruction-family-matrix.md",
 ]
 
 
@@ -163,8 +148,12 @@ def read(path: Path) -> str:
 
 
 def check_required_files(errors: List[str]) -> None:
-    for rel in EXPECTED_MANUAL_EN + EXPECTED_MANUAL_ZH:
-        path = MANUAL_DIR / rel
+    for rel in EXPECTED_MANUAL_EN:
+        path = MANUAL_DIR_EN / rel
+        if not path.exists():
+            errors.append(f"missing required manual file: {path}")
+    for rel in EXPECTED_MANUAL_ZH:
+        path = MANUAL_DIR_ZH / rel
         if not path.exists():
             errors.append(f"missing required manual file: {path}")
     for path in (ENTRY_EN, ENTRY_ZH):
@@ -173,8 +162,16 @@ def check_required_files(errors: List[str]) -> None:
 
 
 def check_required_headings(errors: List[str]) -> None:
-    for rel, headings in EXPECTED_HEADINGS.items():
-        path = MANUAL_DIR / rel
+    for rel, headings in EXPECTED_HEADINGS_EN.items():
+        path = MANUAL_DIR_EN / rel
+        if not path.exists():
+            continue
+        text = read(path)
+        for heading in headings:
+            if heading not in text:
+                errors.append(f"missing heading '{heading}' in {path}")
+    for rel, headings in EXPECTED_HEADINGS_ZH.items():
+        path = MANUAL_DIR_ZH / rel
         if not path.exists():
             continue
         text = read(path)
@@ -183,38 +180,21 @@ def check_required_headings(errors: List[str]) -> None:
                 errors.append(f"missing heading '{heading}' in {path}")
 
 
-def extract_nav_manual_paths(yml_text: str, zh: bool) -> List[str]:
+def extract_nav_manual_paths(yml_text: str) -> List[str]:
     lines = yml_text.splitlines()
-    start_tokens = (
-        ("- PTO Virtual ISA Manual (ZH):", "- PTO ISA Manual (ZH):")
-        if zh
-        else ("- PTO Virtual ISA Manual:", "- PTO ISA Manual:")
-    )
-    end_tokens = (
-        "- PTO Virtual ISA Manual (ZH):",
-        "- PTO ISA Manual (ZH):",
-        "- Programming Model:",
-        "- Programming Model (ZH):",
-        "- ISA Reference:",
-        "- Machine Model:",
-        "- Examples:",
-        "- Documentation:",
-        "- Full Index:",
-    )
-
     collecting = False
     out: List[str] = []
     for raw in lines:
         line = raw.rstrip()
         if not collecting:
-            if line.strip() in start_tokens:
+            if line.strip() == "- PTO Virtual ISA Manual:":
                 collecting = True
             continue
 
-        if any(line.strip().startswith(token) for token in end_tokens):
+        if line.strip().startswith("- Programming Model:"):
             break
 
-        match = re.search(r"(manual/[A-Za-z0-9_.\-]+\.md)", line)
+        match = re.search(r"(docs/en/manual/[A-Za-z0-9_.\-]+\.md)", line)
         if match:
             out.append(match.group(1))
     return out
@@ -222,34 +202,29 @@ def extract_nav_manual_paths(yml_text: str, zh: bool) -> List[str]:
 
 def check_nav_order(errors: List[str]) -> None:
     text = read(MKDOCS_YML)
-    nav_en = extract_nav_manual_paths(text, zh=False)
-    nav_zh = extract_nav_manual_paths(text, zh=True)
+    nav_en = extract_nav_manual_paths(text)
 
     if nav_en != EXPECTED_NAV_EN:
         errors.append("manual nav order mismatch (EN):\n" + f"expected: {EXPECTED_NAV_EN}\n" + f"actual:   {nav_en}")
-    if nav_zh != EXPECTED_NAV_ZH:
-        errors.append("manual nav order mismatch (ZH):\n" + f"expected: {EXPECTED_NAV_ZH}\n" + f"actual:   {nav_zh}")
 
 
 def check_standalone_language_policy(errors: List[str]) -> None:
-    en_files = [MANUAL_DIR / rel for rel in EXPECTED_MANUAL_EN] + [ENTRY_EN]
-    zh_files = [MANUAL_DIR / rel for rel in EXPECTED_MANUAL_ZH] + [ENTRY_ZH]
+    en_files = [MANUAL_DIR_EN / rel for rel in EXPECTED_MANUAL_EN] + [ENTRY_EN]
+    zh_files = [MANUAL_DIR_ZH / rel for rel in EXPECTED_MANUAL_ZH] + [ENTRY_ZH]
 
     for path in en_files:
         if not path.exists():
             continue
         text = read(path)
-        if "_zh.md" in text:
+        if "/zh/" in text:
             errors.append(f"cross-language reference found in EN manual file: {path}")
 
     for path in zh_files:
         if not path.exists():
             continue
         text = read(path)
-        if re.search(r"manual/[A-Za-z0-9_.\-]+\.md", text) and not re.search(r"manual/[A-Za-z0-9_.\-]+_zh\.md", text):
-            errors.append(f"potential EN manual reference found in ZH manual file: {path}")
-        if "PTO-Virtual-ISA-Manual.md" in text:
-            errors.append(f"cross-language top-level reference found in ZH manual file: {path}")
+        if "/en/" in text:
+            errors.append(f"cross-language reference found in ZH manual file: {path}")
 
 
 def check_matrix_coverage(errors: List[str]) -> None:

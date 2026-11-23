@@ -1,66 +1,60 @@
 # tests/
 
-Tests and examples for PTO Tile Lib, covering both CPU simulation and NPU (including `sim` and on-board `npu` modes).
+PTO Tile Lib 的测试与示例，覆盖 CPU 仿真与 NPU（`sim` 和板上 `npu` 两种模式）。
 
-## Test Entry Points
+## 测试入口
 
-> All ST suites (CPU / NPU / Comm / CostModel) are built on GoogleTest. A system
-> installation is preferred and required for the NPU suites; see
-> [Prerequisites: GTest](#prerequisites-gtest) below.
+> 所有 ST 套件（CPU / NPU / Comm / CostModel）均基于 GoogleTest 构建。推荐使用系统级安装，NPU 套件则必须使用系统级安装；详见下方 [前置依赖：GTest](#前置依赖gtest)。
 
-Common test entry points:
+常见测试入口如下：
 
-- Full CPU Simulator run: `python3 tests/run_cpu.py --clean --verbose`
-- GEMM demo: `python3 tests/run_cpu.py --demo gemm --verbose`
-- Flash Attention demo: `python3 tests/run_cpu.py --demo flash_attn --verbose`
-- Single ST testcase: `python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] -t [TEST_CASE] -g [GTEST_FILTER_CASE]`
-- One-click scripts: `./tests/run_st.sh --a3 --sim --all` (see note below), `./tests/run_cpu_tests.sh`
+- CPU Simulator 全量运行：`python3 tests/run_cpu.py --clean --verbose`
+- GEMM demo：`python3 tests/run_cpu.py --demo gemm --verbose`
+- Flash Attention demo：`python3 tests/run_cpu.py --demo flash_attn --verbose`
+- 单个 ST 用例：`python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] -t [TEST_CASE] -g [GTEST_FILTER_CASE]`
+- 一键脚本：`./tests/run_st.sh --a3 --sim --all`（见下方说明）、`./tests/run_cpu_tests.sh`
 
-> `run_st.sh` requires a platform flag (`--a3`/`--a5`/`--a3_a5`/`--kirin9030`) **and**, for `--a3`/`--a5`, a mode flag (`--simple` or `--all`); optionally a run mode (`--sim`/`--npu`, defaults to on-board `npu`). Run `./tests/run_st.sh` with no/invalid arguments to print the full usage. Note the `--` prefixes are required.
+> `run_st.sh` 必须指定平台参数（`--a3`/`--a5`/`--a3_a5`/`--kirin9030`），并且对 `--a3`/`--a5` 还需指定模式参数（`--simple` 或 `--all`）；可选地指定运行模式（`--sim`/`--npu`，默认板上 `npu`）。不带参数或参数非法运行 `./tests/run_st.sh` 会打印完整用法。注意各参数均需 `--` 前缀。
 
-## Layout
+## 目录结构
 
-- `script/`: Recommended entry scripts
-  - `run_st.py`: Build and run NPU ST
-  - `build_st.py`: Build NPU ST only
-  - `all_cpu_tests.py`: Build and run CPU ST suites in batch
-  - `cpu_bfloat16.py`: CPU bfloat16 test script
-  - `README.md`: Script usage
-- `cpu/`: CPU-side ST tests (gtest + CMake)
-  - `st/`: CPU compute ST projects and testcase data generation scripts
-  - `comm/st/`: CPU communication ST
-- `npu/`: NPU-side ST tests split by SoC
-  - `a2a3/src/st/`: A2/A3 compute ST
-  - `a2a3/src/common/`: A2/A3 shared test resources
-  - `a2a3/comm/st/`: A2/A3 communication ST
-  - `a5/src/st/`: A5 compute ST
-  - `a5/src/common/`: A5 shared test resources
-  - `a5/comm/st/`: A5 communication ST
-  - `kirin9030/src/st/`: Kirin9030 compute ST
-  - `kirin9030/src/common/`: Kirin9030 shared test resources
-- `costmodel/`: Cost model tests
-  - `st/`: Cost model ST (operator cost measurement)
-  - `st_fit/`: Cost model fitting tests
-- `common/`: Shared test resources
-- `run_cpu.py`: CPU simulator full run entry point
-- `run_cpu_tests.sh`: CPU ST one-click script
-- `run_st.sh`: NPU ST one-click script (requires `--<platform>` and, for a3/a5, `--simple`/`--all`; run with no args for usage)
-- `run_comm_test.sh`: Communication ST one-click script (see below)
-- `run_costmodel.py`: Cost model run script
-- `run_costmodel_tests.sh`: Cost model one-click script
-- `validate_op_coverage.py`: Operator coverage validation script
-- `validate_testcase_names.py`: Testcase name validation script
+- `script/`：推荐的入口脚本
+  - `run_st.py`：构建并运行 NPU ST
+  - `build_st.py`：仅构建 NPU ST
+  - `all_cpu_tests.py`：批量构建并运行 CPU ST 套件
+  - `cpu_bfloat16.py`：CPU bfloat16 测试脚本
+  - `README.md`：脚本使用说明
+- `cpu/`：CPU 侧 ST 测试（gtest + CMake）
+  - `st/`：CPU 计算 ST 工程与 testcase 数据生成脚本
+  - `comm/st/`：CPU 通信 ST
+- `npu/`：按 SoC 拆分的 NPU 侧 ST 测试
+  - `a2a3/src/st/`：A2/A3 计算 ST
+  - `a2a3/src/common/`：A2/A3 共享测试资源
+  - `a2a3/comm/st/`：A2/A3 通信 ST
+  - `a5/src/st/`：A5 计算 ST
+  - `a5/src/common/`：A5 共享测试资源
+  - `a5/comm/st/`：A5 通信 ST
+  - `kirin9030/src/st/`：Kirin9030 计算 ST
+  - `kirin9030/src/common/`：Kirin9030 共享测试资源
+- `costmodel/`：代价模型测试
+  - `st/`：代价模型 ST（算子代价测量）
+  - `st_fit/`：代价模型拟合测试
+- `common/`：共享测试资源
+- `run_cpu.py`：CPU 仿真器全量运行入口
+- `run_cpu_tests.sh`：CPU ST 一键脚本
+- `run_st.sh`：NPU ST 一键脚本（需指定 `--<平台>`，a3/a5 还需 `--simple`/`--all`；不带参数运行可查看用法）
+- `run_comm_test.sh`：通信 ST 一键脚本（详见下方说明）
+- `run_costmodel.py`：代价模型运行脚本
+- `run_costmodel_tests.sh`：代价模型一键脚本
+- `validate_op_coverage.py`：算子覆盖率验证脚本
+- `validate_testcase_names.py`：用例命名规范验证脚本
 
-## Prerequisites: GTest
+## 前置依赖：GTest
 
-All ST suites use GoogleTest:
+所有 ST 套件均使用 GoogleTest：
 
-- **CPU Simulator / CostModel ST** prefer a system GTest (`libgtest-dev`) and fall
-  back to fetching googletest v1.14.0 automatically at configure time when it is
-  missing.
-- **NPU / Comm ST** are compiled with the custom `bisheng` compiler and **require a
-  system GTest** (the nested googletest build cannot be reused there, so CMake
-  fails with an explicit error if GTest is missing).
+- **CPU Simulator / CostModel ST** 优先使用系统级 GTest（`libgtest-dev`），缺失时会在 configure 阶段自动拉取 googletest v1.14.0 作为回退。
+- **NPU / Comm ST** 使用自定义 `bisheng` 编译器编译，**必须使用系统级 GTest**（无法复用嵌套的 googletest 构建，因此缺少 GTest 时 CMake 会显式报错）。
 
 ```bash
 # Ubuntu / Debian
@@ -70,18 +64,18 @@ sudo apt install libgtest-dev
 sudo yum install gtest-devel
 ```
 
-## Communication Tests (Comm ST)
+## 通信测试（Comm ST）
 
-Communication tests verify multi-device PTO communication primitives (Put / Get / Broadcast / Gather / Scatter / Reduce / Notify / Wait / Test), built on MPI + HCCL.
+通信测试验证多卡间的 PTO 通信原语（Put / Get / Broadcast / Gather / Scatter / Reduce / Notify / Wait / Test），基于 MPI + HCCL 实现。
 
-### Prerequisites: MPI Installation
+### 前置依赖：MPI 安装
 
-Communication tests require an MPI environment (MPICH or OpenMPI). Two components are needed at runtime:
+通信测试需要 MPI 环境（MPICH 或 OpenMPI 均可）。运行时需要两个组件：
 
-1. **`mpirun`**: launches multi-process execution
-2. **`libmpi.so`**: loaded at runtime via `dlopen`
+1. **`mpirun`**：用于启动多进程
+2. **`libmpi.so`**：运行时通过 `dlopen` 动态加载
 
-#### Install MPICH (Recommended)
+#### 安装 MPICH（推荐）
 
 ```bash
 # Ubuntu / Debian
@@ -89,12 +83,11 @@ sudo apt install mpich libmpich-dev
 
 # CentOS / RHEL / EulerOS
 sudo yum install mpich mpich-devel
-# May need to load a module or add to PATH manually:
+# 安装后可能需要加载 module 或手动加入 PATH：
 export PATH=/usr/lib64/mpich/bin:$PATH
 ```
 
-
-#### Build MPICH from Source (No Root)
+#### 从源码安装 MPICH（无 root 权限时）
 
 ```bash
 wget https://www.mpich.org/static/downloads/4.2.3/mpich-4.2.3.tar.gz
@@ -105,79 +98,79 @@ export MPI_HOME=$HOME/mpich
 export PATH=$MPI_HOME/bin:$PATH
 ```
 
-#### Environment Variables
+#### 环境变量
 
-| Variable | Description |
-|----------|-------------|
-| `MPI_HOME` | MPI installation root; the script searches `$MPI_HOME/bin/mpirun` |
-| `MPI_LIB_PATH` | Direct path to `libmpi.so` (overrides default search) |
+| 变量 | 说明 |
+|------|------|
+| `MPI_HOME` | MPI 安装根目录，脚本会自动搜索 `$MPI_HOME/bin/mpirun` |
+| `MPI_LIB_PATH` | 直接指定 `libmpi.so` 路径（覆盖默认搜索） |
 
-If `mpirun` is already on `PATH` and `libmpi.so` is in a standard library path, these variables are not required.
+如果 `mpirun` 已在 `PATH` 中且 `libmpi.so` 在标准库路径下，则无需设置这些变量。
 
-#### Verify Installation
+#### 验证安装
 
 ```bash
 mpirun --version
 mpirun -n 2 echo "MPI OK"
 ```
 
-### Sync vs Async Instruction Tests
+### 同步与异步指令测试
 
-Communication tests are split into **sync instructions** (e.g. `tput`, `tget`) and **async instructions** (e.g. `tput_async`, `tget_async`):
+通信测试分为**同步指令**（如 `tput`、`tget`）和**异步指令**（如 `tput_async`、`tget_async`）两类：
 
-| Type | Test Case Examples | CANN Version Required |
-|------|-------------------|----------------------|
-| Sync | `tput`, `tget`, `treduce`, `tbroadcast`, etc. | CANN 8.x and above |
-| Async | `tput_async`, `tget_async` | **CANN 9.0 and above** |
+| 类型 | 测试用例示例 | CANN 版本要求 |
+|------|-------------|--------------|
+| 同步指令 | `tput`、`tget`、`treduce`、`tbroadcast` 等 | CANN 8.x 及以上 |
+| 异步指令 | `tput_async`、`tget_async` | **CANN 9.0 及以上** |
 
-Async instructions depend on the SDMA opapi interface (e.g. `aclnnShmemSdmaStarsQuery`) introduced in CANN 9.0. They will fail on lower CANN versions due to missing symbols. Therefore, `run_comm_test.sh` **excludes async tests by default** — use the `-a` flag to enable them.
+异步指令依赖 CANN 9.0 引入的 SDMA opapi 接口（如 `aclnnShmemSdmaStarsQuery`），在低版本 CANN 上会因符号缺失而运行失败。因此 `run_comm_test.sh` **默认不包含异步指令测试**，需通过 `-a` 参数显式启用。
 
-### Quick Start
+### 快速开始
 
 ```bash
-# Run all tests with 8 NPUs (default A2/A3, excludes async)
+# 8 卡全量测试（默认 A2/A3，不含异步指令）
 ./run_comm_test.sh
 
-# Include async instruction tests (requires CANN 9.0+)
+# 包含异步指令测试（需 CANN 9.0+）
 ./run_comm_test.sh -a
 
-# Run only the async tput testcase
+# 仅跑异步 tput 用例
 ./run_comm_test.sh -t tput_async
 
-# A5 SoC, 2 NPUs
+# 指定 A5 SoC，2 卡
 ./run_comm_test.sh -v a5 -n 2
 
-# Run only the tput testcase
+# 仅跑 tput 用例
 ./run_comm_test.sh -t tput
 
-# Enable debug logging
+# 开启 debug 日志
 ./run_comm_test.sh -d -t tput
 ```
 
-You can also run directly via `run_st.py`, which automatically splits execution by rank count:
+也可以通过 `run_st.py` 直接运行，脚本会自动按 rank 数分轮执行：
 
 ```bash
-# Auto-split tput_async across 2/4/8 ranks
+# 自动分轮运行 tput_async（2/4/8 rank）
 python3 tests/script/run_st.py -r npu -v a3 -t comm/tput_async
 
-# Limit to 2 ranks
+# 限制最多 2 rank
 python3 tests/script/run_st.py -r npu -v a3 -t comm/tput_async -n 2
 ```
 
-### Options
+### 参数说明
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `-n` | Number of available NPUs: 2, 4, or 8 | 8 |
-| `-v` | SoC version: `a3` (Ascend910B) or `a5` (Ascend950) | a3 |
-| `-t` | Run specific testcase(s) (repeatable), e.g. `tput`, `treduce` | all |
-| `-a` | Include async instruction tests (names containing `_async`), requires CANN 9.0+ | off |
-| `-d` | Enable debug mode with verbose init/sync logging | off |
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-n` | 可用 NPU 数量：2、4 或 8 | 8 |
+| `-v` | SoC 版本：`a3`（Ascend910B）或 `a5`（Ascend950） | a3 |
+| `-t` | 指定测试用例（可多次使用），如 `tput`、`treduce` | 全部 |
+| `-a` | 包含名称中含 `_async` 的异步测试，需 CANN 9.0+ | 关闭 |
+| `-d` | 开启调试模式，打印详细初始化与同步日志 | 关闭 |
 
-### How It Works
+### 运行机制
 
-The script automatically runs each testcase at each applicable rank count (2 / 4 / 8, up to `-n`), using GTest filters to select only the tests matching the current rank count. For example, with `-n 4` it first runs default tests at 2 ranks, then tests with the `4Ranks` suffix at 4 ranks, skipping 8-rank tests.
+脚本会根据 `-n` 指定的卡数，自动为每个测试用例分别以 2 / 4 / 8 rank 运行，通过 GTest Filter 确保每次只执行与当前 rank 数匹配的测试。例如 `-n 4` 时会先以 2 rank 跑默认用例，再以 4 rank 跑带 `4Ranks` 后缀的用例，跳过 8 rank 用例。
 
-## Suggested Reading
+## 建议阅读顺序
 
-- Getting started (recommended: CPU first, then NPU): [docs/getting-started.md](../docs/getting-started.md)
+- 入门指南（建议先 CPU，再 NPU）：[docs/zh/getting-started.md](../docs/zh/getting-started.md)

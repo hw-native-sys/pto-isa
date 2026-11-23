@@ -1,153 +1,150 @@
-# TGET / TGET_ASYNC Bandwidth Comparison Example
+# TGET / TGET_ASYNC 带宽对比示例
 
-## Overview
+## 概览
 
-This example compares the point-to-point communication bandwidth of **TGET** (synchronous remote read) and **TGET_ASYNC** (asynchronous SDMA remote read), sweeping transfer sizes from 4 KB to 4 MB, and measuring both host-side bandwidth (GB/s) and device-side average execution cycles.
+本示例对比 **TGET**（同步远程读）与 **TGET_ASYNC**（异步 SDMA 远程读）的点对点通信带宽，覆盖 4 KB ~ 4 MB 的传输规模，同时测量 host 侧带宽（GB/s）和 device 侧平均执行 cycle 数。
 
-- **TGET** performs remote reads via UB (Unified Buffer) staging: `Remote GM → UB → Local GM`. Bandwidth saturates at approximately 4 GB/s due to UB throughput limits.
-- **TGET_ASYNC** performs remote reads via the SDMA engine: `Remote GM → SDMA → Local GM`. By bypassing the UB bottleneck, it reaches approximately 13–14 GB/s at 4 MB.
+- **TGET** 通过 UB（Unified Buffer）暂存进行远程读：`Remote GM → UB → Local GM`，受 UB 带宽限制，大传输量时饱和在约 4 GB/s。
+- **TGET_ASYNC** 通过 SDMA 引擎直传：`Remote GM → SDMA → Local GM`，绕过 UB 瓶颈，在 4 MB 时可达约 13–14 GB/s。
 
-## Supported AI Processors
+## 支持的 AI 处理器
 
 - A2/A3
 
-## Directory Layout
+## 目录结构
 
 ```
 kernels/manual/a2a3/tget_bandwidth/
 ├── scripts/
-│   └── plot_bw_compare.py           # Generate bandwidth comparison plot
-├── CMakeLists.txt                   # Build configuration
-├── tget_bandwidth_kernel.cpp        # Kernel implementation (AICORE + host orchestration)
-├── tget_bandwidth_kernel.h          # Kernel header
-├── main.cpp                         # Host-side entry point (MPI initialization)
-├── run.sh                           # Convenience script
-├── README_zh.md                     # Chinese version
-└── README.md                        # This file
+│   └── plot_bw_compare.py           # 绘制带宽对比图
+├── CMakeLists.txt                   # 构建配置
+├── tget_bandwidth_kernel.cpp        # Kernel 实现（AICORE + Host 编排）
+├── tget_bandwidth_kernel.h          # Kernel 头文件
+├── main.cpp                         # Host 侧入口（MPI 初始化）
+├── run.sh                           # 便捷脚本
+├── README.md                     # 本文件
+└── README.md                        # 英文版
 ```
 
-## Operator Description
+## 算子说明
 
-### Data Flow
+### 数据流
 
-**TGET (synchronous)**:
+**TGET（同步）**：
 ```
 Peer NPU GM ──TGET──▶ Local UB ──TSTORE──▶ Local GM
 ```
 
-**TGET_ASYNC (asynchronous)**:
+**TGET_ASYNC（异步）**：
 ```
-Peer NPU GM ──SDMA──▶ Local GM   (direct transfer, no UB staging)
+Peer NPU GM ──SDMA──▶ Local GM   (直传，无 UB 中转)
 ```
 
-The current SDMA asynchronous completion protocol uses a kernel-local post ID. Each Post appends an 8-byte flag
-SQE after the data SQEs. The session tracks the cumulative number of queues used and appends each Post's Flag to all
-of them, so waiting the latest Event also covers every earlier Post in that session. Wait/Test only polls the
-corresponding post ID and no longer submits an SQE during Wait. Each channel group has an independent 64-slot
-Payload arena (8 bytes per slot, 512 bytes total). Post Done Records reuse the group's `recv_workspace` with a 64-byte
-stride. The host-side `SdmaWorkspaceManager` manages the STARS
-context and Payload storage for all groups, so kernel callers do not need to allocate a separate control region.
+当前SDMA异步完成协议使用kernel-local post ID。Session会累计记录使用过的Queue数，每次Post都在这些
+Queue上追加8B flag SQE，因此等待最后一个Event也会覆盖该Session内此前所有Post。Wait/Test只轮询对应
+post ID，不再在Wait阶段提交SQE。每个channel group拥有独立的64槽Payload arena（每槽8B，共512B），
+Post Done Record按64B间隔复用该group的`recv_workspace`。
+Host 调用方查询容量并提供 workspace，由 `SdmaWorkspaceManager` 初始化后传给 kernel。
 
-### Test Procedure
+### 测试流程
 
-1. Each rank prepares send data in HCCL shared memory (`PrepareSendBufferKernel`)
-2. The root rank runs TGET and TGET_ASYNC for each transfer size
-3. Host-side timing measures bandwidth; device-side `SYS_CNT` measures cycles
-4. Received data is verified for correctness
+1. 每个 rank 在 HCCL shared memory 中准备发送数据（`PrepareSendBufferKernel`）
+2. root rank 对每种传输规模分别执行 TGET 和 TGET_ASYNC
+3. Host 侧计时测量带宽，device 侧通过 `SYS_CNT` 测量 cycle 数
+4. 验证接收数据正确性
 
-Both timed paths measure only the transfer from the peer's symmetric `sendShmem` to the root's symmetric
-`recvShmem`. The received buffer is copied to the ordinary verification GM buffer once after timing, so CopyOut is
-not included in either the host-side bandwidth or device-cycle result.
+两条计时路径都只测量 Peer 对称内存 `sendShmem` 到 Root 对称内存 `recvShmem` 的传输。计时结束后仅将
+接收结果复制一次到普通 GM 校验缓冲区，因此 Host 带宽和 Device cycle 均不包含 CopyOut。
 
-### Specification
+### 规格
 
-| Item           | Value |
-| -------------- | ----- |
-| Data type      | `float` |
-| NPU count      | 2 (point-to-point) |
-| Transfer sizes | 4 KB, 16 KB, 64 KB, 256 KB, 1 MB, 4 MB |
-| Metrics        | host bandwidth (GB/s), device average cycles |
+| 项目        | 值 |
+| ----------- | ----- |
+| 数据类型    | `float` |
+| NPU 数量    | 2（点对点） |
+| 传输规模    | 4 KB, 16 KB, 64 KB, 256 KB, 1 MB, 4 MB |
+| 测量指标    | host 带宽（GB/s）、device 平均 cycle 数 |
 
-## Measured Performance (Reference)
+## 实测性能（参考）
 
-The following measurements were collected on Ascend A2/A3 (float type, 2-NPU point-to-point).
+以下数据在 Ascend A2/A3 上测得（float 类型，2 卡点对点）。
 
-| Transfer Size | TGET BW (GB/s) | TGET_ASYNC BW (GB/s) | TGET Device Avg Cycles | TGET_ASYNC Device Avg Cycles |
-| ------------- | --------------: | --------------------: | ---------------------: | ---------------------------: |
-| 4 KB          | 0.20            | 0.18                  | 36.28                  | 136.51                       |
-| 16 KB         | 0.77            | 0.64                  | 149.98                 | 161.40                       |
-| 64 KB         | 1.50            | 2.44                  | 579.62                 | 277.25                       |
-| 256 KB        | 2.40            | 7.90                  | 2409.72                | 745.54                       |
-| 1 MB          | 2.63            | 8.98                  | 9317.93                | 2624.24                      |
-| 4 MB          | 4.85            | 10.49                 | 37924.12               | 10273.68                     |
+| 传输大小 | TGET 带宽 (GB/s) | TGET_ASYNC 带宽 (GB/s) | TGET device 平均 cycles | TGET_ASYNC device 平均 cycles |
+| -------- | ----------------: | ----------------------: | ----------------------: | ----------------------------: |
+| 4 KB     | 0.20              | 0.18                    | 36.28                   | 136.51                        |
+| 16 KB    | 0.77              | 0.64                    | 149.98                  | 161.40                        |
+| 64 KB    | 1.50              | 2.44                    | 579.62                  | 277.25                        |
+| 256 KB   | 2.40              | 7.90                    | 2409.72                 | 745.54                        |
+| 1 MB     | 2.63              | 8.98                    | 9317.93                 | 2624.24                       |
+| 4 MB     | 4.85              | 10.49                   | 37924.12                | 10273.68                      |
 
-### Analysis
+### 分析
 
-- **TGET** bandwidth gradually increases with transfer size but saturates at approximately **4 GB/s** — the throughput ceiling of the UB staging path.
-- **TGET_ASYNC** significantly outperforms TGET for large transfers (≥256 KB), reaching approximately **10.5 GB/s**
-  host-observed bandwidth at 4 MB.
-- For very small transfers (4 KB), TGET_ASYNC is slightly slower than TGET due to SDMA launch overhead.
+- **TGET** 随传输规模增大，带宽逐步上升但在约 **4 GB/s** 处饱和——这是 UB 暂存路径的单核带宽上限。
+- **TGET_ASYNC** 在大传输量（≥256 KB）时显著超越 TGET，4 MB 时 Host 观测带宽约为 **10.5 GB/s**。
+- 在极小传输量（4 KB）下，TGET_ASYNC 由于 SDMA 启动开销反而略慢于 TGET。
 
-### Bandwidth Comparison Plot
+### 带宽对比图
 
-Run the plotting script to generate the comparison chart:
+运行绘图脚本生成对比图：
 
 ```bash
 python3 scripts/plot_bw_compare.py
 ```
 
-## Build and Run
+## 构建与运行
 
-### Prerequisites
+### 前置条件
 
-- CANN Toolkit >= 8.5.0 (TGET synchronous instruction); >= 9.0.0 (TGET_ASYNC asynchronous instruction)
-- **MPICH** (recommended; the host side loads `libmpi.so` via `comm_mpi.h` with MPICH-compatible communicator handles)
-- 2 or more Ascend NPUs
+- CANN Toolkit >= 8.5.0（TGET 同步指令）；>= 9.0.0（TGET_ASYNC 异步指令）
+- **MPICH**（推荐；Host 侧通过 `comm_mpi.h` 动态加载 `libmpi.so`，communicator handle 与 MPICH 一致）
+- 2 张及以上 Ascend NPU
 
-#### MPI installation (MPICH recommended)
+#### MPI 安装（推荐 MPICH）
 
 ```bash
 # Ubuntu / Debian
 sudo apt install mpich libmpich-dev
 
-# Or install under $HOME without root — see tests/README.md "Build MPICH from Source"
+# 或用户目录安装（无 root）
+# 见 tests/README.md「从源码安装 MPICH」
 export PATH=$HOME/mpich/bin:$PATH
 export MPI_LIB_PATH=$HOME/mpich/lib/libmpi.so
 ```
 
-`run.sh` searches common MPICH install paths and sets `MPI_LIB_PATH`. Override with `MPI_SEARCH_DIRS` (space-separated list of `bin/` directories).
+`run.sh` 会自动搜索常见 MPICH 路径并设置 `MPI_LIB_PATH`。也可通过 `MPI_SEARCH_DIRS`（空格分隔的 `bin/` 目录列表）覆盖搜索路径。
 
-> **Note**: This example does **not** support OpenMPI. `comm_mpi.h` hardcodes MPICH `MPI_COMM_WORLD` handle values; OpenMPI uses a different communicator representation and runtime MPI calls may fail. `--allow-run-as-root` is OpenMPI-specific and is not supported by MPICH.
+> **说明**：本示例**不支持 OpenMPI**。`comm_mpi.h` 使用 MPICH 的 `MPI_COMM_WORLD` handle 编码；OpenMPI 的 communicator 表示不同，运行时 `MPI_Bcast` 等调用可能失败。`--allow-run-as-root` 为 OpenMPI 专用参数，MPICH 不支持。
 
-### Steps
+### 步骤
 
-1. Configure your Ascend CANN environment:
+1. 配置 Ascend CANN 环境：
 
 ```bash
 source ${ASCEND_HOME_PATH}/bin/setenv.bash
-# or source <workspace>/set_env_new.sh
+# 或 source <workspace>/set_env_new.sh
 ```
 
-2. Run the example (2-NPU by default). `run.sh` switches to its own directory automatically; invoke it from the repo root or from this directory:
+2. 运行示例（默认 2 卡）。`run.sh` 会自动切换到本目录，可从仓库根或本目录执行：
 
 ```bash
-# Option A: cd into this example first
+# 方式 A：先进入示例目录
 cd ${git_clone_path}/kernels/manual/a2a3/tget_bandwidth
 bash run.sh -r npu -v a3
 
-# Option B: from the pto-isa-main repo root
+# 方式 B：在 pto-isa-main 根目录下
 bash kernels/manual/a2a3/tget_bandwidth/run.sh -r npu -v a3
 ```
 
-Use `-n` to specify the number of ranks (default is 2):
+可通过 `-n` 参数指定 rank 数（默认为 2）：
 
 ```bash
 bash run.sh -r npu -v a3 -n 2
 ```
 
-`-v a3` matches the ST test scripts and maps internally to `SOC_VERSION=Ascend910B1` for the A2/A3 platform.
+`-v a3` 与 ST 测试脚本一致，内部映射为 CMake 的 `SOC_VERSION=Ascend910B1`（A2/A3 平台）。
 
-On success, the output looks like:
+成功时输出：
 
 ```text
 ================ TGET/TGET_ASYNC Bandwidth Sweep ================
@@ -158,10 +155,10 @@ peer_rank=1 dtype=float tile_elems=1024
 test success
 ```
 
-### Configurable SDMA Device Baseline
+### 固定版SDMA Device Baseline
 
-Use `device_baseline` mode to configure the transfer size, SQE size, queue count, and Post count. Set only the
-parameters that need to differ from their defaults:
+使用`device_baseline`模式可配置SQE大小、queue和多Post场景。每轮都会更新源数据、
+将目的区域填为哨兵，并验证所有Post的结果。只需设置需要覆盖的参数：
 
 ```bash
 export TGET_BENCH_MODE=device_baseline
@@ -175,21 +172,21 @@ export TGET_DEVICE_BASELINE_INNER_ITERS=300
 bash run.sh -r npu -v a3 -n 2
 ```
 
-`BLOCK_DIVISOR=1` means `block_bytes=total_bytes`, so each Post contains one data SQE. The timed region measures
-only the symmetric-memory transfer and Post completion. Verification runs after timing.
+`BLOCK_DIVISOR=1`表示`block_bytes=total_bytes`，即每次Post只生成一个data SQE。计时范围只包含对称内存
+传输和Post完成过程，数据校验位于计时区间之外。
 
-Constraints:
+约束：
 
-- `QUEUE_NUM <= 48`.
-- At most 64 unwaited Payload slots may be retained per channel group.
-- The data and completion SQEs generated by one Post on a queue must fit in that SQ.
-- The default mode waits only for the latest Event while still verifying every Post; enable
-  `TGET_DEVICE_BASELINE_WAIT_EACH_EVENT=1` to wait for each Event.
+- `QUEUE_NUM <= 48`；
+- 单group最多保留64个无需等待的Payload槽；
+- 每次Post在单queue产生的数据和完成SQE总数不得超过该SQ深度；
+- 默认只Wait最后一个Event，但仍验证所有Post的数据；设置`TGET_DEVICE_BASELINE_WAIT_EACH_EVENT=1`
+  可逐个等待Event。
 
-## Changelog
+## 变更记录
 
-| Date       | Change |
+| 日期       | 变更 |
 | ---------- | ------ |
-| 2026-07-16 | Use fixed post ID Events; add queue, channel-group, and multi-Post tests |
-| 2026-06-01 | Align docs and `run.sh` with MPICH; remove OpenMPI-only `mpirun` flag |
-| 2026-04-02 | Migrated from ST test to standalone performance example |
+| 2026-07-16 | 固定post ID Event实现；增加queue、channel group和多Post测试 |
+| 2026-06-01 | 文档与 `run.sh` 对齐 MPICH；移除 OpenMPI 专用 `mpirun` 参数 |
+| 2026-04-02 | 从 ST 测试迁移为独立性能示例 |

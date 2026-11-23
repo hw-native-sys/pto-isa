@@ -21,7 +21,7 @@
 
     function getCurrentLanguage() {
         const p = window.location.pathname;
-        return (p.includes('_zh/') || p.endsWith('_zh.html')) ? 'zh' : 'en';
+        return (p.includes('/docs/en/') || p.includes('_en/') || p.endsWith('_en.html')) ? 'en' : 'zh';
     }
 
     function findNavEntry(map, pathname) {

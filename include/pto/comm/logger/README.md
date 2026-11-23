@@ -1,89 +1,89 @@
-# PTO-ISA Host Logging
+# PTO-ISA Host 日志
 
-[简体中文](README_zh.md)
+[English](README_en.md)
 
-## Part I: Requirements and Usage Scenarios
+## 第一部分：需求场景设计
 
-### 1. Scope and Responsibilities
+### 1. 范围与职责
 
-Provide a unified logging interface, log levels, output format, and file management for the PTO-ISA Host side. Callers supply the level, module name, and message body; the logging component handles filtering, formatting, and output.
+统一 PTO-ISA Host 侧的日志接口、级别、输出格式和文件管理。调用方提供级别、模块名和正文，日志组件负责过滤、格式化及输出。
 
-Logging is synchronous and targets Linux Host environments, including CCU host orchestration. Device logging, `PTO_ASSERT`, and `static_assert` remain unchanged.
+采用同步日志，面向 Linux Host，包括 CCU 的 host 控制代码。Device 日志、`PTO_ASSERT`、`static_assert` 保持原样。
 
-### 2. Logging Behavior
+### 2. 日志行为
 
-Callers choose the log level. Recommended uses are:
+日志级别由调用方选择，建议用途如下：
 
-| Scenario | Level and behavior |
+| 场景 | 级别与规则 |
 | --- | --- |
-| Parameter validation or API call failure | ERROR; record the cause, return code, and necessary context |
-| Continue with a fallback configuration after an abnormal condition | WARN; record the condition and fallback behavior |
-| Successful initialization, connection setup, resource release, and stage tracing (Trace) | INFO; record progress and stage timings |
-| Additional diagnostic details | DEBUG; enable as needed |
+| 参数校验或接口调用失败 | ERROR，记录原因、返回码和必要上下文 |
+| 异常后采用回退配置继续 | WARN，记录异常和回退行为 |
+| 初始化、建链、释放成功及阶段跟踪（Trace） | INFO，记录进度与阶段耗时 |
+| 额外调试明细 | DEBUG，按需开启 |
 
-The module name is a caller-supplied string used only as a label, with no predefined list or registration requirement. Each PTO file or stdout record contains the time, level, thread / process ID, module, source location, and message body. Call sites supply application context such as rank, device, and peer.
+模块名是调用方提供的字符串，无预定义列表或注册要求，仅作为标签。PTO 文件和 stdout 的每条日志包含时间、级别、线程 / 进程 ID、模块、源码位置和正文；rank、device、peer 等业务上下文由调用点填写。
 
-Three outputs are supported: files, stdout, and an external callback. Once a callback is registered, it is the only output; otherwise, either files or stdout is used. The callback receives all DEBUG / INFO / WARN / ERROR messages submitted to the Logger, bypassing the component's threshold. The receiver performs any filtering.
+支持文件、stdout、外部 callback 三种出口：注册 callback 后仅调用 callback；否则在文件和 stdout 中二选一。callback 接收提交给 Logger 的全部 DEBUG / INFO / WARN / ERROR 日志，绕过组件阈值，由接收方过滤。
 
-### 3. Configuration and Paths
+### 3. 配置与路径
 
-| Configuration | Rule |
+| 配置 | 规则 |
 | --- | --- |
-| `PTO_ISA_GLOBAL_LOG_LEVEL` | A single character `0 / 1 / 2 / 3 / 4` selects DEBUG / INFO / WARN / ERROR / disabled file and stdout output; the default is ERROR |
-| `PTO_ISA_SLOG_PRINT_TO_STDOUT` | Only the string `1` enables stdout; all other values select files. A callback takes precedence |
+| `PTO_ISA_GLOBAL_LOG_LEVEL` | 单字符 `0 / 1 / 2 / 3 / 4` 对应 DEBUG / INFO / WARN / ERROR / 关闭文件及 stdout；默认 ERROR |
+| `PTO_ISA_SLOG_PRINT_TO_STDOUT` | 仅字符串 `1` 启用 stdout，其余值使用文件；callback 优先 |
 
-The two PTO-prefixed variables independently control PTO logging. Log paths continue to use the ASCEND path variables below; no PTO-specific path or retained-file-count variable is added.
+上述两个 PTO 前缀变量独立控制 PTO 日志，日志路径继续复用下表的 ASCEND 路径变量，不新增 PTO 专属路径或保留数量变量。
 
-The log directory is selected in the following order. If a candidate variable is unset, empty, or contains an invalid path, the next candidate is tried:
+文件目录按以下优先级选择；候选变量未设置、为空或路径非法时尝试下一项：
 
-| Priority | Environment variable and meaning | Final directory |
+| 优先级 | 环境变量及含义 | 最终目录 |
 | --- | --- | --- |
-| 1 | `ASCEND_PROCESS_LOG_PATH`: optional log root directory | `${ASCEND_PROCESS_LOG_PATH}/debug/plog` |
-| 2 | `ASCEND_WORK_PATH`: optional work root directory | `${ASCEND_WORK_PATH}/log/debug/plog` |
-| 3 | `HOME`: user home directory, normally set by the system | `${HOME}/ascend/log/debug/plog` |
-| 4 | Current working directory when the first three candidates are unavailable | `./ascend/log/debug/plog` |
+| 1 | `ASCEND_PROCESS_LOG_PATH`：可选，指定日志根目录 | `${ASCEND_PROCESS_LOG_PATH}/debug/plog` |
+| 2 | `ASCEND_WORK_PATH`：可选，指定工作根目录 | `${ASCEND_WORK_PATH}/log/debug/plog` |
+| 3 | `HOME`：用户主目录，通常由系统设置 | `${HOME}/ascend/log/debug/plog` |
+| 4 | 前三项均不可用时，使用当前工作目录 | `./ascend/log/debug/plog` |
 
-These variables do not all need to be set. If multiple variables are set, the highest-priority valid value wins. Set each value to a root directory; PTO appends the suffix shown in the table. Path configuration is read and fixed when the Logger is first initialized. Relative paths are resolved against the working directory at that time; later environment or working-directory changes do not change the log directory.
+不必同时设置这些变量；同时设置时，取优先级最高的有效值。变量值填写根目录，PTO 自动追加表中的后缀。路径配置在 Logger 首次初始化时读取并固定；相对路径按当时的工作目录解析，后续修改环境变量或切换工作目录不会改变日志目录。
 
-For example, before starting the program:
+例如，在启动程序前设置：
 
 ```bash
 export ASCEND_PROCESS_LOG_PATH=/data/pto_logs
 ```
 
-Logs will be written to `/data/pto_logs/debug/plog/`. The current user needs permission to create directories and write files there. If neither ASCEND path variable is set, `${HOME}/ascend/log/debug/plog` is normally used; if `HOME` is also unavailable, the current working directory is used.
+日志将写入 `/data/pto_logs/debug/plog/`，当前用户需要有创建目录和写入文件的权限。未设置两个 ASCEND 路径变量时，通常使用 `${HOME}/ascend/log/debug/plog`；`HOME` 也不可用时回退到当前工作目录。
 
-PTO uses separate files under plog and manages writing, rotation, and retention itself.
+PTO 在 plog 下使用独立文件，仍自行写入、滚动和老化。
 
-### 4. File, Concurrency, and Exit Constraints
+### 4. 文件、并发与退出约束
 
-| Item | Requirement |
+| 项目 | 要求 |
 | --- | --- |
-| Filename | `pto_isa_<pid>_<YYYYMMDDHHMMSS>_<seq>.log`; create exclusively without overwriting existing files |
-| Creation time | When the first record is actually written to a file |
-| Size and count | 20 MiB per file; a target of 64 matching PTO files across the directory, including the file about to be created; no environment variable controls the count |
-| Retention cleanup | When creating a file, remove the oldest files according to timestamps in their names; cleanup is not triggered by age in days or idle time, and files with other prefixes are unaffected |
-| Disk space | Before each file creation, the space available to the current user must exceed 10 GiB |
+| 文件名 | `pto_isa_<pid>_<YYYYMMDDHHMMSS>_<seq>.log`，独占创建，不覆盖已有文件 |
+| 创建时机 | 第一条实际写文件的日志到来时 |
+| 大小与数量 | 单文件 20 MiB；目录内全部匹配 PTO 文件目标为 64 个，包含即将创建的文件，无数量环境变量 |
+| 老化 | 新建文件时按文件名时间戳清理最旧文件；不按天数或空闲时间触发，其他前缀文件不受影响 |
+| 磁盘条件 | 每次新建文件前，当前用户可用空间必须大于 10 GiB |
 
-## Part II: Interfaces, Mechanisms, and Flow
+## 第二部分：实现接口、机制及流程设计
 
-### 1. File and Class Responsibilities
+### 1. 文件与类职责
 
-Files reside in `include/pto/comm/logger/` and are delivered through the existing include packaging process.
+文件位于 `include/pto/comm/logger/`，由现有 include 打包流程交付。
 
-| File | Responsibility |
+| 文件 | 职责 |
 | --- | --- |
-| `host_log.hpp` | Public configuration interfaces, four logging macros, and assembly of the module and source location |
-| `host_logger.hpp` | `PtoHostLogger`: levels, callback, formatting, and output selection |
-| `host_log_file_sink.hpp` | `PtoHostLogFileSink`: directory, fd, writing, rotation, retention cleanup, and file mutex |
+| `host_log.hpp` | 公共设置接口、四种日志宏、模块及源码位置拼接 |
+| `host_logger.hpp` | `PtoHostLogger`：级别、callback、格式化和出口选择 |
+| `host_log_file_sink.hpp` | `PtoHostLogFileSink`：目录、fd、写入、滚动、老化和文件 mutex |
 
-The dependency chain is `host_log.hpp` → `host_logger.hpp` → `host_log_file_sink.hpp`. The Logger exclusively owns its FileSink through `unique_ptr`. The FileSink receives only complete strings and has no knowledge of levels, modules, or callbacks.
+依赖为 `host_log.hpp` → `host_logger.hpp` → `host_log_file_sink.hpp`。Logger 通过 `unique_ptr` 独占 FileSink；FileSink 只接收完整字符串，不感知级别、模块和 callback。
 
-Each logging header can be included independently. Inclusion is rejected under `__CCE_KT_TEST__`, and the headers are not included by the Device umbrella header. Callers include `host_log.hpp` outside classes and namespaces.
+日志头可独立包含，在 `__CCE_KT_TEST__` 下拒绝编译，不进入 Device 总入口；调用方在类及 namespace 外包含 `host_log.hpp`。
 
-### 2. Calling Interfaces and Levels
+### 2. 调用接口与级别
 
-Interface declarations:
+接口声明：
 
 ```cpp
 namespace pto::comm::hostlog {
@@ -99,7 +99,7 @@ inline int32_t PtoSetExternalLogger(ExternalLog func);
 }
 ```
 
-Usage examples:
+调用示例：
 
 ```cpp
 #include "pto/comm/logger/host_log.hpp"
@@ -110,31 +110,31 @@ PTO_HOST_LOG_WARN("SDMA", "fallback=" << fallback);
 PTO_HOST_LOG_ERROR("URMA", "failed, ret=" << ret);
 ```
 
-The Logger reads `PTO_ISA_GLOBAL_LOG_LEVEL` during construction and uses ERROR for an empty or invalid value. The setter rereads the environment variable on every call: a valid environment value takes precedence over the API argument; otherwise, the argument is used. If the resulting level is invalid, the setter returns an error and preserves the existing configuration. `FATAL_LEVEL` is only a disabling threshold; there is no FATAL macro or process termination behavior. Levels outside DEBUG–ERROR submitted directly are not delivered to the callback either.
+Logger 构造时读取 `PTO_ISA_GLOBAL_LOG_LEVEL`，空值或非法值使用 ERROR；setter 每次重读环境变量，合法环境值优先于 API 入参，否则使用入参。最终级别非法时返回错误并保留原配置。`FATAL_LEVEL` 仅为关闭阈值，无 FATAL 宏或终止进程行为；直接提交 DEBUG～ERROR 之外的级别也不会进入 callback。
 
-Only a non-null callback function can be registered. Registering the same function again succeeds; registering a different function returns an already-registered error. Replacement and unregistration are not supported. The message pointer is valid only during the callback. Callbacks may execute concurrently, and exceptions propagate directly to the caller.
+callback 仅允许注册非空函数；重复注册同一函数成功，换成其他函数返回已注册错误，不提供替换或注销。消息指针只在回调期间有效；回调可并发执行，异常直接向调用方传播。
 
-Pass a non-empty string as the module name. The macros support stream-style message bodies and `std::hex` / `std::dec`. A macro first calls `ShouldLog` to determine whether output is needed, then constructs the message. Filtered messages do not evaluate the module or message expressions; emitted messages evaluate each once. After callback registration, all four valid levels construct their messages and deliver them to the callback.
+模块传非空字符串，宏支持流式正文和 `std::hex` / `std::dec`。宏先通过 `ShouldLog` 判断是否输出，再构造正文；被过滤时不求值模块及正文表达式，输出时各求值一次。注册 callback 后，四种有效级别均会构造正文并交给 callback。
 
-### 3. Call Flow and Format
+### 3. 调用流程与格式
 
-`Instance()` uses a static object inside an inline function. Translation units in the same link target share the instance, and C++ guarantees thread-safe initialization. The first logging or configuration call constructs the Logger. File mode also constructs a FileSink and prepares the directory, while opening the file remains deferred. Stdout mode does not construct a FileSink. The stdout switch is read only during construction.
+`Instance()` 使用 inline 函数内静态对象，同一链接目标的多个翻译单元共享实例；初始化由 C++ 保证线程安全。首次日志或配置调用构造 Logger；文件模式同时构造 FileSink 并准备目录，文件仍延迟打开。stdout 模式不构造 FileSink，stdout 开关只在构造时读取。
 
-Call flow: the macro checks level validity and output rules through `ShouldLog` → assembles the module / source location / message body → `Log(LogLevel, const std::string&)` reuses that check → invokes the callback and returns if one is registered; otherwise, formats the record and writes it to stdout or the FileSink.
+调用流程：宏通过 `ShouldLog` 检查级别合法性与出口规则 → 拼接模块 / 源码位置 / 正文 → `Log(LogLevel, const std::string&)` 复用该判断 → 有 callback 则回调并返回，否则格式化后写 stdout 或 FileSink。
 
-Files and stdout share a fixed format, with no configurable format template:
+文件与 stdout 共用固定格式，无格式模板配置：
 
 ```text
 <YYYY-MM-DD HH:MM:SS.uuuuuu> <LEVEL> <tid> pid[<pid>] [PTO_HOST <module> <file>:<line>] <message>
 2026-10-20 10:44:25.893014 INFO 783415 pid[783415] [PTO_HOST URMA urma_workspace_extract.hpp:55] UrmaInfo OK rank=1 notifyPoolBytes=128
 ```
 
-The timestamp uses local time with six microsecond digits. Levels are uppercase, filenames use the basename, line numbers identify the macro call site, and each record ends with a newline. A callback receives the level separately and the `[PTO_HOST ...] message body`, without the time, level, tid, or pid prefix. FileSink internal failures are written directly to stdout with `[PTO_HOST LOGGER]`, bypassing the Logger to avoid recursion.
+时间为本地时间、6 位微秒，级别大写，文件名取 basename，行号取宏调用位置，末尾追加换行。callback 只接收独立级别和 `[PTO_HOST ...] 正文`，不附加时间、级别、tid、pid 头。FileSink 内部故障以 `[PTO_HOST LOGGER]` 直接写 stdout，不经过 Logger，避免递归。
 
-### 4. FileSink Writing and Resource Management
+### 4. FileSink 写入与资源管理
 
-1. **Directory initialization**: Skip candidate paths that are empty, reach `PATH_MAX` in length, or contain any `..` substring. Convert relative paths to absolute paths using the cwd at initialization, normalize repeated slashes and `.`, and keep the resulting path fixed. Directory creation requests permissions `0750`. Disable the sink if getcwd or creation of the selected directory fails.
-2. **Before writing**: The file mutex covers the entire write operation. Truncate complete records larger than 20 MiB and append ` [TRUNCATED]\n`; stdout / callback output is not truncated. If the current file is nonempty and the write would exceed the limit, close and rotate it. A write that reaches the limit exactly is allowed.
-3. **File creation**: Check space using `statvfs.f_frsize * f_bavail`, perform retention cleanup, and create the file exclusively. Use `O_WRONLY | O_CREAT | O_EXCL` and request permissions `0640`. If the name already exists, increment the sequence number and retry; rotation does not reset the sequence number. Permissions are affected by umask.
-4. **Retention cleanup**: Scan only regular PTO files whose names match the pattern, skipping symbolic links and directories. Delete in ascending order of timestamp, numeric PID, and numeric sequence number, leaving one slot for the new file. A deletion failure does not prevent creation. Cleanup may delete a file still open in another process and provides no strict cross-process guarantee.
-5. **Writing and closing**: Call `write()` once per record; do not use `ofstream` or flush or fsync each record. Report a failed or short write and close the file. Do not retry the current record; the next record may retry file creation. When closing, clear internal state first, then attempt `fchmod(0440)` and `close()`.
+1. **目录初始化**：跳过空值、长度达到 `PATH_MAX` 或含任意 `..` 子串的候选路径。相对路径按初始化时 cwd 转绝对路径，规范化重复斜杠及 `.` 后固定。目录创建权限请求 `0750`；getcwd 或选定目录创建失败后禁用该 sink。
+2. **写入前处理**：文件 mutex 覆盖整条写入流程。完整记录超过 20 MiB 时截断并附 ` [TRUNCATED]\n`；stdout / callback 不截断。当前文件非空且写入后将超限时关闭并滚动，恰好等于上限允许写入。
+3. **新建文件**：按 `statvfs.f_frsize * f_bavail` 检查空间，再老化、独占创建文件。使用 `O_WRONLY | O_CREAT | O_EXCL`，权限请求 `0640`；遇同名文件递增序号重试，序号不因滚动而重置。权限受 umask 影响。
+4. **老化规则**：仅扫描命名匹配的普通 PTO 文件，跳过符号链接和目录；按时间戳、PID 数值、序号数值升序删除，为新文件预留一个位置。删除失败不阻止创建；可能删除其他进程仍打开的文件，清理无跨进程强保证。
+5. **写入与关闭**：每条调用一次 `write()`，不使用 `ofstream`、不逐条 flush 或 fsync。写入失败 / 短写时报告并关闭，当前记录不补写，下一条可重试建文件；关闭时先清空内部状态，再尝试 `fchmod(0440)` 和 `close()`。

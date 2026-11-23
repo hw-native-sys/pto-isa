@@ -1323,7 +1323,7 @@ public:
         ValidShapeType::staticShape[2] == DYNAMIC, ValidShapeType::staticShape[3] == DYNAMIC,
         ValidShapeType::staticShape[4] == DYNAMIC, ValidShapeType::staticShape[5] == DYNAMIC};
 #ifdef __PTO_AUTO__
-    // rule 2 of docs/auto_mode/Library_Developer_Rules_And_Limitations.md: no member initializers in auto mode
+    // rule 2 of docs/en/auto_mode/Library_Developer_Rules_And_Limitations.md: no member initializers in auto mode
     int64_t validShape[ConvTileDetail::MAX_CONVTILE_DIM];
 #else
     int64_t validShape[ConvTileDetail::MAX_CONVTILE_DIM] = {isValidDynamic[0] ? staticShape[0] : staticValidShape[0],

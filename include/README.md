@@ -1,177 +1,176 @@
 # include/
 
-Public C/C++ headers for PTO Tile Lib (primarily header-only, template-based). Upper-layer frameworks or operator code can include these headers to emit PTO ISA Tile-level operations.
+PTO Tile Lib 对外的 C/C++ 头文件（以模板化、基本 header-only 为主）。上层框架/算子可以通过这些头文件生成 PTO ISA 的 Tile 指令序列。
 
-## Quick Start
+## 快速开始
 
-Include the unified entry header:
+推荐直接 include 统一入口头：
 
 ```cpp
 #include <pto/pto-inst.hpp>
 ```
 
-`pto/pto-inst.hpp` selects the appropriate backend (CPU simulation/stub or NPU implementation) based on build configuration. See [include/pto/README.md](pto/README.md) for details.
+`pto/pto-inst.hpp` 会根据构建配置选择合适的后端（CPU 仿真/stub 或 NPU 实现）。详情见 [include/pto/README.md](pto/README.md)。
 
-## Layout
+## 目录结构
 
-- `include/pto/`: Public PTO ISA API and backend implementations (common / cpu / npu / comm)
+- `include/pto/`：公共 PTO ISA API 与后端实现（common / cpu / npu / comm）
 
-## Related Docs
+## 相关文档
 
-- [ISA guide](../docs/README.md)
-- [Getting started](../docs/getting-started.md)
+- [ISA 指南](../docs/zh/README.md)
+- [入门指南](../docs/zh/getting-started.md)
 
-## PTO Instruction Implementation Status (CPU / Costmodel / A2 / A3 / A5 / Kirin)
+## PTO 指令实现状态（CPU / Costmodel / A2 / A3 / A5 / Kirin）
 
-This table tracks per-instruction backend availability:
+下表用于跟踪每条指令在不同后端的可用性：
 
-- **CPU**: `__CPU_SIM` (CPU simulation backend). More information about this backend can be found in [docs/coding/cpu_sim.md](../docs/coding/cpu_sim.md)
-- **Costmodel**: `__COSTMODEL` (A2 / A3 cost model backend, including `stub` and `fit` paths; if either path supports an instruction, it is marked as supported).
-- **A2 (Ascend 910B) / A3 (Ascend 910C)**: share the `include/pto/npu/a2a3/` implementation today (so the status is identical for both columns).
-- **A5 (Ascend 950)**: uses the `include/pto/npu/a5/` implementation.
-- **Kirin**: uses the `include/pto/npu/kirin9030/` implementation.
+- **CPU**：`__CPU_SIM`（CPU 仿真后端）。
+- **Costmodel**：`__COSTMODEL`（A2 / A3 性能仿真后端，包含 `stub` 与 `fit` 两条路径；任一路径支持即记为支持）。
+- **A2（Ascend 910B）/ A3（Ascend 910C）**：当前共享 `include/pto/npu/a2a3/` 的实现（因此两列状态相同）。
+- **A5（Ascend 950）**：使用 `include/pto/npu/a5/` 的实现。
+- **Kirin**：使用 `include/pto/npu/kirin9030/` 的实现。
 
-| Instruction | CPU | Costmodel | A2 | A3 | A5 | Kirin |
+| 指令 | CPU | Costmodel | A2 | A3 | A5 | Kirin |
 |---|---:|---:|---:|---:|---:|---:|
-| [`MGATHER`](../docs/isa/MGATHER.md) | Yes | TODO | TODO | TODO | Yes | TODO |
-| [`MSCATTER`](../docs/isa/MSCATTER.md) | Yes | TODO | TODO | TODO | Yes | TODO |
-| [`TABS`](../docs/isa/TABS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TADD`](../docs/isa/TADD.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TADDS`](../docs/isa/TADDS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TAND`](../docs/isa/TAND.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TANDS`](../docs/isa/TANDS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TASSIGN`](../docs/isa/TASSIGN.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TAXPY`](../docs/isa/TAXPY.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TBROADCAST`](../docs/isa/comm/TBROADCAST.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TCI`](../docs/isa/TCI.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TCMP`](../docs/isa/TCMP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TCMPS`](../docs/isa/TCMPS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TCOLARGMAX`](../docs/isa/TCOLARGMAX.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TCOLARGMIN`](../docs/isa/TCOLARGMIN.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TCOLEXPAND`](../docs/isa/TCOLEXPAND.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TCOLEXPANDADD`](../docs/isa/TCOLEXPANDADD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLEXPANDDIV`](../docs/isa/TCOLEXPANDDIV.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLEXPANDEXPDIF`](../docs/isa/TCOLEXPANDEXPDIF.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLEXPANDMAX`](../docs/isa/TCOLEXPANDMAX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLEXPANDMIN`](../docs/isa/TCOLEXPANDMIN.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLEXPANDMUL`](../docs/isa/TCOLEXPANDMUL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLEXPANDSUB`](../docs/isa/TCOLEXPANDSUB.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLMAX`](../docs/isa/TCOLMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TCOLMIN`](../docs/isa/TCOLMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TCOLPROD`](../docs/isa/TCOLPROD.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TCOLSUM`](../docs/isa/TCOLSUM.md) | Yes | Yes | Yes | Yes | Yes | TODO |
-| [`TConcat`](../docs/isa/TCONCAT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
-| [`TCVT`](../docs/isa/TCVT.md) | Yes | Yes | Yes | Yes | Yes | TODO |
-| [`TDEQUANT`](../docs/isa/TDEQUANT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TDIV`](../docs/isa/TDIV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TDIVS`](../docs/isa/TDIVS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TEXP`](../docs/isa/TEXP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TEXPANDS`](../docs/isa/TEXPANDS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TEXTRACT`](../docs/isa/TEXTRACT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TEXTRACT_FP`](../docs/isa/TEXTRACT_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TFILLPAD`](../docs/isa/TFILLPAD.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TFILLPAD_EXPAND`](../docs/isa/TFILLPAD_EXPAND.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TFILLPAD_INPLACE`](../docs/isa/TFILLPAD_INPLACE.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TFMOD`](../docs/isa/TFMOD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TFMODS`](../docs/isa/TFMODS.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TGATHER`](../docs/isa/TGATHER.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TGATHERB`](../docs/isa/TGATHERB.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TGEMV`](../docs/isa/TGEMV.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TGEMV_ACC`](../docs/isa/TGEMV_ACC.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TGEMV_BIAS`](../docs/isa/TGEMV_BIAS.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TGEMV_MX`](../docs/isa/TGEMV_MX.md) | TODO | TODO | TODO | TODO | Yes | TODO |
-| [`TGET`](../docs/isa/comm/TGET.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TGET_ASYNC`](../docs/isa/comm/TGET_ASYNC.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`THISTOGRAM`](../docs/isa/THISTOGRAM.md) | Yes | TODO | No | No | Yes | Yes |
-| [`TIMG2COL`](../docs/isa/TIMG2COL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TINSERT`](../docs/isa/TINSERT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
-| [`TINSERT_FP`](../docs/isa/TINSERT_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TLOAD`](../docs/isa/TLOAD.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TLOG`](../docs/isa/TLOG.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TLRELU`](../docs/isa/TLRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMADD`](../docs/isa/TMADD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TMATMUL`](../docs/isa/TMATMUL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMATMUL_ACC`](../docs/isa/TMATMUL_ACC.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMATMUL_BIAS`](../docs/isa/TMATMUL_BIAS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMATMUL_MX`](../docs/isa/TMATMUL_MX.md) | Yes | TODO | TODO | TODO | Yes | Yes |
-| [`TMAX`](../docs/isa/TMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMAXS`](../docs/isa/TMAXS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMIN`](../docs/isa/TMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMINS`](../docs/isa/TMINS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMOV`](../docs/isa/TMOV.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMOV_FP`](../docs/isa/TMOV_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMRGSORT`](../docs/isa/TMRGSORT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMUL`](../docs/isa/TMUL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TMULS`](../docs/isa/TMULS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TNEG`](../docs/isa/TNEG.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TNOT`](../docs/isa/TNOT.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TNOTIFY`](../docs/isa/comm/TNOTIFY.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TOR`](../docs/isa/TOR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TORS`](../docs/isa/TORS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TPARTADD`](../docs/isa/TPARTADD.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TPARTARGMAX`](../docs/isa/TPARTARGMAX.md) | TODO | TODO | TODO | TODO | Yes | TODO |
-| [`TPARTARGMIN`](../docs/isa/TPARTARGMIN.md) | TODO | TODO | TODO | TODO | Yes | TODO |
-| [`TPARTMAX`](../docs/isa/TPARTMAX.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TPARTMIN`](../docs/isa/TPARTMIN.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TPARTMUL`](../docs/isa/TPARTMUL.md) | No | TODO | Yes | Yes | Yes | Yes |
-| [`TPREFETCH`](../docs/isa/TPREFETCH.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TPREFETCH_ASYNC`](../docs/isa/TPREFETCH_ASYNC.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TPRELU`](../docs/isa/TPRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TPRINT`](../docs/isa/TPRINT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TPOW`](../docs/isa/TPOW.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TPUT`](../docs/isa/comm/TPUT.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TPUT_ASYNC`](../docs/isa/comm/TPUT_ASYNC.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TPOWS`](../docs/isa/TPOWS.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TQUANT`](../docs/isa/TQUANT.md) | TODO | TODO | TODO | TODO | Yes | TODO |
-| [`TRANDOM`](../docs/isa/TRANDOM.md) | No | TODO | TODO | TODO | Yes | TODO |
-| [`TRECIP`](../docs/isa/TRECIP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TREDUCE`](../docs/isa/comm/TREDUCE.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TRELU`](../docs/isa/TRELU.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TREM`](../docs/isa/TREM.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TREMS`](../docs/isa/TREMS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TRESHAPE`](../docs/isa/TRESHAPE.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TROWARGMAX`](../docs/isa/TROWARGMAX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWARGMIN`](../docs/isa/TROWARGMIN.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPAND`](../docs/isa/TROWEXPAND.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TROWEXPANDADD`](../docs/isa/TROWEXPANDADD.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPANDDIV`](../docs/isa/TROWEXPANDDIV.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPANDEXPDIF`](../docs/isa/TROWEXPANDEXPDIF.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPANDMAX`](../docs/isa/TROWEXPANDMAX.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPANDMIN`](../docs/isa/TROWEXPANDMIN.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPANDMUL`](../docs/isa/TROWEXPANDMUL.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TROWEXPANDSUB`](../docs/isa/TROWEXPANDSUB.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TROWMAX`](../docs/isa/TROWMAX.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TROWMIN`](../docs/isa/TROWMIN.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TROWPROD`](../docs/isa/TROWPROD.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TROWSUM`](../docs/isa/TROWSUM.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TRSQRT`](../docs/isa/TRSQRT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSCATTER`](../docs/isa/TSCATTER.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSEL`](../docs/isa/TSEL.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSELS`](../docs/isa/TSELS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`SETFMATRIX`](../docs/isa/SETFMATRIX.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`SET_IMG2COL_PADDING`](../docs/isa/SET_IMG2COL_PADDING.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`SET_IMG2COL_RPT`](../docs/isa/SET_IMG2COL_RPT.md) | TODO | TODO | Yes | Yes | Yes | TODO |
-| [`TSHL`](../docs/isa/TSHL.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSHLS`](../docs/isa/TSHLS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSHR`](../docs/isa/TSHR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSHRS`](../docs/isa/TSHRS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TSORT32`](../docs/isa/TSORT32.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSQRT`](../docs/isa/TSQRT.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSTORE`](../docs/isa/TSTORE.md) | Yes | Yes | Yes | Yes | Yes | TODO |
-| [`TSTORE_FP`](../docs/isa/TSTORE_FP.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSUB`](../docs/isa/TSUB.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TSUBS`](../docs/isa/TSUBS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TTEST`](../docs/isa/comm/TTEST.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TTRANS`](../docs/isa/TTRANS.md) | Yes | Yes | Yes | Yes | Yes | Yes |
-| [`TTRI`](../docs/isa/TTRI.md) | TODO | TODO | Yes | Yes | Yes | Yes |
-| [`TWAIT`](../docs/isa/comm/TWAIT.md) | Yes | TODO | Yes | Yes | Yes | TODO |
-| [`TXOR`](../docs/isa/TXOR.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TXORS`](../docs/isa/TXORS.md) | Yes | TODO | Yes | Yes | Yes | Yes |
-| [`TMULA`](../docs/isa/TMULA_zh.md) | TODO | TODO | Yes | Yes | Yes | TODO |
+| [`MGATHER`](../docs/zh/isa/MGATHER.md) | 是 | TODO | TODO | TODO | 是 | TODO |
+| [`MSCATTER`](../docs/zh/isa/MSCATTER.md) | 是 | TODO | TODO | TODO | 是 | TODO |
+| [`TABS`](../docs/zh/isa/TABS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TADD`](../docs/zh/isa/TADD.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TADDS`](../docs/zh/isa/TADDS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TAND`](../docs/zh/isa/TAND.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TANDS`](../docs/zh/isa/TANDS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TASSIGN`](../docs/zh/isa/TASSIGN.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TAXPY`](../docs/zh/isa/TAXPY.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TBROADCAST`](../docs/zh/isa/comm/TBROADCAST.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TCI`](../docs/zh/isa/TCI.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TCMP`](../docs/zh/isa/TCMP.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TCMPS`](../docs/zh/isa/TCMPS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TCOLARGMAX`](../docs/zh/isa/TCOLARGMAX.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TCOLARGMIN`](../docs/zh/isa/TCOLARGMIN.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TCOLEXPAND`](../docs/zh/isa/TCOLEXPAND.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TCOLEXPANDADD`](../docs/zh/isa/TCOLEXPANDADD.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLEXPANDDIV`](../docs/zh/isa/TCOLEXPANDDIV.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLEXPANDEXPDIF`](../docs/zh/isa/TCOLEXPANDEXPDIF.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLEXPANDMAX`](../docs/zh/isa/TCOLEXPANDMAX.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLEXPANDMIN`](../docs/zh/isa/TCOLEXPANDMIN.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLEXPANDMUL`](../docs/zh/isa/TCOLEXPANDMUL.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLEXPANDSUB`](../docs/zh/isa/TCOLEXPANDSUB.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLMAX`](../docs/zh/isa/TCOLMAX.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TCOLMIN`](../docs/zh/isa/TCOLMIN.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TCOLPROD`](../docs/zh/isa/TCOLPROD.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TCOLSUM`](../docs/zh/isa/TCOLSUM.md) | 是 | 是 | 是 | 是 | 是 | TODO |
+| [`TConcat`](../docs/zh/isa/TCONCAT.md) | TODO | TODO | TODO | TODO | 是 | TODO |
+| [`TCVT`](../docs/zh/isa/TCVT.md) | 是 | 是 | 是 | 是 | 是 | TODO |
+| [`TDEQUANT`](../docs/zh/isa/TDEQUANT.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TDIV`](../docs/zh/isa/TDIV.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TDIVS`](../docs/zh/isa/TDIVS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TEXP`](../docs/zh/isa/TEXP.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TEXPANDS`](../docs/zh/isa/TEXPANDS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TEXTRACT`](../docs/zh/isa/TEXTRACT.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TEXTRACT_FP`](../docs/zh/isa/TEXTRACT_FP.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TFILLPAD`](../docs/zh/isa/TFILLPAD.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TFILLPAD_EXPAND`](../docs/zh/isa/TFILLPAD_EXPAND.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TFILLPAD_INPLACE`](../docs/zh/isa/TFILLPAD_INPLACE.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TFMOD`](../docs/zh/isa/TFMOD.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TFMODS`](../docs/zh/isa/TFMODS.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TGATHER`](../docs/zh/isa/TGATHER.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TGATHERB`](../docs/zh/isa/TGATHERB.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TGEMV`](../docs/zh/isa/TGEMV.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TGEMV_ACC`](../docs/zh/isa/TGEMV_ACC.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TGEMV_BIAS`](../docs/zh/isa/TGEMV_BIAS.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TGEMV_MX`](../docs/zh/isa/TGEMV_MX.md) | TODO | TODO | TODO | TODO | 是 | TODO |
+| [`TGET`](../docs/zh/isa/comm/TGET.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TGET_ASYNC`](../docs/zh/isa/comm/TGET_ASYNC.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`THISTOGRAM`](../docs/zh/isa/THISTOGRAM.md) | 是 | TODO | 否 | 否 | 是 | 是 |
+| [`TIMG2COL`](../docs/zh/isa/TIMG2COL.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TINSERT`](../docs/zh/isa/TINSERT.md) | TODO | TODO | TODO | TODO | 是 | TODO |
+| [`TINSERT_FP`](../docs/zh/isa/TINSERT_FP.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TLOAD`](../docs/zh/isa/TLOAD.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TLOG`](../docs/zh/isa/TLOG.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TLRELU`](../docs/zh/isa/TLRELU.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TMADD`](../docs/zh/isa/TMADD.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TMATMUL`](../docs/zh/isa/TMATMUL.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMATMUL_ACC`](../docs/zh/isa/TMATMUL_ACC.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TMATMUL_BIAS`](../docs/zh/isa/TMATMUL_BIAS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TMATMUL_MX`](../docs/zh/isa/TMATMUL_MX.md) | 是 | TODO | TODO | TODO | 是 | 是 |
+| [`TMAX`](../docs/zh/isa/TMAX.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMAXS`](../docs/zh/isa/TMAXS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMIN`](../docs/zh/isa/TMIN.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMINS`](../docs/zh/isa/TMINS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMOV`](../docs/zh/isa/TMOV.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMOV_FP`](../docs/zh/isa/TMOV_FP.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMRGSORT`](../docs/zh/isa/TMRGSORT.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMUL`](../docs/zh/isa/TMUL.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TMULS`](../docs/zh/isa/TMULS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TNEG`](../docs/zh/isa/TNEG.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TNOT`](../docs/zh/isa/TNOT.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TNOTIFY`](../docs/zh/isa/comm/TNOTIFY.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TOR`](../docs/zh/isa/TOR.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TORS`](../docs/zh/isa/TORS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TPARTADD`](../docs/zh/isa/TPARTADD.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TPARTARGMAX`](../docs/zh/isa/TPARTARGMAX.md) | TODO | TODO | TODO | TODO | 是 | TODO |
+| [`TPARTARGMIN`](../docs/zh/isa/TPARTARGMIN.md) | TODO | TODO | TODO | TODO | 是 | TODO |
+| [`TPARTMAX`](../docs/zh/isa/TPARTMAX.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TPARTMIN`](../docs/zh/isa/TPARTMIN.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TPARTMUL`](../docs/zh/isa/TPARTMUL.md) | 否 | TODO | 是 | 是 | 是 | 是 |
+| [`TPREFETCH`](../docs/zh/isa/TPREFETCH.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TPRELU`](../docs/zh/isa/TPRELU.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TPRINT`](../docs/zh/isa/TPRINT.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TPOW`](../docs/zh/isa/TPOW.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TPUT`](../docs/zh/isa/comm/TPUT.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TPUT_ASYNC`](../docs/zh/isa/comm/TPUT_ASYNC.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TPOWS`](../docs/zh/isa/TPOWS.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TQUANT`](../docs/zh/isa/TQUANT.md) | TODO | TODO | TODO | TODO | 是 | TODO |
+| [`TRANDOM`](../docs/zh/isa/TRANDOM.md) | 否 | TODO | TODO | TODO | 是 | TODO |
+| [`TRECIP`](../docs/zh/isa/TRECIP.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TREDUCE`](../docs/zh/isa/comm/TREDUCE.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TRELU`](../docs/zh/isa/TRELU.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TREM`](../docs/zh/isa/TREM.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TREMS`](../docs/zh/isa/TREMS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TRESHAPE`](../docs/zh/isa/TRESHAPE.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TROWARGMAX`](../docs/zh/isa/TROWARGMAX.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TROWARGMIN`](../docs/zh/isa/TROWARGMIN.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TROWEXPAND`](../docs/zh/isa/TROWEXPAND.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TROWEXPANDADD`](../docs/zh/isa/TROWEXPANDADD.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TROWEXPANDDIV`](../docs/zh/isa/TROWEXPANDDIV.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TROWEXPANDEXPDIF`](../docs/zh/isa/TROWEXPANDEXPDIF.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TROWEXPANDMAX`](../docs/zh/isa/TROWEXPANDMAX.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TROWEXPANDMIN`](../docs/zh/isa/TROWEXPANDMIN.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TROWEXPANDMUL`](../docs/zh/isa/TROWEXPANDMUL.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TROWEXPANDSUB`](../docs/zh/isa/TROWEXPANDSUB.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TROWMAX`](../docs/zh/isa/TROWMAX.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TROWMIN`](../docs/zh/isa/TROWMIN.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TROWPROD`](../docs/zh/isa/TROWPROD.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TROWSUM`](../docs/zh/isa/TROWSUM.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TRSQRT`](../docs/zh/isa/TRSQRT.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TSCATTER`](../docs/zh/isa/TSCATTER.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TSEL`](../docs/zh/isa/TSEL.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TSELS`](../docs/zh/isa/TSELS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`SETFMATRIX`](../docs/zh/isa/SETFMATRIX.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`SET_IMG2COL_PADDING`](../docs/zh/isa/SET_IMG2COL_PADDING.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`SET_IMG2COL_RPT`](../docs/zh/isa/SET_IMG2COL_RPT.md) | TODO | TODO | 是 | 是 | 是 | TODO |
+| [`TSHL`](../docs/zh/isa/TSHL.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TSHLS`](../docs/zh/isa/TSHLS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TSHR`](../docs/zh/isa/TSHR.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TSHRS`](../docs/zh/isa/TSHRS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TSORT32`](../docs/zh/isa/TSORT32.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TSQRT`](../docs/zh/isa/TSQRT.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TSTORE`](../docs/zh/isa/TSTORE.md) | 是 | 是 | 是 | 是 | 是 | TODO |
+| [`TSTORE_FP`](../docs/zh/isa/TSTORE_FP.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TSUB`](../docs/zh/isa/TSUB.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TSUBS`](../docs/zh/isa/TSUBS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TTEST`](../docs/zh/isa/comm/TTEST.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TTRANS`](../docs/zh/isa/TTRANS.md) | 是 | 是 | 是 | 是 | 是 | 是 |
+| [`TTRI`](../docs/zh/isa/TTRI.md) | TODO | TODO | 是 | 是 | 是 | 是 |
+| [`TWAIT`](../docs/zh/isa/comm/TWAIT.md) | 是 | TODO | 是 | 是 | 是 | TODO |
+| [`TXOR`](../docs/zh/isa/TXOR.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TXORS`](../docs/zh/isa/TXORS.md) | 是 | TODO | 是 | 是 | 是 | 是 |
+| [`TMULA`](../docs/zh/isa/TMULA.md) | TODO | TODO | 是 | 是 | 是 | TODO |
 
-Notes:
+说明：
 
-- `Yes`: the backend has an available implementation.
-- `TODO`: the instruction is already part of the public API or documented ISA surface, but the backend implementation is not available yet or has not been integrated for that backend.
-- `No`: explicitly unsupported, or not planned for that backend at the moment.
-- Blank: the status has not been finalized yet, or the entry is still being reviewed.
+- `是`：该后端已提供可用实现。
+- `TODO`：该指令已进入公共 API 或文档范围，但对应后端实现暂未提供，或尚未在该后端接入。
+- `否`：明确不支持或当前不计划在该后端提供实现。
+- 空白：状态尚未最终确认，或该项仍在整理中。

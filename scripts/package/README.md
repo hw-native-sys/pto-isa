@@ -1,62 +1,61 @@
 # scripts/package/
 
-Packaging and release scripts/templates for PTO Tile Lib. This directory is used to generate distributable artifacts.
+PTO Tile Lib 的打包/发布脚本与模板，用于生成可分发产物。
 
-## Layout (High Level)
+## 目录结构（概览）
 
-- `pto_isa/`: Package templates and helper scripts specific to PTO Tile Lib
-- `module/`: Module-level packaging descriptors
+- `pto_isa/`：PTO Tile Lib 专用的打包模板与辅助脚本
+- `module/`：模块级打包描述
 
-Common helpers (`package.py`, `install_common_parser.sh`, install/cleanup
-fragments, etc.) are reused from the CANN engineering cmake repo
-(`https://gitcode.com/cann/cmake`) and pulled in at configure time via
-`cmake/fetch_cann_cmake.cmake`.
+公共脚本（`package.py`、`install_common_parser.sh`、安装/清理片段等）已复用自
+CANN 工程公共 cmake 仓（`https://gitcode.com/cann/cmake`），在 configure 阶段
+由 `cmake/fetch_cann_cmake.cmake` 拉取。
 
-## Build and Install
+## 构建与安装
 
-### Packaging
+### 打包
 
 ```bash
 cd ${git_clone_path}
 ./build.sh --pkg
 ```
 
-After the build completes, the `.run` installer package is generated under `build_out/`.
+构建完成后，`.run` 安装包生成在 `build_out/` 目录下。
 
-### Installation
+### 安装
 
-Install via the `.run` self-extracting package. An install type is required (choose one):
+通过 `.run` 自解压包安装，需指定安装类型（三选一）：
 
-| Option | Description |
-|--------|-------------|
-| `--full` | Full installation: headers, libraries, test resources, and all content |
-| `--run` | Runtime installation: only libraries and dependencies needed at runtime |
-| `--devel` | Development installation: headers and libraries |
+| 参数 | 说明 |
+|------|------|
+| `--full` | 完整安装，包含头文件、库、测试资源等全部内容 |
+| `--run` | 运行时安装，仅安装运行所需的库和依赖 |
+| `--devel` | 开发环境安装，包含头文件和库 |
 
 ```bash
-# Full installation to a custom path
+# 完整安装到指定路径
 ./build_out/cann-pto-isa_*.run --full --install-path=/your/install/path
 
-# Quiet install, skip interactive prompts (for CI/CD and non-interactive environments)
+# 静默安装，跳过交互确认（适用于 CI/CD 等非交互环境）
 ./build_out/cann-pto-isa_*.run --full --quiet --install-path=/your/install/path
 
-# Runtime-only installation
+# 仅安装运行时组件
 ./build_out/cann-pto-isa_*.run --run --install-path=/your/install/path
 ```
 
-Common install options:
+常用安装参数：
 
-| Option | Description |
-|--------|-------------|
-| `--install-path=<path>` | Specify installation target directory |
-| `--quiet` | Quiet mode, skip interactive confirmation (for non-interactive environments) |
-| `--install-for-all` | Install for all users |
-| `--uninstall` | Uninstall the installed product |
-| `--upgrade` | Upgrade an existing installation |
-| `--version` | Query package version information |
-| `--pre-check` | Pre-install dependency check |
+| 参数 | 说明 |
+|------|------|
+| `--install-path=<path>` | 指定安装目标目录 |
+| `--quiet` | 静默模式，跳过交互确认（适用于非交互环境） |
+| `--install-for-all` | 为所有用户安装 |
+| `--uninstall` | 卸载已安装的产品 |
+| `--upgrade` | 升级已有安装 |
+| `--version` | 查看包版本信息 |
+| `--pre-check` | 安装前预依赖检查 |
 
-For a full list of options:
+更多参数可通过 `--help` 查看：
 
 ```bash
 ./build_out/cann-pto-isa_*.run --help

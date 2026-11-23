@@ -4,143 +4,143 @@
 
 # PTO Tile Library
 
-Parallel Tile Operation (PTO) is a virtual ISA for tile-oriented programming defined by Huawei Ascend CANN. This repository provides PTO Tile instruction implementations, examples, tests, and documentation to help developers migrate and optimize operators more smoothly across different Ascend generations.
+PTO（Parallel Tile Operation）是昇腾 CANN 定义的一套面向 tile 编程的虚拟 ISA。本仓库提供 PTO Tile 指令的实现、示例、测试与文档，帮助开发者在不同昇腾代际之间更平滑地迁移和优化算子。
 
 [![License](https://img.shields.io/badge/License-CANN%20Open%20Software%20License%202.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Ascend%20A2%20%7C%20A3%20%7C%20A5%20%7C%20CPU-green.svg)](#-platform-support)
-[![Docs](https://img.shields.io/badge/Docs-Documentation-blue.svg)](docs/README.md)
+[![Platform](https://img.shields.io/badge/Platform-Ascend%20A2%20%7C%20A3%20%7C%20A5%20%7C%20CPU-green.svg)](#️-平台支持)
+[![Docs](https://img.shields.io/badge/Docs-文档-blue.svg)](docs/zh/README.md)
 
-## 📰 News
+## 📰 新闻
 
-- 🎉 **2025-12-27**: PTO Tile Library is officially open-sourced.
-- ✨ **2026-01-30**: Added reduction instructions and MX instructions.
-- 🚀 **2026-02-28**: Added convolution instructions, quantization instructions, and inter-kernel communication instructions.
-- 🔥 **2026-03-30**: Added support for Ascend A5, asynchronous communication instructions, and CostModel performance simulation.
-- 🛠️ **2026-04-02**: Local engineering workflow improved with pre-commit checks, documentation build verification, and CPU-SIM validation updates.
+- 🎉 **2025-12-27**：PTO Tile Library 正式开源发布。
+- ✨ **2026-01-30**：新增合轴类指令、MX 指令。
+- 🚀 **2026-02-28**：新增卷积类指令、量化类指令、核间通信类指令。
+- 🔥 **2026-03-30**：支持昇腾 A5 芯片，新增异步通信指令、CostModel 性能仿真。
+- 🛠️ **2026-04-02**：本地工程链路进一步完善，补充了 pre-commit 检查、文档构建校验与 CPU-SIM 验证能力。
 
-## 🎯 Project Positioning
+## 🎯 项目定位
 
-The PTO ISA is built on Ascend's underlying hardware and software abstractions and defines more than 90 standard tile instructions. It uses a higher-level tile programming model to bridge implementation differences across generations. Its goal is not to hide low-level capabilities, but to raise the abstraction level while preserving room for performance tuning.
+PTO ISA 基于昇腾底层硬件与软件抽象，定义 90+ 条标准 tile 指令，用更高层的 tile 编程模型桥接不同代际之间的实现差异。它的目标不是隐藏底层能力，而是在提升抽象层级的同时保留性能调优空间。
 
-- **Unified cross-generation tile abstraction**: reduces migration cost across different Ascend generations.
-- **Balances portability and performance**: guarantees correct behavior under fixed tile shapes while preserving tuning dimensions such as tile size, tile shape, and instruction ordering.
-- **Designed for frameworks, operators, and toolchains**: serves as a common interface for upper-layer frameworks, operator implementations, and compiler toolchains.
-- **Continuously extensible**: defines 90+ standard operations today, with ongoing implementation and ecosystem integration.
+- **统一跨代 tile 抽象**：降低不同 Ascend 代际之间的迁移成本。
+- **兼顾可移植性与性能**：在固定 tile shape 下保证正确工作，同时保留 tile size、tile shape、指令顺序等调优能力。
+- **面向框架、算子与工具链**：可作为上层框架、算子实现和编译工具链的共同接口。
+- **支持持续扩展**：当前已定义 90+ 条标准操作，并持续补充实现与生态集成。
 
-In addition to compute and data-movement instructions, PTO ISA also provides a **communication extension instruction set** for inter-NPU data transfer and synchronization, covering point-to-point communication, signal synchronization, and collective communication.
+除计算与数据搬运指令外，PTO ISA 还提供了面向 NPU 间数据传输与同步的**通信扩展指令集**，覆盖点对点通信、信号同步和集合通信三类能力。
 
-These communication primitives follow the same tile-level abstraction and cross-platform design as the compute instructions, and can drive multiple data-movement hardware engines on Ascend to help users build deeply fused compute-communication kernels. For the communication ISA entry, see [docs/isa/comm/README.md](docs/isa/comm/README.md).
+这些通信原语延续了与计算指令一致的 tile 级抽象和跨平台设计，并可驱动昇腾上的多种数据搬移硬件引擎，帮助用户构建计算与通信深度融合的 kernel。通信 ISA 入口见 [docs/zh/isa/comm/README.md](docs/zh/isa/comm/README.md)。
 
-At present, PTO instructions have been integrated into the following frameworks:
+目前，PTO 指令已集成到以下框架中：
 
 - [PyPTO](https://gitcode.com/cann/pypto/)
 - [TileLang Ascend](https://github.com/tile-ai/tilelang-ascend/)
-- More language and frontend support is continuously being improved
+- 更多语言与前端持续完善中
 
-## ✨ Core Features
+## ✨ 核心特性
 
-- **Unified Tile ISA abstraction**: uses standard PTO instructions to describe tile-level computation and dataflow.
-- **Balances cross-generation migration and performance tuning**: improves portability while retaining sufficient low-level control.
-- **Auto / Manual dual-mode workflow**: validate logic quickly first, then refine the implementation step by step. Auto Mode targets Ascend NPU device code through the BiSheng compiler; CPU simulation currently supports the manual mode only.
-- **CPU Simulator support**: enables functional verification and development debugging on CPU.
-- **Covers key programming elements**: supports tile shape, tile mask, event synchronization, fixed-function units, and pipeline modeling.
-- **Complete docs, tests, and examples**: includes ISA docs, developer docs, test scripts, and performance case studies.
+- **统一的 Tile ISA 抽象**：用标准 PTO 指令描述 tile 级计算与数据流。
+- **跨代迁移与性能调优兼顾**：既提升可移植性，也保留足够的底层控制能力。
+- **Auto / Manual 双模式开发路径**：先快速验证逻辑，再逐步深入优化实现。Auto Mode 面向 Ascend NPU 设备侧代码（由 BiSheng 编译器编译）；CPU 仿真目前仅支持 manual 模式。
+- **CPU Simulator 支持**：支持在 CPU 上进行功能验证与开发调试。
+- **覆盖关键编程要素**：支持 tile shape、tile mask、事件同步、固定功能单元与流水线建模。
+- **文档、测试、示例齐全**：提供 ISA 文档、开发文档、测试脚本和性能案例。
 
-## 👥 Intended Audience
+## 👥 适用人群
 
-PTO Tile Lib is mainly intended for the following developers:
+PTO Tile Lib 主要面向以下开发者：
 
-- Framework or compiler backend developers who interface directly with Ascend hardware
-- High-performance operator developers who need to migrate and reuse implementations across platforms
-- Performance engineers who need explicit control over tiles, buffers, and pipelines
+- 直接对接昇腾硬件的框架或编译器后端开发者
+- 需要跨平台迁移与复用实现的高性能算子开发者
+- 需要显式控制 tile、buffer 与 pipeline 的性能优化工程师
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### Environment Setup
+### 环境准备
 
-- **CPU path**: requires Python, CMake, and a C++20-capable compiler; suitable for quick cross-platform validation.
-- **NPU path**: requires Linux and the Ascend CANN toolkit; suitable for running on Ascend hardware or simulator.
-- For detailed environment setup instructions, see the [Getting Started Guide](docs/getting-started.md)
+- **CPU 路径**：需要 Python、CMake 和支持 C++20 的编译器，适合跨平台快速验证。
+- **NPU 路径**：需要 Linux 环境与 Ascend CANN toolkit，适合在昇腾硬件或模拟器上运行。
+- 更详细的环境部署说明请参见：[快速开始指南](docs/zh/getting-started.md)
 
-### Build and Run
+### 编译与运行
 
 ```bash
-# CPU Simulator (recommended first step)
+# CPU Simulator（建议第一步）
 python3 tests/run_cpu.py --clean --verbose
 
-# Run GEMM demo
+# 运行 GEMM demo
 python3 tests/run_cpu.py --demo gemm --verbose
 
-# Run Flash Attention demo
+# 运行 Flash Attention demo
 python3 tests/run_cpu.py --demo flash_attn --verbose
 
-# Run a single ST testcase
+# 运行单个 ST 用例
 python3 tests/script/run_st.py -r sim -v a3 -t tadd -g TADDTest.case_float_64x64_64x64
 
-# One-click build and run recommended tests
+# 一键构建并运行推荐测试
 ./build.sh --run_all --a3 --sim
 
-# Build a wheel package (artifacts will be placed under dist/)
+# 在代码根目录下打 whl 包，产物位于 dist/ 目录
 python3 -m build --wheel
 ```
 
-For more complete build, test, and scripting details, see the [Getting Started Guide](docs/getting-started.md) and [Test Guide](tests/README.md).
+更完整的构建、测试和脚本说明请参见：[快速开始指南](docs/zh/getting-started.md)、[测试说明](tests/README.md)
 
-### Recommended Examples
+### 推荐样例
 
-- [Auto Mode Add example](demos/auto_mode/baseline/add/README.md): a good first example for understanding how PTO instructions are organized
-- [GEMM performance example](kernels/manual/a2a3/gemm_performance/README.md): useful for understanding tile-level operator optimization
-- [Flash Attention example](kernels/manual/common/flash_atten/README.md): useful for understanding complex operators and performance tuning
+- [Auto Mode Add 示例](demos/auto_mode/baseline/add/README.md)：适合第一次了解 PTO 指令组织方式
+- [GEMM 性能示例](kernels/manual/a2a3/gemm_performance/README.md)：适合理解 tile 级算子优化
+- [Flash Attention 示例](kernels/manual/common/flash_atten/README.md)：适合理解复杂算子与性能调优
 
-### Recommended Learning Path
+### 推荐上手路径
 
-1. Start from simple examples to understand how PTO instructions organize tile-level computation and data movement.
-2. Verify functionality and correctness in CPU simulation to build intuition about instruction semantics and results.
-3. Port the code to Ascend hardware to validate correctness and collect performance data. See the [msprof tool](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0010.html)
-4. Identify performance bottlenecks (CUBE Bound / MTE Bound / Vector Bound) and start optimization and tuning. See [Performance Optimization](docs/coding/opt.md)
+1. 从简单示例开始，理解 PTO 指令如何组织 tile 级计算与数据搬运。
+2. 在 CPU 仿真中验证功能与正确性，建立对指令语义和结果的直观认知。
+3. 将代码移植到昇腾硬件上验证正确性并采集性能数据。参见 [msprof 工具](https://www.hiascend.com/document/detail/zh/canncommercial/850/devaids/Profiling/atlasprofiling_16_0010.html)
+4. 定位性能瓶颈（CUBE Bound / MTE Bound / Vector Bound），开始优化与调参。参见 [性能优化](docs/zh/coding/opt.md)
 
-This repository also demonstrates how standard tile operations can be mapped to different pipeline implementations through template parameters:
+本仓库也展示了标准 tile 操作如何通过模板参数映射到不同流水线实现：
 
-- [Tile Programming Model](docs/coding/Tile.md): understand static tile shapes, dynamic tile masks, and data organization
-- [Events and Synchronization](docs/coding/Event.md): understand set/wait flag and pipeline synchronization
-- [General Conventions](docs/isa/conventions.md): understand general PTO programming rules and constraints
-- [PTO Instruction List](docs/isa/README.md): browse the standard operations defined by the PTO ISA
+- [Tile 编程模型](docs/zh/coding/Tile.md)：理解静态 tile shape、动态 tile mask 与数据组织方式
+- [事件与同步](docs/zh/coding/Event.md)：理解 set/wait flag 与流水线同步
+- [通用约定](docs/zh/isa/conventions.md)：理解 PTO 编程中的通用规则与约束
+- [PTO 指令列表](docs/zh/isa/README.md)：查看 PTO ISA 已定义的标准操作
 
-## 🗂️ Documentation Navigation
+## 🗂️ 文档导航
 
-### ISA and Programming Model
+### ISA 与编程模型
 
-- [ISA Overview](docs/README.md): entry point and navigation for PTO ISA documentation
-- [PTO Instruction List](docs/isa/README.md): browse PTO standard operations by category
-- [Tile Programming Model](docs/coding/Tile.md): understand tile shapes, masks, and the programming model
-- [Events and Synchronization](docs/coding/Event.md): understand event recording, waiting, and synchronization
-- [General Conventions](docs/isa/conventions.md): review naming, constraints, and common rules
+- [ISA 总览](docs/zh/README.md)：PTO ISA 文档入口与阅读导航
+- [PTO 指令列表](docs/zh/isa/README.md)：按指令分类查看 PTO 标准操作
+- [Tile 编程模型](docs/zh/coding/Tile.md)：理解 tile 的形状、mask 与编程模型
+- [事件与同步](docs/zh/coding/Event.md)：理解事件记录、等待与同步方式
+- [通用约定](docs/zh/isa/conventions.md)：查看命名、约束与通用规则
 
-### Development and Optimization
+### 开发与优化
 
-- [Developer Documentation Index](docs/coding/README.md): browse documentation for extending PTO Tile Lib
-- [Performance Optimization](docs/coding/opt.md): review performance analysis and tuning guidance
-- [Documentation Build Guide](docs/mkdocs/README.md): learn how to build the MkDocs site locally
+- [开发文档索引](docs/zh/coding/README.md)：查看扩展 PTO Tile Lib 的开发文档
+- [性能优化](docs/zh/coding/opt.md)：查看性能分析与调优建议
+- [文档构建说明](docs/zh/website.md)：查看 MkDocs 文档的本地构建方式
 
-## 📊 Examples and Performance References
+## 📊 示例与性能参考
 
 ### GEMM
 
-- Reference implementation: `kernels/manual/a2a3/gemm_performance/`
-- Detailed analysis and tuning notes: [High-Performance GEMM Operator Example](kernels/manual/a2a3/gemm_performance/README.md)
+- 参考实现：`kernels/manual/a2a3/gemm_performance/`
+- 详细分析与调参说明：[高性能 GEMM 算子示例](kernels/manual/a2a3/gemm_performance/README.md)
 
-![GEMM performance reference (Ascend A3, 24 cores)](docs/figures/performance/gemm_performance_a3.svg)
+![GEMM 性能参考（Ascend A3，24 核）](docs/figures/performance/gemm_performance_a3.svg)
 
 ### Flash Attention
 
-- Operator implementation and tuning notes: [A2/A3 version](kernels/manual/common/flash_atten/README.md), [A5 version](kernels/manual/a5/flash_atten/README.md)
-- A5 build guide, with A5 performance numbers still pending: [Flash Attention Performance Kernel (A5)](kernels/manual/a5/flash_atten/README.md)
-- S0: query sequence length (number of rows in Q/O)
-- S1: key/value sequence length (number of rows in K/V)
+- 算子实现与调优说明：[A2/A3 版本](kernels/manual/common/flash_atten/README.md)，[A5 版本](kernels/manual/a5/flash_atten/README.md)
+- A5 构建说明（A5 性能数据待补充）：[Flash Attention Performance Kernel (A5)](kernels/manual/a5/flash_atten/README.md)
+- S0：query 序列长度（Q/O 的行数）
+- S1：key/value 序列长度（K/V 的行数）
 
-Ascend 910B2 multi-core comparison, using `torch_npu` as the baseline:
+Huawei Ascend 910B2 多核对比，基线为 `torch_npu`：
 
-| Sequence length | PTO time (us) | torch_npu time (us) | PTO TFLOPS | torch_npu TFLOPS | PTO speedup |
+| 序列长度 | PTO 时间 (us) | torch_npu 时间 (us) | PTO TFLOPS | torch_npu TFLOPS | PTO 加速比 |
 | --- | --- | --- | --- | --- | --- |
 | 1024 | 20.960 | 58.461 | 25.61 | 9.18 | 2.79x |
 | 2048 | 32.461 | 70.801 | 66.16 | 30.33 | 2.18x |
@@ -151,85 +151,85 @@ Ascend 910B2 multi-core comparison, using `torch_npu` as the baseline:
 
 ![Flash Attention 910B2 PTO vs torch_npu](docs/figures/performance/fa_910b2_pto_vs_torch_npu.png)
 
-### Communication Instruction Bandwidth
+### 通信指令带宽
 
-- Reference implementation: `kernels/manual/a2a3/tget_bandwidth/`
-- Detailed analysis and build/run guide: [TGET / TGET_ASYNC Bandwidth Comparison Example](kernels/manual/a2a3/tget_bandwidth/README.md)
+- 参考实现：`kernels/manual/a2a3/tget_bandwidth/`
+- 详细分析与构建运行说明：[TGET / TGET_ASYNC 带宽对比示例](kernels/manual/a2a3/tget_bandwidth/README.md)
 
-This example measures point-to-point remote-read bandwidth on Ascend A2/A3 and compares `TGET` (synchronous, via UB staging) with `TGET_ASYNC` (asynchronous, direct transfer through the DMA engine).
+该示例在 Ascend A2/A3 上测量点对点远程读带宽，对比 `TGET`（同步，经 UB 中转）与 `TGET_ASYNC`（异步，经 DMA 引擎直接传输）的表现。
 
-### GEMM AllReduce Fused Compute-Communication
+### GEMM AllReduce 通算融合
 
-- Reference implementation: `kernels/manual/a2a3/gemm_ar/`
-- Detailed analysis and tuning notes: [High-Performance GEMM AllReduce Fused Operator Example](kernels/manual/a2a3/gemm_ar/README_zh.md)
+- 参考实现：`kernels/manual/a2a3/gemm_ar/`
+- 详细分析与调参说明：[高性能 GEMM AllReduce 融合算子示例](kernels/manual/a2a3/gemm_ar/README.md)
 
-This example shows how PTO communication primitives can be fused with compute kernels to overlap GEMM and AllReduce within one operator pipeline.
+该示例展示了如何在同一个算子流水线中融合 PTO 通信原语与计算 kernel，实现 GEMM 与 AllReduce 的重叠执行。
 
-## 🖥️ Platform Support
+## 🖥️ 平台支持
 
-- Ascend A2 (Ascend 910B)
-- Ascend A3 (Ascend 910C)
-- Ascend A5 (Ascend 950)
-- CPU (x86_64 / AArch64)
+- Ascend A2（Ascend 910B）
+- Ascend A3（Ascend 910C）
+- Ascend A5（Ascend 950）
+- CPU（x86_64 / AArch64）
 
-For more details, see [include/README.md](include/README.md).
+更多细节请参考 [include/README.md](include/README.md)。
 
-## 🛣️ Roadmap
+## 🛣️ 路线图
 
-Planned future features:
+未来计划发布的特性：
 
-| Feature | Description | Scope | Progress / target completion |
+| 功能 | 描述 | 范围 | 进度 / 完成时间 |
 | --- | --- | --- | --- |
-| **PTO Auto Mode** | BiSheng compiler support for automatic tile buffer allocation and synchronization insertion. | Compiler / toolchain | Ongoing |
-| **PTO Tile Fusion** | BiSheng compiler support for automatic tile operation fusion. | Compiler / toolchain | Ongoing |
-| **PTO-AS** | Bytecode support for PTO ISA. | Compiler / toolchain | Ongoing |
-| **Convolution extension** | PTO ISA support for convolution kernels. | ISA extension | Ongoing |
-| **Collective communication extension** | Add asynchronous communication instructions for Ccu and Roce, and add the TPREFECTH (AIV direct-drive) communication instruction. | Communication ISA extension | 2026 Q2 |
-| **System scheduling extension** | PTO ISA support for SPMD/MPMD programming schedules. | ISA extension | Planned |
-| **Micro-instructions** | Support expressing high-performance operators through micro-instructions, together with a foundational high-performance micro-instruction library. | ISA extension / operator development | 2026 Q2 |
-| **Base instructions** | Further optimize A5 instruction performance, add Pooling-related base instructions, and enhance convolution, quantization, and Fixpipe instruction capabilities. | ISA extension | 2026 Q2 |
-| **CostModel** | Support CostModel performance simulation for A5 instructions. | Toolchain / performance modeling | 2026 Q2 |
-| **CPU-SIM** | Keep CPU-SIM built in sync with instruction enhancements. | CPU simulation | 2026 Q2 |
+| **PTO Auto Mode** | BiSheng 编译器支持：自动分配 tile buffer 并插入同步。 | 编译器 / 工具链 | 持续演进 |
+| **PTO Tile Fusion** | BiSheng 编译器支持：自动融合 tile 操作。 | 编译器 / 工具链 | 持续演进 |
+| **PTO-AS** | PTO ISA 的字节码（Byte Code）支持。 | 编译器 / 工具链 | 持续演进 |
+| **卷积扩展** | PTO ISA 对卷积 kernel 的支持。 | ISA 扩展 | 持续演进 |
+| **集合通信扩展** | 新增支持 Ccu 及 Roce 异步通信指令，新增 TPREFECTH（AIV 直驱）通信指令。 | 通信 ISA 扩展 | 2026 Q2 |
+| **系统调度扩展** | PTO ISA 对 SPMD/MPMD 编程的调度支持。 | ISA 扩展 | 规划中 |
+| **微指令** | 支持用户通过微指令表达高性能算子，同时提供基础的高性能微指令库。 | ISA 扩展 / 算子开发 | 2026 Q2 |
+| **基础指令** | 进一步优化 A5 指令性能，新增 Pooling 相关基础指令，并增强卷积、量化、Fixpipe 类指令能力。 | ISA 扩展 | 2026 Q2 |
+| **CostModel** | 支持 A5 指令的 CostModel 性能仿真。 | 工具链 / 性能建模 | 2026 Q2 |
+| **CPU-SIM** | CPU-SIM 随指令增强同步构建。 | CPU 仿真 | 2026 Q2 |
 
-## 🗃️ Directory Structure
+## 🗃️ 目录结构
 
-Key directories are listed below:
+关键目录如下：
 
 ```text
-├── include/                     # Public PTO headers and interfaces
-│   └── pto/                     # Common types, ISA interfaces, and CPU/NPU implementations
-├── kernels/                     # Kernels and operator implementations
-│   ├── manual/                  # Hand-optimized implementations and performance examples
-│   └── custom/                  # Custom operator examples
-├── docs/                        # ISA, programming model, getting started, and doc site sources
-│   ├── isa/                     # Instruction references and category indexes
-│   ├── coding/                  # Developer and performance optimization docs
-│   ├── assembly/                # PTO-AS assembly syntax and specification
-│   └── mkdocs/                  # MkDocs config and source files
-├── demos/                       # Auto Mode, baseline, and torch_jit examples
-├── tests/                       # CPU / NPU tests, scripts, and test entry points
-│   ├── cpu/                     # CPU simulation tests
-│   ├── npu/                     # SoC-specific NPU tests
-│   └── script/                  # Test build and execution scripts
-├── scripts/                     # Build, install, and release scripts
-├── cmake/                       # Shared CMake configuration and packaging logic
-├── build.sh                     # One-click build and run entry script
-└── CMakeLists.txt               # Top-level CMake configuration
+├── include/                     # PTO 对外头文件与接口
+│   └── pto/                     # 公共类型、ISA 接口、CPU/NPU 实现
+├── kernels/                     # kernel 与算子实现
+│   ├── manual/                  # 手工优化实现与性能示例
+│   └── custom/                  # 自定义算子示例
+├── docs/                        # ISA、编程模型、快速开始与文档站点源文件
+│   ├── isa/                     # 指令参考与分类索引
+│   ├── coding/                  # 开发与性能优化文档
+│   ├── assembly/                # PTO-AS 汇编语法与规范
+│   └── mkdocs/                  # MkDocs 文档构建配置与源文件
+├── demos/                       # Auto Mode、baseline 与 torch_jit 示例
+├── tests/                       # CPU / NPU 测试、脚本与测试入口
+│   ├── cpu/                     # CPU 仿真测试
+│   ├── npu/                     # 按 SoC 拆分的 NPU 测试
+│   └── script/                  # 测试构建与运行脚本
+├── scripts/                     # 构建、安装与发布脚本
+├── cmake/                       # CMake 公共配置与打包逻辑
+├── build.sh                     # 一键构建与运行入口脚本
+└── CMakeLists.txt               # 顶层 CMake 配置
 ```
 
-## ℹ️ Related Information
+## ℹ️ 相关信息
 
-- [Contributing Guide](CONTRIBUTING.md): contribution workflow and development guidelines
-- [Security and Vulnerability Disclosure](SECURITY.md): process for reporting security issues
-- [Release Notes](ReleaseNote.md): version updates and release history
-- [License](LICENSE): CANN Open Software License Agreement Version 2.0
-- [PyPTO](https://gitcode.com/cann/pypto/): an upper-layer programming framework in the PTO ecosystem
-- [PTOAS](https://github.com/PTO-ISA/PTOAS/): PTO assembler and compiler backend for PTO workflows
-- [pto-dsl](https://github.com/PTO-ISA/pto-dsl/): Pythonic frontend and JIT workflow exploration for PTO
-- [FAQ](FAQ.md): common issues and solutions
+- [贡献指南](CONTRIBUTING.md)：参与项目开发与提交流程
+- [安全与漏洞披露](SECURITY.md)：安全问题反馈流程
+- [版本说明](ReleaseNote.md)：版本更新与发布记录
+- [许可证](LICENSE)：CANN Open Software License Agreement Version 2.0
+- [PyPTO](https://gitcode.com/cann/pypto/)：PTO 生态中的上层编程框架
+- [PTOAS](https://github.com/PTO-ISA/PTOAS/)：面向 PTO 工作流的汇编器与编译后端
+- [pto-dsl](https://github.com/PTO-ISA/pto-dsl/)：面向 PTO 的 Python 前端与 JIT 工作流探索
+- [FAQ](FAQ.md)：常见问题与解决方案
 
-## 📬 Contact Us
+## 📬 联系我们
 
-- **Issue reporting**: submit problems through repository Issues
-- **Feature requests**: share suggestions through Issues or discussion channels
-- **Code contributions**: contribute through Pull Requests
+- **问题反馈**：通过仓库 Issues 提交问题
+- **功能建议**：通过仓库 Issues 或讨论区反馈需求
+- **贡献代码**：通过 Pull Request 参与项目贡献

@@ -1,0 +1,476 @@
+<p align="center">
+  <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="220" />
+</p>
+
+# 快速开始
+
+本指南帮助您设置和运行 PTO ISA 项目。它涵盖两种主要场景：
+
+1. **CPU 模拟器**（推荐新手）- 跨平台支持 macOS、Linux 和 Windows
+2. **NPU 环境**（高级）- Linux 上的 Ascend A2/A3(910B/910C) 与 CANN toolkit
+
+请选择符合您需求的部分。大多数用户应该从 CPU 模拟器开始。
+
+---
+
+## 第一部分：CPU 模拟器（跨平台）
+
+CPU 模拟器是最简单的入门方式。它可以在 macOS、Linux 和 Windows 上运行，无需专用硬件。
+
+### 先决条件
+
+**必需项：**
+- Git
+- Python `>= 3.11`
+- CMake `>= 3.16`
+- 支持 C++20 的 C++ 编译器：
+  - Linux: GCC 13+ 或 Clang 15+（GCC >= 14 启用 bfloat16 支持）
+  - macOS: Xcode/AppleClang（或 Homebrew LLVM）
+  - Windows: Visual Studio 2022 Build Tools (MSVC)
+- Python 包：`numpy >= 1.22.0`
+
+`tests/run_cpu.py` 可以自动安装 `numpy`（除非您传递 `--no-install` 参数）。
+
+**可选项（用于加速构建）：**
+- Ninja (CMake 生成器)
+- 互联网连接（如果未在系统范围内安装 GoogleTest，CMake 可能需要获取它）
+
+### 操作系统特定设置
+
+#### macOS
+
+安装 Xcode 命令行工具：
+
+  ```bash
+  xcode-select --install
+  ```
+
+安装依赖项（推荐通过 Homebrew）：
+
+  ```bash
+  brew install cmake ninja python
+  ```
+
+如果不使用 Homebrew，请确保 `python3`、`cmake` 和现代的 `clang++` 在 `PATH` 环境变量中。
+
+#### Linux (Ubuntu 20.04+)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake ninja-build python3 python3-pip python3-venv git
+```
+
+#### Windows
+
+安装以下软件：
+- Git for Windows
+- Python 3（并确保其在 `PATH` 中）
+- CMake
+- Visual Studio 2022 Build Tools（需包含"使用 C++ 的桌面开发"）
+
+使用 `winget`（可选）：
+
+```powershell
+winget install --id Git.Git -e
+winget install --id Python.Python.3.11 -e
+winget install --id Kitware.CMake -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e
+```
+
+安装完成后，打开 **Developer Command Prompt for VS 2022**（或确保 `cl.exe` 在 `PATH` 中）。
+
+**替代方案：手动安装编译器**
+
+如果您不想使用 Visual Studio，可以通过下列方式之一手动安装GCC/Clang编译器：
+- [WinLibs](https://winlibs.com)
+- [MSYS2](https://www.msys2.org)
+
+安装后，将 `{COMPILER_INSTALLATION_PATH}/bin` 目录添加到 `PATH` 环境变量中（在 PowerShell 中使用 `gcc -v/clang -v` 验证）。
+
+### 获取代码
+
+```bash
+git clone https://gitcode.com/cann/pto-isa.git
+cd pto-isa
+```
+
+### Python 环境设置
+
+创建并激活虚拟环境：
+
+**macOS / Linux：**
+
+  ```bash
+  python3 -m venv .venv-mkdocs
+  source .venv-mkdocs/bin/activate
+  python -m pip install -U pip
+  python -m pip install numpy
+  ```
+
+**Windows (PowerShell)：**
+
+  ```powershell
+  py -3 -m venv .venv-mkdocs
+  .\.venv-mkdocs\Scripts\Activate.ps1
+  python -m pip install -U pip
+  python -m pip install numpy
+  ```
+
+### 运行 CPU 模拟器
+
+构建并运行 `tests/cpu/st` 目录下的所有 CPU ST 测试二进制文件：
+
+```bash
+python3 tests/run_cpu.py --clean --verbose
+```
+
+**常用选项：**
+
+运行单个测试用例：
+
+  ```bash
+  python3 tests/run_cpu.py --testcase tadd
+  ```
+
+运行特定的 gtest 用例：
+
+  ```bash
+  python3 tests/run_cpu.py --testcase tadd --gtest_filter 'TADDTest.*'
+  ```
+
+构建并运行 GEMM 演示：
+
+  ```bash
+  python3 tests/run_cpu.py --demo gemm --verbose
+  ```
+
+构建并运行 Flash Attention 演示：
+
+  ```bash
+  python3 tests/run_cpu.py --demo flash_attn --verbose
+  ```
+
+**其他选项：**
+
+指定编译器路径：
+
+  ```bash
+  python3 tests/run_cpu.py --cxx=/path/to/compiler
+  ```
+
+打印详细日志：
+
+  ```bash
+  python3 tests/run_cpu.py --verbose
+  ```
+
+删除构建目录并重新构建：
+
+  ```bash
+  python3 tests/run_cpu.py --clean
+  ```
+
+Windows 特定选项（如需要）：
+
+  ```bash
+  python3 tests/run_cpu.py --clean --generator "MinGW Makefiles" --cmake_prefix_path D:\gtest\
+  ```
+
+设置库路径（Linux）：
+
+  ```bash
+  export LD_LIBRARY_PATH=/path_to_compiler/lib64:$LD_LIBRARY_PATH
+  ```
+
+---
+
+## 第二部分：NPU 环境（Ascend A2/A3/A5，仅限 Linux）
+
+本部分适用于需要在 Ascend NPU 硬件或模拟器上运行的用户。它需要 Linux 环境和 Ascend CANN toolkit。
+
+### 说明
+
+根目录 `README.md` 仅保留最短上手路径与常用命令；如果您需要更完整的运行、测试与脚本说明，可进一步参考：
+
+- [测试说明](../../tests/README.md)
+- [文档构建说明](website.md)
+
+### 先决条件
+
+**系统要求：**
+- Linux（推荐 Ubuntu 20.04+）
+- Python >= 3.9.x
+- GCC >= 7.3.0
+- CMake >= 3.16.0
+
+> **备注：** Python 宣布 3.7.x/3.8.x 已经 EOL，CANN 即将停止对该版本的支持，请升级到 Python >= 3.9.x 的版本。
+
+**GoogleTest（单元测试所需）：**
+
+下载 [GoogleTest 1.14.0](https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz) 并安装：
+
+```bash
+tar -xf googletest-1.14.0.tar.gz
+cd googletest-1.14.0
+mkdir temp && cd temp
+cmake .. -DCMAKE_CXX_FLAGS="-fPIC"
+make
+sudo make install
+```
+
+> **无 `sudo` 权限 / GoogleTest 装在自定义前缀时：** 若无法系统级安装 GoogleTest，可将其安装到自定义前缀（如 `$HOME/pto-3rd`），构建前导出 `CMAKE_PREFIX_PATH` 环境变量即可——CMake 原生读取该环境变量，无需额外构建参数：
+>
+> ```bash
+> export CMAKE_PREFIX_PATH="$HOME/pto-3rd"
+> python3 tests/script/run_st.py -r sim -v a5 -t tadd -g TADDTest.case_float_64x64_64x64_64x64_64x64
+> ```
+>
+> 多个前缀之间用分号分隔（整体加引号，如 `export CMAKE_PREFIX_PATH="$HOME/pto-3rd;/opt/gtest"`）。
+
+> **重要——编译器 ABI 必须与 bisheng 一致：** ST 构建（`tests/npu/[a2a3|a5]/src/st/CMakeLists.txt`）使用 **bisheng** 编译 kernel，而非系统 `gcc`。如果 GoogleTest 由 ABI 与 bisheng 所封装 GCC 不一致的系统 `gcc` 构建，ST 程序会在链接/加载阶段报 `undefined symbol`（例如 `__cxa_call_terminate`）。构建 GoogleTest 前先执行 `bisheng -v` 与 `gcc -v`；若两者 GCC 版本不同，要么使用 bisheng 所封装的 GCC 重建 GoogleTest（将 `CMAKE_C_COMPILER`/`CMAKE_CXX_COMPILER` 指向它），要么按下文「CANN Toolkit 安装」中的说明将系统 `gcc` 与 bisheng 对齐。`-fPIC` 仍为必需。
+
+> **注意：** Python 需要以下包：os、numpy、ctypes、struct、copy、math、enum、ml_dtypes、en_dtypes 等（CPU 全量测试等需要 `en_dtypes`，可用 `python -m pip install numpy ml_dtypes en_dtypes` 安装）。
+>
+> 如果您使用不同的标志安装了 GoogleTest（例如 `-D_GLIBCXX_USE_CXX11_ABI=0`），则必须在 `tests/npu/[a2a3|a5]/src/st/CMakeLists.txt` 中添加 `add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)` 进行相应更新。
+
+**CANN Toolkit 安装**
+
+- Ascend NPU 驱动和固件（用于硬件执行）
+- CANN toolkit >= 8.5.0
+
+> **重要提示：** 请确保在安装完 CANN toolkit 后，执行以下命令设置环境变量：
+>
+> ```bash
+> source /usr/local/Ascend/cann/bin/setenv.bash
+> ```
+>
+> 然后验证 bisheng 的 GCC 版本与系统 GCC 版本兼容或一致：
+>
+> ```bash
+> bisheng -v
+> gcc -v
+> ```
+>
+> 如果版本不同，您可以在 bisheng -v 所示的 gcc 路径下安装与 gcc -v 显示版本一致的 GCC，或将默认的 gcc 替换为与 bisheng -v 显示一致的版本。
+
+### 安装选项
+
+#### 选项 1：快速安装（推荐）
+
+完整的安装指南（包括驱动、固件和 toolkit）：
+
+<https://www.hiascend.com/cann/download>
+
+此方法会自动处理所有依赖项。
+
+#### 选项 2：手动安装
+
+**步骤 1：安装驱动和固件**
+
+在实际 NPU 硬件上运行时需要（如果仅构建或使用模拟器，可跳过）。
+
+安装指南：[NPU 驱动和固件安装指南](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha002/softwareinst/instg/instg_0005.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit)
+
+**步骤 2：安装 CANN Toolkit**
+
+从 [CANN 下载页面](https://www.hiascend.com/developer/download/community/result?module=cann) 下载相应的 `Ascend-cann-toolkit_${cann_version}_linux-${arch}.run` 安装包。
+
+要求版本：CANN >= 8.5.0
+
+```bash
+# 使安装包可执行
+chmod +x Ascend-cann-toolkit_${cann_version}_linux-${arch}.run
+
+# 安装
+./Ascend-cann-toolkit_${cann_version}_linux-${arch}.run --install --force --install-path=${install_path}
+```
+
+参数说明：
+- `${cann_version}`：CANN toolkit 版本
+- `${arch}`：CPU 架构（`aarch64` 或 `x86_64`）
+- `${install_path}`：安装路径（可选）
+
+默认路径：
+- Root 用户安装：`/usr/local/Ascend/cann`
+- 非 root 用户安装：`$HOME/Ascend/cann`
+
+#### 选项 3：一键环境安装脚本
+
+如果您希望一次性完成 CANN toolkit、PTO ISA 包和 GoogleTest 的安装，可使用项目自带的 `install_pto.sh` 脚本。脚本会自动检测 CANN toolkit 是否已安装：若已安装则直接安装 PTO ISA 包；若未安装则需通过第二个参数提供 CANN toolkit 安装包路径。
+
+```bash
+chmod +x ./scripts/install_pto.sh
+./scripts/install_pto.sh <cann_toolkit_install_path> [cann_toolkit_package_path]
+```
+
+参数说明：
+- `<cann_toolkit_install_path>`：CANN toolkit 的安装路径（用于检测是否已安装）
+- `[cann_toolkit_package_path]`：CANN toolkit 安装包路径（可选；仅在 CANN toolkit 未安装时需要提供）
+
+### 环境变量
+
+在运行 NPU 测试之前设置 CANN 环境：
+
+**Root 用户安装（默认路径）：**
+
+```bash
+source /usr/local/Ascend/cann/bin/setenv.bash
+```
+
+**非 root 用户安装（默认路径）：**
+
+```bash
+source $HOME/Ascend/cann/bin/setenv.bash
+```
+
+**自定义安装路径：**
+
+```bash
+source ${install_path}/cann/bin/setenv.bash
+```
+
+### 下载源代码
+
+```bash
+git clone https://gitcode.com/cann/pto-isa.git
+cd pto-isa
+```
+
+### 运行 NPU 测试
+
+**运行单个 ST 测试用例：**
+
+  ```bash
+  python3 tests/script/run_st.py -r [sim|npu] -v [a3|a5] [-a] -t [TEST_CASE] -g [GTEST_FILTER_CASE]
+  ```
+
+注意：`a3` 后端覆盖 A2/A3 系列（`include/pto/npu/a2a3`）；`-a`使能auto模式。
+
+  示例：
+
+  ```bash
+  python3 tests/script/run_st.py -r npu -v a3 -t tmatmul -g TMATMULTest.case1
+  python3 tests/script/run_st.py -r sim -v a5 -t tmatmul -g TMATMULTest.case1
+  ```
+
+**运行推荐的测试套件：**
+
+  ```bash
+# 从项目根目录执行
+  chmod +x ./tests/run_st.sh
+  ./tests/run_st.sh --a5 --npu --simple
+
+# 对于模拟器（首先增加文件描述符限制）
+ulimit -n 65536
+./tests/run_st.sh --a3 --sim --all
+  ```
+
+**运行完整的 ST 测试：**
+
+  ```bash
+  chmod +x build.sh
+  ./build.sh --run_all --a3 --sim
+  ```
+
+**运行简化的 ST 测试：**
+
+  ```bash
+  chmod +x build.sh
+  ./build.sh --run_simple --a5 --npu
+
+  # 共享机器上只允许使用 1 张卡时，显式指定卡数（不指定则自动探测可见卡数）
+  ./build.sh --run_simple --a5 --npu --npu-count 1
+  ```
+
+**打包：**
+
+  ```bash
+  chmod +x build.sh
+  ./build.sh --pkg
+  ```
+
+  构建完成后，`.run` 安装包生成在 `build_out/` 目录下。
+
+**安装：**
+
+  通过 `.run` 自解压包安装，需指定安装类型（三选一）：
+
+  | 参数 | 说明 |
+  |------|------|
+  | `--full` | 完整安装，包含头文件、库、测试资源等全部内容 |
+  | `--run` | 运行时安装，仅安装运行所需的库和依赖 |
+  | `--devel` | 开发环境安装，包含头文件和库 |
+
+  ```bash
+  # 完整安装到默认路径（需 root 权限）
+  ./build_out/cann-pto-isa_*.run --full
+
+  # 安装到指定路径（无需 root）
+  ./build_out/cann-pto-isa_*.run --full --install-path=/your/install/path
+
+  # 静默安装，跳过交互确认（适用于 CI/CD 等非交互环境）
+  ./build_out/cann-pto-isa_*.run --full --quiet
+
+  # 仅安装运行时组件
+  ./build_out/cann-pto-isa_*.run --run --install-path=/your/install/path
+
+  # 开发环境安装
+  ./build_out/cann-pto-isa_*.run --devel --install-path=/your/install/path --quiet
+  ```
+
+  > **排障：安装报 `Unrecognized flag : --full`（Makeself version 2.5.0）**
+  >
+  > 该报错来自 `.run` 自解压壳（Makeself 2.5.0）而不是安装脚本，说明这个包在打包时使用的
+  > makeself 源码没有应用 CANN 补丁（补丁版外壳才会把 `--full/--run/--devel` 透传给内层安装脚本）。
+  > 两个已实测的成因都出在 `CANN_3RD_LIB_PATH`（默认 `third_party/`）的缓存上：
+  >
+  > 1. `CANN_3RD_LIB_PATH/makeself/` 里残留旧版未打补丁的 makeself：cann-cmake 只检查文件是否
+  >    存在、不校验补丁状态，会误判为"已打补丁"而直接复用；
+  > 2. `CANN_3RD_LIB_PATH/pkg/makeself-2.5.0.patch` 是 0 字节空文件（下载失败留下的占位文件）：
+  >    构建时 `patch` 会"应用"这个空补丁且退出码为 0，产物依然是未打补丁的外壳。
+  >
+  > 根治办法：删除这两处缓存后重新打包：
+  >
+  > ```bash
+  > rm -rf third_party/makeself third_party/pkg
+  > ./build.sh --pkg
+  > ```
+  >
+  > 重新生成的 `.run` 即可正常使用上述 `--full/--run/--devel` 参数。
+  >
+  > 临时应急（仅对未打补丁的旧包有效）：未打补丁的外壳不识别 `--full`，但内层 install.sh 会跳过
+  > 前两个 `--` 参数，可用两个占位参数把跳过额度耗掉，让真实参数从第 3 个起正常解析：
+  >
+  > ```bash
+  > ./cann-pto-isa_*.run --quiet --accept -- --1 --2 --full --install-path=/your/install/path
+  > ```
+  >
+  > 注意：该写法只适用于未打补丁的旧包；标准包（补丁版外壳）不接受 `--1` 这类占位参数，
+  > 请直接使用上文的 `--full` 命令。
+
+  常用安装参数说明：
+
+  | 参数 | 说明 |
+  |------|------|
+  | `--install-path=<path>` | 指定安装目标目录 |
+  | `--quiet` | 静默模式，跳过交互确认（适用于非交互环境） |
+  | `--install-for-all` | 为所有用户安装 |
+  | `--uninstall` | 卸载已安装的产品 |
+  | `--upgrade` | 升级已有安装 |
+  | `--version` | 查看包版本信息 |
+  | `--pre-check` | 安装前预依赖检查 |
+
+  更多参数可通过 `--help` 查看：
+
+  ```bash
+  ./build_out/cann-pto-isa_*.run --help
+  ```
+
+---
+
+## 下一步
+
+- CPU 开发：探索 demos/cpu 下的demo演示以及 tests/cpu/ 下的测试用例
+- NPU 开发：查看 `tests/npu/` 下的测试用例
+- 查看 API 文档了解详细的指令使用方法
+- 加入社区获取支持和讨论

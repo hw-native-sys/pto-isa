@@ -1,11 +1,11 @@
 # scripts/
 
-Repository helper scripts, mainly for packaging and release workflows.
+仓库辅助脚本，主要用于打包/发布相关流程。
 
-## Layout
+## 目录结构
 
-- `package/`: Packaging scripts (Python + templates + configuration)
+- `package/`：打包脚本（Python + 模板 + 配置）
 
-## Entry Point
+## 入口
 
-- `build.sh --pkg` triggers the packaging flow implemented under `scripts/package/`
+- `build.sh --pkg` 会触发 `scripts/package/` 下实现的打包流程

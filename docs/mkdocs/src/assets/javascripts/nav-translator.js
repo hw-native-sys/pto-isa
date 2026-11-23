@@ -111,7 +111,7 @@
 
     function getCurrentLanguage() {
         var p = window.location.pathname;
-        return (p.indexOf('_zh/') !== -1 || p.slice(-8) === '_zh.html') ? 'zh' : 'en';
+        return (p.indexOf('/docs/en/') !== -1 || p.indexOf('_en/') !== -1 || p.slice(-8) === '_en.html') ? 'en' : 'zh';
     }
 
     /**
@@ -241,10 +241,12 @@
      */
     function autoApplyOnZhPage() {
         if (getCurrentLanguage() !== 'zh') return;
+        // Translate nav text labels first (does not depend on lang-map).
+        translateTextLabels();
+        // Rewrite nav links to zh using lang-map when it is available.
         var loader = window.loadLangMap ? window.loadLangMap() : Promise.resolve(null);
         loader.then(function (map) {
             if (!map) return;
-            translateTextLabels();
             rewriteNavLinksToZh(map.en_to_zh);
             // Re-apply after a short delay to catch any links rendered late by the theme.
             setTimeout(function () { rewriteNavLinksToZh(map.en_to_zh); }, 300);

@@ -37,7 +37,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 // Goals:
 // - Provide a consistent diagnostic prefix across compile-time and runtime checks.
 // - Always print/encode the violated condition when possible.
-// - Provide a stable “next step” for users: see docs/coding/debug.md.
+// - Provide a stable “next step” for users: see docs/en/coding/debug.md.
 //
 // Note:
 // - `static_assert` diagnostics are compile-time only; we use a macro so we can
@@ -53,13 +53,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
     static_assert(                                \
         (cond), "[PTO][SA] Constraint violated. " \
                 "Condition: " #cond ". "          \
-                "Hint: see docs/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
+                "Hint: see docs/en/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
 
 #define PTO_STATIC_ASSERT_2(cond, msg)   \
     static_assert(                       \
         (cond), "[PTO][SA] " msg " "     \
                 "Condition: " #cond ". " \
-                "Hint: see docs/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
+                "Hint: see docs/en/coding/debug.md and search for " __FILE__ ":" PTO_DETAIL_STR(__LINE__))
 
 #define PTO_DETAIL_GET_MACRO(_1, _2, NAME, ...) NAME
 #define PTO_STATIC_ASSERT(...) PTO_DETAIL_GET_MACRO(__VA_ARGS__, PTO_STATIC_ASSERT_2, PTO_STATIC_ASSERT_1)(__VA_ARGS__)
@@ -68,26 +68,26 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdio>
 #include <cstdlib>
 
-#define PTO_CPU_ASSERT_1(cond)                                                                      \
-    do {                                                                                            \
-        if (!(cond)) {                                                                              \
-            std::fprintf(                                                                           \
-                stderr,                                                                             \
-                "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/coding/debug.md and " \
-                "search for %s:%d\n",                                                               \
-                #cond, __FILE__, __LINE__);                                                         \
-            std::abort();                                                                           \
-        }                                                                                           \
+#define PTO_CPU_ASSERT_1(cond)                                                                         \
+    do {                                                                                               \
+        if (!(cond)) {                                                                                 \
+            std::fprintf(                                                                              \
+                stderr,                                                                                \
+                "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/en/coding/debug.md and " \
+                "search for %s:%d\n",                                                                  \
+                #cond, __FILE__, __LINE__);                                                            \
+            std::abort();                                                                              \
+        }                                                                                              \
     } while (0)
 
-#define PTO_CPU_ASSERT_2(cond, msg)                                                                                 \
-    do {                                                                                                            \
-        if (!(cond)) {                                                                                              \
-            std::fprintf(                                                                                           \
-                stderr, "[PTO][CA] %s Condition: %s. Hint: see docs/coding/debug.md and search for %s:%d\n", (msg), \
-                #cond, __FILE__, __LINE__);                                                                         \
-            std::abort();                                                                                           \
-        }                                                                                                           \
+#define PTO_CPU_ASSERT_2(cond, msg)                                                                                    \
+    do {                                                                                                               \
+        if (!(cond)) {                                                                                                 \
+            std::fprintf(                                                                                              \
+                stderr, "[PTO][CA] %s Condition: %s. Hint: see docs/en/coding/debug.md and search for %s:%d\n", (msg), \
+                #cond, __FILE__, __LINE__);                                                                            \
+            std::abort();                                                                                              \
+        }                                                                                                              \
     } while (0)
 
 #define PTO_CPU_ASSERT(...) PTO_DETAIL_GET_MACRO(__VA_ARGS__, PTO_CPU_ASSERT_2, PTO_CPU_ASSERT_1)(__VA_ARGS__)

@@ -30,8 +30,8 @@ from typing import Dict, Iterable, List
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
 DEFAULT_HEADER = REPO_ROOT / "include" / "pto" / "common" / "pto_instr.hpp"
-DEFAULT_OUT_EN = REPO_ROOT / "docs" / "mkdocs" / "src" / "manual" / "appendix-d-instruction-family-matrix.md"
-DEFAULT_OUT_ZH = REPO_ROOT / "docs" / "mkdocs" / "src" / "manual" / "appendix-d-instruction-family-matrix_zh.md"
+DEFAULT_OUT_EN = REPO_ROOT / "docs" / "en" / "manual" / "appendix-d-instruction-family-matrix.md"
+DEFAULT_OUT_ZH = REPO_ROOT / "docs" / "zh" / "manual" / "appendix-d-instruction-family-matrix.md"
 
 CATEGORY_ZH = {
     "Synchronization": "同步",
@@ -119,7 +119,7 @@ def matrix_rows(grouped: OrderedDict[str, List[Dict[str, object]]], zh: bool) ->
                 op_text = ", ".join(str(x) for x in operands)
             else:
                 op_text = "-"
-            page = f"docs/isa/{instr}_zh.md" if zh else f"docs/isa/{instr}.md"
+            page = f"docs/zh/isa/{instr}.md" if zh else f"docs/en/isa/{instr}.md"
             lines.append(f"| {cat_name} | `{instr}` | `{diagram}` | `{op_text}` | `{page}` |")
     return lines
 
@@ -161,7 +161,7 @@ def render_en(entries: List[Dict[str, object]], header_instrs: List[str]) -> str
     lines.append("")
     lines.append("## D.5 Notes")
     lines.append("")
-    lines.append("- Per-instruction semantics remain canonical in `docs/isa/*.md`.")
+    lines.append("- Per-instruction semantics remain canonical in `docs/en/isa/*.md`.")
     lines.append("- This appendix is a taxonomy and coverage matrix, not a replacement for per-op normative semantics.")
     lines.append("")
     return "\n".join(lines)
@@ -198,7 +198,7 @@ def render_zh(entries: List[Dict[str, object]], header_instrs: List[str]) -> str
     lines.append("")
     lines.append("## D.5 说明")
     lines.append("")
-    lines.append("- 逐条指令语义仍以 `docs/isa/*_zh.md` 为准。")
+    lines.append("- 逐条指令语义仍以 `docs/zh/isa/*.md` 为准。")
     lines.append("- 本附录用于分类与覆盖追踪，不替代逐条指令的规范化语义描述。")
     lines.append("")
     return "\n".join(lines)

@@ -26,7 +26,7 @@
     // ── helpers ──────────────────────────────────────────────────────────────
 
     function getPreferredLanguage() {
-        return localStorage.getItem(LANG_KEY) || 'en';
+        return localStorage.getItem(LANG_KEY) || getCurrentLanguage();
     }
 
     function setPreferredLanguage(lang) {
@@ -35,7 +35,7 @@
 
     function getCurrentLanguage() {
         const p = window.location.pathname;
-        return (p.includes('_zh/') || p.endsWith('_zh.html')) ? 'zh' : 'en';
+        return (p.includes('/docs/en/') || p.includes('_en/') || p.endsWith('_en.html')) ? 'en' : 'zh';
     }
 
     // ── map loading (fetch once, cache in sessionStorage) ────────────────────

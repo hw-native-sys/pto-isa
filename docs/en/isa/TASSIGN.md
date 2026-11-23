@@ -1,0 +1,185 @@
+# TASSIGN
+
+## Product Support<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT products: Supported
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3 products: Supported
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2 products: Supported
+<!-- end id3 -->
+
+
+
+## Tile Operation Diagram
+
+![TASSIGN tile operation](../../figures/isa/TASSIGN.svg)
+
+## Introduction
+
+Bind a Tile object to an implementation-defined on-chip address (manual placement).
+
+## Math Interpretation
+
+Not applicable.
+
+## C++ Intrinsic
+
+Declared in `include/pto/common/pto_instr.hpp`.
+
+### Form 1: Runtime address
+
+```cpp
+template <typename T, typename AddrType>
+PTO_INST void TASSIGN(T& obj, AddrType addr);
+```
+
+Binds `obj` to the on-chip address `addr`. No compile-time bounds checking is
+performed (the address value is not available at compile time).
+
+In CPU_SIM, `addr` can be a byte offset into a simulated memory region or the integer representation of a pointer
+into that thread's simulated buffers or live registered host storage. This includes the separate backing storage
+allocated by CPU_SIM `TPOP` for a destination whose `data()` returns null. Base and interior pointers create aliases
+without copying data or extending the backing storage's lifetime; arbitrary unregistered host pointers are not
+supported. Both address forms check at runtime that the entire Tile or ConvTile fits within the selected buffer;
+out-of-bounds assignments abort in both Debug and Release builds. See
+[CPU_SIM memory capacity overrides](../coding/cpu_sim.md#memory-capacity-overrides) and
+[TPOP-backed tile views](../coding/cpu_sim.md#tpop-backed-tile-views).
+
+### Form 2: Compile-time address (with static bounds check)
+
+```cpp
+template <std::size_t Addr, typename T>
+PTO_INST void TASSIGN(T& obj);
+```
+
+Binds `obj` to the on-chip address `Addr`. In CPU_SIM, this overload delegates to the same runtime capacity checks
+as Form 1; it skips the NPU-specific compile-time bounds and alignment checks.
+
+On NPU targets, `Addr` is a non-type template parameter, so the compiler performs the following **compile-time**
+checks via `static_assert`:
+
+| Check | Condition | Assertion ID | Error message |
+|-------|-----------|--------------|---------------|
+| Memory space exists | `capacity > 0` | SA-0351 | Memory space is not available on this architecture. |
+| Tile fits in memory | `tile_size <= capacity` | SA-0352 | Tile storage size exceeds memory space capacity. |
+| Address in bounds | `Addr + tile_size <= capacity` | SA-0353 | addr + tile_size exceeds memory space capacity (out of bounds). |
+| Address aligned | `Addr % alignment == 0` | SA-0354 | addr is not properly aligned for the target memory space. |
+
+See `docs/en/coding/debug.md` (fix recipe `FIX-A12`) for suggested remedies.
+
+The memory space, capacity, and alignment are determined automatically from the
+Tile's `TileType` (i.e. `Loc` template parameter):
+
+| TileType | Memory | Capacity (A2A3) | Capacity (A5) | Capacity (Kirin9030) | Capacity (KirinX90) | Alignment |
+|----------|--------|-----------------|---------------|----------------------|---------------------|-----------|
+| Vec | UB | 192KB | 256KB | 128KB | 128KB | 32 B |
+| Mat | L1 | 512KB | 512KB | 512KB | 1024KB | 32 B |
+| Left | L0A | 64KB | 64KB | 32KB | 64KB | 32 B |
+| Right | L0B | 64KB | 64KB | 32KB | 64KB | 32 B |
+| Acc | L0C | 128KB | 256KB | 64KB | 128KB | 32 B |
+| Bias | Bias | 1KB | 4KB | 1KB | 1KB | 32 B |
+| Scaling | FBuffer | 2KB | 4KB | 7KB | 6KB | 32 B |
+| ScaleLeft | L0A | N/A | 4KB | N/A | N/A | 32 B |
+| ScaleRight | L0B | N/A | 4KB | N/A | N/A | 32 B |
+
+On NPU targets, capacities can be overridden at build time via `-D` flags (e.g.
+`-DPTO_UBUF_SIZE_BYTES=262144`). See `include/pto/common/buffer_limits.hpp`.
+
+**Note:** This overload is only available for `Tile` and `ConvTile` types. For
+`GlobalTensor`, use `TASSIGN(obj, pointer)` (Form 1).
+
+## Constraints
+
+- **Implementation checks**:
+    - If `obj` is a Tile (including ConvTile):
+        - In CPU_SIM, `addr` must be an integral type. `TASSIGN` binds and checks simulated storage in both manual and auto modes.
+        - On NPU targets in manual mode (when `__PTO_AUTO__` is not defined), `addr` must be an integral type and is reinterpreted as the tile's storage address.
+        - On NPU targets in auto mode (when `__PTO_AUTO__` is defined), `TASSIGN(tile, addr)` is a no-op.
+    - If `obj` is a `GlobalTensor`:
+        - `addr` must be a pointer type.
+        - The pointed-to element type must match `GlobalTensor::DType`.
+
+- **Default base address (tile never `TASSIGN`-ed).** A Tile that is never bound with `TASSIGN` falls back to an implementation-defined default base address. On A5 NPU this default is **not 32-byte aligned** (it lands at `0x10`), and the first vector operation on such a tile can hang silently. **Always `TASSIGN` every UB tile to an explicitly aligned base address before first use**, even tiles that would "obviously" start at offset 0 — the default is not offset 0.
+- **Inter-tile overlap is not checked.** The implementation checks (SA-0351~0354) verify each tile's capacity, alignment, and bounds **individually**, but do **not** detect overlap between two tiles in the same memory space. Two `TASSIGN` calls whose `[addr, addr + tile_size)` ranges overlap produce silent data corruption (the later write overwrites the earlier tile's tail). The safe spacing between two tiles is the physical tile size (`Rows * RowStride * sizeof(DType)`) rounded up to the 32-byte alignment. For the multi-tile UB layout convention on A5, see [a5-on-chip-storage-reuse.md](a5-on-chip-storage-reuse.md).
+
+## Examples
+
+### Runtime address (no compile-time check)
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_runtime() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT a, b, c;
+  TASSIGN(a, 0x1000);
+  TASSIGN(b, 0x2000);
+  TASSIGN(c, 0x3000);
+  TADD(c, a, b);
+}
+```
+
+### Compile-time address (with static bounds check)
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_checked() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT a, b, c;
+
+  TASSIGN<0x0000>(a);   // OK: 0x0000 + 1024 <= 192KB
+  TASSIGN<0x0400>(b);   // OK: 0x0400 + 1024 <= 192KB
+  TASSIGN<0x0800>(c);   // OK: 0x0800 + 1024 <= 192KB
+  TADD(c, a, b);
+}
+```
+
+The following triggers a compile error on NPU targets:
+
+```cpp
+void example_oob() {
+  // Tile<Vec, float, 256, 256> occupies 256*256*4 = 256KB
+  using BigTile = Tile<TileType::Vec, float, 256, 256>;
+  BigTile t;
+
+  // Primarily fires [SA-0352]: tile_size (256KB) > UB capacity (192KB on A2A3)
+  // (the tile exceeds the whole buffer, so the SA-0353 out-of-bounds assert also holds)
+  TASSIGN<0x0>(t);
+}
+```
+
+```cpp
+void example_oob_addr() {
+  using TileT = Tile<TileType::Vec, float, 128, 128>;  // 64KB
+  TileT t;
+
+  // static_assert fires [SA-0353]: 0x20020 + 64KB > 192KB (address is aligned, only out of bounds)
+  TASSIGN<0x20020>(t);
+}
+```
+
+### Ping-pong L0 buffer allocation
+
+```cpp
+void example_pingpong() {
+  using L0ATile = TileLeft<half, 64, 128>;   // L0A tile
+  using L0BTile = TileRight<half, 128, 64>;  // L0B tile
+
+  L0ATile a0, a1;
+  L0BTile b0, b1;
+
+  TASSIGN<0x0000>(a0);   // L0A ping
+  TASSIGN<0x8000>(a1);   // L0A pong
+  TASSIGN<0x0000>(b0);   // L0B ping  (separate physical memory from L0A)
+  TASSIGN<0x8000>(b1);   // L0B pong
+}
+```

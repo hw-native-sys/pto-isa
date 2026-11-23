@@ -1,0 +1,141 @@
+# TROWMIN
+
+## Product Support<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT products: Supported
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3 products: Supported
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2 products: Supported
+<!-- end id3 -->
+
+
+
+## Tile Operation Diagram
+
+![TROWMIN tile operation](../../figures/isa/TROWMIN.svg)
+
+## Introduction
+
+Reduce each row by taking the minimum across columns.
+
+## Math Interpretation
+
+Let `R = src.GetValidRow()` and `C = src.GetValidCol()`. For `0 <= i < R`:
+
+$$ \mathrm{dst}_{i,0} = \min_{0 \le j < C} \mathrm{src}_{i,j} $$
+
+## C++ Intrinsic
+
+Declared in `include/pto/common/pto_instr.hpp`:
+
+```cpp
+template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
+PTO_INST RecordEvent TROWMIN(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, WaitEvents &... events);
+```
+
+## Constraints
+
+### General constraints / checks
+
+- `dst` and `src` must both be `TileType::Vec`.
+- `src` must use standard ND layout: row-major and non-fractal (`BLayout::RowMajor`, `SLayout::NoneBox`).
+- `dst` must use one of the following non-fractal layouts:
+    - ND layout (`BLayout::RowMajor`, `SLayout::NoneBox`), or
+    - DN layout with exactly one column (`BLayout::ColMajor`, `SLayout::NoneBox`, `Cols == 1`).
+- `dst` and `src` must use the same element type.
+- Runtime valid-region checks:
+    - `src.GetValidRow() != 0`
+    - `src.GetValidCol() != 0`
+    - `src.GetValidRow() == dst.GetValidRow()`
+- The intrinsic signature requires an explicit `tmp` operand.
+
+### A2A3 implementation checks
+
+- Supported element types: `half`, `float`, `int32_t`, `int16_t`.
+
+### A5 implementation checks
+
+- Supported element types: `half`, `float`, `int32_t`, `int64_t`, `uint64_t`, `int16_t`, `int8_t`, `uint8_t`.
+- For `int64_t` / `uint64_t`:
+    - Set the output valid column count to 1. Only column 0 of valid rows is written; other physical padding is preserved.
+    - ND output requires physical `Cols % 4 == 0`; DN output requires physical `Cols == 1` and `Rows % 4 == 0`. Valid rows need not be a multiple of 4.
+    - Row strides follow physical shapes; see [shape and layout conventions](conventions.md).
+
+## Temporary Space
+
+### A2A3
+
+`tmp` **is used** as scratch storage for row-wise min reduction.
+
+- For **integer** types (`int32_t`, `int16_t`): `tmp` is used as a per-row accumulator buffer (1 block). For each row, `tmp` is initialized to the maximum representable value, then blocks of `src` are accumulated via `vmin`. The final min is read from `tmp` in scalar mode.
+  - `tmp` size: at least 1 row and `BLOCK_BYTE_SIZE / sizeof(T)` columns (8 for `int32_t`, 16 for `int16_t`).
+- For **floating-point** types (`float`, `half`): `tmp` is used for binary-tree reduction via `vcmin`/`vcgmin`.
+  - A safe default: set `tmp` to the same shape as `src`.
+
+### A5
+
+`tmp` is accepted but not used. The 64-bit integer path performs exact integer reduction without floating-point conversion.
+
+## Examples
+
+### Auto
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TmpT tmp;
+  TROWMIN(dst, src, tmp);
+}
+```
+
+### Manual
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TmpT tmp;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TASSIGN(tmp, 0x3000);
+  TROWMIN(dst, src, tmp);
+}
+```
+
+### 64-bit ND output (A5)
+
+The output has physical shape `[64,4]` and valid shape `[64,1]`, with one 8-byte result every 32 bytes.
+
+```cpp
+#include <cstdint>
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_int64() {
+  using SrcT = Tile<TileType::Vec, int64_t, 64, 16>;
+  using DstT = Tile<TileType::Vec, int64_t, 64, 4, BLayout::RowMajor, 64, 1>;
+  SrcT src, tmp;
+  DstT dst;
+  TROWMIN(dst, src, tmp);
+}
+```

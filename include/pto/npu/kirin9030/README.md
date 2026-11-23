@@ -1,13 +1,13 @@
 # include/pto/npu/kirin9030/
 
-Kirin9030 series PTO instruction implementation headers.
+Kirin9030 系列 PTO 指令实现头文件。
 
-## Overview
+## 概览
 
-- Implementations are organized per instruction (or instruction family), for example: `TAdd.hpp`, `TMatmul.hpp`, `TLoad.hpp`, `TStore.hpp`
-- Includes Kirin9030-specific operator patterns and utilities where applicable
+- 按指令（或指令族）组织实现，例如：`TAdd.hpp`、`TMatmul.hpp`、`TLoad.hpp`、`TStore.hpp`
+- 包含 Kirin9030 专用的算子模式与工具（如适用）
 
-## Related
+## 相关内容
 
-- ISA semantics and examples: `docs/isa/`
-- Kirin9030 NPU ST tests: `tests/npu/Kirin9030/src/st/`
+- ISA 语义与示例：`docs/zh/isa/`
+- Kirin9030 NPU ST 测试：`tests/npu/Kirin9030/src/st/`

@@ -84,7 +84,7 @@ enum {
 
 static inline int aclrtMallocHost(void** p, size_t sz)
 {
-    assert(sz != 0 && "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/coding/debug.md\n");
+    assert(sz != 0 && "[PTO][CA] Constraint violated. Condition: %s. Hint: see docs/en/coding/debug.md\n");
     *p = calloc(1, sz);
     return 0;
 }

@@ -1,13 +1,13 @@
 # include/pto/npu/a5/
 
-Ascend A5 series PTO instruction implementation headers.
+Ascend A5 系列 PTO 指令实现头文件。
 
-## Overview
+## 概览
 
-- Implementations are organized per instruction (or instruction family), for example: `TAdd.hpp`, `TMatmul.hpp`, `TLoad.hpp`, `TStore.hpp`
-- Includes A5-specific operator patterns and utilities where applicable
+- 按指令（或指令族）组织实现，例如：`TAdd.hpp`、`TMatmul.hpp`、`TLoad.hpp`、`TStore.hpp`
+- 包含 A5 专用的算子模式与工具（如适用）
 
-## Related
+## 相关内容
 
-- ISA semantics and examples: `docs/isa/`
-- A5 NPU ST tests: `tests/npu/a5/src/st/`
+- ISA 语义与示例：`docs/zh/isa/`
+- A5 NPU ST 测试：`tests/npu/a5/src/st/`

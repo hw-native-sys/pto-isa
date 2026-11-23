@@ -92,7 +92,7 @@ endfunction()
 
 
 # Test case list - add new test directories here
-# Aligned with SPEC: docs/isa/comm/README.md
+# Aligned with SPEC: docs/en/isa/comm/README.md
 set(ALL_TESTCASES
 # Point-to-Point Communication (Synchronous)
 tput

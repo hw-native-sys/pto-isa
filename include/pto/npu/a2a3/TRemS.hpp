@@ -373,7 +373,7 @@ PTO_INTERNAL void TRemSStagedA2A3(
     bool divIsSub = absScalar <= FMOD_HP_SUBNORMAL;
 
     // repeatTimes is 8-bit: one row-batch instruction covers at most 255
-    // full vectors (see docs/isa/TREMS.md for the resulting tiling caps)
+    // full vectors (see docs/en/isa/TREMS.md for the resulting tiling caps)
     PTO_ASSERT(fullPerRow <= 255, "TREMS HP staged: validCols exceeds 255 full vectors per row; split the tile.");
 
     HpScratchA2A3 s;

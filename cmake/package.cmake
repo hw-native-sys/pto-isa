@@ -80,9 +80,9 @@ function(pack_built_in)
       OWNER_READ OWNER_WRITE
       GROUP_READ GROUP_EXECUTE
       REGEX "include/README\\.md$" EXCLUDE
-      REGEX "include/README_zh\\.md$" EXCLUDE
+      REGEX "include/README_en\\.md$" EXCLUDE
       REGEX "include/pto/README\\.md$" EXCLUDE
-      REGEX "include/pto/README_zh\\.md$" EXCLUDE
+      REGEX "include/pto/README_en\\.md$" EXCLUDE
   )
 
   # pkg_inc: 存放非对外暴露的（internal）头文件，仅内部模块使用。
@@ -96,9 +96,9 @@ function(pack_built_in)
       OWNER_READ OWNER_WRITE
       GROUP_READ GROUP_EXECUTE
       REGEX "pkg_inc/README\\.md$" EXCLUDE
-      REGEX "pkg_inc/README_zh\\.md$" EXCLUDE
+      REGEX "pkg_inc/README_en\\.md$" EXCLUDE
       REGEX "pkg_inc/pto/README\\.md$" EXCLUDE
-      REGEX "pkg_inc/pto/README_zh\\.md$" EXCLUDE
+      REGEX "pkg_inc/pto/README_en\\.md$" EXCLUDE
   )
 
   string(FIND "${ASCEND_COMPUTE_UNIT}" ";" SEMICOLON_INDEX)

@@ -34,7 +34,7 @@ __global__ AICORE void runTQuantInt8Sym(
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, int8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
     using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
-    // scratch budget (see docs/isa/TQUANT.md): broadcast/S32 region + scaled block
+    // scratch budget (see docs/en/isa/TQUANT.md): broadcast/S32 region + scaled block
     constexpr int bcastFloats = ((validRows < 256 ? validRows : 256) + 7) / 8 * 64;
     constexpr int s32Region = bcastFloats > validRows * paddedCols_b32 ? bcastFloats : validRows * paddedCols_b32;
     constexpr int tmpCols = s32Region + validRows * paddedCols_b32;
@@ -92,7 +92,7 @@ __global__ AICORE void runTQuantInt8Asym(
     using SrcTile = Tile<TileType::Vec, float, validRows, paddedCols_b32, BLayout::RowMajor, -1, -1>;
     using DstTile = Tile<TileType::Vec, uint8_t, validRows, paddedCols_b8, BLayout::RowMajor, -1, -1>;
     using ParaTile = Tile<TileType::Vec, float, paddedRows_cm, 1, BLayout::ColMajor, -1, -1>;
-    // scratch budget (see docs/isa/TQUANT.md): broadcast/S32 region + scaled block
+    // scratch budget (see docs/en/isa/TQUANT.md): broadcast/S32 region + scaled block
     constexpr int bcastFloats = ((validRows < 256 ? validRows : 256) + 7) / 8 * 64;
     constexpr int s32Region = bcastFloats > validRows * paddedCols_b32 ? bcastFloats : validRows * paddedCols_b32;
     constexpr int tmpCols = s32Region + validRows * paddedCols_b32;

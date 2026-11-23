@@ -1,31 +1,31 @@
 # Kernels
 
-This directory contains kernel/operator implementations that complement PTO Tile Lib.
+本目录包含与 PTO Tile Lib 配套的 kernel / operator 实现。
 
-Most kernel subdirectories are **self-contained mini-projects** (kernel + host + scripts) with their own `README.md`, `CMakeLists.txt`, and `run.sh`.
+多数子目录都是**自包含的小工程**（kernel + host + 脚本），通常会包含自己的 `README.md`、`CMakeLists.txt` 与 `run.sh`，便于独立发现与运行。
 
-## Where to start
+## 从哪里开始
 
-- Manual (hand-tuned) NPU kernels: [manual](manual/README.md)
-- Custom operator scaffolding: [custom](custom/README.md)
-- End-to-end demos (including CPU): [demos](../demos/README.md)
+- 手工调优（manual）的 NPU kernels：[manual](manual/README.md)
+- 自定义算子脚手架：[custom](custom/README.md)
+- 端到端 demo（包含 CPU）：[demos](../demos/README.md)
 
-## Directory layout
+## 目录结构
 
-- `manual/`: Hand-tuned kernels with explicit buffering/synchronization (NPU-focused)
-  - `manual/a2a3/`: Kernels for A2/A3 platforms
-    - `manual/a2a3/gemm_performance/`: High-performance GEMM example
-    - `manual/a2a3/conv2d_forward/`: Conv2D forward kernel example
-    - `manual/a2a3/topk/`: TopK kernel example
-  - `manual/a5/`: Kernels for A5 platforms
-    - `manual/a5/flash_atten/`: Flash-Attention kernel for A5
-    - `manual/a5/matmul_mxfp4_performance/`: MXFP4 matrix multiplication example
-    - `manual/a5/matmul_mxfp8_performance/`: MXFP8 matrix multiplication example
-  - `manual/common/`: Cross-platform kernels
-    - `manual/common/flash_atten/`: Flash-Attention kernel (A2/A3/A5)
-- `custom/`: Examples/scaffolding for custom kernel/operator extensions
+- `manual/`：手工调优 kernels（显式管理 buffer / 同步 / 流水线，偏 NPU）
+  - `manual/a2a3/`：A2/A3 平台 kernels
+    - `manual/a2a3/gemm_performance/`：高性能 GEMM 示例
+    - `manual/a2a3/conv2d_forward/`：Conv2D 前向 kernel 示例
+    - `manual/a2a3/topk/`：TopK kernel 示例
+  - `manual/a5/`：A5 平台 kernels
+    - `manual/a5/flash_atten/`：A5 平台 Flash-Attention kernel
+    - `manual/a5/matmul_mxfp4_performance/`：MXFP4 矩阵乘法示例
+    - `manual/a5/matmul_mxfp8_performance/`：MXFP8 矩阵乘法示例
+  - `manual/common/`：跨平台 kernels
+    - `manual/common/flash_atten/`：Flash-Attention kernel（A2/A3/A5）
+- `custom/`：自定义 kernel / operator 扩展的示例与脚手架
 
-## Notes
+## 备注
 
-- Public interfaces live in `include/`; tests live in `tests/`.
-- If you add a new kernel project here, prefer adding a small `README.md` and a `run.sh` so it can be discovered and executed consistently.
+- 公共接口在 `include/`；测试在 `tests/`。
+- 新增 kernel 工程时，建议配套一个简短的 `README.md` 和一个 `run.sh`，方便统一发现与运行。

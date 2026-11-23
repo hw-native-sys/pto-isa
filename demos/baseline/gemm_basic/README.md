@@ -1,65 +1,65 @@
-# Basic GEMM Operator Example
+# 基础 GEMM 算子示例
 
-## Overview
+## 概览
 
-This example demonstrates how to implement a basic GEMM operator using PTO and expose it as a PyTorch operator via `torch_npu`.
+本示例展示如何使用 PTO 实现一个基础 GEMM 算子，并通过 `torch_npu` 将其暴露为 PyTorch 算子。
 
-## Supported AI Processors
+## 支持的 AI 处理器
 
 - A2/A3
 
-## Directory Layout
+## 目录结构
 
 ```
 demos/baseline/gemm_basic/
-├── op_extension/              # Python package entry (module loader)
+├── op_extension/              # Python 包入口（模块加载）
 ├── csrc/
-│   ├── kernel/                # PTO kernel implementation
-│   └── host/                  # Host-side PyTorch operator registration
-├── test/                      # Minimal Python test
-├── CMakeLists.txt             # Build configuration
-├── setup.py                   # Wheel build script
-└── README.md                  # This document
+│   ├── kernel/                # PTO kernel 实现
+│   └── host/                  # Host 侧 PyTorch 算子注册
+├── test/                      # 最小化 Python 测试
+├── CMakeLists.txt             # 构建配置
+├── setup.py                   # Wheel 构建脚本
+└── README.md                  # 本文档
 ```
 
-## Operator Description
+## 算子说明
 
-### Function
+### 计算功能
 
-This example implements GEMM with fixed dimensions `[m, k, n] = [512, 2048, 1536]`:
+本示例实现固定维度 `[m, k, n] = [512, 2048, 1536]` 的 GEMM：
 
 $$
 C = A \times B
 $$
 
-Where:
+其中：
 
-- `A` shape: `[512, 2048]` (`m × k`)
-- `B` shape: `[2048, 1536]` (`k × n`)
-- `C` shape: `[512, 1536]` (`m × n`)
+- `A` 形状：`[512, 2048]`（`m × k`）
+- `B` 形状：`[2048, 1536]`（`k × n`）
+- `C` 形状：`[512, 1536]`（`m × n`）
 
-### Specification
+### 规格
 
-| Item        | Value |
+| 项目        | 值 |
 | ----------- | ----- |
 | OpType      | `gemm` |
-| Inputs      | `a`: `m×k`, `float16`, `ND`; `b`: `k×n`, `float16`, `DN` |
-| Output      | `c`: `m×n`, `float`, `ND` |
-| Kernel name | `gemm_basic_custom` |
+| 输入        | `a`: `m×k`, `float16`, `ND`; `b`: `k×n`, `float16`, `DN` |
+| 输出        | `c`: `m×n`, `float`, `ND` |
+| Kernel 名称 | `gemm_basic_custom` |
 
-### Tiling Parameters
+### Tiling 参数
 
-The validation platform has 24 cores. The workload is split across cores (prioritizing splitting `m` and `n`) using a `4 × 6` grouping: split `m` into 4 parts and `n` into 6 parts to fully utilize 24 cores.
+验证平台有 24 个核。本示例采用 `4 × 6` 分组方式将工作量切分到核上（优先切 `m` 与 `n`）：将 `m` 分为 4 份，`n` 分为 6 份，以充分利用 24 核。
 
-Per-core shape:
+每核形状：
 
-- `singleCoreM = 128`, `singleCoreK = 2048`, `singleCoreN = 256`
+- `singleCoreM = 128`、`singleCoreK = 2048`、`singleCoreN = 256`
 
-Because the per-core tile still exceeds L0 capacity, `k` is further tiled into base blocks of size 64. The base block is:
+由于每核 tile 仍然超过 L0 容量，进一步将 `k` 按 64 的 base block 切分。base block 为：
 
-- `baseM = 128`, `baseK = 64`, `baseN = 256`
+- `baseM = 128`、`baseK = 64`、`baseN = 256`
 
-| Parameter     | Value |
+| 参数          | 值     |
 | ------------- | ----- |
 | `m`           | 512   |
 | `k`           | 2048  |
@@ -71,11 +71,11 @@ Because the per-core tile still exceeds L0 capacity, `k` is further tiled into b
 | `baseK`       | 64    |
 | `baseN`       | 256   |
 
-## Implementation Notes
+## 实现说明
 
-### Type definitions
+### 类型定义
 
-The implementation defines matrix representations for GM, L1, and L0, then assigns backing storage for tiles. Example (simplified):
+实现中定义了 GM、L1、L0 的矩阵表示，并为 tiles 绑定底层存储。示例（简化）：
 
 ```cpp
 using NDValidShapeA = TileShape2D<U, baseM, baseK>;
@@ -91,22 +91,21 @@ using NDWholeShapeC = BaseShape2D<T, M, N>;
 using GlobalDataOut = GlobalTensor<T, NDValidShapeC, NDWholeShapeC>; // C in GM
 ```
 
-### Pipeline scheduling
+### 流水线调度
 
-This example overlaps data movement and compute using double buffering in L1 and L0 to improve utilization. Synchronization points ensure correct dependencies, including:
+本示例通过在 L1 与 L0 使用双缓冲来重叠数据搬运与计算，以提高利用率。同步点用于确保依赖关系正确，包括：
 
-- Forward sync: `MTE2 -> MTE1`, `MTE1 -> MMAD`, `MMAD -> FIXPIPE`
-- Reverse sync: `MTE1 -> MTE2`, `MMAD -> MTE1`
+- 正向同步：`MTE2 -> MTE1`、`MTE1 -> MMAD`、`MMAD -> FIXPIPE`
+- 反向同步：`MTE1 -> MTE2`、`MMAD -> MTE1`
 
-Pipeline overview:
+流水线示意图：
+![流水线示意图](../../../docs/figures/gemm_pipeline.png)
 
-![GEMM pipeline](../../../docs/figures/gemm_pipeline.png)
+## 构建与运行
 
-## Build and Run
+### 1. 准备Python环境
 
-### 1. Prepare the python environment
-
-Create your own virtual environment and install the required python package.
+创建python虚拟环境并安装需要的python包：
 
 ```bash
 python -m venv virEnv
@@ -114,7 +113,9 @@ source virEnv/bin/activate
 python3 -m pip install -r requirements.txt
 ```
 
-### 2. Configure environment and build the wheel
+### 2. 构建 wheel
+
+配置 Ascend CANN 环境、 PTO Tile Lib 路径并构建 wheel：
 
 ```bash
 export ASCEND_HOME_PATH=/usr/local/Ascend/
@@ -124,13 +125,13 @@ rm -rf build op_extension.egg-info
 python3 setup.py bdist_wheel
 ```
 
-### 3. Install the wheel
+### 3. 安装 wheel
 
 ```bash
 pip install dist/*.whl
 ```
 
-### 4. Run the example
+### 4. 运行测试
 
 ```bash
 cd test

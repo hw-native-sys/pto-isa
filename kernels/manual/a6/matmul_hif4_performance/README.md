@@ -1,112 +1,108 @@
-# High-Performance HiF4 (HiFloat4) GEMM Example for A6
+# A6 高性能 HiF4（HiFloat4）GEMM 示例
 
-## Overview
+## 概述
 
-This sample implements a high-performance **HiF4 (HiFloat4)** matrix multiplication on the
-Ascend A6 (dav-9201) platform, based on the PTO framework. It uses the HiF4 Cube matmul
-pipeline:
+本示例基于 PTO 框架，在 Ascend A6（dav-9201）平台上实现高性能 **HiF4（HiFloat4）** 矩阵乘。
+使用 HiF4 Cube 矩阵乘流水线：
 
 ```
 GM(BF16) --TLOAD--> L1 --TEXTRACT--> L0A/L0B + L0AMX/L0BMX --TMATMUL_MX--> L0C(FP32) --TSTORE--> GM(BF16)
 ```
 
-The kernel demonstrates multi-core partition, L1 double buffering for the data tiles and
-L0A/L0B ping-pong for the `TEXTRACT`/`TMATMUL_MX` overlap.
+kernel 演示了多核切分、数据 tile 的 L1 双缓冲以及 L0A/L0B 乒乓缓冲，以重叠
+`TEXTRACT`/`TMATMUL_MX` 与访存。
 
-## Supported AI Processors
+## 支持的 AI 处理器
 
-- A6 (dav-9201)
+- A6（dav-9201）
 
-## Directory Layout
+## 目录结构
 
 ```
 kernels/manual/a6/matmul_hif4_performance/
 ├── scripts/
-│   └── gen_data.py                     # Generate HiF4 input + golden output
-├── CMakeLists.txt                      # Build configuration
-├── hif4_matmul_performance_kernel.cpp  # Kernel implementation
-├── main.cpp                            # Host-side entry point
-└── run.sh                              # Build/run script
+│   └── gen_data.py                     # 生成 HiF4 输入与标杆输出
+├── CMakeLists.txt                      # 构建配置
+├── hif4_matmul_performance_kernel.cpp  # kernel 实现
+├── main.cpp                            # 主机侧入口
+└── run.sh                              # 构建/运行脚本
 ```
 
-## Operator Description
+## 算子描述
 
-### Function
+### 功能
 
-`C = A * B`, where `A` and `B` are HiF4 (4-bit) quantized matrices accompanied by their
-three-level scale metadata. The mathematical expression of the reconstruction is:
+`C = A * B`，其中 `A` 与 `B` 为 HiF4（4-bit）量化矩阵，并携带三级缩放元数据。其重建表达式为：
 
 ```
 C = dequant(A, scaleA) * dequant(B, scaleB)
 ```
 
-- `A` is `m x k` (HiF4 data, ND) + `m x k/64` (scale, `HIF4_A_ZZ`)
-- `B` is `k x n` (HiF4 data, ND) + `k/64 x n` (scale, `HIF4_B_NN`)
-- `C` is `m x n` (bfloat16)
+- `A`：`m x k`（HiF4 数据，ND）+ `m x k/64`（缩放，`HIF4_A_ZZ`）
+- `B`：`k x n`（HiF4 数据，ND）+ `k/64 x n`（缩放，`HIF4_B_NN`）
+- `C`：`m x n`（bfloat16）
 
-The default configuration in `main.cpp` is `m=2048, k=2048, n=2048`.
+`main.cpp` 中的默认配置为 `m=2048, k=2048, n=2048`。
 
-### Specification
+### 规格
 
-| Item         | Value |
-| -----------  | ----- |
-| OpType       | `Hif4Matmul` |
-| Data Inputs  | `a`: `m x k`, `hifloat4x2_t`, ND; `b`: `k x n`, `hifloat4x2_t`, ND |
-| Scale Inputs | `scaleA`: `m x k/64`, `uint8_t`, `HIF4_A_ZZ`; `scaleB`: `k/64 x n`, `uint8_t`, `HIF4_B_NN` |
-| Output       | `c`: `m x n`, `bfloat16`, ND |
-| Kernel name  | `Hif4MatmulPerformance` |
+| 项        | 值 |
+| --------- | -- |
+| OpType    | `Hif4Matmul` |
+| 数据输入  | `a`：`m x k`，`hifloat4x2_t`，ND；`b`：`k x n`，`hifloat4x2_t`，ND |
+| 缩放输入  | `scaleA`：`m x k/64`，`uint8_t`，`HIF4_A_ZZ`；`scaleB`：`k/64 x n`，`uint8_t`，`HIF4_B_NN` |
+| 输出      | `c`：`m x n`，`bfloat16`，ND |
+| Kernel 名 | `Hif4MatmulPerformance` |
 
-## Why k is smaller than the A5 MXFP4 example
+## 为什么 k 比 A5 的 MXFP4 示例小
 
-The A5 `matmul_mxfp4_performance` example uses `k=8192` and K-slices the scale at
-`TLOAD` time (its scale is plain 2D `MX_A_ND`/`MX_B_DN`). HiF4 scale is **pre-fractalized**
-in GM as `[16,4]` cells (`HIF4_A_ZZ`/`HIF4_B_NN`), and the A6 `TLoad` consumes those cells
-via contiguous `ZZ2ZZ`/`NN2NN` bursts — so a HiF4 scale panel cannot be K-sliced at TLOAD
-time. This demo therefore loads the full-K scale once per base block and K-slices it at
-`TEXTRACT` (L1 → L0AMX/L0BMX) instead. `k=2048` keeps the full-K scale tile small enough
-for L1.
+A5 的 `matmul_mxfp4_performance` 使用 `k=8192`，并在 `TLOAD` 阶段对缩放做 K 分片
+（其缩放为普通二维 `MX_A_ND`/`MX_B_DN`）。HiF4 的缩放在 GM 中是**预先分块**的
+`[16,4]` 单元（`HIF4_A_ZZ`/`HIF4_B_NN`），A6 的 `TLoad` 通过连续的 `ZZ2ZZ`/`NN2NN`
+burst 读取这些单元 —— 因此 HiF4 缩放面板无法在 TLOAD 阶段做 K 分片。本示例改为在每个
+base block 一次性加载 full-K 缩放，并在 `TEXTRACT`（L1 → L0AMX/L0BMX）阶段做 K 分片。
+`k=2048` 使 full-K 缩放 tile 足够小，可放入 L1。
 
-## Tiling Parameters
+## 切分参数
 
-| Parameter     | Value |
-| ------------- | ----- |
-| `m`           | 2048  |
-| `k`           | 2048  |
-| `n`           | 2048  |
-| `singleCoreM` | 512   |
-| `singleCoreK` | 2048  |
-| `singleCoreN` | 512   |
-| `baseM`       | 256   |
-| `baseK`       | 256   |
-| `baseN`       | 256   |
-| `stepKa`      | 2     |
-| `stepKb`      | 2     |
-| `blockDim`    | 16    |
+| 参数         | 值    |
+| ------------ | ----- |
+| `m`          | 2048  |
+| `k`          | 2048  |
+| `n`          | 2048  |
+| `singleCoreM`| 512   |
+| `singleCoreK`| 2048  |
+| `singleCoreN`| 512   |
+| `baseM`      | 256   |
+| `baseK`      | 256   |
+| `baseN`      | 256   |
+| `stepKa`     | 2     |
+| `stepKb`     | 2     |
+| `blockDim`   | 16    |
 
-## Build and Run
+## 构建与运行
 
-1. Configure your Ascend CANN environment:
+1. 配置 Ascend CANN 环境：
 
 ```bash
 source ${ASCEND_INSTALL_PATH}/bin/setenv.bash
 ```
 
-2. Generate input + golden output:
+2. 生成输入与标杆输出：
 
 ```bash
 cd ${git_clone_path}/kernels/manual/a6/matmul_hif4_performance
 python3 scripts/gen_data.py
 ```
 
-3. Build and run:
+3. 构建并运行：
 
 ```bash
 # NPU
 ./run.sh -r npu -v dav_9201
 
-# Simulator (if available)
+# 仿真器（如可用）
 ./run.sh -r sim -v dav_9201
 ```
 
-The host verifies the device output against `output/golden.bin` with a 3% relative
-tolerance (HiF4 quantization error).
+主机侧以 3% 相对误差（HiF4 量化误差）比对设备输出与 `output/golden.bin`。

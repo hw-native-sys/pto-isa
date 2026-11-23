@@ -1,83 +1,83 @@
-# Flash Attention Performance Kernel (A5, Auto Mode)
+# Flash Attention 性能 Kernel（A5，自动模式）
 
-## Overview
+## 概览
 
-This example demonstrates how to implement a mixed-precision Flash Attention (FA) operator using PTO auto mode on the Ascend A5 platform, including project setup, build, and execution. Its CMake configuration enables auto mode with `--cce-pto-auto-enable`.
+本示例演示如何使用 PTO 自动模式在 Ascend A5 平台上实现混合精度的 Flash Attention（FA）算子，包含工程结构、构建与运行方式。CMake 配置通过 `--cce-pto-auto-enable` 启用自动模式。
 
-For algorithm background and a manual A2/A3 implementation reference, see the [common Flash Attention documentation](../../../manual/common/flash_atten/README.md). Build commands, platform-specific configuration, and scheduling details for this A5 auto-mode example are defined in this directory.
+关于算法背景和 A2/A3 手工模式参考实现，请参阅[通用 Flash Attention 文档](../../../manual/common/flash_atten/README.md)。本 A5 自动模式示例的构建命令、平台配置和调度细节以当前目录中的文件为准。
 
-## Supported AI Processors
+## 支持的 AI 处理器
 
 - Ascend A5
 
-## Directory Layout
+## 目录结构
 
 ```
 kernels/automode/a5/flash_atten/
 ├── scripts/
-│   ├── gen_data.py                  # Generates input and golden output
-│   ├── generate_cases.py            # Generates test cases
-│   ├── pipeline_log_analysis.py     # Pipeline log analysis
-│   ├── pipeline_schedule_gen.py     # Pipeline schedule generation
-│   └── run_timeline.sh              # Timeline analysis script
-├── CMakeLists.txt                   # Build configuration
-├── fa_performance_kernel.cpp        # Kernel implementation
-├── fa_performance_kernel.h          # Kernel header
-├── main.cpp                         # Host-side entry point
-├── pto_macro_fa_gu.hpp              # FA GU macro definitions
-├── pto_macro_fa_softmax.hpp         # FA Softmax macro definitions
-├── pto_macro_matmul.hpp             # Matmul macro definitions
-└── run.sh                           # Convenience script
+│   ├── gen_data.py                  # 生成输入与 golden 输出
+│   ├── generate_cases.py            # 生成测试用例
+│   ├── pipeline_log_analysis.py     # 流水线日志分析
+│   ├── pipeline_schedule_gen.py     # 流水线调度生成
+│   └── run_timeline.sh              # 时间线分析脚本
+├── CMakeLists.txt                   # 构建配置
+├── fa_performance_kernel.cpp        # Kernel 实现
+├── fa_performance_kernel.h          # Kernel 头文件
+├── main.cpp                         # Host 侧入口
+├── pto_macro_fa_gu.hpp              # FA GU 宏定义
+├── pto_macro_fa_softmax.hpp         # FA Softmax 宏定义
+├── pto_macro_matmul.hpp             # Matmul 宏定义
+└── run.sh                           # 便捷脚本
 ```
 
-## Build and Run
+## 构建与运行
 
-1. Configure your Ascend CANN environment (example path):
+1. 配置 Ascend CANN 环境（示例路径）：
 
 ```bash
 source ${ASCEND_INSTALL_PATH}/bin/setenv.bash
 ```
 
-2. Run the example:
+2. 运行示例：
 
 ```bash
 cd ${git_clone_path}/kernels/automode/a5/flash_atten
 
-# Run default cases (same set baked into generated_cases.*)
+# 运行默认 case（与 generated_cases.* 中内置集合一致）
 bash run.sh -r npu -v Ascend910_9599
 
-# Run a single case from the generated set
+# 从内置集合中只运行一个 case
 bash run.sh -r npu -v Ascend910_9599 -c case_float_H_128_S0_128_S1_1024
 
-# Provide custom cases (semicolon separated: HEAD_SIZE,S0,S1,CUBE_S0,TILE_S1)
-# TILE_S1: supports 128 (=CUBE_S1), 256, 512
+# 提供自定义 case（用分号分隔：HEAD_SIZE,S0,S1,CUBE_S0,TILE_S1）
+# TILE_S1：支持 128（=CUBE_S1）、256、512
 bash run.sh -r npu -v Ascend910_9599 --cases "128,128,1024,128,128;128,2048,2048,128,512"
 
-# Provide custom cases and run just one of them
+# 提供自定义 case，并只运行其中一个
 bash run.sh -r npu -v Ascend910_9599 --cases "128,128,1024,128,128;128,512,2048,128,128" \
   -c case_float_H_128_S0_128_S1_1024
 ```
 
-If the run succeeds, the output prints:
+成功时输出：
 
 ```text
 test success
 ```
 
-## Performance
+## 性能
 
-This section covers performance measurements for the A5 auto-mode Flash Attention kernel in this directory.
+本节说明当前目录下 A5 自动模式 Flash Attention kernel 的性能测量情况。
 
-Definitions:
-- `S0`: query sequence length (rows of Q/O).
-- `S1`: key/value sequence length (rows of K/V).
-- `Total task time (us)`: end-to-end kernel time per task (microseconds).
-- `GOps`: total operations counted for the task.
-- `TFLOPS`: `GOps / time`.
+定义：
+- `S0`：query 序列长度（Q/O 的行数）。
+- `S1`：key/value 序列长度（K/V 的行数）。
+- `Total task time (us)`：每个 task 的端到端 kernel 时间（微秒）。
+- `GOps`：该 task 计数的总运算量。
+- `TFLOPS`：`GOps / time`。
 
-### Performance Measurements (Pending)
+### 性能测量（待测）
 
-Timing and throughput for the following workloads have not yet been recorded on Ascend A5:
+以下工作负载在 Ascend A5 上的耗时和吞吐率尚未记录：
 
 | Cores | S0 | S1 | Total task time (us) | GOps | TFLOPS |
 | --- | --- | --- | --- | --- | --- |
@@ -85,27 +85,27 @@ Timing and throughput for the following workloads have not yet been recorded on 
 | 1 | 128 | 2048 | TBD | 134.22 | TBD |
 | 1 | 128 | 4096 | TBD | 268.44 | TBD |
 
-*Note: TBD indicates data to be measured.*
+*注：TBD 表示待测量数据。*
 
-## Operator Description
+## 算子说明
 
-For mathematical formulas, tiling strategies, and pipeline orchestration in the manual A2/A3 reference implementation, see:
+关于 A2/A3 手工模式参考实现中的数学公式、分块计算策略和流水线编排，请参阅：
 
-- [Common Flash Attention Documentation](../../../manual/common/flash_atten/README.md)
+- [通用 Flash Attention 文档](../../../manual/common/flash_atten/README.md)
 
-The documentation includes:
-1. Computation Flow (FlashAttention 2.0)
-2. Tensor shape progression (per stage)
-3. Per-stage implementation & optimizations (`compute_qk`, `compute_p`, `compute_pv`, `compute_gu`)
-4. Pipeline orchestration & cube/vector parallelism
-5. Multicore task split, tiling and load balancing
+该文档包含：
+1. 计算流程（FlashAttention 2.0）
+2. 张量形状（按阶段）
+3. 分阶段实现与调参（`compute_qk`、`compute_p`、`compute_pv`、`compute_gu`）
+4. 流水线编排（Cube/Vector 并行）
+5. 多核切分与负载均衡
 
-## A5 Platform-Specific Optimizations
+## A5 平台特定优化
 
-Compared to the A2/A3 platform, the A5 version of the Flash Attention kernel has been optimized for A5 architecture characteristics:
+相比 A2/A3 平台，A5 版本的 Flash Attention kernel 针对 A5 架构特点进行了以下优化：
 
-- Adjusted buffer allocation strategy for A5's memory hierarchy
-- Optimized synchronization mechanisms between Cube and Vector cores
-- Tuned pipeline depth parameters to match A5 hardware characteristics
+- 针对 A5 的内存层次结构调整了缓冲区分配策略
+- 优化了 Cube 和 Vector 核心之间的同步机制
+- 调整了流水线深度参数以适配 A5 的硬件特性
 
-Specific tuning parameters and performance data will be continuously updated in future versions.
+具体的调优参数和性能数据将在后续版本中持续更新。

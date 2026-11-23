@@ -72,7 +72,7 @@ kernels/manual/<platform>/<operator_name>/
 ├── main.cpp                  # Host 侧：初始化、启动、验证
 ├── CMakeLists.txt            # 构建配置
 ├── run.sh                    # 运行脚本
-└── README_zh.md              # 算子文档
+└── README.md              # 算子文档
 ```
 
 ---

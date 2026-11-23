@@ -23,7 +23,8 @@ from typing import Dict, List
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
-ISA_DIR = REPO_ROOT / "docs" / "isa"
+ISA_DIR_EN = REPO_ROOT / "docs" / "en" / "isa"
+ISA_DIR_ZH = REPO_ROOT / "docs" / "zh" / "isa"
 PTO_ISA_LEVEL_TABLE = Path.home() / "pto-isa.txt"
 
 _LANG_LINK_LINE_RE = re.compile(r"^>\s*(?:Chinese|English)\s+version:\s*.*$", re.IGNORECASE)
@@ -340,8 +341,8 @@ Additional overloads support accumulation/bias variants and `AccPhase` selection
 
 For practical usage patterns, see:
 
-- `docs/isa/TMATMUL_MX.md`
-- `docs/isa/TGEMV.md`
+- `docs/en/isa/TMATMUL_MX.md`
+- `docs/en/isa/TGEMV.md`
 """
 
     if instr == "TPARTMUL":
@@ -539,7 +540,7 @@ Refer to backend-specific legality checks for data type/layout/location/shape co
 
 ## Examples
 
-See related instruction pages in `docs/isa/` for concrete Auto/Manual usage patterns.
+See related instruction pages in `docs/en/isa/` for concrete Auto/Manual usage patterns.
 """
 
 
@@ -575,7 +576,7 @@ def ensure_required_sections(instr: str, text: str) -> str:
             "Constraints",
             "## Constraints\n\nType/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative for that backend.\n",
         ),
-        ("Examples", "## Examples\n\nSee related examples in `docs/isa/` and `docs/coding/tutorials/`.\n"),
+        ("Examples", "## Examples\n\nSee related examples in `docs/en/isa/` and `docs/en/coding/tutorials/`.\n"),
     ]
 
     out = text.rstrip() + "\n"
@@ -640,8 +641,8 @@ def _translate_zh_line_segment(seg: str) -> str:
         ("Recommended", "推荐"),
         ("To be removed", "将移除"),
         (
-            "See related examples in `docs/isa/` and `docs/coding/tutorials/`.",
-            "更多用法示例参见 `docs/isa/` 与 `docs/coding/tutorials/`。",
+            "See related examples in `docs/en/isa/` and `docs/en/coding/tutorials/`.",
+            "更多用法示例参见 `docs/zh/isa/` 与 `docs/zh/coding/tutorials/`。",
         ),
         ("For each element", "对每个元素"),
         ("For each source element", "对每个源元素"),
@@ -744,7 +745,7 @@ def build_zh_page(instr: str, summary_zh: str, en_text: str) -> str:
     if ex_en:
         lines.append(_translate_md_to_zh(ex_en))
     else:
-        lines.append("参见 `docs/isa/` 与 `docs/coding/tutorials/`。")
+        lines.append("参见 `docs/zh/isa/` 与 `docs/zh/coding/tutorials/`。")
     lines.append("")
     return "\n".join(lines)
 
@@ -757,7 +758,7 @@ def main() -> int:
         summary_en = str(e.get("summary_en", f"{instr} instruction."))
         summary_zh = str(e.get("summary_zh", f"{instr} 指令。"))
 
-        en_path = ISA_DIR / f"{instr}.md"
+        en_path = ISA_DIR_EN / f"{instr}.md"
         if not en_path.exists():
             en_path.write_text(template_new_page(instr, summary_en), encoding="utf-8")
 
@@ -767,7 +768,7 @@ def main() -> int:
         text = ensure_ir_level_syntax(instr, text, level_formats)
         en_path.write_text(text, encoding="utf-8")
 
-        zh_path = ISA_DIR / f"{instr}_zh.md"
+        zh_path = ISA_DIR_ZH / f"{instr}.md"
         zh_path.write_text(build_zh_page(instr, summary_zh, text), encoding="utf-8")
 
     print(
