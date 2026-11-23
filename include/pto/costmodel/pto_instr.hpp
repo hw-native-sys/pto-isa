@@ -330,18 +330,22 @@ inline auto& ImageManualFitState() { return perf_sim::GetCostModelCtx().imageMan
 inline constexpr int kImageConfigFmapWidth = 0;
 inline constexpr int kImageConfigDstStride = 1;
 inline constexpr int kImageConfigPadValue = 2;
+inline constexpr int kImagePaddingSides = 4;
+inline constexpr int kImageCalibratedRepeatMode = 0;
 
 template <typename S>
 inline bool HasManualImageConfigLayout(const S& src)
 {
-    constexpr int kNc1hwc0Dimensions = 5;
+    constexpr int kNc1hwc0Dimensions = GlobalTensorDim::TOTAL_DIM;
+    // NC1HWC0 dimensions are N, C1, H, W and C0 in that order.
     constexpr int kCalibratedChannelBlocks = 2;
     constexpr int kCalibratedImageWidth = 16;
     constexpr int kChannelsPerBlock = 16;
     return std::is_same_v<typename S::DType, half> && S::Loc == TileType::Mat && S::layout == Layout::NC1HWC0 &&
-           S::totalDimCount == kNc1hwc0Dimensions && src.GetShape(0) == 1 &&
-           src.GetShape(1) == kCalibratedChannelBlocks && src.GetShape(2) == 1 &&
-           src.GetShape(3) == kCalibratedImageWidth && src.GetShape(4) == kChannelsPerBlock;
+           S::totalDimCount == kNc1hwc0Dimensions && src.GetShape(GlobalTensorDim::DIM_0) == 1 &&
+           src.GetShape(GlobalTensorDim::DIM_1) == kCalibratedChannelBlocks &&
+           src.GetShape(GlobalTensorDim::DIM_2) == 1 && src.GetShape(GlobalTensorDim::DIM_3) == kCalibratedImageWidth &&
+           src.GetShape(GlobalTensorDim::DIM_4) == kChannelsPerBlock;
 }
 
 template <typename S>
@@ -351,13 +355,13 @@ inline bool HasManualImageConfigKernel(const S& src)
     return src.GetFmapH() == 1 && src.GetFilterH() == 1 && src.GetFilterW() == 1 && src.GetStrideH() == 1 &&
            src.GetStrideW() == 1 && src.GetDilationH() == 1 && src.GetDilationW() == 1 &&
            src.GetChannelSize() == kCalibratedChannels && !src.GetTranspose() && src.GetRepeatTime() == 1 &&
-           src.GetRepeatMode() == 0 && src.GetRepeatStride() == 0 && src.GetDstMposition() == 0;
+           src.GetRepeatMode() == kImageCalibratedRepeatMode && src.GetRepeatStride() == 0 &&
+           src.GetDstMposition() == 0;
 }
 
 template <int Kind, auto Mode, typename S>
 inline A5SequenceFitTag ImageConfigFitTag(const S& src)
 {
-    constexpr int kPaddingSides = 4;
     constexpr int kMinFmapWidth = 8;
     constexpr int kMaxFmapWidth = 65;
     constexpr int kDefaultFmapWidth = 16;
@@ -370,7 +374,7 @@ inline A5SequenceFitTag ImageConfigFitTag(const S& src)
     for (int i = 0; i < S::totalDimCount; ++i) {
         supported = supported && src.GetShape(i) == src.GetValidShape(i);
     }
-    for (int i = 0; i < kPaddingSides; ++i) {
+    for (int i = 0; i < kImagePaddingSides; ++i) {
         supported = supported && src.GetPadList(i) == 0;
     }
     const float pad = static_cast<float>(src.GetPadValue());
@@ -388,6 +392,11 @@ inline A5SequenceFitTag ImageConfigFitTag(const S& src)
 template <auto Mode, typename D, typename S>
 inline A5SequenceFitTag ImageFitTag(const D& dst, const S& src, uint16_t posM, uint16_t posK)
 {
+    constexpr int kImageMinDimension = 16;
+    constexpr int kImageMaxRows = 96;
+    constexpr int kImageMaxCols = 128;
+    constexpr int kImageDimensionAlignment = 16;
+    constexpr int kChannelsPerBlock = 16;
     const auto& state = ImageManualFitState();
     const auto rows = dst.GetValidRow();
     const auto cols = dst.GetValidCol();
@@ -395,14 +404,17 @@ inline A5SequenceFitTag ImageFitTag(const D& dst, const S& src, uint16_t posM, u
         Mode == SetFmatrixMode::FMATRIX_B_MANUAL && std::is_same_v<typename D::DType, half> &&
         std::is_same_v<typename S::DType, half> && D::Loc == TileType::Left && !D::isRowMajor &&
         D::SFractal == SLayout::RowMajor && D::SFractalSize == TileConfig::fractalABSize &&
-        D::Compact == CompactMode::Null && D::Rows == rows && D::Cols == cols && rows >= 16 && rows <= 96 &&
-        rows % 16 == 0 && cols >= 16 && cols <= 128 && cols % 16 == 0 && S::Loc == TileType::Mat &&
-        S::layout == Layout::NC1HWC0 && S::totalDimCount == 5 && src.GetShape(0) == 1 && src.GetShape(1) == cols / 16 &&
-        src.GetShape(2) == 1 && src.GetShape(3) == rows && src.GetShape(4) == 16 && src.GetFilterH() == 1 &&
-        src.GetFilterW() == 1 && src.GetStrideH() == 1 && src.GetStrideW() == 1 && src.GetDilationH() == 1 &&
-        src.GetDilationW() == 1 && !src.GetTranspose() && src.GetChannelSize() == cols && posM == 0 && posK == 0 &&
-        state.fmapH == 1 && state.fmapW == rows && state.zeroPadding && state.zeroPadValue && state.repeatOne &&
-        state.dstStride == rows / 16;
+        D::Compact == CompactMode::Null && D::Rows == rows && D::Cols == cols && rows >= kImageMinDimension &&
+        rows <= kImageMaxRows && rows % kImageDimensionAlignment == 0 && cols >= kImageMinDimension &&
+        cols <= kImageMaxCols && cols % kImageDimensionAlignment == 0 && S::Loc == TileType::Mat &&
+        S::layout == Layout::NC1HWC0 && S::totalDimCount == GlobalTensorDim::TOTAL_DIM &&
+        src.GetShape(GlobalTensorDim::DIM_0) == 1 && src.GetShape(GlobalTensorDim::DIM_1) == cols / kChannelsPerBlock &&
+        src.GetShape(GlobalTensorDim::DIM_2) == 1 && src.GetShape(GlobalTensorDim::DIM_3) == rows &&
+        src.GetShape(GlobalTensorDim::DIM_4) == kChannelsPerBlock && src.GetFilterH() == 1 && src.GetFilterW() == 1 &&
+        src.GetStrideH() == 1 && src.GetStrideW() == 1 && src.GetDilationH() == 1 && src.GetDilationW() == 1 &&
+        !src.GetTranspose() && src.GetChannelSize() == cols && posM == 0 && posK == 0 && state.fmapH == 1 &&
+        state.fmapW == rows && state.zeroPadding && state.zeroPadValue && state.repeatOne &&
+        state.dstStride == rows / kImageDimensionAlignment;
     for (int i = 0; i < S::totalDimCount; ++i) {
         supported = supported && src.GetValidShape(i) == src.GetShape(i);
     }
@@ -412,8 +424,18 @@ inline A5SequenceFitTag ImageFitTag(const D& dst, const S& src, uint16_t posM, u
 template <bool Insert, auto Relu, typename D, typename S, typename F>
 inline A5SequenceFitTag FpSliceFitTag(const D& dst, const S& src, const F& fp, uint16_t row, uint16_t col)
 {
+    constexpr int kSliceColOffset = 64;
+    constexpr int kSourceRowAlignment = 16;
+    constexpr int kDestinationExtraRows = 1;
+    constexpr int kDestinationExtraCols = 96;
+    constexpr int kMinMeasuredRows = 16;
+    constexpr int kMaxMeasuredRows = 64;
+    constexpr int kMeasuredRowAlignment = 8;
+    constexpr int kMinMeasuredCols = 32;
+    constexpr int kMaxMeasuredCols = 256;
+    constexpr int kMeasuredColAlignment = 16;
     const int64_t rows = src.GetValidRow();
-    const int64_t cols = src.GetValidCol() - (Insert ? 0 : 64);
+    const int64_t cols = src.GetValidCol() - (Insert ? 0 : kSliceColOffset);
     const bool supported =
         std::is_same_v<typename S::DType, float> && std::is_same_v<typename D::DType, half> &&
         std::is_same_v<typename F::DType, uint64_t> && S::Loc == TileType::Acc && D::Loc == TileType::Vec &&
@@ -421,10 +443,13 @@ inline A5SequenceFitTag FpSliceFitTag(const D& dst, const S& src, const F& fp, u
         S::SFractalSize == TileConfig::fractalCSize && S::Compact == CompactMode::Null && D::isRowMajor &&
         D::SFractal == SLayout::NoneBox && D::RowStride == D::Cols && F::isRowMajor &&
         F::SFractal == SLayout::NoneBox && F::Rows == 1 && F::Cols == S::Cols && fp.GetValidRow() == 1 &&
-        fp.GetValidCol() == src.GetValidCol() && S::Rows == ((rows + 15) / 16) * 16 && S::Cols == src.GetValidCol() &&
-        D::Rows == rows + 1 && D::Cols == cols + 96 && dst.GetValidRow() == (Insert ? D::Rows : rows) &&
-        dst.GetValidCol() == (Insert ? D::Cols : cols) && rows >= 16 && rows <= 64 && rows % 8 == 0 && cols >= 32 &&
-        cols <= 256 && cols % 16 == 0 && row == 0 && col == 64 && Relu == ReluPreMode::NormalRelu;
+        fp.GetValidCol() == src.GetValidCol() &&
+        S::Rows == ((rows + (kSourceRowAlignment - 1)) / kSourceRowAlignment) * kSourceRowAlignment &&
+        S::Cols == src.GetValidCol() && D::Rows == rows + kDestinationExtraRows &&
+        D::Cols == cols + kDestinationExtraCols && dst.GetValidRow() == (Insert ? D::Rows : rows) &&
+        dst.GetValidCol() == (Insert ? D::Cols : cols) && rows >= kMinMeasuredRows && rows <= kMaxMeasuredRows &&
+        rows % kMeasuredRowAlignment == 0 && cols >= kMinMeasuredCols && cols <= kMaxMeasuredCols &&
+        cols % kMeasuredColAlignment == 0 && row == 0 && col == kSliceColOffset && Relu == ReluPreMode::NormalRelu;
     // Only the measured Acc-to-Vec vector-quantization path; never a Vec slice or Acc-to-Mat copy.
     return {supported ? "fp_acc_vec_offset64_relu" : "unsupported_fp_slice"};
 }
@@ -452,13 +477,16 @@ inline A5SequenceFitTag SliceFitTag(const Small& small, const Large& large, uint
     }
 }
 
+inline constexpr uint16_t kPhiloxReducedRounds = 7;
+inline constexpr uint16_t kPhiloxDefaultRounds = 10;
+
 template <uint16_t Rounds, typename D>
 inline A5SequenceFitTag RandomFitTag(const D& dst)
 {
     if (!HasSameDenseGeometry(dst, dst)) {
         return {"unsupported"};
     }
-    return {Rounds == 7 ? "dense_rounds7" : "dense_rounds10"};
+    return {Rounds == kPhiloxReducedRounds ? "dense_rounds7" : "dense_rounds10"};
 }
 
 template <typename D, typename S>
@@ -573,17 +601,17 @@ inline lightweight::DefaultInputGeometry DefaultLoadGeometryTag(const D& dst, G&
     if constexpr (requires {
                       G::layout;
                       typename G::RawDType;
-                      src.GetShape(0);
-                      src.GetStride(0);
+                      src.GetShape(GlobalTensorDim::DIM_0);
+                      src.GetStride(GlobalTensorDim::DIM_0);
                       src.data();
                   }) {
         g.supported_layout = IsMeasuredMetadataLayout<D>() && Hint == TLoadL2Hint::NormalFirstVictim &&
                              G::layout == Layout::ND && std::is_same_v<typename D::DType, typename G::RawDType> &&
-                             src.GetShape(0) == 1 && src.GetShape(1) == 1 && src.GetShape(2) == 1 &&
-                             src.GetStride(4) == 1;
-        g.src.rows = g.src.valid_rows = src.GetShape(3);
-        g.src.cols = g.src.valid_cols = src.GetShape(4);
-        g.src.row_stride = src.GetStride(3);
+                             src.GetShape(GlobalTensorDim::DIM_0) == 1 && src.GetShape(GlobalTensorDim::DIM_1) == 1 &&
+                             src.GetShape(GlobalTensorDim::DIM_2) == 1 && src.GetStride(GlobalTensorDim::DIM_4) == 1;
+        g.src.rows = g.src.valid_rows = src.GetShape(GlobalTensorDim::DIM_3);
+        g.src.cols = g.src.valid_cols = src.GetShape(GlobalTensorDim::DIM_4);
+        g.src.row_stride = src.GetStride(GlobalTensorDim::DIM_3);
         g.src.has_address = src.data() != nullptr;
         g.src.address = reinterpret_cast<uintptr_t>(src.data());
     }
@@ -641,7 +669,8 @@ inline lightweight::MetadataGeometry ComparisonGeometryTag(const D& dst, const S
     } else {
         g.scalar_rhs = true;
         if constexpr (std::is_same_v<R, bfloat16_t> && !std::is_same_v<bfloat16_t, half>) {
-            const uint32_t bits = uint32_t(std::bit_cast<uint16_t>(rhs)) << 16;
+            constexpr int kBFloat16ToFloatShift = 16;
+            const uint32_t bits = uint32_t(std::bit_cast<uint16_t>(rhs)) << kBFloat16ToFloatShift;
             g.scalar_value = double(std::bit_cast<float>(bits));
         } else
             g.scalar_value = double(rhs);
@@ -841,6 +870,10 @@ inline lightweight::TransferTileType ResolveCostModelTransferTileType(const char
     return lightweight::TransferTileType::Unknown;
 }
 
+// Index reductions pass (index destination, source, temporary) after the first destination.
+inline constexpr size_t kIndexReductionRestOperandCount = 3;
+inline constexpr size_t kIndexReductionSourcePosition = 1;
+
 inline void ExtractRecordedWorkShape(
     perf_sim::InstrRecord& r, const char* opcode, auto&& first_tile, auto&&... rest_tiles)
 {
@@ -851,10 +884,10 @@ inline void ExtractRecordedWorkShape(
     // This is also the shape contract used by the reduce costmodels.
     if constexpr (sizeof...(rest_tiles) > 0) {
         if (UsesSourceWorkShape(opcode)) {
-            if constexpr (sizeof...(rest_tiles) >= 3) {
+            if constexpr (sizeof...(rest_tiles) >= kIndexReductionRestOperandCount) {
                 if (IsIndexReductionOpcode(opcode)) {
                     auto restTuple = std::forward_as_tuple(rest_tiles...);
-                    TryTileInfo(r.rows, r.cols, r.dtype, std::get<1>(restTuple));
+                    TryTileInfo(r.rows, r.cols, r.dtype, std::get<kIndexReductionSourcePosition>(restTuple));
                 } else {
                     ExtractFirstTileInfo(r.rows, r.cols, r.dtype, rest_tiles...);
                 }
@@ -875,10 +908,10 @@ inline void ExtractRecordedModelTileInfo(
     if constexpr (sizeof...(rest_tiles) > 0) {
         // Comparison destinations pack bits; their width is not the input work size.
         if (UsesSourceWorkShape(opcode) || std::string_view(opcode) == "TCMPS") {
-            if constexpr (sizeof...(rest_tiles) >= 3) {
+            if constexpr (sizeof...(rest_tiles) >= kIndexReductionRestOperandCount) {
                 if (IsIndexReductionOpcode(opcode)) {
                     auto restTuple = std::forward_as_tuple(rest_tiles...);
-                    TryCostModelTileInfo(modelTileInfo, std::get<1>(restTuple));
+                    TryCostModelTileInfo(modelTileInfo, std::get<kIndexReductionSourcePosition>(restTuple));
                 } else {
                     ExtractFirstCostModelTileInfo(modelTileInfo, rest_tiles...);
                 }
@@ -896,11 +929,13 @@ inline void ExtractRecordedModelTileInfo(
 inline void UpdateIndexedInstrEstimateOptions(
     perf_sim::LightweightEstimateOptions& estimateOptions, const char* opcode, auto&&... rest_tiles)
 {
-    if constexpr (sizeof...(rest_tiles) >= 2) {
+    constexpr size_t kIndexedRestOperandCount = 2;
+    constexpr size_t kIndexOperandPosition = 1;
+    if constexpr (sizeof...(rest_tiles) >= kIndexedRestOperandCount) {
         if (std::string_view(opcode) == "TGATHER" || std::string_view(opcode) == "TSCATTER") {
             auto restTuple = std::forward_as_tuple(rest_tiles...);
             CostModelTileInfo indexTileInfo;
-            if (TryCostModelTileInfo(indexTileInfo, std::get<1>(restTuple))) {
+            if (TryCostModelTileInfo(indexTileInfo, std::get<kIndexOperandPosition>(restTuple))) {
                 estimateOptions.dtype2 = perf_sim::MapDType(indexTileInfo.dtype);
                 estimateOptions.has_dtype2 = true;
             }
@@ -980,6 +1015,9 @@ inline void UpdatePatternInstrEstimateOptions(
 inline perf_sim::LightweightEstimateOptions BuildRecordedEstimateOptions(
     const char* opcode, auto&& first_tile, auto&&... rest_tiles)
 {
+    constexpr size_t kScalarCompareRestOperandCount = 3;
+    constexpr size_t kScalarOperandPosition = 1;
+    constexpr size_t kConcatSourceCount = 2;
     CostModelTileInfo modelTileInfo;
     ExtractRecordedModelTileInfo(modelTileInfo, opcode, first_tile, rest_tiles...);
     perf_sim::LightweightEstimateOptions estimateOptions{
@@ -992,17 +1030,17 @@ inline perf_sim::LightweightEstimateOptions BuildRecordedEstimateOptions(
     UpdateIndexedInstrEstimateOptions(estimateOptions, opcode, rest_tiles...);
     (UpdateLightweightEstimateOptions(estimateOptions, rest_tiles), ...);
     UpdateConversionInstrEstimateOptions(estimateOptions, opcode, first_tile, rest_tiles...);
-    if constexpr (sizeof...(rest_tiles) == 3) {
+    if constexpr (sizeof...(rest_tiles) == kScalarCompareRestOperandCount) {
         if (std::string_view(opcode) == "TCMPS") {
             auto sources = std::forward_as_tuple(rest_tiles...);
             CostModelTileInfo scalarTile;
-            if (TryCostModelTileInfo(scalarTile, std::get<1>(sources))) {
+            if (TryCostModelTileInfo(scalarTile, std::get<kScalarOperandPosition>(sources))) {
                 // A scalar tile requires a broadcast load absent from the immediate-scalar fit.
                 estimateOptions.a5_op_params = "scalar_tile";
             }
         }
     }
-    if constexpr (sizeof...(rest_tiles) == 2) {
+    if constexpr (sizeof...(rest_tiles) == kConcatSourceCount) {
         if (std::string_view(opcode) == "TCONCAT") {
             auto sources = std::forward_as_tuple(rest_tiles...);
             CostModelTileInfo source0;
@@ -1091,10 +1129,10 @@ inline void RecordInstr(const char* opcode, auto&& first_tile, auto&&... rest_ti
     TryTileInfo(dstRows, dstCols, dstDtype, first_tile);
     int srcRows = 0;
     if constexpr (sizeof...(rest_tiles) > 0) {
-        if constexpr (sizeof...(rest_tiles) >= 3) {
+        if constexpr (sizeof...(rest_tiles) >= kIndexReductionRestOperandCount) {
             if (IsIndexReductionOpcode(opcode)) {
                 auto restTuple = std::forward_as_tuple(rest_tiles...);
-                TryTileInfo(srcRows, srcCols, srcDtype, std::get<1>(restTuple));
+                TryTileInfo(srcRows, srcCols, srcDtype, std::get<kIndexReductionSourcePosition>(restTuple));
             } else {
                 ExtractFirstTileInfo(srcRows, srcCols, srcDtype, rest_tiles...);
             }
@@ -3180,19 +3218,25 @@ TIMG2COL(TileData& dst, ConvTileData& src, uint16_t posM = 0, uint16_t posK = 0,
 template <typename FpTileData, typename... WaitEvents>
 PTO_INST RecordEvent SET_QUANT_VECTOR(FpTileData& fpTile, WaitEvents&... events)
 {
+    constexpr int kMeasuredScaleElements = 128;
+    constexpr uintptr_t kMinMeasuredScaleAddress = 1024;
+    constexpr uintptr_t kMaxMeasuredScaleAddress = 3072;
+    constexpr uintptr_t kScaleAddressAlignmentBytes = 128;
     detail::PtoWaitEvents(events...);
     using F = std::remove_cvref_t<FpTileData>;
     bool supported = false;
 #ifndef __PTO_AUTO__
     if constexpr (
         std::is_same_v<typename F::DType, uint64_t> && F::Loc == TileType::Scaling && F::isRowMajor &&
-        F::SFractal == SLayout::NoneBox && F::Rows == 1 && F::Cols == 128 && F::RowStride == 128) {
+        F::SFractal == SLayout::NoneBox && F::Rows == 1 && F::Cols == kMeasuredScaleElements &&
+        F::RowStride == kMeasuredScaleElements) {
         // In the costmodel's NPU TASSIGN implementation, a nonzero explicit
         // address is preserved as a pointer value. Unassigned tiles instead
         // allocate host storage in data(); these are outside this measured domain.
         const auto address = reinterpret_cast<std::uintptr_t>(fpTile.data());
-        supported = fpTile.GetValidRow() == 1 && fpTile.GetValidCol() == 128 && address >= 1024 && address <= 3072 &&
-                    address % 128 == 0;
+        supported = fpTile.GetValidRow() == 1 && fpTile.GetValidCol() == kMeasuredScaleElements &&
+                    address >= kMinMeasuredScaleAddress && address <= kMaxMeasuredScaleAddress &&
+                    address % kScaleAddressAlignmentBytes == 0;
     }
 #endif
     const pto::mocker::A5SequenceFitTag tag{supported ? "quant_vector_scaling_u64_128" : "unsupported_quant_vector"};
@@ -3203,9 +3247,12 @@ PTO_INST RecordEvent SET_QUANT_VECTOR(FpTileData& fpTile, WaitEvents&... events)
 template <typename OutType, typename... WaitEvents>
 PTO_INST RecordEvent SET_QUANT_SCALAR(float preQuantScalar, WaitEvents&... events)
 {
+    constexpr float kMinMeasuredScale = 0.5f;
+    constexpr float kMaxMeasuredScale = 7.0f;
     ::pto::detail::PtoWaitEvents(events...);
     // Positive finite scales in the measured half-output domain. Comparisons also reject NaN/Inf.
-    const bool supported = std::is_same_v<OutType, half> && preQuantScalar >= 0.5f && preQuantScalar <= 7.0f;
+    const bool supported =
+        std::is_same_v<OutType, half> && preQuantScalar >= kMinMeasuredScale && preQuantScalar <= kMaxMeasuredScale;
     const ::pto::mocker::A5SequenceFitTag tag{supported ? "quant_scalar_half_positive" : "unsupported_quant_scalar"};
     RECORD_INSTR_ONLY(SET_QUANT_SCALAR, preQuantScalar, tag);
     return RecordEvent{};
@@ -3220,7 +3267,7 @@ PTO_INST RecordEvent SETFMATRIX(ConvTileData& src, WaitEvents&... events)
         state.fmapH = src.GetFmapH();
         state.fmapW = src.GetFmapW();
         state.zeroPadding = true;
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < ::pto::mocker::kImagePaddingSides; ++i) {
             state.zeroPadding = state.zeroPadding && src.GetPadList(i) == 0;
         }
     }
@@ -3240,8 +3287,9 @@ PTO_INST RecordEvent SET_IMG2COL_RPT(ConvTileData& src, WaitEvents&... events)
     ::pto::detail::PtoWaitEvents(events...);
     if constexpr (FmatrixMode == SetFmatrixMode::FMATRIX_B_MANUAL) {
         auto& state = ::pto::mocker::ImageManualFitState();
-        state.repeatOne = src.GetRepeatTime() == 1 && src.GetRepeatMode() == 0 && src.GetRepeatStride() == 0 &&
-                          src.GetDstMposition() == 0;
+        state.repeatOne = src.GetRepeatTime() == 1 &&
+                          src.GetRepeatMode() == ::pto::mocker::kImageCalibratedRepeatMode &&
+                          src.GetRepeatStride() == 0 && src.GetDstMposition() == 0;
         state.dstStride = src.GetDstStride();
     }
     if (::pto::mocker::IsA5SequenceFit()) {
@@ -3472,7 +3520,9 @@ PTO_INST RecordEvent TFILLPAD(DstTileData& dst, SrcTileData& src, WaitEvents&...
 template <uint16_t Rounds = 10, typename DstTile, typename... WaitEvents>
 PTO_INST RecordEvent TRANDOM(DstTile& dst, TRandomKey& key, TRandomCounter& counter, WaitEvents&... events)
 {
-    static_assert(Rounds == 7 || Rounds == 10, "TRANDOM supports 7 or 10 rounds.");
+    static_assert(
+        Rounds == ::pto::mocker::kPhiloxReducedRounds || Rounds == ::pto::mocker::kPhiloxDefaultRounds,
+        "TRANDOM supports 7 or 10 rounds.");
     static_assert(
         std::is_same_v<typename DstTile::DType, int32_t> || std::is_same_v<typename DstTile::DType, uint32_t>,
         "TRANDOM requires int32 or uint32.");
@@ -3524,8 +3574,9 @@ TGATHER(TileDataD& dst, TileDataS0& src0, TileDataS1& src1, TileDataTmp& tmp, Wa
         return RecordEvent{};
     }
     if constexpr (
-        (sizeof(typename TileDataD::DType) == 2 || sizeof(typename TileDataD::DType) == 4) &&
-        sizeof(typename TileDataS1::DType) == 4 &&
+        (sizeof(typename TileDataD::DType) == sizeof(uint16_t) ||
+         sizeof(typename TileDataD::DType) == sizeof(uint32_t)) &&
+        sizeof(typename TileDataS1::DType) == sizeof(uint32_t) &&
         std::is_same_v<typename TileDataTmp::DType, typename TileDataS1::DType> &&
         std::is_same_v<typename TileDataD::DType, typename TileDataS0::DType>) {
         MAP_INSTR_IMPL(TGATHER, dst, src0, src1, tmp);
