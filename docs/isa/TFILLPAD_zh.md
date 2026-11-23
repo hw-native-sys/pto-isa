@@ -55,9 +55,28 @@ PTO_INST RecordEvent TFILLPAD(DstTileData &dst, SrcTileData &src, WaitEvents &..
 
 - `TileDataDst::PadVal != PadValue::Null`（Vec类型重载）.
 - `sizeof(TileDataDst::DType) == sizeof(TileDataSrc::DType)`且元素大小必须是 `1`， `2`，或`4`字节。
+  打包的 `fp4x2` 按 1 字节 DType 计算（每个元素两个 nibble），与 `s8`/`u8` 相同。
+  在 A5 上，`fp4x2` 的 `ValidCol`/`Cols` 按 nibble 计数（与 TLOAD/TSTORE/TCVT 相同）；填充长度为 `ceil(Cols/2)` 个打包字节。
 - `TFILLPAD`： `TileDataDst::Rows/Cols` 必须匹配 `TileDataSrc::Rows/Cols`。
 - `TFILLPAD_EXPAND`： `TileDataDst::Rows >= TileDataSrc::Rows`且`TileDataDst::Cols >= TileDataSrc::Cols`。
 - `TFILLPAD(TileData &dst, TileData &src)`（Mat 类型重载）：当 `TileData::TileType` 为 `Mat` 时，布局必须满足 `!TileData::isRowMajor && TileData::SLayout::RowMajor`，且 `PadVal` 必须为 `PadValue::Zero` 或 `PadValue::Null`。该 Mat 重载与首条 Vec 重载（`PadVal != PadValue::Null`）分属不同 SFINAE 重载，二者并不矛盾。
+
+## PadValue 映射（Vec）
+
+`PadValue::Zero` / `Min` / `Max` 是由 `PadValueMap` 决定的、与数据类型相关的位模式。
+`PadValue::Null` 为 0。自定义取值（`PadValueCustom(...)`）按原始位透传。
+
+| DType | Zero | Min | Max | 说明 |
+| --- | --- | --- | --- | --- |
+| `float` / `half` / `bfloat16_t` | `0` | `-inf` | `+inf` | IEEE inf |
+| 整型类型 | `0` | 类型最小值 | 类型最大值 | |
+| `float8_e4m3_t` | `0x00` | `0xFE` | `0x7E` | 无 inf；取有限最大/最小值 |
+| `float8_e5m2_t` | `0x00` | `0xFC` | `0x7C` | `±inf` |
+| `hifloat8_t` | `0x00` | `0xEF` | `0x6F` | HiF8 `±inf`（`S1101111`） |
+| `float4_e2m1x2_t` | `0x00` | `0xFF` | `0x77` | 两个 nibble 均为 `-6` / `+6` |
+| `float4_e1m2x2_t` | `0x00` | `0xFF` | `0x77` | 两个 nibble 均为有限最小/最大值 |
+
+`float8_e8m0_t` 没有 Zero/Min/Max 语法糖，须使用 `PadValueCustom`。低精度映射适用于 A5（fp8/fp4 另支持 CPU 仿真）。`hifloat8_t` 仅 A5 支持。
 
 ## 示例
 
