@@ -175,6 +175,17 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install numpy ml-dtypes en-dtypes
 
+      - name: Build securec for CPU SIM URMA cases
+        run: |
+          git clone --depth 1 https://github.com/openharmony/third_party_bounds_checking_function.git /tmp/boundscheck
+          make -C /tmp/boundscheck -j"$(nproc)"
+          sudo mkdir -p /opt/securec/include /opt/securec/lib64
+          sudo cp /tmp/boundscheck/include/*.h /opt/securec/include/
+          sudo cp /tmp/boundscheck/lib/libboundscheck.so /opt/securec/lib64/libc_sec.so
+
       - name: Run CPU SIM ST suite
+        env:
+          ASCEND_HOME_PATH: /opt/securec
+          LD_LIBRARY_PATH: /opt/securec/lib64
         run: |
           bash tests/run_cpu_tests.sh --generator Ninja --build-folder build/cpu_st_ci
