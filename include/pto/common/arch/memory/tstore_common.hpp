@@ -29,17 +29,17 @@ PTO_INTERNAL void TStoreMat2GmInstr(
     typename GlobalData::DType* dstAddrP = dstAddr;
     __cbuf__ typename TileData::DType* srcAddrP = srcAddr;
 
-    int64_t srcStride1 = gShape2 * srcStride2;
-    int64_t srcStride0 = gShape1 * srcStride1;
+    int64_t srcStride1 = static_cast<int64_t>(gShape2) * srcStride2;
+    int64_t srcStride0 = static_cast<int64_t>(gShape1) * srcStride1;
     for (uint32_t i = 0; i < gShape0; i++) {
-        int64_t dstAddr0 = i * gStride0;
-        int64_t srcAddr0 = i * srcStride0;
+        int64_t dstAddr0 = static_cast<int64_t>(i) * gStride0;
+        int64_t srcAddr0 = static_cast<int64_t>(i) * srcStride0;
         for (uint32_t j = 0; j < gShape1; j++) {
-            int64_t dstAddr1 = j * gStride1;
-            int64_t srcAddr1 = j * srcStride1;
+            int64_t dstAddr1 = static_cast<int64_t>(j) * gStride1;
+            int64_t srcAddr1 = static_cast<int64_t>(j) * srcStride1;
             for (uint32_t k = 0; k < gShape2; k++) {
-                srcAddrP = srcAddr + srcAddr0 + srcAddr1 + k * srcStride2;
-                dstAddrP = dstAddr + dstAddr0 + dstAddr1 + k * gStride2;
+                srcAddrP = srcAddr + srcAddr0 + srcAddr1 + static_cast<int64_t>(k) * srcStride2;
+                dstAddrP = dstAddr + dstAddr0 + dstAddr1 + static_cast<int64_t>(k) * gStride2;
                 copy_cbuf_to_gm(dstAddrP, srcAddrP, (uint8_t)0, nBurst, lenBurst, srcStride, dstStride);
             }
         }
@@ -379,18 +379,18 @@ PTO_INTERNAL void TStoreUb2gmNd2nd(
     typename GlobalData::DType* dstGlobalAddr = dstAddr;
     __ubuf__ typename TileData::DType* srcTileAddr = srcAddr;
 
-    int64_t srcStride2 = gShape3 * TileData::Cols;
-    int64_t srcStride1 = gShape2 * srcStride2;
-    int64_t srcStride0 = gShape1 * srcStride1;
+    int64_t srcStride2 = static_cast<int64_t>(gShape3) * TileData::Cols;
+    int64_t srcStride1 = static_cast<int64_t>(gShape2) * srcStride2;
+    int64_t srcStride0 = static_cast<int64_t>(gShape1) * srcStride1;
     for (uint32_t i = 0; i < gShape0; i++) {
-        int64_t dstAddr0 = i * gStride0;
-        int64_t srcAddr0 = i * srcStride0;
+        int64_t dstAddr0 = static_cast<int64_t>(i) * gStride0;
+        int64_t srcAddr0 = static_cast<int64_t>(i) * srcStride0;
         for (uint32_t j = 0; j < gShape1; j++) {
-            int64_t dstAddr1 = j * gStride1;
-            int64_t srcAddr1 = j * srcStride1;
+            int64_t dstAddr1 = static_cast<int64_t>(j) * gStride1;
+            int64_t srcAddr1 = static_cast<int64_t>(j) * srcStride1;
             for (uint32_t k = 0; k < gShape2; k++) {
-                dstGlobalAddr = dstAddr + dstAddr0 + dstAddr1 + k * gStride2;
-                srcTileAddr = srcAddr + srcAddr0 + srcAddr1 + k * srcStride2;
+                dstGlobalAddr = dstAddr + dstAddr0 + dstAddr1 + static_cast<int64_t>(k) * gStride2;
+                srcTileAddr = srcAddr + srcAddr0 + srcAddr1 + static_cast<int64_t>(k) * srcStride2;
                 TStoreUb2gmInstr<GlobalData, TileData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, gmGap, ubGap);
             }
         }
@@ -414,19 +414,19 @@ PTO_INTERNAL void TStoreUb2gmDn2dn(
     uint32_t ubGap = ((TileData::Rows - gShape3) * sizeof(typename TileData::DType)) >> SHIFT_BLOCK_BYTE;
     typename GlobalData::DType* dstGlobalAddr = dstAddr;
     __ubuf__ typename TileData::DType* srcTileAddr = srcAddr;
-    int64_t srcStride2 = TileData::Rows * gShape4;
-    int64_t srcStride1 = gShape2 * srcStride2;
-    int64_t srcStride0 = gShape1 * srcStride1;
+    int64_t srcStride2 = static_cast<int64_t>(TileData::Rows) * gShape4;
+    int64_t srcStride1 = static_cast<int64_t>(gShape2) * srcStride2;
+    int64_t srcStride0 = static_cast<int64_t>(gShape1) * srcStride1;
 
     for (uint32_t i = 0; i < gShape0; i++) {
-        int64_t srcAddr0 = i * srcStride0;
-        int64_t dstAddr0 = i * gStride0;
+        int64_t srcAddr0 = static_cast<int64_t>(i) * srcStride0;
+        int64_t dstAddr0 = static_cast<int64_t>(i) * gStride0;
         for (uint32_t j = 0; j < gShape1; j++) {
-            int64_t srcAddr1 = j * srcStride1;
-            int64_t dstAddr1 = j * gStride1;
+            int64_t srcAddr1 = static_cast<int64_t>(j) * srcStride1;
+            int64_t dstAddr1 = static_cast<int64_t>(j) * gStride1;
             for (uint32_t k = 0; k < gShape2; k++) {
-                dstGlobalAddr = dstAddr + dstAddr0 + dstAddr1 + k * gStride2;
-                srcTileAddr = srcAddr + srcAddr0 + srcAddr1 + k * srcStride2;
+                dstGlobalAddr = dstAddr + dstAddr0 + dstAddr1 + static_cast<int64_t>(k) * gStride2;
+                srcTileAddr = srcAddr + srcAddr0 + srcAddr1 + static_cast<int64_t>(k) * srcStride2;
                 TStoreUb2gmInstr<GlobalData, TileData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, gmGap, ubGap);
             }
         }
@@ -455,10 +455,10 @@ PTO_INTERNAL void TStoreUb2gmNz2nz(
     typename GlobalData::DType* dstGlobalAddr = dstAddr;
     __ubuf__ typename TileData::DType* srcTileAddr = srcAddr;
 
-    int64_t tileStride = TileData::Rows * gShape1 * gShape4;
+    int64_t tileStride = static_cast<int64_t>(TileData::Rows) * gShape1 * gShape4;
     for (uint32_t i = 0; i < gShape0; i++) {
-        dstGlobalAddr = dstAddr + i * gStride0;
-        srcTileAddr = srcAddr + i * tileStride;
+        dstGlobalAddr = dstAddr + static_cast<int64_t>(i) * gStride0;
+        srcTileAddr = srcAddr + static_cast<int64_t>(i) * tileStride;
         TStoreUb2gmInstr<GlobalData, TileData>(dstGlobalAddr, srcTileAddr, nBurst, lenBurst, gmGap, ubGap);
     }
 }
