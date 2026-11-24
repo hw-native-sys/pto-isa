@@ -3113,24 +3113,38 @@ __tf__ PTO_INTERNAL OP_NAME(TCVT) OP_TYPE(element_wise) void implTCVT(
 // Exact E2M1 widening uses byte registers throughout. The table repeats every 16
 // lanes, allowing the packed byte itself to index the low-nibble conversion.
 // ============================================================================
+
+// FP4 E2M1 (S|EE|M, exponent bias 1) and FP8 E4M3 (S|EEEE|MMM, bias 7) code layouts.
+constexpr int E2M1_SIGN_BIT_POS = 3;
+constexpr int E4M3_SIGN_BIT_POS = 7;
+constexpr int E2M1_MANTISSA_BITS = 1;
+constexpr int E4M3_MANTISSA_BITS = 3;
+// The magnitude code (exp:man) shifts up so the single E2M1 mantissa bit becomes
+// the top bit of E4M3's 3-bit mantissa; the sign bit moves from bit 3 to bit 7.
+constexpr uint16_t E2M1_TO_E4M3_FIELD_SHIFT = E4M3_MANTISSA_BITS - E2M1_MANTISSA_BITS; // = 2
+constexpr uint16_t E2M1_TO_E4M3_SIGN_SHIFT = E4M3_SIGN_BIT_POS - E2M1_SIGN_BIT_POS;    // = 4
+constexpr uint8_t E2M1_MAGNITUDE_MASK = 0x07;                                          // low 3 bits: E2M1 exp:man field
+constexpr uint8_t E2M1_SIGN_MASK = 1u << E2M1_SIGN_BIT_POS;
+constexpr uint8_t E2M1_TO_E4M3_BIAS_FIXUP = 0x30; // (7 - 1) << 3 exponent bias correction
+constexpr uint8_t E4M3_HALF_CODE = 0x30;          // E4M3 encoding of 0.5
 PTO_INTERNAL void buildFp4E2M1ToE4M3Lut(RegTensor<uint8_t>& table, MaskReg fullMask)
 {
     RegTensor<uint8_t> lane, magnitude, sign, bitMask, zero, half;
     vci((RegTensor<int8_t>&)lane, static_cast<int8_t>(0), INC_ORDER);
-    vdup(bitMask, static_cast<uint8_t>(0x07), fullMask, MODE_ZEROING);
+    vdup(bitMask, E2M1_MAGNITUDE_MASK, fullMask, MODE_ZEROING);
     vand(magnitude, lane, bitMask, fullMask, MODE_ZEROING);
-    vshls(table, magnitude, static_cast<uint16_t>(2), fullMask, MODE_ZEROING);
-    vadds(table, table, static_cast<uint8_t>(0x30), fullMask, MODE_ZEROING);
+    vshls(table, magnitude, E2M1_TO_E4M3_FIELD_SHIFT, fullMask, MODE_ZEROING);
+    vadds(table, table, E2M1_TO_E4M3_BIAS_FIXUP, fullMask, MODE_ZEROING);
     vdup(zero, static_cast<uint8_t>(0), fullMask, MODE_ZEROING);
-    vdup(half, static_cast<uint8_t>(0x30), fullMask, MODE_ZEROING);
+    vdup(half, E4M3_HALF_CODE, fullMask, MODE_ZEROING);
     MaskReg isZero, isOne;
     vcmps_eq(isZero, magnitude, static_cast<uint8_t>(0), fullMask);
     vcmps_eq(isOne, magnitude, static_cast<uint8_t>(1), fullMask);
     vsel(table, zero, table, isZero);
     vsel(table, half, table, isOne);
-    vdup(bitMask, static_cast<uint8_t>(0x08), fullMask, MODE_ZEROING);
+    vdup(bitMask, E2M1_SIGN_MASK, fullMask, MODE_ZEROING);
     vand(sign, lane, bitMask, fullMask, MODE_ZEROING);
-    vshls(sign, sign, static_cast<uint16_t>(4), fullMask, MODE_ZEROING);
+    vshls(sign, sign, E2M1_TO_E4M3_SIGN_SHIFT, fullMask, MODE_ZEROING);
     vor(table, table, sign, fullMask, MODE_ZEROING);
 }
 

@@ -10,12 +10,13 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #ifndef TINSERT_HPP
 #define TINSERT_HPP
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <type_traits>
 
+#include <pto/cpu/NPUMemoryModel.hpp>
 #include "common.hpp"
 #include "ConvTileTransfer.hpp"
 
@@ -157,7 +158,10 @@ PTO_INTERNAL void TINSERT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t inde
         const auto* srcBytes = reinterpret_cast<const uint8_t*>(src.data());
         // Splitting the NPU DMA calls preserves block order and includes the aligned row tail.
         for (size_t block = 0; block < blockCount; ++block) {
-            std::memcpy(dstBytes + block * DST_STRIDE_BYTES, srcBytes + block * srcStrideBytes, burstBytes);
+            const size_t dstOffsetBytes = block * DST_STRIDE_BYTES;
+            NPUMemoryModel::Instance().CheckAccess(dstBytes, dstOffsetBytes, burstBytes);
+            const auto* srcBegin = srcBytes + block * srcStrideBytes;
+            std::copy(srcBegin, srcBegin + burstBytes, dstBytes + dstOffsetBytes);
         }
     }
 }

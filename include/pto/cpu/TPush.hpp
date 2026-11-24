@@ -29,6 +29,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+#include <pto/common/constants.hpp>
 #include <pto/common/fifo.hpp>
 #include <pto/common/fixpipe.hpp>
 
@@ -55,6 +56,11 @@ struct PackedMxShape {
     uint32_t rows;
     uint32_t cols;
 };
+
+// One live packed MX entry occupies at least a single 16x2 E8M0 block:
+// MX_ROW_LEN * MX_COL_LEN one-byte elements.
+constexpr std::size_t PACKED_MX_MIN_ENTRY_BYTES =
+    static_cast<std::size_t>(MX_ROW_LEN) * static_cast<std::size_t>(MX_COL_LEN) * sizeof(float8_e8m0_t);
 
 // Hook providers may free the enclosing SharedStateStorage as raw bytes. Keep
 // layout records inline, with no resources that require a payload destructor.
@@ -645,11 +651,17 @@ struct TPipe {
     static constexpr bool is_v2c_ctrl = ((DIR_TYPE & Direction::DIR_V2C_CTRL) == Direction::DIR_V2C_CTRL);
     static constexpr bool is_no_split = IsNoSplit;
     static constexpr uint8_t VEC_CORE_ID_OFFSET = 16;
+    // pipeKey layout: FlagID<<56 | DirType<<48 | SlotNum<<40 | LocalSlotNum<<32 | SlotSize
+    static constexpr int PIPE_KEY_FLAG_ID_SHIFT = 56;
+    static constexpr int PIPE_KEY_DIR_TYPE_SHIFT = 48;
+    static constexpr int PIPE_KEY_SLOT_NUM_SHIFT = 40;
+    static constexpr int PIPE_KEY_LOCAL_SLOT_NUM_SHIFT = 32;
     using RingFiFo = RingFIFO<SlotSize, SlotNum, LocalSlotNum>;
     static constexpr uint32_t LOCAL_SPLIT_COPIES = is_c2v ? 2u : 1u;
     static constexpr uint32_t LOCAL_SLOT_STORAGE_SIZE = SlotSize * LOCAL_SPLIT_COPIES;
     static constexpr bool HAS_PACKED_MX = DIR_TYPE == Direction::DIR_V2C || DIR_TYPE == Direction::DIR_BOTH;
-    using PackedMxEntries = cpu_pipe::PackedMxEntries<HAS_PACKED_MX ? SlotSize / 32 : 0>;
+    using PackedMxEntries =
+        cpu_pipe::PackedMxEntries<HAS_PACKED_MX ? SlotSize / cpu_pipe::PACKED_MX_MIN_ENTRY_BYTES : 0>;
 
     struct SharedState {
         static constexpr int LANE_NUM = 2;
@@ -709,9 +721,11 @@ struct TPipe {
     PTO_INTERNAL static SharedState& GetSharedState(cpu_pipe::TransferDir direction = cpu_pipe::TransferDir::None)
     {
         const uint32_t stateIndex = (STATE_COUNT == 2 && direction == cpu_pipe::TransferDir::V2C) ? 1u : 0u;
-        constexpr uint64_t pipeKey = (static_cast<uint64_t>(FlagID) << 56) | (static_cast<uint64_t>(DirType) << 48) |
-                                     (static_cast<uint64_t>(SlotNum) << 40) |
-                                     (static_cast<uint64_t>(LocalSlotNum) << 32) | static_cast<uint64_t>(SlotSize);
+        constexpr uint64_t pipeKey = (static_cast<uint64_t>(FlagID) << PIPE_KEY_FLAG_ID_SHIFT) |
+                                     (static_cast<uint64_t>(DirType) << PIPE_KEY_DIR_TYPE_SHIFT) |
+                                     (static_cast<uint64_t>(SlotNum) << PIPE_KEY_SLOT_NUM_SHIFT) |
+                                     (static_cast<uint64_t>(LocalSlotNum) << PIPE_KEY_LOCAL_SLOT_NUM_SHIFT) |
+                                     static_cast<uint64_t>(SlotSize);
         if (cpu_sim::injected_pipe_shared_state_hook != nullptr) {
             auto* storage = reinterpret_cast<SharedStateStorage*>(
                 cpu_sim::injected_pipe_shared_state_hook(pipeKey, sizeof(SharedStateStorage)));
@@ -1123,7 +1137,8 @@ struct TPipe {
             const auto& slotStorage = sharedState.local_slot_storage[slotIndex];
             cpu_pipe::EnsureTileStorage(tile);
             if constexpr (
-                TileCons::Loc == TileType::Mat && std::is_same_v<T, float8_e8m0_t> && TileCons::SFractalSize == 32 &&
+                TileCons::Loc == TileType::Mat && std::is_same_v<T, float8_e8m0_t> &&
+                TileCons::SFractalSize == MX_BLOCK_SIZE &&
                 ((TileCons::isRowMajor && TileCons::SFractal == SLayout::RowMajor) ||
                  (!TileCons::isRowMajor && TileCons::SFractal == SLayout::ColMajor))) {
                 const auto& entries = sharedState.packed_mx_entries[slotIndex];
@@ -1334,8 +1349,9 @@ PTO_INTERNAL void TPush_v2c(Pipe& pipe, TileProd& tile, size_t slotIndex)
     if constexpr (
         Pipe::HAS_PACKED_MX && Split == TileSplitAxis::TILE_NO_SPLIT &&
         std::is_same_v<typename TileProd::DType, float8_e8m0_t> && std::is_same_v<DstT, float8_e8m0_t> &&
-        TileProd::isRowMajor && TileProd::SFractal == SLayout::RowMajor && TileProd::SFractalSize == 32 &&
-        TileProd::Rows > 0 && TileProd::Cols > 0 && TileProd::Rows % 16 == 0 && TileProd::Cols % 2 == 0) {
+        TileProd::isRowMajor && TileProd::SFractal == SLayout::RowMajor && TileProd::SFractalSize == MX_BLOCK_SIZE &&
+        TileProd::Rows > 0 && TileProd::Cols > 0 && TileProd::Rows % MX_ROW_LEN == 0 &&
+        TileProd::Cols % MX_COL_LEN == 0) {
         if (GetCpuSimArch() == NPUArch::A5 && rows == TileProd::Rows && cols == TileProd::Cols) {
             // Publish only after the copy succeeds. Bounds checking and overlap
             // removal leave room for this entry: it occupies at least 32 bytes,
