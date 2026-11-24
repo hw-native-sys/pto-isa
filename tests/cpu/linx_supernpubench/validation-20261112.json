@@ -1,0 +1,3471 @@
+{
+  "date": "2026-11-12",
+  "records": 544,
+  "numeric_records": 78,
+  "counts": {
+    "cpu": {
+      "RUN_OK_UNCHECKED": 391,
+      "BUILD_FAIL": 76,
+      "RUN_FAIL": 1,
+      "NUMERIC_PASS": 71,
+      "NUMERIC_FAIL": 4,
+      "RUN_TIMEOUT": 1
+    },
+    "upstream": {
+      "RUN_OK_UNCHECKED": 370,
+      "RUN_FAIL": 16,
+      "COMPILER_CRASH": 30,
+      "BUILD_FAIL": 60,
+      "NUMERIC_PASS": 58,
+      "NUMERIC_FAIL": 10
+    }
+  },
+  "native_passes_covered": 428,
+  "native_passes_missing_on_cpu": [],
+  "provenance": {
+    "benchmark_revision": "f6359b207dac65eca7332b4d527d6ccfca95f722",
+    "benchmark_source_sha256": "09fb42c7aa5fa65657daf7b18bcae61e574eacd720c4b783c16b2bf2f9e25e30",
+    "backend_headers_sha256": "07ec67c09d2697c5e46ff34ecfdeb9df4832b7a83b7b7eec2d1d61bc7f893088",
+    "adapter_sha256": "c5c16ed5af712c94aaeb0e68ba53f20672172bf12cfd354ad41a72a778010eb7",
+    "upstream_revision": "74d7326c521aeb1b21c52602b67c55b42b3563a3",
+    "model_revision": "34c110137a5c039f0283118749450e7966556118",
+    "model_binary_sha256": "f87d1035952fdd63668c91211d868bd084a2764eaaedc59b5b416a9d51f9d564",
+    "compiler": "GCC 15.2.1 (aarch64-linux-gnu)",
+    "toolchain": "Linx Clang 15.0.4",
+    "sanitized": false,
+    "backend_base_revision": "fdc32b373f5f01db1e42c9d1c7bbb5c306034745",
+    "manifest_sha256": "be727666fc5cdac7a430362c88bfc49ec7c610b20821563258d5699cb12ea808",
+    "header_scope": "include/pto C/C++ headers at validation time"
+  },
+  "rows": [
+    {
+      "id": "C0001",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode"
+    },
+    {
+      "id": "C0002",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0003",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0004",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0005",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0006",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0007",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode"
+    },
+    {
+      "id": "C0008",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode"
+    },
+    {
+      "id": "C0009",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0010",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0011",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0012",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0013",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0014",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0015",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: cubeStore || (block->blockAttr != nullptr && block->blockAttr->padValue == PadValue::ZERO)"
+    },
+    {
+      "id": "C0016",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0017",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for window COPY"
+    },
+    {
+      "id": "C0018",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for window COPY"
+    },
+    {
+      "id": "C0019",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0020",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0021",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for window COPY"
+    },
+    {
+      "id": "C0022",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for window COPY"
+    },
+    {
+      "id": "C0023",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for window COPY"
+    },
+    {
+      "id": "C0024",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for window COPY"
+    },
+    {
+      "id": "C0025",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0026",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0027",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0028",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0029",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0030",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0031",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0032",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: srcTile.size() == 1 && dstTile.size() == 1 && srcTile[0] && dstTile[0] && srcTile[0]->tileInfo && dstTile[0]->tileInfo && TCVTSourceViewCompatible( srcTile[0]->tileInfo->dataType, dataType) && (gfrunPto291Tcvt || (!srcTile[0]->tileInfo->subview && !dstTile[0]->tileInfo->subview)) && (bdimMask & (1u << 2)) == 0 && (gfrunPto291Tcvt ? (blockAttr == nullptr || blockAttr->layout == TileDataLayout::NORM) : (blockAttr && blockAttr->layout == TileDataLayout::NORM)) && dstTile[0]->tileInfo->layout == srcTile[0]->tileInfo->layout && srcTile[0]->tileInfo->validRow <= srcTile[0]->tileInfo->row && srcTile[0]->tileInfo->validCol <= srcTile[0]->tileInfo->col && dstTile[0]->tileInfo->validRow <= dstTile[0]->tileInfo->row && dstTile[0]->tileInfo->validCol <= dstTile[0]->tileInfo->col && CubeCellDescribePhysical(srcTile[0]->tileInfo->layout, srcTile[0]->tileInfo->dataType, srcTile[0]->tileInfo->row, srcTile[0]->tileInfo->col, sourceShape) && CubeCellDescribe",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_2d_unroll_gmma.hpp:43:5: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0033",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6423:3: error: static assertion failed due to requirement 'matrix_input_pair_legal<pto::SharedTile<pto::Tile<pto::Location::Left, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, pto::SharedTile<pto::Tile<pto::Location::Right, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, false>()': Matrix A/B dtypes must be supported inputs from one numeric class",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3662:50: error: static assertion failed: Matrix A/B dtypes must be supported inputs from one numeric class"
+    },
+    {
+      "id": "C0034",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0035",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0036",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0037",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0038",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0039",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0040",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0041",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0042",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0043",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0044",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0045",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0046",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0047",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0048",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: srcTile.size() == 1 && dstTile.size() == 1 && srcTile[0] && dstTile[0] && srcTile[0]->tileInfo && dstTile[0]->tileInfo && TCVTSourceViewCompatible( srcTile[0]->tileInfo->dataType, dataType) && (gfrunPto291Tcvt || (!srcTile[0]->tileInfo->subview && !dstTile[0]->tileInfo->subview)) && (bdimMask & (1u << 2)) == 0 && (gfrunPto291Tcvt ? (blockAttr == nullptr || blockAttr->layout == TileDataLayout::NORM) : (blockAttr && blockAttr->layout == TileDataLayout::NORM)) && dstTile[0]->tileInfo->layout == srcTile[0]->tileInfo->layout && srcTile[0]->tileInfo->validRow <= srcTile[0]->tileInfo->row && srcTile[0]->tileInfo->validCol <= srcTile[0]->tileInfo->col && dstTile[0]->tileInfo->validRow <= dstTile[0]->tileInfo->row && dstTile[0]->tileInfo->validCol <= dstTile[0]->tileInfo->col && CubeCellDescribePhysical(srcTile[0]->tileInfo->layout, srcTile[0]->tileInfo->dataType, srcTile[0]->tileInfo->row, srcTile[0]->tileInfo->col, sourceShape) && CubeCellDescribe",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_gmma_kchains.hpp:17:5: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0049",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6423:3: error: static assertion failed due to requirement 'matrix_input_pair_legal<pto::SharedTile<pto::Tile<pto::Location::Left, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, pto::SharedTile<pto::Tile<pto::Location::Right, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, false>()': Matrix A/B dtypes must be supported inputs from one numeric class",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3662:50: error: static assertion failed: Matrix A/B dtypes must be supported inputs from one numeric class"
+    },
+    {
+      "id": "C0050",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0051",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0052",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0053",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0054",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0055",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0056",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: srcTile.size() == 1 && dstTile.size() == 1 && srcTile[0] && dstTile[0] && srcTile[0]->tileInfo && dstTile[0]->tileInfo && TCVTSourceViewCompatible( srcTile[0]->tileInfo->dataType, dataType) && (gfrunPto291Tcvt || (!srcTile[0]->tileInfo->subview && !dstTile[0]->tileInfo->subview)) && (bdimMask & (1u << 2)) == 0 && (gfrunPto291Tcvt ? (blockAttr == nullptr || blockAttr->layout == TileDataLayout::NORM) : (blockAttr && blockAttr->layout == TileDataLayout::NORM)) && dstTile[0]->tileInfo->layout == srcTile[0]->tileInfo->layout && srcTile[0]->tileInfo->validRow <= srcTile[0]->tileInfo->row && srcTile[0]->tileInfo->validCol <= srcTile[0]->tileInfo->col && dstTile[0]->tileInfo->validRow <= dstTile[0]->tileInfo->row && dstTile[0]->tileInfo->validCol <= dstTile[0]->tileInfo->col && CubeCellDescribePhysical(srcTile[0]->tileInfo->layout, srcTile[0]->tileInfo->dataType, srcTile[0]->tileInfo->row, srcTile[0]->tileInfo->col, sourceShape) && CubeCellDescribe",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_2d_unroll_gmma.hpp:43:5: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0057",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6423:3: error: static assertion failed due to requirement 'matrix_input_pair_legal<pto::SharedTile<pto::Tile<pto::Location::Left, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, pto::SharedTile<pto::Tile<pto::Location::Right, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, false>()': Matrix A/B dtypes must be supported inputs from one numeric class",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3662:50: error: static assertion failed: Matrix A/B dtypes must be supported inputs from one numeric class"
+    },
+    {
+      "id": "C0058",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0059",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0060",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0061",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0062",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0063",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0064",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0065",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0066",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0067",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0068",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0069",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0070",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0071",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0072",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: srcTile.size() == 1 && dstTile.size() == 1 && srcTile[0] && dstTile[0] && srcTile[0]->tileInfo && dstTile[0]->tileInfo && TCVTSourceViewCompatible( srcTile[0]->tileInfo->dataType, dataType) && (gfrunPto291Tcvt || (!srcTile[0]->tileInfo->subview && !dstTile[0]->tileInfo->subview)) && (bdimMask & (1u << 2)) == 0 && (gfrunPto291Tcvt ? (blockAttr == nullptr || blockAttr->layout == TileDataLayout::NORM) : (blockAttr && blockAttr->layout == TileDataLayout::NORM)) && dstTile[0]->tileInfo->layout == srcTile[0]->tileInfo->layout && srcTile[0]->tileInfo->validRow <= srcTile[0]->tileInfo->row && srcTile[0]->tileInfo->validCol <= srcTile[0]->tileInfo->col && dstTile[0]->tileInfo->validRow <= dstTile[0]->tileInfo->row && dstTile[0]->tileInfo->validCol <= dstTile[0]->tileInfo->col && CubeCellDescribePhysical(srcTile[0]->tileInfo->layout, srcTile[0]->tileInfo->dataType, srcTile[0]->tileInfo->row, srcTile[0]->tileInfo->col, sourceShape) && CubeCellDescribe",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_gmma_kchains.hpp:17:5: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0073",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6423:3: error: static assertion failed due to requirement 'matrix_input_pair_legal<pto::SharedTile<pto::Tile<pto::Location::Left, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, pto::SharedTile<pto::Tile<pto::Location::Right, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, false>()': Matrix A/B dtypes must be supported inputs from one numeric class",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3662:50: error: static assertion failed: Matrix A/B dtypes must be supported inputs from one numeric class"
+    },
+    {
+      "id": "C0074",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0075",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0076",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0077",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0078",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0079",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: srcTile.size() == 1 && dstTile.size() == 1 && srcTile[0] && dstTile[0] && srcTile[0]->tileInfo && dstTile[0]->tileInfo && TCVTSourceViewCompatible( srcTile[0]->tileInfo->dataType, dataType) && (gfrunPto291Tcvt || (!srcTile[0]->tileInfo->subview && !dstTile[0]->tileInfo->subview)) && (bdimMask & (1u << 2)) == 0 && (gfrunPto291Tcvt ? (blockAttr == nullptr || blockAttr->layout == TileDataLayout::NORM) : (blockAttr && blockAttr->layout == TileDataLayout::NORM)) && dstTile[0]->tileInfo->layout == srcTile[0]->tileInfo->layout && srcTile[0]->tileInfo->validRow <= srcTile[0]->tileInfo->row && srcTile[0]->tileInfo->validCol <= srcTile[0]->tileInfo->col && dstTile[0]->tileInfo->validRow <= dstTile[0]->tileInfo->row && dstTile[0]->tileInfo->validCol <= dstTile[0]->tileInfo->col && CubeCellDescribePhysical(srcTile[0]->tileInfo->layout, srcTile[0]->tileInfo->dataType, srcTile[0]->tileInfo->row, srcTile[0]->tileInfo->col, sourceShape) && CubeCellDescribe",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_2d_unroll_gmma.hpp:43:5: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0080",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6423:3: error: static assertion failed due to requirement 'matrix_input_pair_legal<pto::SharedTile<pto::Tile<pto::Location::Left, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, pto::SharedTile<pto::Tile<pto::Location::Right, __fp4_hif4x2, 256, 64, pto::BLayout::RowMajor, 256, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, false>()': Matrix A/B dtypes must be supported inputs from one numeric class",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3662:50: error: static assertion failed: Matrix A/B dtypes must be supported inputs from one numeric class"
+    },
+    {
+      "id": "C0081",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0082",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0083",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0084",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0085",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0086",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0087",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0088",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:10751:5: error: static assertion failed due to requirement 'type_traits<float>::TypeCode == type_traits<__blkc_bf16>::TypeCode': TMATMUL RowMaxOut dtype must match final D dtype",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:6426:65: error: static assertion failed: TMATMUL RowMaxOut dtype must match final D dtype"
+    },
+    {
+      "id": "C0089",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0090",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0091",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0092",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0093",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0094",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: srcTile.size() == 1 && dstTile.size() == 1 && srcTile[0] && dstTile[0] && srcTile[0]->tileInfo && dstTile[0]->tileInfo && TCVTSourceViewCompatible( srcTile[0]->tileInfo->dataType, dataType) && (gfrunPto291Tcvt || (!srcTile[0]->tileInfo->subview && !dstTile[0]->tileInfo->subview)) && (bdimMask & (1u << 2)) == 0 && (gfrunPto291Tcvt ? (blockAttr == nullptr || blockAttr->layout == TileDataLayout::NORM) : (blockAttr && blockAttr->layout == TileDataLayout::NORM)) && dstTile[0]->tileInfo->layout == srcTile[0]->tileInfo->layout && srcTile[0]->tileInfo->validRow <= srcTile[0]->tileInfo->row && srcTile[0]->tileInfo->validCol <= srcTile[0]->tileInfo->col && dstTile[0]->tileInfo->validRow <= dstTile[0]->tileInfo->row && dstTile[0]->tileInfo->validCol <= dstTile[0]->tileInfo->col && CubeCellDescribePhysical(srcTile[0]->tileInfo->layout, srcTile[0]->tileInfo->dataType, srcTile[0]->tileInfo->row, srcTile[0]->tileInfo->col, sourceShape) && CubeCellDescribe",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_gmma_kchains.hpp:17:5: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0095",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6423:3: error: static assertion failed due to requirement 'matrix_input_pair_legal<pto::SharedTile<pto::Tile<pto::Location::Left, __fp4_hif4x2, 128, 64, pto::BLayout::RowMajor, 128, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, pto::SharedTile<pto::Tile<pto::Location::Right, __fp4_hif4x2, 256, 64, pto::BLayout::RowMajor, 256, 64, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>>, false>()': Matrix A/B dtypes must be supported inputs from one numeric class",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3662:50: error: static assertion failed: Matrix A/B dtypes must be supported inputs from one numeric class"
+    },
+    {
+      "id": "C0096",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0097",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0098",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0099",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0100",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0101",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0102",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0103",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0104",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0105",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0106",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0107",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0108",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0109",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for COPY/PHI"
+    },
+    {
+      "id": "C0110",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0111",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0112",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0113",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0114",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0115",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0116",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0117",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0118",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0119",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0120",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0121",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0122",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0123",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0124",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:87:5: error: static assertion failed due to requirement 'Tile<pto::Location::Left, float, 128, 256, pto::BLayout::RowMajor, 128, 256, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes + Tile<pto::Location::Right, float, 256, 256, pto::BLayout::RowMajor, 256, 256, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes <= kSharedTRegBytes': A/B tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:88:57: error: static assertion failed: A/B tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0125",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0126",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0127",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0128",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:87:5: error: static assertion failed due to requirement 'Tile<pto::Location::Left, float, 128, 512, pto::BLayout::RowMajor, 128, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes + Tile<pto::Location::Right, float, 64, 512, pto::BLayout::RowMajor, 64, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes <= kSharedTRegBytes': A/B tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:88:57: error: static assertion failed: A/B tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0129",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0130",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0131",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0132",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:87:5: error: static assertion failed due to requirement 'Tile<pto::Location::Left, float, 128, 512, pto::BLayout::RowMajor, 128, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes + Tile<pto::Location::Right, float, 128, 512, pto::BLayout::RowMajor, 128, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes <= kSharedTRegBytes': A/B tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:88:57: error: static assertion failed: A/B tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0133",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0134",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0135",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0136",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:87:5: error: static assertion failed due to requirement 'Tile<pto::Location::Left, float, 128, 512, pto::BLayout::RowMajor, 64, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes + Tile<pto::Location::Right, float, 64, 512, pto::BLayout::RowMajor, 64, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes <= kSharedTRegBytes': A/B tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:88:57: error: static assertion failed: A/B tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0137",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0138",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0139",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0140",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:87:5: error: static assertion failed due to requirement 'Tile<pto::Location::Left, float, 128, 512, pto::BLayout::RowMajor, 64, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes + Tile<pto::Location::Right, float, 128, 512, pto::BLayout::RowMajor, 128, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes <= kSharedTRegBytes': A/B tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:88:57: error: static assertion failed: A/B tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0141",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0142",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0143",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0144",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:87:5: error: static assertion failed due to requirement 'Tile<pto::Location::Left, float, 128, 512, pto::BLayout::RowMajor, 64, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes + Tile<pto::Location::Right, float, 64, 512, pto::BLayout::RowMajor, 64, 512, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes <= kSharedTRegBytes': A/B tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:88:57: error: static assertion failed: A/B tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0145",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0146",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0147",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0148",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0149",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0150",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0151",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0152",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0153",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:87:5: error: static assertion failed due to requirement 'Tile<pto::Location::Left, float, 128, 256, pto::BLayout::RowMajor, 128, 256, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes + Tile<pto::Location::Right, float, 256, 256, pto::BLayout::RowMajor, 256, 256, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::LogicalTileBytes <= kSharedTRegBytes': A/B tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared.hpp:88:57: error: static assertion failed: A/B tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0154",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0155",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0156",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0157",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0158",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0159",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0160",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0161",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0162",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0163",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0164",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0165",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0166",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0167",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0168",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0169",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0170",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0171",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0172",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0173",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0174",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0175",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0176",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0177",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0178",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0179",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0180",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0181",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0182",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0183",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0184",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0185",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0186",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0187",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0188",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0189",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0190",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0191",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0192",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0193",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0194",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0195",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0196",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0197",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0198",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0199",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0200",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0201",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0202",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0203",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0204",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0205",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0206",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0207",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0208",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0209",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0210",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0211",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0212",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0213",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0214",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0215",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0216",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0217",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0218",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0219",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0220",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0221",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0222",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0223",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0224",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0225",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0226",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0227",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0228",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0229",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0230",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0231",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0232",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0233",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0234",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0235",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0236",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0237",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0238",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0239",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0240",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0241",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0242",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0243",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0244",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0245",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0246",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0247",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0248",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0249",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0250",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0251",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0252",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0253",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0254",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0255",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0256",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0257",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0258",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0259",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0260",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0261",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0262",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0263",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0264",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0265",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0266",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0267",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0268",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0269",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0270",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0271",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0272",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0273",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0274",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0275",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0276",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0277",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0278",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0279",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0280",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0281",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0282",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0283",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0284",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0285",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0286",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0287",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0288",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0289",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0290",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0291",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0292",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0293",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0294",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0295",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0296",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0297",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0298",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0299",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0300",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0301",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0302",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0303",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0304",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0305",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0306",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0307",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0308",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0309",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0310",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0311",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0312",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0313",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0314",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0315",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0316",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0317",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0318",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0319",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0320",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0321",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0322",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0323",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0324",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0325",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0326",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0327",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0328",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0329",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0330",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0331",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:5: error: static assertion failed due to requirement 'kSharedOperandBytes <= kSharedTRegBytes': A/B and MX scale tiles exceed the 256 KiB SharedTReg pool",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/matmul/matmul_shared_lowp.hpp:109:39: error: static assertion failed: A/B and MX scale tiles exceed the 256 KiB SharedTReg pool"
+    },
+    {
+      "id": "C0332",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0333",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0334",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0335",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0336",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0337",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0338",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0339",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0340",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0341",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0342",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0343",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0344",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0345",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0346",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0347",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0348",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0349",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0350",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0351",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0352",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0353",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0354",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0355",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0356",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0357",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0358",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0359",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0360",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0361",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0362",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0363",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0364",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0365",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0366",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0367",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0368",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0369",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0370",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0371",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0372",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0373",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0374",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:328:34: error: static assertion failed: ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)"
+    },
+    {
+      "id": "C0375",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/kernel/multi_thread/gm_atom_dup/src/gm_atom_dup.cpp:16:18: error: no member named 'run' in namespace 'gm_atom_dup'",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/kernel/multi_thread/gm_atom_dup/src/gm_atom_dup.cpp:16:18: error: 'run' is not a member of 'gm_atom_dup'; did you mean 'topk_tiled::run'?"
+    },
+    {
+      "id": "C0376",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction at 0x0: illegal TADD operand or descriptor contract"
+    },
+    {
+      "id": "C0377",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0378",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: inst->dsts[0]->size >= destinationShape.requiredBytes && \"PTO #311 row reduction requires a fitting CUBE destination\"",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/mxquant/mxquant.hpp:84:3: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0379",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0380",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0381",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode"
+    },
+    {
+      "id": "C0382",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0383",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:17918:3: error: static assertion failed due to requirement 'pto_dependent_false_v<pto::Tile<pto::Location::Vec, int, 16, 16, pto::BLayout::RowMajor, 16, 16, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false> &, pto::Tile<pto::Location::Vec, int, 16, 16, pto::BLayout::RowMajor, 16, 16, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false> &>': TTRANS is retired (PTO-ISA 0.58.5); the TEPL 110 selector is reserved. Use TLOAD/TSTORE layout transports or the TMATMUL Shared transpose controls. ",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:9748:17: error: static assertion failed: TTRANS is retired (PTO-ISA 0.58.5); the TEPL 110 selector is reserved. Use TLOAD/TSTORE layout transports or the TMATMUL Shared transpose controls. "
+    },
+    {
+      "id": "C0384",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0385",
+      "cpu": "RUN_FAIL",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: unknown Local tile descriptor at COPY/PHI control-flow join",
+      "cpu_diagnostic": "CPU_EXCEPTION: Shared source has no producer generation"
+    },
+    {
+      "id": "C0386",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0387",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0388",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: unknown Local tile descriptor at COPY/PHI control-flow join"
+    },
+    {
+      "id": "C0389",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0390",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0391",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0392",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode"
+    },
+    {
+      "id": "C0393",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode"
+    },
+    {
+      "id": "C0394",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode"
+    },
+    {
+      "id": "C0395",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for COPY/PHI"
+    },
+    {
+      "id": "C0396",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for COPY/PHI"
+    },
+    {
+      "id": "C0397",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for COPY/PHI"
+    },
+    {
+      "id": "C0398",
+      "cpu": "BUILD_FAIL",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for COPY/PHI",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/solution/mega_moe/mega_moe_sim.hpp:345:22: error: no matching function for call to 'TMULS(mega_moe::MxDecDst&, mega_moe::MxDecDst&, const float&)'"
+    },
+    {
+      "id": "C0399",
+      "cpu": "BUILD_FAIL",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for COPY/PHI",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/solution/mega_moe/mega_moe_sim.hpp:345:22: error: no matching function for call to 'TMULS(mega_moe::MxDecDst&, mega_moe::MxDecDst&, const float&)'"
+    },
+    {
+      "id": "C0400",
+      "cpu": "BUILD_FAIL",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: cannot prove a complete Local tile descriptor for COPY/PHI",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/solution/mega_moe/mega_moe_sim.hpp:345:22: error: no matching function for call to 'TMULS(mega_moe::MxDecDst&, mega_moe::MxDecDst&, const float&)'"
+    },
+    {
+      "id": "C0401",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0402",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0403",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0404",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0405",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0406",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0407",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0408",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0409",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0410",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0411",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_srcw_data_start",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/solution/qli/qli_pto_opt_simple.hpp:110:3: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0412",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_srcw_data_start",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/solution/qli/qli_pto_opt_simple.hpp:110:3: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "C0413",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0414",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:328:34: error: static assertion failed: ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)"
+    },
+    {
+      "id": "C0415",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0416",
+      "cpu": "BUILD_FAIL",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/solution/quant/dynamic_mx_quant/src/nontail_cublas_fp8.cpp:29:73: error: expected identifier before numeric constant"
+    },
+    {
+      "id": "C0417",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/solution/quant/dynamic_mx_quant/src/nontail_ocp_fp4.cpp:35:73: error: expected identifier before numeric constant"
+    },
+    {
+      "id": "C0418",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0419",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:328:34: error: static assertion failed: ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)"
+    },
+    {
+      "id": "C0420",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0421",
+      "cpu": "BUILD_FAIL",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/solution/quant/dynamic_mx_quant/src/nontail_cublas_fp8_dyn.cpp:33:73: error: expected identifier before numeric constant"
+    },
+    {
+      "id": "C0422",
+      "cpu": "BUILD_FAIL",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/solution/quant/dynamic_mx_quant/src/nontail_cublas_fp8_splitN_dyn.cpp:30:73: error: expected identifier before numeric constant"
+    },
+    {
+      "id": "C0423",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/solution/quant/dynamic_mx_quant/src/nontail_ocp_fp4_dyn.cpp:36:73: error: expected identifier before numeric constant"
+    },
+    {
+      "id": "C0424",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/solution/quant/dynamic_mx_quant/src/nontail_ocp_fp4_splitN_dyn.cpp:34:73: error: expected identifier before numeric constant"
+    },
+    {
+      "id": "C0425",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:328:34: error: static assertion failed: ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)"
+    },
+    {
+      "id": "C0426",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0427",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0428",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0429",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0430",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0431",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0432",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6641:7: error: static assertion failed due to requirement 'Tile<pto::Location::Scaling, __fp8_e8m0, 32, 32, pto::BLayout::RowMajor, 32, 1, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::BFractal == BLayout::CubeM32 && Tile<pto::Location::Scaling, __fp8_e8m0, 32, 32, pto::BLayout::RowMajor, 32, 1, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::SFractal == SLayout::NoneBox': Local MX ScaleA must use CUBE_M32 layout",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3880:38: error: static assertion failed: Local MX ScaleA must use CUBE_M32 layout"
+    },
+    {
+      "id": "C0433",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0434",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0435",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_q_hif8_start",
+      "cpu_diagnostic": "collect2: error: ld returned 1 exit status"
+    },
+    {
+      "id": "C0436",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_q_hif8_start",
+      "cpu_diagnostic": "collect2: error: ld returned 1 exit status"
+    },
+    {
+      "id": "C0437",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_q_hif8_start",
+      "cpu_diagnostic": "collect2: error: ld returned 1 exit status"
+    },
+    {
+      "id": "C0438",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_q_hif8_start",
+      "cpu_diagnostic": "collect2: error: ld returned 1 exit status"
+    },
+    {
+      "id": "C0439",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_q_hif8_start",
+      "cpu_diagnostic": "collect2: error: ld returned 1 exit status"
+    },
+    {
+      "id": "C0440",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "ld.lld: error: undefined symbol: _binary_ori_block_table_int32_start",
+      "cpu_diagnostic": "collect2: error: ld returned 1 exit status"
+    },
+    {
+      "id": "C0441",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0442",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0443",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "C0444",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0001",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/kernel/fa/src/fa_gmma_dynamic.cpp:44:1: error: static assertion failed due to requirement '512 <= 256 && 512 <= 256'",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/test/kernel/fa/src/fa_gmma_dynamic.cpp:44:19: error: static assertion failed"
+    },
+    {
+      "id": "S0002",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_gmma_kchains.hpp:60:5: error: static assertion failed due to requirement 'kPeTm == 32': CScale requires CUBE_M32; use Tm >= 128 for this kernel",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_gmma_kchains.hpp:60:25: error: static assertion failed: CScale requires CUBE_M32; use Tm >= 128 for this kernel"
+    },
+    {
+      "id": "S0003",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_lowp_ltile.hpp:132:5: error: static assertion failed due to requirement 'kGroupM == 128': fa_lowp requires a 128-row cooperative Q tile",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/fa/fa_lowp_ltile.hpp:132:27: error: static assertion failed: fa_lowp requires a 128-row cooperative Q tile"
+    },
+    {
+      "id": "S0004",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0005",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction at 0x0: illegal TADD operand or descriptor contract"
+    },
+    {
+      "id": "S0006",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: inst->dsts[0]->size >= destinationShape.requiredBytes && \"PTO #311 row reduction requires a fitting CUBE destination\"",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/mxquant/mxquant.hpp:84:3: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "S0007",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: inst->dsts[0]->size >= destinationShape.requiredBytes && \"PTO #311 row reduction requires a fitting CUBE destination\"",
+      "cpu_diagnostic": "SuperNPUBench/benchmark/one-level-arch/kernels/basic_op/mxquant/mxquant.hpp:84:3: error: impossible constraint in 'asm'"
+    },
+    {
+      "id": "S0008",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0009",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "Makefile:37: *** Unsupported TESTCASE=mega_moe_full_sim; expected mega_moe_sim, mega_moe_sim_mt or mega_moe_sim_mt_dyn.  Stop.",
+      "cpu_diagnostic": "Makefile:37: *** Unsupported TESTCASE=mega_moe_full_sim; expected mega_moe_sim, mega_moe_sim_mt or mega_moe_sim_mt_dyn.  Stop."
+    },
+    {
+      "id": "S0010",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0011",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:374:5: error: static assertion failed due to requirement 'SrcDerivedRows == DstDerivedRows': ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:328:34: error: static assertion failed: ordinary TCVT source and destination must have equal capacity-derived physical Rows (ISA PTO-TILE-TCVT: DerivedTileRows(capacity, Col, dtype) must match; for a narrowing dtype, declare a wider physical Col on both sides, e.g. [Rows,2] with ValidCol=1, so the 128B minimum TSize does not double the destination rows)"
+    },
+    {
+      "id": "S0012",
+      "cpu": "RUN_TIMEOUT",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "stack region [0x153940c0, 0x1d3a40c0) overlaps low MMIO (UART 0x10000000, finisher 0x10009000)",
+      "cpu_diagnostic": "execution exceeded 240-second budget"
+    },
+    {
+      "id": "S0013",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "c53e2b9b24bea9637576db2e88844581b4c8859cca0ee3b97fde510069f16e22",
+      "upstream_output_sha256": "c53e2b9b24bea9637576db2e88844581b4c8859cca0ee3b97fde510069f16e22"
+    },
+    {
+      "id": "S0014",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca",
+      "upstream_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca"
+    },
+    {
+      "id": "S0015",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "256ad89ed0121e104a4bc713789d43976a082808715271ccb0ebcb2842ce4a79",
+      "upstream_output_sha256": "ddf00b643d8082c4874db106378ac018b61f2e9f5655baf3645d8cfdefc601a4"
+    },
+    {
+      "id": "S0016",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0017",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:6594:3: error: static assertion failed due to requirement 'Tile<pto::Location::Bias, float, 1, 32, pto::BLayout::RowMajor, 1, 32, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::BFractal == BLayout::CubeN8 && Tile<pto::Location::Bias, float, 1, 32, pto::BLayout::RowMajor, 1, 32, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false>::SFractal == SLayout::NoneBox': Matrix Bias must use Local CUBE_N8 layout",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:3833:32: error: static assertion failed: Matrix Bias must use Local CUBE_N8 layout"
+    },
+    {
+      "id": "S0018",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "d5dabda3a660bc40763afcf727abb8f3262174d97b22713a85b591834bef723b",
+      "upstream_output_sha256": "d5dabda3a660bc40763afcf727abb8f3262174d97b22713a85b591834bef723b"
+    },
+    {
+      "id": "S0019",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca",
+      "upstream_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca"
+    },
+    {
+      "id": "S0020",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "64d3e8cc6dab976776fd678a61c097369cca50990e1f6eadc5924bf58d8c8b76",
+      "upstream_output_sha256": "64d3e8cc6dab976776fd678a61c097369cca50990e1f6eadc5924bf58d8c8b76"
+    },
+    {
+      "id": "S0021",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca",
+      "upstream_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca"
+    },
+    {
+      "id": "S0022",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca",
+      "upstream_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca"
+    },
+    {
+      "id": "S0023",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "d5dabda3a660bc40763afcf727abb8f3262174d97b22713a85b591834bef723b",
+      "upstream_output_sha256": "d5dabda3a660bc40763afcf727abb8f3262174d97b22713a85b591834bef723b"
+    },
+    {
+      "id": "S0024",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "6e106607a5de8e1244dd4a194b2ad69337296ccdeb49e8c8d2ec9abe26533dc6",
+      "upstream_output_sha256": "075a827ad62386e75cdb5f4cabcedb030432ad5a72493808b211285da4b4e961"
+    },
+    {
+      "id": "S0025",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca",
+      "upstream_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca"
+    },
+    {
+      "id": "S0026",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "[lrelu] MQUANT-S8 MISMATCH 491/1024 first@9 got=5 ref=11 (scale=16.0 off=5 tol=1)",
+      "cpu_output_sha256": "ed48e56ccf2d87432152a05976a9bc081f50ffd2a1a19ae91c1aff9c91f0dca7",
+      "upstream_output_sha256": "7bab9a24b4e5eaedb26fb505eafa4ab72baa4cd7c365ce0d13e036681a0197c6"
+    },
+    {
+      "id": "S0027",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "da21d945ffabdd7f379dddea2fa3682c243acd4e1d0e7780e8868fc9a4d5f60d",
+      "upstream_output_sha256": "da21d945ffabdd7f379dddea2fa3682c243acd4e1d0e7780e8868fc9a4d5f60d"
+    },
+    {
+      "id": "S0028",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca",
+      "upstream_output_sha256": "80f59b94ff6f80384e758580dfcef22c0a1bc351c04b6d4740b04dc76d9bdeca"
+    },
+    {
+      "id": "S0029",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "[s8_scalar] MQUANT-S8 MISMATCH 993/1024 first@0 got=5 ref=-24 (scale=16.0 off=5 tol=1)",
+      "cpu_output_sha256": "4970a9de002ed21f0cf58bb77b8f3d7213bc6ab7bf161a44db6e3fdf60259ee0",
+      "upstream_output_sha256": "1ba794e9305174cbcd58c9e8ce282af85b353d87ccd380db3a41c3bc4615d273"
+    },
+    {
+      "id": "S0030",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "[s8_vector] MQUANT-S8 MISMATCH 993/1024 first@0 got=5 ref=-24 (scale=16.0 off=5 tol=1)",
+      "cpu_output_sha256": "4970a9de002ed21f0cf58bb77b8f3d7213bc6ab7bf161a44db6e3fdf60259ee0",
+      "upstream_output_sha256": "1ba794e9305174cbcd58c9e8ce282af85b353d87ccd380db3a41c3bc4615d273"
+    },
+    {
+      "id": "S0031",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "[scalar_generic] MQUANT-S8 MISMATCH 993/1024 first@0 got=5 ref=-24 (scale=16.0 off=5 tol=1)",
+      "cpu_output_sha256": "4970a9de002ed21f0cf58bb77b8f3d7213bc6ab7bf161a44db6e3fdf60259ee0",
+      "upstream_output_sha256": "1ba794e9305174cbcd58c9e8ce282af85b353d87ccd380db3a41c3bc4615d273"
+    },
+    {
+      "id": "S0032",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "[vquant_f16] MQUANT-F16 MISMATCH 1023/1024 first@0 got=-0.0 ref=-29.03125 (scale=16.0)",
+      "cpu_output_sha256": "fa7fdddd14581e1da8e1d0af42571d2fcc8bab83a97d9fcd72228fa038525fcd",
+      "upstream_output_sha256": "eb00dceca15ce9bbc4547df3cb2d0e31258369e902f068ce03e7c429e10803be"
+    },
+    {
+      "id": "S0033",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0034",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "848865761bda47d20a46b14d9dea4ff7a5cfd1d8c917dc71965f7022952ed63a",
+      "upstream_output_sha256": "848865761bda47d20a46b14d9dea4ff7a5cfd1d8c917dc71965f7022952ed63a"
+    },
+    {
+      "id": "S0035",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5",
+      "upstream_output_sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "id": "S0036",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "59b0894fd566a6471fcb557304f5d5fe6994d346717925c42897bc4cee96e4fc",
+      "upstream_output_sha256": "59b0894fd566a6471fcb557304f5d5fe6994d346717925c42897bc4cee96e4fc"
+    },
+    {
+      "id": "S0037",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "d9f3c8064105485f0821fb42ba0846faef768a4d1987c65cdb7dfdba1e4a5656",
+      "upstream_output_sha256": "d9f3c8064105485f0821fb42ba0846faef768a4d1987c65cdb7dfdba1e4a5656"
+    },
+    {
+      "id": "S0038",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "d9f3c8064105485f0821fb42ba0846faef768a4d1987c65cdb7dfdba1e4a5656",
+      "upstream_output_sha256": "d9f3c8064105485f0821fb42ba0846faef768a4d1987c65cdb7dfdba1e4a5656"
+    },
+    {
+      "id": "S0039",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5",
+      "upstream_output_sha256": "fea7b32778ecbdd7adee1941e98c89cf96bbc762f5f1beb0be24e36a456fbbc5"
+    },
+    {
+      "id": "S0040",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_output_sha256": "ca668ac469b4d615c831b54113ebca4b22e5dadbfb8da5bcbbf3bd850ea337c6"
+    },
+    {
+      "id": "S0041",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_output_sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b"
+    },
+    {
+      "id": "S0042",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "764efb8ec247db4db94c385e3650c63c8cd63749243c4b7c5f1c42289d71847a",
+      "upstream_output_sha256": "764efb8ec247db4db94c385e3650c63c8cd63749243c4b7c5f1c42289d71847a"
+    },
+    {
+      "id": "S0043",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_output_sha256": "0f269dd9579bf8aa10c2a4dfc7fbc08a13e87aaaf2f8c09a0118c9bbf9e93082"
+    },
+    {
+      "id": "S0044",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "088dcacb8bff72cf66ef221e8dcd3a07843bae797dccfbf1a81c2bf21cfcfdf7",
+      "upstream_output_sha256": "088dcacb8bff72cf66ef221e8dcd3a07843bae797dccfbf1a81c2bf21cfcfdf7"
+    },
+    {
+      "id": "S0045",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: dataType == DataType::UINT8 && (m32 || m16) && lb2 == 1u && bdimMask == ((1u << 0) | (1u << 1)) && iotLast && srcTile.empty() && dstTile.size() == 1u && dstTile[0] && attributesLegal && recordsLegal && canonicalRecordsLegal && \"TGPR2T requires exact M16/M32 shape, B.DATR, and 3+1 B.IOR schema\"",
+      "cpu_output_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca"
+    },
+    {
+      "id": "S0046",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "b1094fc7ee7342ef8cd379c6f664a82d173a6922f76ec580ed8918e4af5c0b89",
+      "upstream_output_sha256": "b1094fc7ee7342ef8cd379c6f664a82d173a6922f76ec580ed8918e4af5c0b89"
+    },
+    {
+      "id": "S0047",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "962767ff8e14dc0e56cfc0410fb9f22602dc457196e4bb543a68f63a362207f6",
+      "upstream_output_sha256": "962767ff8e14dc0e56cfc0410fb9f22602dc457196e4bb543a68f63a362207f6"
+    },
+    {
+      "id": "S0048",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "3ea3449e02dd7b895430624184c8c82d8e6fb7e9cf130af0cbed7ffb45a53bf3",
+      "upstream_output_sha256": "3ea3449e02dd7b895430624184c8c82d8e6fb7e9cf130af0cbed7ffb45a53bf3"
+    },
+    {
+      "id": "S0049",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_output_sha256": "559cc452765119c28bef9821858a379ef39f342b68831df5195060626b92fc12"
+    },
+    {
+      "id": "S0050",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "13913cd1033478014c5894c156de178726a2f180390489daa861b2323beccf6f",
+      "upstream_output_sha256": "13913cd1033478014c5894c156de178726a2f180390489daa861b2323beccf6f"
+    },
+    {
+      "id": "S0051",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "ba2b3f131a39e0a91dad89df4b8cd8156ff08620078e99feec1e6873a9cdd705",
+      "upstream_output_sha256": "ba2b3f131a39e0a91dad89df4b8cd8156ff08620078e99feec1e6873a9cdd705"
+    },
+    {
+      "id": "S0052",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "962767ff8e14dc0e56cfc0410fb9f22602dc457196e4bb543a68f63a362207f6",
+      "upstream_output_sha256": "962767ff8e14dc0e56cfc0410fb9f22602dc457196e4bb543a68f63a362207f6"
+    },
+    {
+      "id": "S0053",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "2d7699cb98283eba488fa805f91eaea34152eb7858209c1fb10b1e25534e17f4",
+      "upstream_output_sha256": "2d7699cb98283eba488fa805f91eaea34152eb7858209c1fb10b1e25534e17f4"
+    },
+    {
+      "id": "S0054",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "0c65849f2ce0ebc4dad970a225a0a72b6e41722b815b91ce26570d825550529a",
+      "upstream_output_sha256": "0c65849f2ce0ebc4dad970a225a0a72b6e41722b815b91ce26570d825550529a"
+    },
+    {
+      "id": "S0055",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0056",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "f54615572626b9bc6af127be72e60d017761fb208b0e623ed0fb709721c7efcf",
+      "upstream_output_sha256": "f54615572626b9bc6af127be72e60d017761fb208b0e623ed0fb709721c7efcf"
+    },
+    {
+      "id": "S0057",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:4927:3: error: static assertion failed due to requirement 'TransferType == __type_uint16 || TransferType == __type_uint32 || TransferType == __type_uint64': MGATHER_CAS transfer DataType must be U16, U32, or U64",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:2787:51: error: static assertion failed: MGATHER_CAS transfer DataType must be U16, U32, or U64"
+    },
+    {
+      "id": "S0058",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "bc22b73ea57b76809444b846ed860ab389bb0a190ce449d0042a0f5154156bf0",
+      "upstream_output_sha256": "bc22b73ea57b76809444b846ed860ab389bb0a190ce449d0042a0f5154156bf0"
+    },
+    {
+      "id": "S0059",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "b753457402d2842ac9099ae9d1955ce27ec2fc5aed83ba3f527bff7822d9e1b1",
+      "upstream_output_sha256": "b753457402d2842ac9099ae9d1955ce27ec2fc5aed83ba3f527bff7822d9e1b1"
+    },
+    {
+      "id": "S0060",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "2ff297fd2449db1c2220588d9e8db1f21a5f0cd12d3860049443afde59fc8cb8",
+      "upstream_output_sha256": "2ff297fd2449db1c2220588d9e8db1f21a5f0cd12d3860049443afde59fc8cb8"
+    },
+    {
+      "id": "S0061",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "376f3e4c9823b9711967a92abcca7e793b68fe968ca92e94fe740d6ebf2a09c4",
+      "upstream_output_sha256": "376f3e4c9823b9711967a92abcca7e793b68fe968ca92e94fe740d6ebf2a09c4"
+    },
+    {
+      "id": "S0062",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "src/range_subview.cpp:34:15: error: no matching function for call to 'subview'",
+      "cpu_diagnostic": "src/range_subview.cpp:34:29: error: no matching function for call to 'subview(Src&)'"
+    },
+    {
+      "id": "S0063",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "b4d59878a62c927dc4e701eb622bdd93901d6f3f1e535def045ddc3cb702c55f",
+      "upstream_output_sha256": "b4d59878a62c927dc4e701eb622bdd93901d6f3f1e535def045ddc3cb702c55f"
+    },
+    {
+      "id": "S0064",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0065",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0066",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0067",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0068",
+      "cpu": "RUN_OK_UNCHECKED",
+      "upstream": "RUN_OK_UNCHECKED"
+    },
+    {
+      "id": "S0069",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "d8b2252c39f5acd1c380b39a03896709db286c32326152d5cf4fba61dad76860",
+      "upstream_output_sha256": "d8b2252c39f5acd1c380b39a03896709db286c32326152d5cf4fba61dad76860"
+    },
+    {
+      "id": "S0070",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "c6aff30e554963de5491c661b4ce9d3f0bc5a1a6f8e843ac8174fdc66c9e4850",
+      "upstream_output_sha256": "c6aff30e554963de5491c661b4ce9d3f0bc5a1a6f8e843ac8174fdc66c9e4850"
+    },
+    {
+      "id": "S0071",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "a2079c0e380ab104d6daae669f830ff71aecb21abde5e2067de339562814f36c",
+      "upstream_output_sha256": "a2079c0e380ab104d6daae669f830ff71aecb21abde5e2067de339562814f36c"
+    },
+    {
+      "id": "S0072",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "47409866eb1861bed18c18f0d43401054720fdc97c2ab023f65e05cbe9eefda9",
+      "upstream_output_sha256": "47409866eb1861bed18c18f0d43401054720fdc97c2ab023f65e05cbe9eefda9"
+    },
+    {
+      "id": "S0073",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "786d9288340c505677ebde008326d777fe4acd80a6c24fdbd5095f5b031b8f64",
+      "upstream_output_sha256": "786d9288340c505677ebde008326d777fe4acd80a6c24fdbd5095f5b031b8f64"
+    },
+    {
+      "id": "S0074",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_output_sha256": "05f547001c7fa984f7cbde6eb4049658b43d078937da0c1bde49565460079d32",
+      "upstream_output_sha256": "05f547001c7fa984f7cbde6eb4049658b43d078937da0c1bde49565460079d32"
+    },
+    {
+      "id": "S0075",
+      "cpu": "BUILD_FAIL",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: tileOp == TileOp::TCI || localInteger || (!invert && !zero)",
+      "cpu_diagnostic": "g++-15: error: unrecognized command-line option '-mllvm'"
+    },
+    {
+      "id": "N0001",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 512,
+        "golden_elements": 512,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "e033eb52e7ed1e309ea873806b4c688066d6bf5f9b45125ca2c3d35fe8d1834c",
+      "upstream_comparison": {
+        "actual_elements": 512,
+        "golden_elements": 512,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "e033eb52e7ed1e309ea873806b4c688066d6bf5f9b45125ca2c3d35fe8d1834c"
+    },
+    {
+      "id": "N0002",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 512,
+        "golden_elements": 512,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "e10f9a7af5db18c9f819b55a69412fecd7e99ca0cff8fae6b8c3823a849a3202",
+      "upstream_comparison": {
+        "actual_elements": 512,
+        "golden_elements": 512,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "e10f9a7af5db18c9f819b55a69412fecd7e99ca0cff8fae6b8c3823a849a3202"
+    },
+    {
+      "id": "N0003",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "numeric comparison: {'actual_elements': 1024, 'golden_elements': 1024, 'atol': 0.0001, 'rtol': 0.0001, 'passed': False, 'max_abs': 511.0}",
+      "cpu_comparison": {
+        "actual_elements": 1024,
+        "golden_elements": 1024,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "81ca3ca78560f0f9932913e55e4492ccfd05e184fffb739ac101c49f3799aab2",
+      "upstream_comparison": {
+        "actual_elements": 1024,
+        "golden_elements": 1024,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": false,
+        "max_abs": 511.0
+      },
+      "upstream_output_sha256": "ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7"
+    },
+    {
+      "id": "N0004",
+      "cpu": "NUMERIC_FAIL",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "numeric comparison: {'actual_elements': 1024, 'golden_elements': 1024, 'atol': 0.002, 'rtol': 0.002, 'passed': False, 'max_abs': 0.282559409737587}",
+      "cpu_diagnostic": "numeric comparison: {'actual_elements': 1024, 'golden_elements': 1024, 'atol': 0.002, 'rtol': 0.002, 'passed': False, 'max_abs': 0.282559409737587}",
+      "cpu_comparison": {
+        "actual_elements": 1024,
+        "golden_elements": 1024,
+        "atol": 0.002,
+        "rtol": 0.002,
+        "passed": false,
+        "max_abs": 0.282559409737587
+      },
+      "cpu_output_sha256": "332b3b0c307f3f5e6553734441a83b6a9450e45e555222a3086517877fde5f3c",
+      "upstream_comparison": {
+        "actual_elements": 1024,
+        "golden_elements": 1024,
+        "atol": 0.002,
+        "rtol": 0.002,
+        "passed": false,
+        "max_abs": 0.282559409737587
+      },
+      "upstream_output_sha256": "c405d14af7d75de57a30e5b92fb109c4593050e42b7acf107b3cf2a25cc44553"
+    },
+    {
+      "id": "N0005",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "RUN_FAIL",
+      "upstream_diagnostic": "gfrun: illegal instruction: ASSERTION FAILED: cubeStore || (block->blockAttr != nullptr && block->blockAttr->padValue == PadValue::ZERO)",
+      "cpu_comparison": {
+        "actual_elements": 8192,
+        "golden_elements": 8192,
+        "atol": 0.02,
+        "rtol": 0.02,
+        "passed": true,
+        "max_abs": 7.62939453125e-06
+      },
+      "cpu_output_sha256": "8421c2ceebf475ca07c3c1d389dc1c2fa770fe3157f7a9cc7fc1bb8e0ff14e99"
+    },
+    {
+      "id": "N0006",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 32768,
+        "golden_elements": 32768,
+        "atol": 0.03,
+        "rtol": 0.03,
+        "passed": true,
+        "max_abs": 1.0710209608078003e-08
+      },
+      "cpu_output_sha256": "9b16a75a3fed75fe2c9fb1b8102a9685c5edf8d8f4cc5e88b6bd8c4227f1397b",
+      "upstream_comparison": {
+        "actual_elements": 32768,
+        "golden_elements": 32768,
+        "atol": 0.03,
+        "rtol": 0.03,
+        "passed": true,
+        "max_abs": 1.0710209608078003e-08
+      },
+      "upstream_output_sha256": "9b16a75a3fed75fe2c9fb1b8102a9685c5edf8d8f4cc5e88b6bd8c4227f1397b"
+    },
+    {
+      "id": "N0007",
+      "cpu": "NUMERIC_FAIL",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "numeric comparison: {'actual_elements': 8192, 'golden_elements': 8192, 'atol': 0.0001, 'rtol': 0.0001, 'passed': False, 'max_abs': 1.038467046935209e+34}",
+      "cpu_diagnostic": "numeric comparison: {'actual_elements': 8192, 'golden_elements': 8192, 'atol': 0.0001, 'rtol': 0.0001, 'passed': False, 'max_abs': 1.038467046935209e+34}",
+      "cpu_comparison": {
+        "actual_elements": 8192,
+        "golden_elements": 8192,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": false,
+        "max_abs": 1.038467046935209e+34
+      },
+      "cpu_output_sha256": "5174d2f79700b709d9d4dc4cc8e78bb1542afad3f60ecabef051fd2ee52f87c4",
+      "upstream_comparison": {
+        "actual_elements": 8192,
+        "golden_elements": 8192,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": false,
+        "max_abs": 1.038467046935209e+34
+      },
+      "upstream_output_sha256": "5174d2f79700b709d9d4dc4cc8e78bb1542afad3f60ecabef051fd2ee52f87c4"
+    },
+    {
+      "id": "N0008",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.001,
+        "rtol": 0.001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "902a46b254b5868974e8460648791d2672580c9f77af23b2bb334659a4f5ab52",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.001,
+        "rtol": 0.001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "902a46b254b5868974e8460648791d2672580c9f77af23b2bb334659a4f5ab52"
+    },
+    {
+      "id": "N0009",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.001,
+        "rtol": 0.001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "902a46b254b5868974e8460648791d2672580c9f77af23b2bb334659a4f5ab52",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.001,
+        "rtol": 0.001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "902a46b254b5868974e8460648791d2672580c9f77af23b2bb334659a4f5ab52"
+    },
+    {
+      "id": "N0010",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "8a39d2abd3999ab73c34db2476849cddf303ce389b35826850f9a700589b4a90",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "8a39d2abd3999ab73c34db2476849cddf303ce389b35826850f9a700589b4a90"
+    },
+    {
+      "id": "N0011",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 8192,
+        "golden_elements": 8192,
+        "atol": 0.002,
+        "rtol": 0.002,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "ac1caf35a1eb5bf6ae70894e64d11ff42a776363abb376d5e6197c286e5e4468",
+      "upstream_comparison": {
+        "actual_elements": 8192,
+        "golden_elements": 8192,
+        "atol": 0.002,
+        "rtol": 0.002,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "ac1caf35a1eb5bf6ae70894e64d11ff42a776363abb376d5e6197c286e5e4468"
+    },
+    {
+      "id": "N0012",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 64,
+        "golden_elements": 64,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "e20c73aa2c9b249e35104fe64dce85b9c2bd212f55dd924ef8d4cb123a4f5f1b",
+      "upstream_comparison": {
+        "actual_elements": 64,
+        "golden_elements": 64,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "e20c73aa2c9b249e35104fe64dce85b9c2bd212f55dd924ef8d4cb123a4f5f1b"
+    },
+    {
+      "id": "N0013",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "COMPILER_CRASH",
+      "upstream_diagnostic": "fatal error: error in backend: Local tile descriptor geometry does not fit its SizeCode",
+      "cpu_comparison": {
+        "actual_elements": 64,
+        "golden_elements": 64,
+        "atol": 0.002,
+        "rtol": 0.002,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "3bb367728e59a9e68b2d32855750f1f07edfc54528af21ae74197e6a4b64e22c"
+    },
+    {
+      "id": "N0014",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 64,
+        "golden_elements": 64,
+        "atol": 0.002,
+        "rtol": 0.002,
+        "passed": true,
+        "max_abs": 5.7220458984375e-06
+      },
+      "cpu_output_sha256": "23ea7a444c022e8196e57b37ab9c91527614358aa3ca6d38e651f49bc3b73d15",
+      "upstream_comparison": {
+        "actual_elements": 64,
+        "golden_elements": 64,
+        "atol": 0.002,
+        "rtol": 0.002,
+        "passed": true,
+        "max_abs": 5.7220458984375e-06
+      },
+      "upstream_output_sha256": "23ea7a444c022e8196e57b37ab9c91527614358aa3ca6d38e651f49bc3b73d15"
+    },
+    {
+      "id": "N0015",
+      "cpu": "BUILD_FAIL",
+      "upstream": "BUILD_FAIL",
+      "upstream_diagnostic": "upstream-74d7326c/include/jcore/template_asm.hpp:17918:3: error: static assertion failed due to requirement 'pto_dependent_false_v<pto::Tile<pto::Location::Vec, int, 16, 16, pto::BLayout::RowMajor, 16, 16, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false> &, pto::Tile<pto::Location::Vec, int, 16, 16, pto::BLayout::RowMajor, 16, 16, pto::SLayout::NoneBox, 512, pto::PadValue::Null, pto::CompactMode::Null, false> &>': TTRANS is retired (PTO-ISA 0.58.5); the TEPL 110 selector is reserved. Use TLOAD/TSTORE layout transports or the TMATMUL Shared transpose controls. ",
+      "cpu_diagnostic": "pto-isa-linx-native/include/pto/cpu/linx/native_api.hpp:9748:17: error: static assertion failed: TTRANS is retired (PTO-ISA 0.58.5); the TEPL 110 selector is reserved. Use TLOAD/TSTORE layout transports or the TMATMUL Shared transpose controls. "
+    },
+    {
+      "id": "N0016",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 256,
+        "golden_elements": 256,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "e62ef3e857824c26a19e3a915bbfefb7b2a4868d22e458f41ae53b2b74d0c355",
+      "upstream_comparison": {
+        "actual_elements": 256,
+        "golden_elements": 256,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "e62ef3e857824c26a19e3a915bbfefb7b2a4868d22e458f41ae53b2b74d0c355"
+    },
+    {
+      "id": "P0001",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 1.7881393432617188e-07
+      },
+      "cpu_output_sha256": "f43b6fb45df0bff8bc08d231e9e8f32852e717b34b36322ad949df1d8760d1e7",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 1.7881393432617188e-07
+      },
+      "upstream_output_sha256": "f43b6fb45df0bff8bc08d231e9e8f32852e717b34b36322ad949df1d8760d1e7"
+    },
+    {
+      "id": "P0002",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 1.7881393432617188e-07
+      },
+      "cpu_output_sha256": "f43b6fb45df0bff8bc08d231e9e8f32852e717b34b36322ad949df1d8760d1e7",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 1.7881393432617188e-07
+      },
+      "upstream_output_sha256": "f43b6fb45df0bff8bc08d231e9e8f32852e717b34b36322ad949df1d8760d1e7"
+    },
+    {
+      "id": "P0003",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.02,
+        "rtol": 0.02,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "9060e79354fa337d1202a92fd6c3a7182d57ba9facfb6877967a73d039a862a6",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.02,
+        "rtol": 0.02,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "9060e79354fa337d1202a92fd6c3a7182d57ba9facfb6877967a73d039a862a6"
+    },
+    {
+      "id": "P0004",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.02,
+        "rtol": 0.02,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "830bfe126f7fd723d981f73df5a8f1cc0101c3121fa7fe670e69f205bb80a62f",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.02,
+        "rtol": 0.02,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "830bfe126f7fd723d981f73df5a8f1cc0101c3121fa7fe670e69f205bb80a62f"
+    },
+    {
+      "id": "P0005",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.05,
+        "rtol": 0.05,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "f20d132035d640c0e723a54bfe9ec42e4a34e1570b333a35d2250c95d2e677e4",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.05,
+        "rtol": 0.05,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "f20d132035d640c0e723a54bfe9ec42e4a34e1570b333a35d2250c95d2e677e4"
+    },
+    {
+      "id": "P0006",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.05,
+        "rtol": 0.05,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "f20d132035d640c0e723a54bfe9ec42e4a34e1570b333a35d2250c95d2e677e4",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.05,
+        "rtol": 0.05,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "f20d132035d640c0e723a54bfe9ec42e4a34e1570b333a35d2250c95d2e677e4"
+    },
+    {
+      "id": "P0007",
+      "cpu": "NUMERIC_PASS",
+      "upstream": "NUMERIC_PASS",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "cpu_output_sha256": "40a20477d821e514d3d86f045b5e9400e8326fac62f3aac43cd748f96979ecf0",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": true,
+        "max_abs": 0.0
+      },
+      "upstream_output_sha256": "40a20477d821e514d3d86f045b5e9400e8326fac62f3aac43cd748f96979ecf0"
+    },
+    {
+      "id": "P0008",
+      "cpu": "NUMERIC_FAIL",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "numeric comparison: {'actual_elements': 65536, 'golden_elements': 65536, 'atol': 0.0001, 'rtol': 0.0001, 'passed': False, 'max_abs': 1144.048828125}",
+      "cpu_diagnostic": "numeric comparison: {'actual_elements': 65536, 'golden_elements': 65536, 'atol': 0.0001, 'rtol': 0.0001, 'passed': False, 'max_abs': 1144.048828125}",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": false,
+        "max_abs": 1144.048828125
+      },
+      "cpu_output_sha256": "eb3808d4ebbb4fbc433f51c68929129bd90ecceb2e8735eb7d759175c32fa738",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": false,
+        "max_abs": 1144.048828125
+      },
+      "upstream_output_sha256": "eb3808d4ebbb4fbc433f51c68929129bd90ecceb2e8735eb7d759175c32fa738"
+    },
+    {
+      "id": "P0009",
+      "cpu": "NUMERIC_FAIL",
+      "upstream": "NUMERIC_FAIL",
+      "upstream_diagnostic": "numeric comparison: {'actual_elements': 65536, 'golden_elements': 65536, 'atol': 0.0001, 'rtol': 0.0001, 'passed': False, 'max_abs': 11460.546875}",
+      "cpu_diagnostic": "numeric comparison: {'actual_elements': 65536, 'golden_elements': 65536, 'atol': 0.0001, 'rtol': 0.0001, 'passed': False, 'max_abs': 11460.546875}",
+      "cpu_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": false,
+        "max_abs": 11460.546875
+      },
+      "cpu_output_sha256": "c688e8080952ee6b2e1b4b67a0baa37ca1d4cd2613725c465bf5e57b796562b0",
+      "upstream_comparison": {
+        "actual_elements": 65536,
+        "golden_elements": 65536,
+        "atol": 0.0001,
+        "rtol": 0.0001,
+        "passed": false,
+        "max_abs": 11460.546875
+      },
+      "upstream_output_sha256": "c688e8080952ee6b2e1b4b67a0baa37ca1d4cd2613725c465bf5e57b796562b0"
+    }
+  ]
+}
