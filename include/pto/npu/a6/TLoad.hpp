@@ -431,7 +431,7 @@ PTO_INTERNAL void TLoadMxCubeNN2NN(
     typename GlobalData::DType* srcAddrP = src;
     uint32_t nBurst = gShape1;
     uint32_t lenBurst = gShape2 * gShape4 * BLOCK_LEN;
-    uint64_t gmStride = lenBurst; // EXPERIMENT 2026-07-21: was gStride1, giving burst overlap. Use lenBurst.
+    uint64_t gmStride = gStride1;
     uint32_t dstStride = BLOCK_LEN * TileData::Rows;
 
     int64_t tileStride = TileData::Rows * gShape1 * gShape3; // stitching along the col direction
@@ -454,8 +454,7 @@ PTO_INTERNAL void TLoadMxCubeZZ2ZZ(
     typename GlobalData::DType* srcAddrP = src;
     uint32_t nBurst = gShape1;
     uint32_t lenBurst = BLOCK_LEN * gShape2 * gShape4;
-    uint64_t gmStride = lenBurst; // EXPERIMENT 2026-07-21: was gStride1 (32B), giving 4x burst overlap.
-                                  // Use lenBurst so consecutive bursts advance by exactly their length.
+    uint64_t gmStride = gStride1;
     uint32_t dstStride = BLOCK_LEN * TileData::Cols;
 
     int64_t tileStride = gShape1 * gShape3 * TileData::Cols; // stitching along the row direction
