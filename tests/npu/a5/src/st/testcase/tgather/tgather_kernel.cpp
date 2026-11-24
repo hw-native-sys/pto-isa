@@ -523,6 +523,21 @@ template void LaunchTGATHER_CMP<int8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32
     int8_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
 template void LaunchTGATHER_CMP<uint8_t, uint16_t, uint32_t, 16, 128, 16, 128, 32, CmpMode::GT>(
     uint8_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
+// Direct uint16 compare-form launchers (issue #13): bypass LaunchTGATHER_CMP, whose aclFloat16
+// branch (aclFloat16 is a uint16_t typedef on the host) would capture uint16_t and reroute to the
+// half kernel.
+template <int ROW, int COL, int K, CmpMode cmpMode>
+void LaunchTGATHER_CMP_U16(uint16_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream)
+{
+    runTGATHER_CMP<uint16_t, uint16_t, uint32_t, ROW, COL, ROW, COL, K, cmpMode>
+        <<<1, nullptr, stream>>>(src, src1, out, offset);
+}
+template void LaunchTGATHER_CMP_U16<16, 128, 32, CmpMode::GT>(
+    uint16_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
+template void LaunchTGATHER_CMP_U16<16, 128, 32, CmpMode::EQ>(
+    uint16_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
+template void LaunchTGATHER_CMP_U16<16, 128, 96, CmpMode::GT>(
+    uint16_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
 // Typed K tiles (issue #366): the K tile uses the src dtype, so non-integer thresholds (0.5) are
 // directly expressible without the legacy integer encoding.
 template void LaunchTGATHER_CMP<float, float, uint32_t, 16, 64, 16, 64, 64, CmpMode::GT>(

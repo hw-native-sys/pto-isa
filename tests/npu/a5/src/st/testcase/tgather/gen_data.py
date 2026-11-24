@@ -144,6 +144,8 @@ def gen_golden_data(param: TGatherParamsBase):
             src_data = np.random.uniform(-1.0, 1.0, [src_row, src_col]).astype(src_type)
         elif getattr(param, "data_dist", "int") == "quarter":
             src_data = (np.random.randint(0, 4, [src_row, src_col]).astype(np.float32) * 0.25).astype(src_type)
+        elif getattr(param, "data_dist", "int") == "u16full":
+            src_data = np.random.randint(0, 65536, [src_row, src_col]).astype(src_type)
         else:
             src_data = np.random.randint(0, 100, [src_row, src_col]).astype(src_type)
         golden = np.zeros((dst_row, dst_col)).astype(dst_type)
@@ -224,7 +226,7 @@ class TGatherParamsCmp(TGatherParamsBase):
         #             "typed" -> K tile uses the src dtype, so non-integer thresholds are expressible
         self.k_encoding = k_encoding
         # data_dist: "int" -> randint(0, 100); "uniform01" -> uniform [0, 1); "uniform-11" -> uniform [-1, 1);
-        #            "quarter" -> {0, 0.25, 0.5, 0.75}
+        #            "quarter" -> {0, 0.25, 0.5, 0.75}; "u16full" -> randint(0, 65536) for uint16 full-range
         self.data_dist = data_dist
 
 
@@ -311,6 +313,16 @@ if __name__ == "__main__":
         TGatherParamsCmp("TGATHERTest.case8_i8_topk", np.int8, np.uint32, 16, 128, 90, 0, 32, 0),
         TGatherParamsCmp("TGATHERTest.case9_i8_topk", np.int8, np.uint32, 16, 128, 50, 0, 32, 1),
         TGatherParamsCmp("TGATHERTest.case10_u8_topk", np.uint8, np.uint32, 16, 128, 90, 0, 32, 0),
+        # uint16 compare-form regression guards (issue #13): TGather_cmp's b16 GT branch used to be
+        # gated on int16_t only, so uint16 x GT silently returned the EQ index set. case20 is the GT
+        # guard, case21 the EQ control.
+        TGatherParamsCmp("TGATHERTest.case20_u16_topk", np.uint16, np.uint32, 16, 128, 90, 0, 32, 0),
+        TGatherParamsCmp("TGATHERTest.case21_u16_topk", np.uint16, np.uint32, 16, 128, 90, 0, 32, 1),
+        # uint16 full-range GT: values span 0..65535 with a 40000 threshold, asserting the b16 GT
+        # zero-extension and unsigned compare semantics on both sides of the 0x8000 boundary.
+        TGatherParamsCmp(
+            "TGATHERTest.case22_u16_fullrange_topk", np.uint16, np.uint32, 16, 128, 40000, 0, 96, 0, "value",
+            "u16full"),
         # Typed K tile (issue #366): K tile dtype == src dtype, non-integer thresholds expressible.
         TGatherParamsCmp(
             "TGATHERTest.case11_float_gt_frac_typedk",

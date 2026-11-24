@@ -38,6 +38,11 @@ void LaunchTGATHERFp8E5M2(uint8_t* out, uint8_t* src, void* stream);
 template <int ROW, int COL, pto::MaskPattern maskPattern>
 void LaunchTGATHERFp8HiF8(uint8_t* out, uint8_t* src, void* stream);
 
+// Direct u16 compare-form launcher (issue #13): bypasses LaunchTGATHER_CMP, whose aclFloat16
+// branch (aclFloat16 is a uint16_t typedef) would capture uint16_t and reroute to the half kernel.
+template <int ROW, int COL, int K, pto::CmpMode cmpMode>
+void LaunchTGATHER_CMP_U16(uint16_t* src, uint16_t* src1, uint32_t* out, uint32_t offset, void* stream);
+
 template <typename T, int staticRows, int staticCols, int validRows, int validCols, pto::MaskPattern maskPattern>
 void LaunchTGATHERDynamic(T* out, T* src, void* stream);
 
@@ -489,9 +494,11 @@ TEST_F(TGATHERTest, case1_fp8hif8_P1111)
 
 // Compare-form TGATHER test: dst holds u32 indices, so golden is compared exactly (a float-tolerance
 // compare cannot see index diffs because any u32 index reinterpreted as f32 is a denormal).
+// kDirectU16: uint16 must bypass LaunchTGATHER_CMP, whose aclFloat16 branch (aclFloat16 is a
+// uint16_t typedef on the host) would capture uint16_t and reroute to the half kernel.
 template <
     typename srcT, typename src1T, typename dstT, uint32_t ROW, uint32_t COL, uint32_t K, pto::CmpMode cmpMode,
-    bool kTypedHalfK = false>
+    bool kTypedHalfK = false, bool kDirectU16 = false>
 void test_gather_cmp(uint32_t offset = 0)
 {
     aclInit(nullptr);
@@ -520,8 +527,12 @@ void test_gather_cmp(uint32_t offset = 0)
     aclrtMemcpy(srcDevice, size, srcHost, size, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemcpy(src1Device, scalarSize, src1Host, scalarSize, ACL_MEMCPY_HOST_TO_DEVICE);
     aclrtMemset(dstDevice, dstsize, 0, dstsize);
-    LaunchTGATHER_CMP<srcT, src1T, dstT, ROW, COL, ROW, COL, K, cmpMode, kTypedHalfK>(
-        srcDevice, src1Device, dstDevice, offset, stream);
+    if constexpr (kDirectU16) {
+        LaunchTGATHER_CMP_U16<ROW, COL, K, cmpMode>(srcDevice, src1Device, dstDevice, offset, stream);
+    } else {
+        LaunchTGATHER_CMP<srcT, src1T, dstT, ROW, COL, ROW, COL, K, cmpMode, kTypedHalfK>(
+            srcDevice, src1Device, dstDevice, offset, stream);
+    }
 
     aclrtSynchronizeStream(stream);
     aclrtMemcpy(dstHost, dstsize, dstDevice, dstsize, ACL_MEMCPY_DEVICE_TO_HOST);
@@ -571,6 +582,27 @@ TEST_F(TGATHERTest, case8_i8_topk) { test_gather_cmp<int8_t, uint16_t, uint32_t,
 TEST_F(TGATHERTest, case9_i8_topk) { test_gather_cmp<int8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::EQ>(); }
 
 TEST_F(TGATHERTest, case10_u8_topk) { test_gather_cmp<uint8_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT>(); }
+
+// uint16 compare-form regression guards (issue #13): TGather_cmp's b16 GT branch used to be gated
+// on int16_t only, so uint16 x GT fell into the EQ catch-all and silently returned the EQ index set.
+// case20 is the GT guard, case21 the EQ control.
+TEST_F(TGATHERTest, case20_u16_topk)
+{
+    test_gather_cmp<uint16_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::GT, false, true>();
+}
+
+TEST_F(TGATHERTest, case21_u16_topk)
+{
+    test_gather_cmp<uint16_t, uint16_t, uint32_t, 16, 128, 32, pto::CmpMode::EQ, false, true>();
+}
+
+// uint16 full-range GT: src values span the whole 0..65535 domain with a 40000 threshold, so the
+// b16 GT zero-extension and unsigned compare semantics are asserted on both sides of the 0x8000
+// boundary (a sign-extending load would misclassify every value in (32768, 40000]).
+TEST_F(TGATHERTest, case22_u16_fullrange_topk)
+{
+    test_gather_cmp<uint16_t, uint16_t, uint32_t, 16, 128, 96, pto::CmpMode::GT, false, true>();
+}
 
 // Typed K tile (issue #366): the K tile uses the src dtype, so non-integer float thresholds
 // (0.5, 0.1) and negative thresholds are directly expressible. dst holds u32 indices, so golden
