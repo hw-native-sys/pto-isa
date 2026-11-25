@@ -202,6 +202,7 @@ private:
 
     bool LoadDynamicSymbols()
     {
+        CloseDynamicLibs();
         dlerror();
 
         rtHandle_ = dlopen("libruntime.so", RTLD_NOW);
@@ -215,12 +216,14 @@ private:
         pRtGetDeviceInfo_ = reinterpret_cast<detail::RtGetDeviceInfoFn>(dlsym(rtHandle_, "rtGetDeviceInfo"));
         if (!pRtStreamGetSqid_ || !pRtStreamGetCqid_ || !pRtGetDeviceInfo_) {
             PTO_HOST_LOG_ERROR("SDMA", "Failed to resolve runtime symbols: " << dlerror());
+            CloseDynamicLibs();
             return false;
         }
 
         opapiHandle_ = dlopen("libopapi.so", RTLD_NOW);
         if (!opapiHandle_) {
             PTO_HOST_LOG_ERROR("SDMA", "dlopen libopapi.so failed: " << dlerror());
+            CloseDynamicLibs();
             return false;
         }
 
@@ -229,6 +232,7 @@ private:
         pAclnnExec_ = reinterpret_cast<detail::AclnnExecFn>(dlsym(opapiHandle_, "aclnnShmemSdmaStarsQuery"));
         if (!pAclnnGetWsSize_ || !pAclnnExec_) {
             PTO_HOST_LOG_ERROR("SDMA", "Failed to resolve opapi symbols: " << dlerror());
+            CloseDynamicLibs();
             return false;
         }
 
@@ -236,11 +240,13 @@ private:
             reinterpret_cast<detail::AclExecutorFn>(dlsym(opapiHandle_, "aclSetAclOpExecutorRepeatable"));
         if (!pAclSetExecutorRepeatable_) {
             PTO_HOST_LOG_ERROR("SDMA", "Failed to resolve aclSetAclOpExecutorRepeatable: " << dlerror());
+            CloseDynamicLibs();
             return false;
         }
         pAclDestroyExecutor_ = reinterpret_cast<detail::AclExecutorFn>(dlsym(opapiHandle_, "aclDestroyAclOpExecutor"));
         if (!pAclDestroyExecutor_) {
             PTO_HOST_LOG_ERROR("SDMA", "Failed to resolve aclDestroyAclOpExecutor: " << dlerror());
+            CloseDynamicLibs();
             return false;
         }
 
