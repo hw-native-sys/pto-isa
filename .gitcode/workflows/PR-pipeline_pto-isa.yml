@@ -426,7 +426,7 @@ stages:
         if: env.TARGET_BRANCH == 'master'
         runs-on: ['self-hosted','npu=4','smoke=501_ptoisa']
         container:
-          image: swr.cn-north-4.myhuaweicloud.com/pre_smoke/ubuntu24.04_x86:pre_mindspore_A5_conda_v1.1002
+          image: swr.cn-north-4.myhuaweicloud.com/pre_smoke/${{ jobs.JOB_image.outputs.PreSmoke_A5 }}
     pre:
     - type: auto
     fail-fast: true
