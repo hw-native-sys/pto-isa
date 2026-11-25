@@ -6,17 +6,17 @@ Communication operations span multiple NPUs in a parallel group. They express in
 
 | | Operation | Description | Collective Type | IR Spelling | C++ Spelling |
 |-|-----------|-------------|----------------|-------------|--------------|
-| | [TBROADCAST](../comm/TBROADCAST.md) | Broadcast data from root NPU to all ranks | One-to-all | `pto.tbroadcast` | `BROADCAST` |
-| | [TGET](../comm/TGET.md) | Get data from a remote NPU | Point-to-point | `pto.tget` | `GET` |
-| | [TGET_ASYNC](../comm/TGET_ASYNC.md) | Asynchronous variant of TGET | Point-to-point | `pto.tget_async` | `GET_ASYNC` |
-| | [TNOTIFY](../comm/TNOTIFY.md) | Notify other ranks of an event | Synchronization | `pto.tnotify` | `NOTIFY` |
-| | [TPUT](../comm/TPUT.md) | Put data to a remote NPU | Point-to-point | `pto.tput` | `PUT` |
-| | [TPUT_ASYNC](../comm/TPUT_ASYNC.md) | Asynchronous variant of TPUT | Point-to-point | `pto.tput_async` | `PUT_ASYNC` |
-| | [TREDUCE](../comm/TREDUCE.md) | Collective reduction across all ranks | All-to-one | `pto.treduce` | `REDUCE` |
-| | [TSCATTER](../comm/TSCATTER.md) | Scatter data from root to all ranks | One-to-all | `pto.tscatter` | `SCATTER` |
-| | [TGATHER](../comm/TGATHER.md) | Gather data from all ranks to root | All-to-one | `pto.tgather` | `GATHER` |
-| | [TTEST](../comm/TTEST.md) | Test if a notification has been received | Synchronization | `pto.ttest` | `TEST` |
-| | [TWAIT](../comm/TWAIT.md) | Wait for a notification | Synchronization | `pto.twait` | `WAIT` |
+| | [TBROADCAST](TBROADCAST.md) | Broadcast data from root NPU to all ranks | One-to-all | `pto.tbroadcast` | `BROADCAST` |
+| | [TGET](TGET.md) | Get data from a remote NPU | Point-to-point | `pto.tget` | `GET` |
+| | [TGET_ASYNC](TGET_ASYNC.md) | Asynchronous variant of TGET | Point-to-point | `pto.tget_async` | `GET_ASYNC` |
+| | [TNOTIFY](TNOTIFY.md) | Notify other ranks of an event | Synchronization | `pto.tnotify` | `NOTIFY` |
+| | [TPUT](TPUT.md) | Put data to a remote NPU | Point-to-point | `pto.tput` | `PUT` |
+| | [TPUT_ASYNC](TPUT_ASYNC.md) | Asynchronous variant of TPUT | Point-to-point | `pto.tput_async` | `PUT_ASYNC` |
+| | [TREDUCE](TREDUCE.md) | Collective reduction across all ranks | All-to-one | `pto.treduce` | `REDUCE` |
+| | [TSCATTER](TSCATTER.md) | Scatter data from root to all ranks | One-to-all | `pto.tscatter` | `SCATTER` |
+| | [TGATHER](TGATHER.md) | Gather data from all ranks to root | All-to-one | `pto.tgather` | `GATHER` |
+| | [TTEST](TTEST.md) | Test if a notification has been received | Synchronization | `pto.ttest` | `TEST` |
+| | [TWAIT](TWAIT.md) | Wait for a notification | Synchronization | `pto.twait` | `WAIT` |
 
 ## Mechanism
 
@@ -102,6 +102,6 @@ When the GlobalTensor exceeds the UB tile capacity in rows and/or columns, trans
 
 ## See Also
 
-- [Communication instruction set](../instruction-families/communication-families.md) — Instruction set overview
-- [Communication ISA](../instruction-families/communication-families.md) — Instruction set description
-- [Ordering and Synchronization](../machine-model/ordering-and-synchronization.md) — PTO synchronization model
+- [Communication instruction set](../../../isa/instruction-families/communication-families.md) — Instruction set overview
+- [Communication ISA](../../../isa/instruction-families/communication-families.md) — Instruction set description
+- [Ordering and Synchronization](../../../isa/machine-model/ordering-and-synchronization.md) — PTO synchronization model

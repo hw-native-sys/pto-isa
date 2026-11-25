@@ -63,6 +63,6 @@
 
 ## 相关页面
 
-- [通信指令集](../instruction-families/communication-families_zh.md)
-- [通信指令族](../instruction-families/communication-families_zh.md)
-- [PTO 通信参考入口](../comm/README_zh.md)
+- [通信指令集](../../../isa/instruction-families/communication-families_zh.md)
+- [通信指令族](../../../isa/instruction-families/communication-families_zh.md)
+- [PTO 通信参考入口](README.md)

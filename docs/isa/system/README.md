@@ -18,4 +18,4 @@ System scheduling instructions are PTO ISA instructions. Their effects are visib
 
 - [Instruction Set Overview](../instruction-families/README.md)
 - [Tile ISA Reference](../tile/README.md)
-- [Communication ISA Reference](../comm/README.md)
+- [Communication ISA Reference](../../en/isa/comm/README.md)

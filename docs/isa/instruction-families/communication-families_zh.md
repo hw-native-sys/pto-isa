@@ -43,5 +43,5 @@
 ## 相关页面
 
 - [通信指令集](./communication-families_zh.md)
-- [通信指令参考](../comm/README_zh.md)
-- [通信运行时契约](../comm/communication-runtime_zh.md)
+- [通信指令参考](../../zh/isa/comm/README.md)
+- [通信运行时契约](../../zh/isa/comm/communication-runtime.md)
