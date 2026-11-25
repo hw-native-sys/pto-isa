@@ -96,7 +96,7 @@ Auto mode compilation will allow users to avoid having to use the event model to
 
 In the default mode of PTO compilation, after instantiating `Tile` variables, we would need to complement them with a `TASSIGN` instruction to manually assign a dedicated buffer address that it operates on. However in auto mode, this is not required anymore. By simply instantiating the `Tile` variable the compiler will automatically allocate the buffer addresses under the hood for the user.
 
-## PTO AUTO Documents
+# PTO AUTO Documents
 
 More detailed documentations of the PTO AUTO programming and compilations are organized into the following documents.
 

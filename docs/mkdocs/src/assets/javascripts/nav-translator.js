@@ -27,19 +27,17 @@
     // ── translation table ────────────────────────────────────────────────────
 
     var NAV_TRANSLATIONS = {
-        'PTO ISA Manual': 'PTO ISA 手册',
+        'Home': '\u9996\u9875',
+        'Getting Started': '\u5feb\u901f\u5f00\u59cb',
         'PTO Virtual ISA Manual': 'PTO \u865a\u62df ISA \u624b\u518c',
-        'Introduction': '引言',
-        'What Is PTO VISA?': '什么是 PTO 指令集架构？',
-        'What Is PTO ISA?': '什么是 PTO 指令集架构？',
-        'Parallel Tile Operation ISA Version 1.0': 'PTO指令集架构 1.0',
-        'Goals Of PTO': 'PTO 的目标',
-        'Why PTO Exists': '为什么需要 PTO',
-        'PTO ISA Version 1.0': 'PTO指令集架构 1.0',
-        'Design Goals And Boundaries': '设计目标与边界',
-        'Scope And Boundaries': '范围与边界',
         'Programming Model': '\u7f16\u7a0b\u6a21\u578b',
+        'ISA Reference': 'ISA \u53c2\u8003',
         'Machine Model': '\u673a\u5668\u6a21\u578b',
+        'Examples': '\u793a\u4f8b',
+        'Examples & Kernels': '\u793a\u4f8b\u4e0e\u7b97\u5b50',
+        'Documentation': '\u6587\u6863',
+        'Full Index': '\u5b8c\u6574\u7d22\u5f15',
+        'Preface': '\u524d\u8a00',
         'Overview': '\u6982\u8ff0',
         'Execution Model': '\u6267\u884c\u6a21\u578b',
         'State and Types': '\u72b6\u6001\u4e0e\u7c7b\u578b',
@@ -207,11 +205,8 @@
             if (!siteTitle.hasAttribute('data-original-title')) {
                 siteTitle.setAttribute('data-original-title', siteTitle.textContent);
             }
-            var originalTitle = siteTitle.getAttribute('data-original-title') || '';
-            if (originalTitle.indexOf('PTO ISA Manual') !== -1) {
-                siteTitle.textContent = 'PTO ISA 手册';
-            } else if (originalTitle.indexOf('PTO Virtual ISA') !== -1) {
-                siteTitle.textContent = 'PTO 虚拟 ISA 手册';
+            if ((siteTitle.getAttribute('data-original-title') || '').indexOf('PTO Virtual ISA') !== -1) {
+                siteTitle.textContent = 'PTO \u865a\u62df ISA \u67b6\u6784\u624b\u518c';
             }
         }
     }

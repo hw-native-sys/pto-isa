@@ -1,7 +1,4 @@
-site_name: PTO ISA Manual
-site_description: PTO ISA is a multi-target virtual ISA for tile, vector, scalar, and communication operations. Read the programming model, machine model, and grouped instruction reference in one manual.
-site_url: https://pto-isa.github.io/
-repo_url: https://github.com/PTO-ISA/pto-isa
+site_name: PTO Virtual ISA Architectural Manual
 
 theme:
   name: readthedocs
@@ -9,50 +6,6 @@ theme:
 
 docs_dir: src
 site_dir: ../../site
-exclude_docs: |
-  /README.md
-  /README_zh.md
-  .claude/**
-  .codex/**
-  agents/**
-  AGENTS.md
-  CONTRIBUTING.md
-  CONTRIBUTING_zh.md
-  ReleaseNote.md
-  ReleaseNote_zh.md
-  SECURITY.md
-  SECURITY_zh.md
-  all-pages.md
-  all-pages_zh.md
-  cmake/**
-  demos/**
-  docs/HL_*.md
-  docs/PTOISA.md
-  docs/PTOISA_zh.md
-  docs/README.md
-  docs/README_zh.md
-  docs/agent.md
-  docs/auto_mode/**
-  docs/coding/**
-  docs/menu_apis.md
-  docs/machine/**
-  docs/reference/**
-  docs/tools/**
-  docs/website.md
-  docs/website_zh.md
-  include/**
-  kernels/**
-  manual/**
-  scripts/**
-  tests/**
-
-validation:
-  nav:
-    omitted_files: ignore
-  links:
-    not_found: ignore
-    unrecognized_links: ignore
-    anchors: ignore
 
 plugins:
   - gen-files:
@@ -63,11 +16,6 @@ plugins:
 markdown_extensions:
   - toc:
       permalink: true
-  - admonition
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
   - pymdownx.arithmatex:
       generic: true
       inline_syntax: [dollar, round]
@@ -77,10 +25,9 @@ extra_javascript:
   - assets/javascripts/mathjax.js
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
   - assets/javascripts/nav-collapse.js
-  - assets/javascripts/language-switcher.js
-  - assets/javascripts/pto-syntax.js
-  - assets/javascripts/site-chrome.js
   - assets/javascripts/nav-translator.js
+  - assets/javascripts/language-switcher.js
+  - assets/javascripts/chinese-navigation.js
 
 extra_css:
   - assets/stylesheets/custom.css

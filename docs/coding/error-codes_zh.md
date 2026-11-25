@@ -2,22 +2,20 @@
 
 本文档汇总 PTO 开发中常见的失败现象及排查建议。示例中的报错信息仅用于说明问题类型，实际诊断信息会随编译工具链、运行时环境和宿主系统而变化。
 
-______________________________________________________________________
+---
 
 ## 1. 编译错误 (E001-E099)
 
 ### E001: 头文件未找到
 
 **错误信息**：
-
-```text
+```
 error: pto/pto-inst.hpp: No such file or directory
 ```
 
 **原因**：PTO 库路径未正确设置
 
 **解决方案**：
-
 ```bash
 # 方法1：设置环境变量
 export PTO_LIB_PATH=/path/to/pto-isa
@@ -32,8 +30,7 @@ g++ -I/path/to/pto-isa/include src/my_operator.cpp
 ### E002: 静态断言失败 - Tile 对齐
 
 **错误信息**：
-
-```text
+```
 static_assert failed: "Tile shape not aligned"
 static_assert failed: "Tile width must be multiple of 16"
 ```
@@ -41,7 +38,6 @@ static_assert failed: "Tile width must be multiple of 16"
 **原因**：Tile 尺寸不满足对齐要求
 
 **解决方案**：
-
 ```cpp
 // ❌ 错误：宽度 250 不是 16 的倍数
 using TileT = Tile<TileType::Vec, float, 16, 250>;
@@ -58,15 +54,13 @@ using TileT = Tile<TileType::Vec, float, 16, 256>;
 ### E003: 类型不匹配
 
 **错误信息**：
-
-```text
+```
 error: no matching function for call to 'TADD(Tile<float>&, Tile<half>&)'
 ```
 
 **原因**：Tile 的元素类型或形状不一致。
 
 **解决方案**：
-
 ```cpp
 // ❌ 错误：类型不匹配
 Tile<TileType::Vec, float, 16, 256> tile_a;
@@ -83,8 +77,7 @@ TADD(tile_c, tile_a, tile_b);  // 正确
 ### E004: C++ 标准版本不支持
 
 **错误信息**：
-
-```text
+```
 error: 'concept' does not name a type
 error: expected ';' before 'requires'
 ```
@@ -92,7 +85,6 @@ error: expected ';' before 'requires'
 **原因**：编译器不支持 C++20
 
 **解决方案**：
-
 ```bash
 # 检查编译器版本
 g++ --version  # 需要 >= 13.0
@@ -109,15 +101,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ### E005: 模板参数错误
 
 **错误信息**：
-
-```text
+```
 error: template argument 3 is invalid
 ```
 
 **原因**：Tile 模板参数不正确
 
 **解决方案**：
-
 ```cpp
 // Tile 模板参数：
 // Tile<TileType, DataType, Height, Width>
@@ -138,8 +128,7 @@ Tile<TileType::Vec, float, 16, 256> tile;
 ### E006: 宏定义冲突
 
 **错误信息**：
-
-```text
+```
 error: 'TILE_SIZE' was not declared in this scope
 warning: 'TILE_SIZE' macro redefined
 ```
@@ -147,7 +136,6 @@ warning: 'TILE_SIZE' macro redefined
 **原因**：宏定义冲突或未定义
 
 **解决方案**：
-
 ```cpp
 // 使用 constexpr 代替宏
 constexpr int TILE_SIZE = 256;
@@ -163,15 +151,14 @@ namespace my_op {
 #endif
 ```
 
-______________________________________________________________________
+---
 
 ## 2. 链接错误 (L001-L099)
 
 ### L001: 未定义的引用
 
 **错误信息**：
-
-```text
+```
 undefined reference to `pto::TLOAD(...)`
 undefined reference to `pto::TSTORE(...)`
 ```
@@ -179,7 +166,6 @@ undefined reference to `pto::TSTORE(...)`
 **原因**：未链接 PTO 库
 
 **解决方案**：
-
 ```bash
 # 手动链接
 g++ build/my_operator.o -L/path/to/pto/lib -lpto -o build/my_operator
@@ -191,15 +177,13 @@ target_link_libraries(my_operator PRIVATE PTO::pto)
 ### L002: 找不到共享库
 
 **错误信息**：
-
-```text
+```
 error while loading shared libraries: libpto.so: cannot open shared object file
 ```
 
 **原因**：运行时找不到共享库
 
 **解决方案**：
-
 ```bash
 # 方法1：设置 LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/path/to/pto/lib:$LD_LIBRARY_PATH
@@ -218,15 +202,13 @@ ldd ./my_operator
 ### L003: 符号版本不匹配
 
 **错误信息**：
-
-```text
+```
 version `GLIBCXX_3.4.30' not found
 ```
 
 **原因**：编译器版本与运行时库版本不匹配
 
 **解决方案**：
-
 ```bash
 # 检查可用版本
 strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep GLIBCXX
@@ -238,15 +220,14 @@ sudo apt install g++-13
 g++ -static-libstdc++ src/my_operator.cpp
 ```
 
-______________________________________________________________________
+---
 
 ## 3. 运行时错误 (R001-R099)
 
 ### R001: Kernel 启动失败
 
 **错误信息**：
-
-```text
+```
 PTO_ERROR: Failed to launch kernel
 Error code: -1
 ```
@@ -254,7 +235,6 @@ Error code: -1
 **原因**：Kernel 参数错误或资源不足
 
 **解决方案**：
-
 ```cpp
 // 检查 block_num
 int block_num = get_available_cores();  // 不要超过可用核心数
@@ -271,8 +251,7 @@ EXEC_KERNEL_CMD(MyKernel, 24, float_ptr, ...);
 ### R002: 断言失败
 
 **错误信息**：
-
-```text
+```
 PTO_ASSERT failed: condition 'size <= MAX_SIZE'
 File: my_operator.cpp, Line: 42
 ```
@@ -280,7 +259,6 @@ File: my_operator.cpp, Line: 42
 **原因**：运行时条件检查失败
 
 **解决方案**：
-
 ```cpp
 // 添加输入验证
 void my_kernel(..., uint32_t size) {
@@ -298,15 +276,13 @@ void my_kernel(..., uint32_t size) {
 ### R003: 空指针解引用
 
 **错误信息**：
-
-```text
+```
 Segmentation fault (core dumped)
 ```
 
 **原因**：访问了空指针或无效内存
 
 **解决方案**：
-
 ```cpp
 // 添加空指针检查
 void my_kernel(__gm__ float* out, __gm__ const float* in) {
@@ -326,15 +302,13 @@ g++ -fsanitize=address src/my_operator.cpp
 ### R004: 数组越界
 
 **错误信息**：
-
-```text
+```
 AddressSanitizer: heap-buffer-overflow
 ```
 
 **原因**：访问了数组边界之外的内存
 
 **解决方案**：
-
 ```cpp
 // 添加边界检查
 for (int i = start; i < end; i += TILE_SIZE) {
@@ -345,15 +319,14 @@ for (int i = start; i < end; i += TILE_SIZE) {
 }
 ```
 
-______________________________________________________________________
+---
 
 ## 4. 内存错误 (M001-M099)
 
 ### M001: L1 内存溢出
 
 **错误信息**：
-
-```text
+```
 PTO_ASSERT: L1 memory overflow
 Required: 600 KB, Available: 512 KB
 ```
@@ -361,7 +334,6 @@ Required: 600 KB, Available: 512 KB
 **原因**：Tile 占用的 L1 内存超过容量
 
 **解决方案**：
-
 ```cpp
 // 方法1：减小 Tile 尺寸
 // ❌ 错误：16 × 512 × 4 Byte = 32 KB，多个 Tile 超出 L1
@@ -389,15 +361,13 @@ for (int i = 1; i < N; i++) {
 ### M002: GM 内存不足
 
 **错误信息**：
-
-```text
+```
 Failed to allocate GM memory: size = 4 GB
 ```
 
 **原因**：全局内存不足
 
 **解决方案**：
-
 ```cpp
 // 分块处理
 const int CHUNK_SIZE = 1024 * 1024;  // 1M 元素
@@ -417,7 +387,6 @@ Memory leak detected: 1 MB not freed
 **原因**：动态分配的内存未释放
 
 **解决方案**：
-
 ```cpp
 // 使用 RAII
 class TileBuffer {
@@ -441,8 +410,7 @@ std::unique_ptr<float[]> buffer(new float[size]);
 ### M004: 内存对齐错误
 
 **错误信息**：
-
-```text
+```
 PTO_ASSERT: Memory address not aligned
 Address: 0x12345678, Required alignment: 64
 ```
@@ -450,7 +418,6 @@ Address: 0x12345678, Required alignment: 64
 **原因**：内存地址不满足对齐要求
 
 **解决方案**：
-
 ```cpp
 // 使用 aligned_alloc
 void* ptr = aligned_alloc(64, size);
@@ -462,15 +429,14 @@ float* ptr = new(std::align_val_t{64}) float[size];
 assert(reinterpret_cast<uintptr_t>(ptr) % 64 == 0);
 ```
 
-______________________________________________________________________
+---
 
 ## 5. 数值错误 (N001-N099)
 
 ### N001: 数值精度误差
 
 **错误信息**：
-
-```text
+```
 Numerical error: max_diff = 1e-2
 Expected: 1.0, Got: 1.01
 ```
@@ -478,7 +444,6 @@ Expected: 1.0, Got: 1.01
 **原因**：浮点精度问题或算法误差
 
 **解决方案**：
-
 ```cpp
 // 方法1：使用更高精度
 // ❌ half (FP16): 精度 ~1e-3
@@ -504,8 +469,7 @@ for (int i = 0; i < n; i++) {
 ### N002: NaN 或 Inf
 
 **错误信息**：
-
-```text
+```
 Numerical error: NaN detected
 Numerical error: Inf detected
 ```
@@ -513,7 +477,6 @@ Numerical error: Inf detected
 **原因**：除零、溢出或无效操作
 
 **解决方案**：
-
 ```cpp
 // 添加数值检查
 void check_numerical_stability(const Tile& tile) {
@@ -539,15 +502,13 @@ TCLIP(tile, tile, -1e10f, 1e10f);  // 限制范围
 ### N003: 数值溢出
 
 **错误信息**：
-
-```text
+```
 Numerical overflow: value exceeds float32 range
 ```
 
 **原因**：计算结果超出数据类型范围
 
 **解决方案**：
-
 ```cpp
 // 使用数值稳定的算法
 // ❌ 不稳定：直接计算 exp
@@ -559,7 +520,7 @@ TROWEXPANDSUB(shifted, x, max_val);
 TEXP(result, shifted);  // 不会溢出
 ```
 
-______________________________________________________________________
+---
 
 ## 6. 性能问题 (P001-P099)
 
@@ -568,7 +529,6 @@ ______________________________________________________________________
 **症状**：算子运行时间远超预期
 
 **诊断**：
-
 ```bash
 # 使用 msprof 分析
 msprof --output=./profiling_data \
@@ -582,7 +542,6 @@ msprof --export=on --output=./profiling_data
 **常见原因和解决方案**：
 
 1. **内存访问瓶颈**
-
 ```cpp
 // ❌ 问题：频繁访问 GM
 for (int i = 0; i < N; i++) {
@@ -602,8 +561,7 @@ for (int i = 0; i < N; i += BATCH) {
 }
 ```
 
-1. **流水线效率低**
-
+2. **流水线效率低**
 ```cpp
 // ❌ 问题：串行执行
 TLOAD(tile, input);
@@ -632,7 +590,6 @@ for (int i = 1; i < N; i++) {
 **原因**：负载不均衡或同步开销大
 
 **解决方案**：
-
 ```cpp
 // 动态负载均衡
 int block_idx = get_block_idx();
@@ -656,7 +613,6 @@ int end = min(start + chunk_size, total_size);
 **原因**：数据访问模式不友好
 
 **解决方案**：
-
 ```cpp
 // 优化数据访问模式
 // ❌ 列优先访问（缓存不友好）
@@ -674,22 +630,20 @@ for (int i = 0; i < rows; i++) {
 }
 ```
 
-______________________________________________________________________
+---
 
 ## 7. 框架集成错误 (F001-F099)
 
 ### F001: PyTorch 算子注册失败
 
 **错误信息**：
-
-```text
+```
 RuntimeError: No such operator npu::my_add
 ```
 
 **原因**：算子未正确注册
 
 **解决方案**：
-
 ```cpp
 // 确保正确注册
 TORCH_LIBRARY_FRAGMENT(npu, m) {
@@ -708,15 +662,13 @@ print(torch.ops.npu.my_add)  # 应该显示算子信息
 ### F002: 设备类型不匹配
 
 **错误信息**：
-
-```text
+```
 RuntimeError: Expected all tensors to be on the same device, but found at least two devices, npu:0 and cpu!
 ```
 
 **原因**：输入张量在不同设备上
 
 **解决方案**：
-
 ```python
 # 确保所有输入在同一设备
 x = x.npu()
@@ -734,15 +686,13 @@ at::Tensor my_add_impl(const at::Tensor& x, const at::Tensor& y) {
 ### F003: 梯度计算错误
 
 **错误信息**：
-
-```text
+```
 RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn
 ```
 
 **原因**：未正确实现反向传播
 
 **解决方案**：
-
 ```cpp
 // 注册 autograd
 TORCH_LIBRARY_IMPL(npu, Autograd, m) {
@@ -768,7 +718,7 @@ class MyAddFunction : public torch::autograd::Function<MyAddFunction> {
 };
 ```
 
-______________________________________________________________________
+---
 
 ## 参考资源
 

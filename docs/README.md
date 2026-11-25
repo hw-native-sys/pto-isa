@@ -19,7 +19,7 @@ If you are new to PTO Tile Lib, we recommend reading in the following order:
 
 1. [Getting Started](getting-started.md): set up the environment and run the CPU simulator first
 2. [ISA Overview](PTOISA.md): build an overall understanding of the PTO ISA
-3. [PTO Instruction List](isa/scalar/ops/micro-instruction/README.md): browse the standard operations by category
+3. [PTO Instruction List](isa/README.md): browse the standard operations by category
 4. [Tile Programming Model](coding/Tile.md): understand tile shape, tile mask, and data organization
 5. [Events and Synchronization](coding/Event.md): understand set/wait flag usage and pipeline synchronization
 6. [Performance Optimization](coding/opt.md): understand common bottlenecks and tuning directions
@@ -30,7 +30,7 @@ If you are new to PTO Tile Lib, we recommend reading in the following order:
 
 - [Virtual ISA Manual Entry](PTO-Virtual-ISA-Manual.md): top-level entry for the PTO ISA manual
 - [ISA Overview](PTOISA.md): background, goals, and overall structure of the PTO ISA
-- [PTO Instruction List](isa/scalar/ops/micro-instruction/README.md): index of PTO standard operations organized by category
+- [PTO Instruction List](isa/README.md): index of PTO standard operations organized by category
 - [General Conventions](isa/conventions.md): common naming rules, constraints, and usage conventions
 
 ### 2. Programming Model and Development Notes
@@ -69,7 +69,7 @@ Key entries are listed below:
 
 ## Related Entry Points
 
-- [Root README](isa/scalar/ops/micro-instruction/README.md): project overview, quick start, and repository entry page
+- [Root README](../README.md): project overview, quick start, and repository entry page
 - [kernels Directory Guide](../kernels/README.md): kernel and operator implementation entry point
 - [include Directory Guide](../include/README.md): headers and public interface overview
 - [tests Directory Guide](../tests/README.md): testing and execution entry point

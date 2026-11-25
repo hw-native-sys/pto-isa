@@ -184,24 +184,9 @@ Definitions:
 - `S0`: query sequence length (rows of Q/O).
 - `S1`: key/value sequence length (rows of K/V).
 - `Total task time (us)`: end-to-end kernel time per task (microseconds).
-- `MOps`: total operations counted for the task, in millions of operations.
-- `TFLOPS`: `MOps / time_us`, since millions of operations per microsecond equals trillions of operations per second.
+- `GOps`: total operations counted for the task.
+- `TFLOPS`: `GOps / time`.
 - `Normalized TFLOPS`: `TFLOPS × (24 / cores_used)` to estimate full-device throughput on a 24-core A3.
-
-### 910B2 Multi-Core Comparison
-
-The following full-sequence data were measured on Ascend 910B2 (A2/A3 generation), using `torch_npu` as the baseline. `Sequence length` is shared by Q/K/V, and the host benchmark counts `MOps` as `S0 * S1 * HEAD_SIZE * 4 / 1e6`, with `S0 = S1 = Sequence length` and `HEAD_SIZE = 128`.
-
-| Sequence length | PTO time (us) | torch_npu time (us) | MOps | PTO TFLOPS | torch_npu TFLOPS | PTO utilization | torch_npu utilization | PTO speedup |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1024 | 20.960 | 58.461 | 536.87 | 25.61 | 9.18 | 7.24% | 2.59% | 2.79x |
-| 2048 | 32.461 | 70.801 | 2147.48 | 66.16 | 30.33 | 18.69% | 8.57% | 2.18x |
-| 4096 | 88.902 | 118.302 | 8589.93 | 96.62 | 72.61 | 27.30% | 20.52% | 1.33x |
-| 8192 | 292.626 | 353.147 | 34359.74 | 117.42 | 97.30 | 33.18% | 27.49% | 1.21x |
-| 16384 | 909.058 | 1118.462 | 137438.95 | 151.19 | 122.88 | 42.72% | 34.72% | 1.23x |
-| 32768 | 3262.645 | 3646.173 | 549755.81 | 168.50 | 150.78 | 47.61% | 42.60% | 1.12x |
-
-![Flash Attention 910B2 PTO vs torch_npu](../../../../docs/figures/performance/fa_910b2_pto_vs_torch_npu.png)
 
 ### Summary
 
@@ -230,7 +215,7 @@ Total task time (us, lower is better):
 | 4 | 512 | 41.721 | 55.441 | 46.621 | 86.322 |
 | 8 | 1024 | 63.72 | 85.882 | 64.461 | 107.342 |
 
-MOps:
+GOps:
 
 | Cores | S0 | S1=1024 | S1=2048 | S1=4096 | S1=8192 |
 | --- | --- | --- | --- | --- | --- |

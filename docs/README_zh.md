@@ -19,7 +19,7 @@ PTO 相关文档主要覆盖以下几类内容：
 
 1. [快速开始指南](getting-started_zh.md)：先完成环境准备并运行 CPU Simulator
 2. [ISA 总览](PTOISA_zh.md)：建立对 PTO ISA 的整体认识
-3. [PTO 指令列表](isa/scalar/ops/micro-instruction/README_zh.md)：按类别浏览已定义的标准操作
+3. [PTO 指令列表](isa/README_zh.md)：按类别浏览已定义的标准操作
 4. [Tile 编程模型](coding/Tile_zh.md)：理解 tile shape、tile mask 与数据组织方式
 5. [事件与同步](coding/Event_zh.md)：理解 set/wait flag 与流水线同步
 6. [性能优化](coding/opt_zh.md)：理解常见瓶颈与调优方向
@@ -30,7 +30,7 @@ PTO 相关文档主要覆盖以下几类内容：
 
 - [虚拟 ISA 手册入口](PTO-Virtual-ISA-Manual_zh.md)：PTO ISA 手册总入口
 - [ISA 总览](PTOISA_zh.md)：介绍 PTO ISA 的背景、目标与整体结构
-- [PTO 指令列表](isa/scalar/ops/micro-instruction/README_zh.md)：按类别组织的 PTO 标准操作索引
+- [PTO 指令列表](isa/README_zh.md)：按类别组织的 PTO 标准操作索引
 - [通用约定](isa/conventions_zh.md)：命名、约束、使用规范等通用规则
 
 ### 2. 编程模型与开发文档
@@ -69,7 +69,7 @@ PTO 相关文档主要覆盖以下几类内容：
 
 ## 相关入口
 
-- [根目录 README_zh](isa/scalar/ops/micro-instruction/README_zh.md)：项目总览、快速开始与仓库入口
+- [根目录 README_zh](../README_zh.md)：项目总览、快速开始与仓库入口
 - [kernels 目录说明](../kernels/README_zh.md)：kernel 与算子实现入口
 - [include 目录说明](../include/README_zh.md)：头文件与接口说明
 - [tests 目录说明](../tests/README_zh.md)：测试与运行入口

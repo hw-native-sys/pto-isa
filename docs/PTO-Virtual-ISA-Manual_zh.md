@@ -1,12 +1,9 @@
-<p align="center">
-  <img src="figures/pto_logo.svg" alt="PTO Tile Lib" width="200" />
-</p>
-
 # PTO 虚拟 ISA 手册
 
-PTO 虚拟 ISA 手册的稳定入口位于 `docs/isa/` 这棵合并文档树。该文档树把 PTO 组织为一个多目标虚拟 ISA，并清楚区分编程模型、机器模型、内存模型、指令集和家族契约。
+本页是 PTO 虚拟指令集架构手册的稳定入口。
+章节化手册的权威来源维护在 `mkdocs/src/manual/`。
 
-右上角的语言图标用于在英文和中文版本之间切换。有对应页面时会直接跳转；没有对应页面时会回到当前语言的着陆页。
+## 主入口
 
 - [前言与阅读顺序](mkdocs/src/manual/index_zh.md)
 - [手册总览章节](mkdocs/src/manual/01-overview_zh.md)
@@ -15,18 +12,7 @@ PTO 虚拟 ISA 手册的稳定入口位于 `docs/isa/` 这棵合并文档树。�
 - [内存顺序与一致性](mkdocs/src/manual/10-memory-ordering-and-consistency_zh.md)
 - [后端画像与一致性](mkdocs/src/manual/11-backend-profiles-and-conformance_zh.md)
 
-- [PTO ISA 是什么](isa/introduction/what-is-pto-visa_zh.md)
-- [文档结构](isa/introduction/document-structure_zh.md)
-- [PTO 的设计目标](isa/introduction/goals-of-pto_zh.md)
-- [当前 PTO ISA 范围](isa/introduction/current-isa-scope_zh.md)
-- [范围与边界](isa/introduction/design-goals-and-boundaries_zh.md)
-- [编程模型](isa/programming-model/tiles-and-valid-regions_zh.md)
-- [机器模型](isa/machine-model/execution-agents_zh.md)
-- [语法与操作数](isa/syntax-and-operands/assembly-model_zh.md)
-- [通用约定](isa/conventions_zh.md)
-- [类型系统](isa/state-and-types/type-system_zh.md)
-- [位置意图与合法性](isa/state-and-types/location-intent-and-legality_zh.md)
-- [内存模型](isa/memory-model/consistency-baseline_zh.md)
+## 章节目录
 
 1. [概述](mkdocs/src/manual/01-overview_zh.md)
 2. [执行模型](mkdocs/src/manual/02-machine-model_zh.md)

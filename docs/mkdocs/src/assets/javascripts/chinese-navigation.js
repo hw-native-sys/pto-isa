@@ -11,7 +11,8 @@
 /**
  * Chinese page prev/next navigation — static-map edition.
  *
- * Reads the nav order from the pre-built lang-map.json
+ * Replaces the old implementation that fetched the corresponding English page
+ * at runtime.  Instead we read the nav order from the pre-built lang-map.json
  * (already cached in sessionStorage by language-switcher.js) and build the
  * buttons synchronously — zero additional network requests.
  */

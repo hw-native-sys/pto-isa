@@ -1,6 +1,6 @@
 # PTO ISA 通用约定
 
-`docs/isa/` 指令参考文档使用的通用术语与写法如下，并与 `include/pto/common/pto_instr.hpp` 中的 C++ 内建接口保持一致。
+本页定义 `docs/isa/` 指令参考文档中使用的通用术语与写法，并与 `include/pto/common/pto_instr.hpp` 中的 C++ 内建接口保持一致。
 
 ## 记号
 

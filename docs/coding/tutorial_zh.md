@@ -275,7 +275,7 @@ __global__ AICORE void GemmAutoOneTile(__gm__ A* a, __gm__ B* b, __gm__ Acc* c) 
 
 PTO-Auto 包含两部分：
 
-1. **库侧 Auto 语义**：用 `-D__PTO_AUTO__` 编译，使 Tile 使用编译器管理的存储，同时 `TASSIGN(tile, addr)` 变为 no-op（参见 [TASSIGN](../isa/tile/ops/sync-and-config/tassign_zh.md)）。
+1. **库侧 Auto 语义**：用 `-D__PTO_AUTO__` 编译，使 Tile 使用编译器管理的存储，同时 `TASSIGN(tile, addr)` 变为 no-op（参见 `docs/isa/TASSIGN_zh.md`）。
 2. **编译器 pipeline**：在 Bisheng CCE 工具链中启用 PTO lowering/bufferization passes。
 
 ### 如何找到正确的“启用 PTO passes”编译选项
@@ -298,7 +298,7 @@ bisheng -mllvm --help | rg -n "pto|PTO" || true
 - `<ENABLE_PTO_PASSES_FLAG>`：基于 Bisheng help 输出选择正确拼写。
 
 ```bash
-source /usr/local/Ascend/cann/set_env.sh
+source /usr/local/Ascend/ascend-toolkit/latest/bin/setenv.bash
 
 bisheng -c -xcce -O2 --cce-aicore-only \
   --cce-aicore-arch=dav-c310-vec \

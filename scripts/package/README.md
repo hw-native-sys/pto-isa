@@ -6,7 +6,11 @@ Packaging and release scripts/templates for PTO Tile Lib. This directory is used
 
 - `pto_isa/`: Package templates and helper scripts specific to PTO Tile Lib
 - `module/`: Module-level packaging descriptors
-- `common/`: Shared helpers and configuration fragments
+
+Common helpers (`package.py`, `install_common_parser.sh`, install/cleanup
+fragments, etc.) are reused from the CANN engineering cmake repo
+(`https://gitcode.com/cann/cmake`) and pulled in at configure time via
+`cmake/fetch_cann_cmake.cmake`.
 
 ## Build and Install
 
@@ -17,7 +21,7 @@ cd ${git_clone_path}
 ./build.sh --pkg
 ```
 
-After the build completes, the `.run` installer package is generated under `scripts/package/output/`.
+After the build completes, the `.run` installer package is generated under `build_out/`.
 
 ### Installation
 

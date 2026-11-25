@@ -277,7 +277,7 @@ To build real GEMM/attention kernels you add:
 
 PTO-Auto has two parts:
 
-1. **Library-level auto semantics**: compile with `-D__PTO_AUTO__` so Tiles use compiler-managed storage and `TASSIGN(tile, addr)` becomes a no-op (see [TASSIGN](../isa/tile/ops/sync-and-config/tassign.md)).
+1. **Library-level auto semantics**: compile with `-D__PTO_AUTO__` so Tiles use compiler-managed storage and `TASSIGN(tile, addr)` becomes a no-op (see `docs/isa/TASSIGN.md`).
 2. **Compiler pipeline**: enable the PTO lowering/bufferization passes in the Bisheng CCE toolchain.
 
 ### Finding the correct “enable PTO passes” flag (CANN toolchain)
@@ -300,7 +300,7 @@ This compiles a single CCE kernel source into an object file. Adjust:
 - the “enable PTO passes” flag spelling based on your Bisheng help output.
 
 ```bash
-source /usr/local/Ascend/cann/set_env.sh
+source /usr/local/Ascend/ascend-toolkit/latest/bin/setenv.bash
 
 bisheng -c -xcce -O2 --cce-aicore-only \
   --cce-aicore-arch=dav-c310-vec \

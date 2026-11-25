@@ -1,8 +1,9 @@
 # PTO Virtual ISA Manual
 
-The stable PTO ISA manual entry points to the merged tree under `docs/isa/`. That tree presents PTO as a multi-target virtual ISA with separate programming-model, machine-model, memory-model, instruction-set, and instruction-contract layers.
+This page is the stable entry point for the PTO Virtual Instruction Set Architecture manual.
+The chaptered source of truth is maintained under `mkdocs/src/manual/`.
 
-The top-right language icon switches between English and Chinese. When a counterpart page exists, the switch lands there; otherwise it returns to the matching language landing page.
+## Primary entry
 
 - [Preface and reading order](mkdocs/src/manual/index.md)
 - [Manual overview chapter](mkdocs/src/manual/01-overview.md)
@@ -11,7 +12,7 @@ The top-right language icon switches between English and Chinese. When a counter
 - [Memory ordering and consistency](mkdocs/src/manual/10-memory-ordering-and-consistency.md)
 - [Backend profiles and conformance](mkdocs/src/manual/11-backend-profiles-and-conformance.md)
 
-## Quick Navigation
+## Chapter map
 
 1. [Overview](mkdocs/src/manual/01-overview.md)
 2. [Execution Model](mkdocs/src/manual/02-machine-model.md)

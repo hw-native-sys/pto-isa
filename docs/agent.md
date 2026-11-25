@@ -88,12 +88,12 @@ chmod +x ./tests/run_st.sh
 NPU ST requires a working Ascend environment. Typical setup (choose the correct install path):
 
 ```bash
-source /usr/local/Ascend/cann/set_env.sh
+source /usr/local/Ascend/cann/bin/setenv.bash
 # or
-source $HOME/Ascend/cann/set_env.sh
+source $HOME/Ascend/ascend-toolkit/latest/bin/setenv.bash
 ```
 
-`tests/script/run_st.py` expects `ASCEND_HOME_PATH` to be set (usually done by `set_env.sh`).
+`tests/script/run_st.py` expects `ASCEND_HOME_PATH` to be set (usually done by `setenv.bash`).
 
 ## Common Pitfalls (And How This Repo Handles Them)
 
