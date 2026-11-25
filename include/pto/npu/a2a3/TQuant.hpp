@@ -50,7 +50,7 @@ PTO_INTERNAL void TQUANT_IMPL(
     constexpr unsigned tmpFloats = s32Region + TileDataSrc::Rows * PadColsF32;
     static_assert(
         static_cast<unsigned long>(TileDataTmp::RowStride) * TileDataTmp::Rows >= tmpFloats,
-        "TQUANT: tmp too small (see docs/isa/TQUANT.md).");
+        "TQUANT: tmp too small (see docs/en/isa/TQUANT.md).");
 
     // tmp is reused afterward for fp32->s32 conversion (A3 does not support in-place tcvt).
     TileDataScaled scaled(src.GetValidRow(), src.GetValidCol());

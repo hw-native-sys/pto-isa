@@ -1323,7 +1323,7 @@ public:
         ValidShapeType::staticShape[2] == DYNAMIC, ValidShapeType::staticShape[3] == DYNAMIC,
         ValidShapeType::staticShape[4] == DYNAMIC, ValidShapeType::staticShape[5] == DYNAMIC};
 #ifdef __PTO_AUTO__
-    // rule 2 of docs/auto_mode/Library_Developer_Rules_And_Limitations.md: no member initializers in auto mode
+    // rule 2 of docs/en/auto_mode/Library_Developer_Rules_And_Limitations.md: no member initializers in auto mode
     int64_t validShape[ConvTileDetail::MAX_CONVTILE_DIM];
 #else
     int64_t validShape[ConvTileDetail::MAX_CONVTILE_DIM] = {isValidDynamic[0] ? staticShape[0] : staticValidShape[0],
@@ -1643,9 +1643,6 @@ public:
         Loc != TileType::Acc || StorageBytes <= PTO_L0C_SIZE_BYTES, "Acc tile storage size exceeds L0C capacity");
     static_assert(
         Loc != TileType::Bias || StorageBytes <= PTO_BIAS_SIZE_BYTES, "Bias tile storage size exceeds Bias capacity");
-    static_assert(
-        Loc != TileType::Scaling || StorageBytes <= PTO_FBUF_SIZE_BYTES,
-        "Scaling tile storage size exceeds FBUF capacity");
     static_assert(
         Loc != TileType::ScaleLeft || StorageBytes <= PTO_SCALELEFT_SIZE_BYTES,
         "ScaleLeft tile storage size exceeds ScaleLeft capacity");

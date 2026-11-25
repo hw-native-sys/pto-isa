@@ -1,0 +1,141 @@
+# TCOLSUM
+
+## 产品支持情况<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT系列产品：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3系列产品：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2系列产品：支持
+<!-- end id3 -->
+
+
+## 指令示意图
+
+![TCOLSUM tile operation](../../figures/isa/TCOLSUM.svg)
+
+## 简介
+
+通过对行求和来归约每一列。
+
+## 数学语义
+
+设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= j < C`：
+
+$$ \mathrm{dst}_{0,j} = \sum_{i=0}^{R-1} \mathrm{src}_{i,j} $$
+
+`isBinary` 选择二叉树或顺序累加；A5 的 64 位整数路径忽略该参数。
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+```cpp
+template <typename TileDataOut, typename TileDataIn, typename... WaitEvents>
+PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, WaitEvents &... events);
+
+template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
+PTO_INST RecordEvent TCOLSUM(TileDataOut &dst, TileDataIn &src, TileDataTmp &tmp, bool isBinary, WaitEvents &... events);
+```
+
+## 约束
+
+### 通用约束或检查
+
+- `dst` 和 `src` 必须为 `TileType::Vec`。
+- `dst` 和 `src` 必须使用标准ND布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `dst` 和 `src` 的元素类型必须一致。
+- 运行时检查：
+    - `src.GetValidCol() == dst.GetValidCol()`
+    - `src.GetValidRow() != 0`（为零时实现静默返回，不执行计算）
+    - `src.GetValidCol() != 0`（为零时实现静默返回，不执行计算）
+    - 仅在使用 `tmp` 的二叉累加路径：`src.GetValidCol()` 必须不大于按 `src` 元素计的 `tmp` 行跨度（即 `tmp.RowStride * sizeof(TmpDType) / sizeof(DType) >= src.GetValidCol()`）
+- 对非 64 位整数类型，`isBinary` 选择后端路径：
+    - `true`：使用 `tmp` 做二叉树累加
+    - `false`：直接在 `dst` 上做顺序累加
+
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
+
+- 支持的元素类型：`half`、`float`、`int16_t`、`int32_t`。
+- `tmp` 必须为 `TileType::Vec`，且使用标准ND布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- `tmp` 的元素类型必须与 `src` 和 `dst` 一致。
+- 若 `src.GetValidRow() == 0` 或 `src.GetValidCol() == 0`，实现会直接返回。
+
+### Ascend 950PR/Ascend 950DT实现检查
+
+- Ascend 950PR/Ascend 950DT共享列归约检查允许的元素类型为：`half`、`float`、`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`bfloat16_t`。
+- 已检查到的Ascend 950PR/Ascend 950DT `TCOLSUM` 路径中，`tmp` 仅用于非 64 位整数的二叉累加路径；`TCOLSUM_IMPL` 中没有额外显式加入 `tmp` 的编译期类型/布局断言。
+
+- 对于 `int64_t` / `uint64_t`：输出有效形状应为 `[1, src.GetValidCol()]`；物理 `Cols` 是 4 的倍数，有效列数不必对齐。只写入第 0 行的有效结果，保留其余物理填充。
+
+## 临时空间
+
+### 无 `tmp`（2参数重载：`TCOLSUM(dst, src)`）
+
+不需要 `tmp`。Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品和Ascend 950PR/Ascend 950DT均使用直接在 `dst` 上的顺序累加。
+
+### 带 `tmp` 和 `isBinary`（4参数重载：`TCOLSUM(dst, src, tmp, isBinary)`）
+
+#### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品
+
+- 当 `isBinary = true` 时：`tmp` **被使用**于二叉树累加。`src` 中相邻行对被求和到 `tmp`，然后 `tmp` 被递归折半直到仅剩单行。
+  - `tmp` 必须与 `src`/`dst` 具有相同的元素类型。
+  - `tmp` 必须是 `TileType::Vec`，行主序，非分形。
+  - `tmp.GetValidCol() >= src.GetValidCol()`（以元素数计，考虑 `tmp` 跨度）。
+  - `tmp` 至少需要 `ceil(src.GetValidRow() / 2)` 行。
+- 当 `isBinary = false` 时：`tmp` 被接受但实现使用直接在 `dst` 上的顺序累加；`tmp` 未被主动使用。
+
+#### Ascend 950PR/Ascend 950DT
+
+对于 `int64_t` / `uint64_t`，两种重载都使用同一整数列归约路径；`tmp` 与 `isBinary` 均被忽略，不使用临时 Tile 存储。以下临时空间要求仅适用于其他支持类型。
+
+- 当 `isBinary = true` 时：`tmp` **被使用**于基于向量寄存器的二叉树累加（使用UB存储）。
+  - `tmp` 必须与 `src`/`dst` 具有相同的元素类型。
+  - `tmp.GetValidCol() >= src.GetValidCol()`（以元素数计，考虑 `tmp` 跨度）。
+  - `tmp` 至少需要 `ceil(src.GetValidRow() / 2)` 行。
+- 当 `isBinary = false` 时：`tmp` 未被主动使用；实现使用通过 `TColReduceInstr` 的顺序归约。
+
+## 示例
+
+### 自动（Auto）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 1, 16>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TmpT tmp;
+  TCOLSUM(dst, src, tmp, /*isBinary=*/false);
+}
+```
+
+### 手动（Manual）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, float, 1, 16>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TmpT tmp;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TASSIGN(tmp, 0x3000);
+  TCOLSUM(dst, src, tmp, /*isBinary=*/false);
+}
+```

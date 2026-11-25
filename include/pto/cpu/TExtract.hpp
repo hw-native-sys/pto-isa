@@ -239,7 +239,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, FpTileData& 
 // layout-aware through GetElement/SetElement (tile_offsets.hpp maps the logical (r, c)
 // to the NZ physical offset), so the copy itself is element-wise; these checks pin the
 // interface to the same ND source / NZ destination contract as the A5/A2A3 backends
-// (see docs/isa/TEXTRACT.md, "ND -> 2xNZ extraction path").
+// (see docs/en/isa/TEXTRACT.md, "ND -> 2xNZ extraction path").
 template <typename T, typename DstTileData, typename SrcTileData>
 PTO_INTERNAL void CheckTExtractNdToNzCpu()
 {

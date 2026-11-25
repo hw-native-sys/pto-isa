@@ -51,9 +51,10 @@ AICORE inline void InitGMOffsets(
     constexpr uint32_t mIter = m / singleCoreM;
     uint32_t mIterIdx = get_block_idx() % mIter; // get current launch core idx
     uint32_t nIterIdx = get_block_idx() / mIter;
-    uint64_t gmOffsetA = mIterIdx * singleCoreM * k;
-    uint64_t gmOffsetB = nIterIdx * k * singleCoreN;
-    uint64_t gmOffsetC = mIterIdx * singleCoreM * n + nIterIdx * singleCoreN;
+    uint64_t gmOffsetA = static_cast<uint64_t>(mIterIdx) * singleCoreM * k;
+    uint64_t gmOffsetB = static_cast<uint64_t>(nIterIdx) * k * singleCoreN;
+    uint64_t gmOffsetC =
+        static_cast<uint64_t>(mIterIdx) * singleCoreM * n + static_cast<uint64_t>(nIterIdx) * singleCoreN;
     currentSrc0 = src0 + gmOffsetA;
     currentSrc1 = src1 + gmOffsetB;
     currentDst = out + gmOffsetC;

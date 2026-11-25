@@ -1,0 +1,58 @@
+# TCOLEXPANDMAX
+
+## 产品支持情况<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT系列产品：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3系列产品：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2系列产品：支持
+<!-- end id3 -->
+
+
+## 指令示意图
+
+![TCOLEXPANDMAX tile operation](../../figures/isa/TCOLEXPANDMAX.svg)
+
+## 简介
+
+列广播最大值：与每列标量向量取最大值。
+
+## 数学语义
+
+设 `R = dst.GetValidRow()` 和 `C = dst.GetValidCol()`。设 `s_j` 为从 `src1` 中获取的每列标量（每列一个值）。
+
+对于 `0 <= i < R` 和 `0 <= j < C`：
+
+$$
+\mathrm{dst}_{i,j} = \max(\mathrm{src0}_{i,j}, s_j)
+$$
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+```cpp
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TCOLEXPANDMAX(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events);
+```
+
+## 约束
+
+- `TileDataDst::DType`、`TileDataSrc0::DType`、`TileDataSrc1::DType` 必须是以下之一：`half`、`float`、`int16`、`int32`（适用于Atlas A2 训练系列产品/Atlas A2 推理系列产品、Atlas A3 训练系列产品/Atlas A3 推理系列产品和Ascend 950PR/Ascend 950DT），`uint16`、`uint32`、`bfloat16_t`、`int8`、`uint8`、`int64`、`uint64`（仅适用于Ascend 950PR/Ascend 950DT）。
+- Tile形状/布局约束（编译时）：`TileDataDst::isRowMajor`。
+- `src1` 预期提供**每列一个标量**（即，其有效形状必须覆盖 `C` 个值）。
+- 确切的布局/分形约束是目标特定的；参见 `include/pto/npu/*/TColExpand*.hpp` 下的后端头文件。
+### 64位元素类型（Ascend 950PR/Ascend 950DT）
+
+`int64` / `uint64` 仅在Ascend 950PR/Ascend 950DT上支持。该架构没有原生的64位向量运算单元，指令通过一对32位寄存器（分别保存每个元素的低32位和高32位）模拟实现；每列标量操作数与全尺寸操作数使用相同的解交织布局读取。
+
+计算结果为精确的64位补码值。Tile对齐遵循64位元素的通用规则：RowMajor的Tile要求 `Cols % 4 == 0`。
+
+## 示例
+
+参见 `docs/zh/isa/` 和 `docs/zh/coding/tutorials/` 中的相关示例。

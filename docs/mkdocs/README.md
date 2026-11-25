@@ -1,61 +1,61 @@
-# docs/mkdocs Documentation Build Guide
+# docs/mkdocs 文档构建说明
 
-This directory is used to build the online documentation and local static documentation site for PTO Tile Lib, based on MkDocs (Material theme).
+本目录用于构建 PTO Tile Lib 的在线文档与本地静态文档站点，基于 MkDocs（Material 主题）。
 
-## Documentation Content
+## 文档内容
 
-The generated documentation covers:
+构建后的文档覆盖以下内容：
 
-- PTO ISA instruction reference
-- Programming model and developer documentation
-- Getting started and usage guides
-- Kernel examples and directory guides
+- PTO ISA 指令参考
+- 编程模型与开发文档
+- 快速开始与使用指南
+- kernel 示例与目录说明
 
-The documentation source files are mainly located under `docs/mkdocs/src/`.
+文档源文件主要位于 `docs/mkdocs/src/` 下。
 
-## Recommended Usage
+## 推荐方式
 
-- Read documentation online: visit the [Documentation Center](https://pto-isa.gitcode.com)
-- Preview locally or browse offline: build with MkDocs locally
+- 在线查看文档：访问 [文档中心](https://pto-isa.gitcode.com)
+- 本地预览与离线查看：使用 MkDocs 本地构建
 
-## Prerequisites
+## 前置条件
 
 - Python >= 3.9.x
 - pip
 
-> **Note:** Python has announced that 3.7.x/3.8.x are EOL. CANN will soon stop supporting these versions. Please upgrade to Python >= 3.9.x.
+> **备注：** Python 宣布 3.7.x/3.8.x 已经 EOL，CANN 即将停止对该版本的支持，请升级到 Python >= 3.9.x 的版本。
 
-It is recommended to create a dedicated Python virtual environment first.
+建议先创建独立的 Python 虚拟环境。
 
-## Option 1: Use MkDocs CLI
+## 方式一：使用 MkDocs CLI
 
-### 1. Install dependencies
+### 1. 安装依赖
 
 ```bash
 python -m pip install -r docs/mkdocs/requirements.txt
 ```
 
-### 2. Preview locally
+### 2. 本地预览
 
 ```bash
 python -m mkdocs serve -f docs/mkdocs/mkdocs.yml
 ```
 
-After startup, the documentation is available at `http://127.0.0.1:8000`, and local changes are hot-reloaded automatically.
+启动后可在 `http://127.0.0.1:8000` 访问文档，本地修改会自动热更新。
 
-### 3. Build a static site
+### 3. 构建静态站点
 
 ```bash
 python -m mkdocs build -f docs/mkdocs/mkdocs.yml
 ```
 
-The output is generated in `docs/mkdocs/site/`.
+构建输出位于 `docs/mkdocs/site/`。
 
-## Option 2: Build via CMake
+## 方式二：通过 CMake 构建
 
-This is suitable for integrating documentation builds into development workflows or CI/CD.
+适用于希望将文档构建集成到开发流程或 CI/CD 中的场景。
 
-### 1. Create a virtual environment and install dependencies
+### 1. 创建虚拟环境并安装依赖
 
 ```bash
 python3 -m venv .venv-mkdocs
@@ -63,32 +63,32 @@ source .venv-mkdocs/bin/activate  # Windows: .venv-mkdocs\Scripts\Activate.ps1
 python -m pip install -r docs/mkdocs/requirements.txt
 ```
 
-### 2. Configure and build
+### 2. 配置并构建
 
 ```bash
 cmake -S docs -B build/docs -DPython3_EXECUTABLE=$PWD/.venv-mkdocs/bin/python
 cmake --build build/docs --target pto_docs
 ```
 
-Windows (PowerShell):
+Windows（PowerShell）：
 
 ```powershell
 cmake -S docs -B build/docs -DPython3_EXECUTABLE="$PWD\.venv-mkdocs\Scripts\python.exe"
 cmake --build build/docs --target pto_docs
 ```
 
-The build output is located in `build/docs/site/`.
+构建输出位于 `build/docs/site/`。
 
-## Directory Overview
+## 目录说明
 
-- `mkdocs.yml`: MkDocs configuration file
-- `requirements.txt`: documentation build dependencies
-- `src/`: documentation source directory
-- `gen_pages.py`: documentation page generation script
-- `check_mkdocs.py`: documentation build check script
+- `mkdocs.yml`：MkDocs 配置文件
+- `requirements.txt`：文档构建依赖
+- `src/`：文档源文件目录
+- `gen_pages.py`：文档页面生成脚本
+- `check_mkdocs.py`：文档构建检查脚本
 
-## Related Documents
+## 相关文档
 
-- [Root README](../../README.md)
-- [Getting Started Guide](../getting-started.md)
-- [Documentation Entry](../README.md)
+- [根目录 README](../../README.md)
+- [快速开始指南](../zh/getting-started.md)
+- [文档入口](../zh/README.md)

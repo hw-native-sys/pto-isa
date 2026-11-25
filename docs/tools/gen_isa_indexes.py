@@ -39,10 +39,10 @@ from typing import Dict, List
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
-DEFAULT_ISA_README = REPO_ROOT / "docs" / "isa" / "README.md"
-DEFAULT_ISA_README_ZH = REPO_ROOT / "docs" / "isa" / "README_zh.md"
-DEFAULT_PTOISA = REPO_ROOT / "docs" / "PTOISA.md"
-DEFAULT_PTOISA_ZH = REPO_ROOT / "docs" / "PTOISA_zh.md"
+DEFAULT_ISA_README = REPO_ROOT / "docs" / "en" / "isa" / "README.md"
+DEFAULT_ISA_README_ZH = REPO_ROOT / "docs" / "zh" / "isa" / "README.md"
+DEFAULT_PTOISA = REPO_ROOT / "docs" / "en" / "PTOISA.md"
+DEFAULT_PTOISA_ZH = REPO_ROOT / "docs" / "zh" / "PTOISA.md"
 
 CATEGORY_ZH = {
     "Synchronization": "同步",
@@ -151,7 +151,7 @@ def group_by_category(entries: List[Dict[str, object]]) -> OrderedDict[str, List
 
 def append_isa_readme_header(lines: List[str]) -> None:
     lines.append('<p align="center">')
-    lines.append('  <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />')
+    lines.append('  <img src="../../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />')
     lines.append("</p>")
     lines.append("")
     lines.append("# PTO ISA Reference")
@@ -159,13 +159,13 @@ def append_isa_readme_header(lines: List[str]) -> None:
     lines.append("This directory contains the per-instruction reference for the PTO Tile Lib ISA.")
     lines.append("")
     lines.append("- Source of truth (C++ intrinsics): `include/pto/common/pto_instr.hpp`")
-    lines.append("- Common conventions (operands, events, modifiers): `docs/isa/conventions.md`")
+    lines.append("- Common conventions (operands, events, modifiers): `docs/en/isa/conventions.md`")
     lines.append("")
 
 
 def append_isa_readme_header_zh(lines: List[str]) -> None:
     lines.append('<p align="center">')
-    lines.append('  <img src="../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />')
+    lines.append('  <img src="../../figures/pto_logo.svg" alt="PTO Tile Lib" width="180" />')
     lines.append("</p>")
     lines.append("")
     lines.append("# PTO ISA 参考")
@@ -173,7 +173,7 @@ def append_isa_readme_header_zh(lines: List[str]) -> None:
     lines.append("本目录是 PTO Tile Lib ISA 的指令参考（每条指令一页）。")
     lines.append("")
     lines.append("- 权威来源：`include/pto/common/pto_instr.hpp`")
-    lines.append("- 通用约定（操作数、事件、修饰符）：`docs/isa/conventions_zh.md`")
+    lines.append("- 通用约定（操作数、事件、修饰符）：`docs/zh/isa/conventions.md`")
     lines.append("")
 
 
@@ -273,7 +273,7 @@ def append_isa_categories_zh(lines: List[str], grouped: OrderedDict[str, List[Di
             instr = str(e["instruction"])
             summary = str(e.get("summary_zh", "")).strip()
             suffix = f" - {summary}" if summary else ""
-            lines.append(f"- [{instr}]({instr}_zh.md){suffix}")
+            lines.append(f"- [{instr}]({instr}.md){suffix}")
         lines.append("")
 
 
@@ -308,24 +308,26 @@ def render_ptoisa(entries: List[Dict[str, object]]) -> str:
     lines.append("")
     lines.append("| Area | Page | Description |")
     lines.append("|---|---|---|")
-    lines.append("| Overview | [`docs/README.md`](README.md) | PTO ISA guide entry point and navigation. |")
-    lines.append("| Overview | [`docs/PTOISA.md`](PTOISA.md) | This page (overview + full instruction index). |")
+    lines.append("| Overview | [`docs/en/README.md`](README.md) | PTO ISA guide entry point and navigation. |")
+    lines.append("| Overview | [`docs/en/PTOISA.md`](PTOISA.md) | This page (overview + full instruction index). |")
     lines.append(
-        "| ISA reference | [`docs/isa/README.md`](isa/README.md) | Per-instruction reference directory index. |"
+        "| ISA reference | [`docs/en/isa/README.md`](isa/README.md) | Per-instruction reference directory index. |"
     )
     lines.append(
-        "| ISA reference | [`docs/isa/conventions.md`](isa/conventions.md) | Shared notation, operands, "
+        "| ISA reference | [`docs/en/isa/conventions.md`](isa/conventions.md) | Shared notation, operands, "
         "events, and modifiers. |"
     )
     lines.append(
-        "| Communication ISA | [`docs/isa/comm/README.md`](isa/comm/README.md) | Per-instruction "
+        "| Communication ISA | [`docs/en/isa/comm/README.md`](isa/comm/README.md) | Per-instruction "
         "communication ISA reference. |"
     )
     lines.append(
         "| Source of truth | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header.md) | "
         "C++ intrinsic API (authoritative). |"
     )
-    lines.append("| PTO Auto Mode | [`docs/auto_mode/README.md`](README.md) | PTO auto mode guide entry point. |")
+    lines.append(
+        "| PTO Auto Mode | [`docs/en/auto_mode/README.md`](auto_mode/README.md) | PTO auto mode guide entry point. |"
+    )
     lines.append("")
     lines.append("## Instruction Index (All PTO Instructions)")
     lines.append("")
@@ -352,18 +354,16 @@ def render_ptoisa_zh(entries: List[Dict[str, object]]) -> str:
     lines.append("")
     lines.append("| 领域 | 页面 | 描述 |")
     lines.append("|---|---|---|")
-    lines.append("| 概述 | [`docs/README_zh.md`](README_zh.md) | PTO ISA 指南入口与导航。 |")
-    lines.append("| 概述 | [`docs/PTOISA_zh.md`](PTOISA_zh.md) | 本页（概述 + 全量指令索引）。 |")
-    lines.append("| ISA 参考 | [`docs/isa/README_zh.md`](isa/README_zh.md) | 每条指令参考目录。 |")
+    lines.append("| 概述 | [`docs/zh/README.md`](README.md) | PTO ISA 指南入口与导航。 |")
+    lines.append("| 概述 | [`docs/zh/PTOISA.md`](PTOISA.md) | 本页（概述 + 全量指令索引）。 |")
+    lines.append("| ISA 参考 | [`docs/zh/isa/README.md`](isa/README.md) | 每条指令参考目录。 |")
+    lines.append("| ISA 参考 | [`docs/zh/isa/conventions.md`](isa/conventions.md) | 通用符号、操作数、事件与修饰符。 |")
+    lines.append("| 通信 ISA | [`docs/zh/isa/comm/README.md`](isa/comm/README.md) | 每条通信 ISA 指令参考。 |")
     lines.append(
-        "| ISA 参考 | [`docs/isa/conventions_zh.md`](isa/conventions_zh.md) | 通用符号、操作数、事件与修饰符。 |"
-    )
-    lines.append("| 通信 ISA | [`docs/isa/comm/README_zh.md`](isa/comm/README_zh.md) | 每条通信 ISA 指令参考。 |")
-    lines.append(
-        "| 权威源 | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header_zh.md) | "
+        "| 权威源 | [`include/pto/common/pto_instr.hpp`](reference/pto-intrinsics-header.md) | "
         "C++ intrinsic API（权威来源）。 |"
     )
-    lines.append("| PTO auto 模式 | [`docs/auto_mode/README_zh.md`](README_zh.md) | PTO auto模式文档入口 |")
+    lines.append("| PTO auto 模式 | [`docs/zh/auto_mode/README.md`](auto_mode/README.md) | PTO auto模式文档入口 |")
     lines.append("")
     lines.append("## 指令索引（全部 PTO 指令）")
     lines.append("")
@@ -373,9 +373,9 @@ def render_ptoisa_zh(entries: List[Dict[str, object]]) -> str:
         cat = CATEGORY_ZH.get(str(e.get("category", "")), str(e.get("category", "")))
         instr = str(e["instruction"])
         summary = str(e.get("summary_zh", "")).strip()
-        lines.append(f"| {cat} | [`{instr}`](isa/{instr}_zh.md) | {summary} |")
+        lines.append(f"| {cat} | [`{instr}`](isa/{instr}.md) | {summary} |")
     for instr, summary in COMMUNICATION_ENTRIES_ZH:
-        lines.append(f"| 通信 | [`{instr}`](isa/comm/{instr}_zh.md) | {summary} |")
+        lines.append(f"| 通信 | [`{instr}`](isa/comm/{instr}.md) | {summary} |")
     lines.append("")
     return "\n".join(lines)
 

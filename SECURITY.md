@@ -1,53 +1,53 @@
-# Security Notice
+# 安全说明
 
-## Recommended User Account
+## 推荐的用户账号
 
-For security reasons, avoid running commands as `root` (or other administrative accounts). Follow the principle of least privilege whenever possible.
+出于安全原因，请避免使用 `root`（或其他管理员账号）运行命令。尽量遵循最小权限原则（least privilege）。
 
-## File Permission Hardening
+## 文件权限加固
 
-- On the host (including the container host) and inside containers, set `umask` to `0027` or stricter. This makes newly created directories default to at most `750`, and newly created files default to at most `640`.
-- Apply appropriate access control to sensitive assets such as personal data, proprietary data, source code, and intermediate artifacts generated during PTO instruction development. See “Appendix A” for recommended maximum permissions.
-- During installation and usage, make sure your installation directory and any input data files have appropriate permissions configured.
+- 在宿主机（包括容器宿主机）以及容器内部，建议将 `umask` 设置为 `0027` 或更严格。这样新建目录默认权限不超过 `750`，新建文件默认权限不超过 `640`。
+- 对个人数据、专有数据、源码以及 PTO 指令开发过程中产生的中间产物等敏感资产，设置合适的访问控制。建议的“最大权限”见“附录 A”。
+- 安装与使用过程中，确保安装目录与输入数据文件的权限配置合理。
 
-## Build Security
+## 构建安全
 
-When building this project from source, you compile it locally and intermediate build artifacts are generated. After the build completes, restrict permissions on those artifacts to protect sensitive data.
+从源码构建本项目时会在本地编译并产生中间构建产物。构建完成后，请限制这些产物的权限以保护敏感数据。
 
-## Runtime Security
+## 运行时安全
 
-- If a PTO instruction implementation encounters a runtime error, it may terminate the process and print an error message. Use the error output to locate the root cause (for example, ensure required synchronization is present and inspect logs when available).
+- 若某条 PTO 指令实现遇到运行时错误，可能会终止进程并打印错误信息。可利用错误输出定位根因（例如检查必要同步是否存在，或在可用时查看日志）。
 
-## Public Network Addresses
+## 公网地址引用
 
-This repository contains references to the following public URLs:
+本仓库包含对以下公网 URL 的引用：
 
-| Type       | Open-source URL | File                              | Public URL                                                                                                                                    | Purpose                                      |
-| :--------: | :-------------: | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Dependency | N/A             | cmake/fetch_cann_cmake.cmake      | https://gitcode.com/cann/cmake.git                                                                                                            | Pulls the shared CANN engineering cmake repo |
-| Dependency | N/A             | cmake/third_party/json.cmake      | https://gitcode.com/cann-src-third-party/json/releases/download/v3.12.0/include.zip                                                           | Downloads `json` headers as a build dep      |
-| Dependency | N/A             | cmake/third_party/gtest.cmake     | https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz                                        | Downloads GoogleTest as a build/test dep     |
+| 类型 | 开源 URL | 文件 | 公网 URL | 目的 |
+| :--: | :--: | --- | --- | --- |
+| 依赖 | N/A | cmake/fetch_cann_cmake.cmake | https://gitcode.com/cann/cmake.git | 拉取 CANN 工程公共 cmake 仓 |
+| 依赖 | N/A | cmake/third_party/json.cmake | https://gitcode.com/cann-src-third-party/json/releases/download/v3.12.0/include.zip | 下载 `json` 头文件作为构建依赖 |
+| 依赖 | N/A | cmake/third_party/gtest.cmake | https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz | 下载 GoogleTest 作为构建/测试依赖 |
 
-## Appendix
+## 附录
 
-### Appendix A: Recommended Maximum Permissions
+### 附录 A：推荐的最大权限
 
-| Scenario                                          | Recommended maximum Linux permission |
-| ------------------------------------------------- | ----------------------------------- |
-| User home directory                                | 750 (`rwxr-x---`)                   |
-| Program files (scripts, libraries, etc.)           | 550 (`r-xr-x---`)                   |
-| Program directories                                | 550 (`r-xr-x---`)                   |
-| Configuration files                                | 640 (`rw-r-----`)                   |
-| Configuration directories                          | 750 (`rwxr-x---`)                   |
-| Log files (archived / complete)                    | 440 (`r--r-----`)                   |
-| Log files (actively written)                       | 640 (`rw-r-----`)                   |
-| Log directories                                    | 750 (`rwxr-x---`)                   |
-| Debug files                                        | 640 (`rw-r-----`)                   |
-| Debug directories                                  | 750 (`rwxr-x---`)                   |
-| Temporary directories                              | 750 (`rwxr-x---`)                   |
-| Maintenance / upgrade directories                  | 770 (`rwxrwx---`)                   |
-| Business data files                                | 640 (`rw-r-----`)                   |
-| Business data directories                          | 750 (`rwxr-x---`)                   |
-| Key material / private keys / certs / ciphertext dirs | 700 (`rwx------`)                   |
-| Key material / private keys / certs / ciphertext files | 600 (`rw-------`)                   |
-| Crypto interfaces and scripts                      | 500 (`r-x------`)                   |
+| 场景 | 推荐的最大 Linux 权限 |
+| --- | --- |
+| 用户家目录 | 750 (`rwxr-x---`) |
+| 程序文件（脚本、库等） | 550 (`r-xr-x---`) |
+| 程序目录 | 550 (`r-xr-x---`) |
+| 配置文件 | 640 (`rw-r-----`) |
+| 配置目录 | 750 (`rwxr-x---`) |
+| 日志文件（归档/已完成） | 440 (`r--r-----`) |
+| 日志文件（持续写入） | 640 (`rw-r-----`) |
+| 日志目录 | 750 (`rwxr-x---`) |
+| 调试文件 | 640 (`rw-r-----`) |
+| 调试目录 | 750 (`rwxr-x---`) |
+| 临时目录 | 750 (`rwxr-x---`) |
+| 维护/升级目录 | 770 (`rwxrwx---`) |
+| 业务数据文件 | 640 (`rw-r-----`) |
+| 业务数据目录 | 750 (`rwxr-x---`) |
+| 密钥/私钥/证书/密文目录 | 700 (`rwx------`) |
+| 密钥/私钥/证书/密文文件 | 600 (`rw-------`) |
+| 密码学接口与脚本 | 500 (`r-x------`) |

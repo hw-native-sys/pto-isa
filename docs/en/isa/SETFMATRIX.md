@@ -1,0 +1,88 @@
+# SETFMATRIX
+
+## Product Support<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT products: Supported
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3 products: Supported
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2 products: Supported
+<!-- end id3 -->
+
+
+
+## Tile Operation Diagram
+
+![SETFMATRIX tile operation](../../figures/isa/SETFMATRIX.svg)
+
+## Introduction
+
+Set the FMATRIX register(s) for IMG2COL-like operations from an IMG2COL configuration tile (a `ConvTile`; target/implementation-defined).
+
+## See also
+
+- IMG2COL instruction: `docs/en/isa/TIMG2COL.md`.
+
+## C++ Intrinsic
+
+Declared in `include/pto/common/pto_instr.hpp`:
+
+```cpp
+template <typename ConvTileData, SetFmatrixMode FmatrixMode = SetFmatrixMode::FMATRIX_A_MANUAL, typename... WaitEvents>
+PTO_INST RecordEvent SETFMATRIX(ConvTileData &src, WaitEvents&... events);
+```
+
+## Math Interpretation
+
+Unless otherwise specified, semantics are defined over the valid region and target-dependent behavior is marked as implementation-defined.
+
+## Assembly Syntax
+
+### AS Level 1 (SSA)
+
+```text
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
+```
+
+### AS Level 2 (DPS)
+
+```text
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
+```
+## Constraints
+
+Type/layout/location/shape legality is backend-dependent; treat implementation-specific notes as normative for that backend.
+
+## Examples
+
+See related examples in `docs/en/isa/` and `docs/en/coding/tutorials/`.
+
+## ASM Form Examples
+
+### Auto Mode
+
+```text
+# Auto mode: compiler/runtime-managed placement and scheduling.
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
+```
+
+### Manual Mode
+
+```text
+# Manual mode: resources must be bound explicitly before issuing the instruction.
+# Optional for tile operands:
+# pto.tassign %arg0, @tile(0x1000)
+# pto.tassign %arg1, @tile(0x2000)
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
+```
+
+### PTO Assembly Form
+
+```text
+pto.SETFMATRIX %cfg : !pto.fmatrix_config -> ()
+# AS Level 2 (DPS)
+pto.SETFMATRIX ins(%cfg : !pto.fmatrix_config) outs()
+```

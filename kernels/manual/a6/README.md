@@ -1,17 +1,17 @@
-# Manual kernels (A6)
+# 手工调优 kernels（A6）
 
-This directory contains manual, performance-oriented kernel examples targeting Ascend A6 (dav-9201).
+本目录包含面向 Ascend A6（dav-9201）的手工调优（手写、面向性能）kernel 示例。
 
-## Examples
+## 示例
 
-- HiF4 (HiFloat4) matrix multiplication performance kernel: [matmul_hif4_performance](matmul_hif4_performance/README.md)
+- HiF4（HiFloat4）矩阵乘高性能 kernel：[matmul_hif4_performance](matmul_hif4_performance/README.md)
 
-## Common setup
+## 通用环境准备
 
-These examples require a CANN environment with the dav-9201 (bisheng) compiler to be sourced before building/running. For example:
+这些示例在构建/运行前需要启用带 dav-9201（bisheng）编译器的 CANN 环境。例如：
 
 ```bash
 source ${ASCEND_INSTALL_PATH}/bin/setenv.bash
 ```
 
-Then follow the `run.sh` usage documented in each example directory.
+然后按各示例目录中的 `run.sh` 说明执行。

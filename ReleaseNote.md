@@ -1,43 +1,38 @@
-# Release Notes — PTO Tile Lib
+# 发布说明 — PTO Tile Lib
 
-This document summarizes version changes in PTO Tile Lib.
+本文档用于汇总 PTO Tile Lib 的版本变更信息。
 
-The format follows Keep a Changelog style (Added / Changed / Fixed / Deprecated / Removed / Security).
+格式遵循 Keep a Changelog 风格（Added / Changed / Fixed / Deprecated / Removed / Security）。
 
 ## Unreleased
 
-- N/A
-
-## 9.1.0 — Initial public release
+- 暂无
 
 ### Added
 
-- Initial public release of PTO Tile Lib.
-- Per-instruction ISA reference pages under `docs/isa/` covering Tile Operation Diagram, Introduction, Math Interpretation, C++ Intrinsic, and Constraints for each primitive.
-- CPU simulation path (`tests/run_cpu.py`) and A5 ST path (`tests/script/run_st.py`).
+- PTO Tile Lib 初次公开发布。
 
 ### Changed
 
-- Public fused multiply-add instruction names use the shorter ISA mnemonics: `TFUSEDMULADD` → `TMADD`, `TMULADDDST` → `TMULA`. The legacy names are not retained as public wrappers.
-- Ascend 950PR simulator/hardware validation runs recorded against CANN 9.2.0 (see `TEXTRACT`, `TINSERT`, `TMOV`, `TMOV_FP`, `TSTORE`, `TSTORE_FP` ISA pages).
+- 暂无
 
 ### Fixed
 
-- N/A
+- 暂无
 
 ### Deprecated
 
-- N/A
+- 暂无
 
 ### Removed
 
-- Legacy wrapper intrinsics (e.g. `TADDC`, `TSUBC`, `TSUBRELUCONV`, `TSUBSC`, `TSUBVIEW`, `TSYNC`) removed; the compatibility window is closed and no public wrapper is retained. See `docs/isa/README.md` for the full list and migration guidance.
+- 暂无
 
 ### Security
 
-- For the vulnerability reporting process, see `SECURITY.md`.
+- 漏洞反馈流程请参见 `SECURITY.md`。
 
-## Compatibility Notes
+## 兼容性说明
 
-- **Ascend (NPU / simulator)**: requires Ascend CANN toolkit `>= 8.3` (see `version.info`); exact supported SoCs and toolchains depend on the installed CANN distribution.
-- **CPU simulator**: intended to run on macOS / Linux / Windows with a C++ toolchain and Python; see `docs/getting-started.md`.
+- **Ascend（NPU / simulator）**：依赖 Ascend CANN toolkit `>= 8.3`（详见 `version.info`）；具体支持的 SoC 与工具链版本取决于已安装的 CANN 发行版。
+- **CPU simulator**：支持在 macOS / Linux / Windows 上结合 C++ 工具链与 Python 运行；详见 `docs/zh/getting-started.md`。

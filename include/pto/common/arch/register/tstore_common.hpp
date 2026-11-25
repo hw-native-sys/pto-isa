@@ -414,14 +414,14 @@ PTO_INTERNAL void TStoreVecNZ(
         srcPanelRows <= TileData::StorageNumel / TileData::Cols,
         "The compact NZ source pitch exceeds TileData storage capacity; preserve the producer validRow!");
     uint32_t burstSrcStride = srcPanelRows * C0_SIZE_BYTE;
-    int64_t tileStride = gShape1 * srcPanelRows * gShape4;
+    int64_t tileStride = static_cast<int64_t>(gShape1) * srcPanelRows * gShape4;
     if constexpr (caps::IsFP4<typename TileData::DType>()) {
         tileStride = tileStride >> 1; // fp4 srcAddr offset need divide 2 as use b8 to move
         gStride0 = gStride0 >> 1;     // fp4 dstAddr offset need divide 2 as use b8 to move
     }
     for (uint32_t k = 0; k < gShape0; k++) {
-        dstGlobalAddr = dstAddr + k * gStride0;
-        srcTileAddr = srcAddr + k * tileStride;
+        dstGlobalAddr = dstAddr + static_cast<int64_t>(k) * gStride0;
+        srcTileAddr = srcAddr + static_cast<int64_t>(k) * tileStride;
         TStoreInstr<TileData, GlobalData, l2Control>(
             dstGlobalAddr, srcTileAddr, nBurst, lenBurst, burstDstStride, burstSrcStride);
     }

@@ -1,0 +1,126 @@
+# TSELS
+
+## 产品支持情况<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT系列产品：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3系列产品：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2系列产品：支持
+<!-- end id3 -->
+
+
+## 指令示意图
+
+![TSELS tile operation](../../figures/isa/TSELS.svg)
+
+## 简介
+
+使用mask tile在源Tile和标量之间进行逐元素选择。
+
+## 数学语义
+
+对每个元素 `(i, j)` 在有效区域内：
+
+$$
+\mathrm{dst}_{i,j} =
+\begin{cases}
+\mathrm{src}_{i,j} & \text{if } \mathrm{mask}_{i,j}\ \text{为真} \\
+\mathrm{scalar} & \text{否则}
+\end{cases}
+$$
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+```cpp
+template <typename TileDataDst, typename TileDataMask, typename TileDataSrc, typename TileDataTmp, typename... WaitEvents>
+PTO_INST RecordEvent TSELS(TileDataDst &dst, TileDataMask &mask, TileDataSrc &src, TileDataTmp &tmp, typename TileDataSrc::DType scalar, WaitEvents &... events);
+```
+
+## 约束
+
+- **实现检查 （Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）**:
+    - `sizeof(TileDataDst::DType)` 必须是 `2`或`4`字节。
+    - 支持的数据类型为 2 或 4 字节类型：`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
+    - `dst` 和 `src` 必须使用相同的元素类型。
+    - `dst` 和 `src` 必须是行主序。
+    - 运行时：`src.GetValidRow()/GetValidCol()` 必须与 `dst.GetValidRow()/GetValidCol()` 一致。
+- **实现检查 (Ascend 950PR/Ascend 950DT)**:
+    - `sizeof(TileDataDst::DType)` 可以是 `1`、`2`、`4`或`8`字节。
+    - 支持的数据类型为 `int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t` 和 `float`。
+    - `dst` 和 `src` 必须使用相同的元素类型。
+    - `dst`、`mask` 和 `src` 必须是行主序。
+    - 运行时：`src.GetValidRow()/GetValidCol()` 必须与 `dst.GetValidRow()/GetValidCol()` 一致。
+- **有效区域**:
+    - 该操作使用 `dst.GetValidRow()` / `dst.GetValidCol()` 作为迭代域。
+- **掩码编码**:
+    - 64 位数据（Ascend 950PR/Ascend 950DT）：使用 RowMajor 打包掩码，每个元素对应一位；列 `j` 使用第 `j / 8` 字节的第 `j % 8` 位，行地址按掩码物理字节步长计算。
+    - 可直接使用 [TCMP](TCMP.md) 或 [TCMPS](TCMPS.md) 产生的掩码。掩码容量须覆盖目标有效区域；数据 Tile 的有效列数仍按数据元素计数。
+    - 掩码Tile被解释为目标定义布局中的打包谓词位。
+
+## 临时空间
+
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品
+
+`tmp` **被使用**作为小型缓冲区，用于存储 `set_cmpmask` 操作所需的标量值并保存比较掩码。在选择循环之前，标量被写入 `tmp[0]`。
+
+- `tmp` 的元素类型必须与 `TileDataSrc::DType` 一致。
+- `tmp` 大小要求：至少1个元素（用于存放标量）。典型声明：`Tile<TileType::Vec, float, 1, 16>` 或类似。
+
+### Ascend 950PR/Ascend 950DT
+
+`tmp` 被接口接受但Ascend 950PR/Ascend 950DT实现**不使用**。Ascend 950PR/Ascend 950DT后端使用 `vdup` 将标量广播到向量寄存器，并使用 `vsel` 进行选择，不需要暂存Tile存储。`tmp` 仅为了与Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品的API兼容性而保留在C++内建接口签名中。
+
+## 示例
+
+### 自动（Auto）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  using TileDst = Tile<TileType::Vec, float, 16, 16>;
+  using TileSrc = Tile<TileType::Vec, float, 16, 16>;
+  using TileTmp = Tile<TileType::Vec, float, 16, 16>;
+  using TileMask = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
+  TileDst dst;
+  TileSrc src;
+  TileTmp tmp;
+  TileMask mask(16, 2);
+  float scalar = 0.0f;
+  TSELS(dst, mask, src, tmp, scalar);
+}
+```
+
+### 手动（Manual）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using TileDst = Tile<TileType::Vec, float, 16, 16>;
+  using TileSrc = Tile<TileType::Vec, float, 16, 16>;
+  using TileTmp = Tile<TileType::Vec, float, 16, 16>;
+  using TileMask = Tile<TileType::Vec, uint8_t, 16, 32, BLayout::RowMajor, -1, -1>;
+  TileDst dst;
+  TileSrc src;
+  TileTmp tmp;
+  TileMask mask(16, 2);
+  float scalar = 0.0f;
+  TASSIGN(src, 0x1000);
+  TASSIGN(tmp, 0x2000);
+  TASSIGN(dst, 0x3000);
+  TASSIGN(mask, 0x4000);
+  TSELS(dst, mask, src, tmp, scalar);
+}
+```

@@ -14,7 +14,7 @@
 # build.py imports the DEFAULT case's manifest (CASE_NAME, ARTIFACTS, etc.)
 # for config.toml generation. The golden generation covers all cases.
 #
-# See docs/isa/TQUANT_HIF4.md for the full algorithm derivation.
+# See docs/en/isa/TQUANT_HIF4.md for the full algorithm derivation.
 # --------------------------------------------------------------------------------
 
 import argparse

@@ -1,0 +1,176 @@
+# TROWARGMIN
+
+## 产品支持情况<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT系列产品：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3系列产品：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2系列产品：支持
+<!-- end id3 -->
+
+
+## 指令示意图
+
+![TROWARGMIN tile operation](../../figures/isa/TROWARGMIN.svg)
+
+## 简介
+
+获取每行最小值对应列索引，或同时获取每行最小值及其对应列索引。
+
+## 数学语义
+
+设 `R = src.GetValidRow()`，`C = src.GetValidCol()`。对 `0 <= i < R`：
+
+$$ \mathrm{dst}_{i,0} = \underset{0 \le j < C}{\operatorname{argmin}} \; \mathrm{src}_{i,j} $$
+
+$$ \mathrm{dstval}_{i,0} = \min_{0 \le j < C} \mathrm{src}_{i,j} $$
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+仅输出索引：
+
+```cpp
+template <typename TileDataOut, typename TileDataIn, typename TileDataTmp, typename... WaitEvents>
+PTO_INST RecordEvent TROWARGMIN(TileDataOut& dst, TileDataIn& src, TileDataTmp& tmp, WaitEvents&... events);
+```
+
+同时输出值和索引：
+
+```cpp
+template <typename TileDataOutVal, typename TileDataOutIdx, typename TileDataIn, typename TileDataTmp,
+          typename... WaitEvents>
+PTO_INST RecordEvent TROWARGMIN(TileDataOutVal &dstVal, TileDataOutIdx &dstIdx, TileDataIn &src, TileDataTmp &tmp,
+                                WaitEvents &... events);
+```
+
+## 约束
+
+### 通用约束或检查
+
+- 支持的源元素类型：`half`、`float`、`int32_t`、`int16_t`（A2A3）。A5 接受任意 2/4 字节源（`half`、`bfloat16_t`、`int16_t`、`uint16_t`、`float`、`int32_t`、`uint32_t`）。
+- `src` 必须使用标准ND布局：行主且非分形（`BLayout::RowMajor`、`SLayout::NoneBox`）。
+- 仅输出索引时：
+    -`dst` 和 `src` 必须为 `TileType::Vec`。
+    - 支持的目标元素类型：`uint32_t`、`int32_t`。
+    - 运行时检查遵循共享的行归约检查路径：
+        - `src.GetValidRow() != 0`
+        - `src.GetValidCol() != 0`
+        - `src.GetValidRow() == dst.GetValidRow()`
+    - `dst` 通过共享的行归约索引检查路径约束，可使用以下任一非分形布局：
+        - 单列DN布局（`BLayout::ColMajor`、`Cols == 1`），或
+        - 有效列数为1的ND布局。
+- 同时输出值和索引时：
+    - `dstVal`、`dstIdx`、`src` 必须为 `TileType::Vec`。
+    - `dstVal`的元素类型必须与`src`的元素类型一致。
+    - 支持的目标元素类型：
+        - 源元素类型为`float`时，支持`uint32_t`、`int32_t`。
+        - 源元素类型为`half`时，支持`uint16_t`、`int16_t`。
+    - 运行时检查遵循共享的行归约检查路径：
+        - `src.GetValidRow() != 0`
+        - `src.GetValidCol() != 0`
+        - `src.GetValidRow() == dstIdx.GetValidRow()`
+        - `src.GetValidRow() == dstVal.GetValidRow()`
+    - `dstVal`、`dstIdx`通过共享的行归约索引检查路径约束，可使用以下任一非分形布局：
+        - 单列DN布局（`BLayout::ColMajor`、`Cols == 1`），或
+        - 有效列数为1的ND布局。
+
+### CPU_SIM实现检查
+
+- 支持的源元素类型为整数类型、`half`、`bfloat16_t` 和 `float`。
+- 索引目标元素类型必须为 `int32_t` 或 `uint32_t`。
+- 在值+索引模式下，值目标元素类型必须与源元素类型一致。
+- 接口为兼容性保留 `tmp`，CPU实现不使用该临时Tile。
+
+### `tmp`临时Tile相关说明
+
+- 仅Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品使用`tmp`临时Tile，Ascend 950PR/Ascend 950DT接收`tmp`但实际并不使用。
+- Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现根据 `srcValidCol` 与 `elementPerRepeat`（以下缩写为 `elemPerRpt`）的关系选择三条代码路径之一：
+
+#### 情况1：`srcValidCol <= elemPerRpt`
+
+- **仅输出索引模式**：`tmp` **不使用**。硬件 `vcmin` 指令直接写入 `dst`。
+- **值+索引模式**：`tmp` 用作小型缓冲区（每行2个元素：一个值 + 一个索引）。`tmp` 可使用以下任一非分形布局：
+    - 单列DN布局（`BLayout::ColMajor`、`Cols == 1`），有效行数为 `srcValidRow * 2`。
+    - 有效行数为 `srcValidRow` 且有效列数为2的ND布局。
+
+#### 情况2：`elemPerRpt < srcValidCol <= elemPerRpt²`（单阶段归约）
+
+- `tmp` **被使用**于单阶段归约。
+- `tmp` tile的行数与 `src` 相同。
+- `tmp` tile每行所需stride按以下公式计算：
+
+```text
+R1 = ceil(srcValidCol / elemPerRpt)
+stride = (ceil(R1 * 2 / elemPerBlock) + ceil(R1 / elemPerBlock)) * elemPerBlock
+```
+
+#### 情况3：`srcValidCol > elemPerRpt²`（两阶段归约）
+
+- `tmp` **被使用**于两阶段归约，所需空间大于单阶段。
+- `tmp` tile的行数与 `src` 相同。
+- `tmp` tile每行所需stride按以下公式计算：
+
+```text
+R1 = ceil(srcValidCol / elemPerRpt)
+R2 = ceil(R1 / elemPerRpt)
+stage1_size = ceil(R1 * 2 / elemPerBlock) * elemPerBlock
+stage2_end  = ceil(R1 / elemPerBlock) * elemPerBlock + ceil(R2 * 2 / elemPerBlock) * elemPerBlock
+stride = max(stage1_size, stage2_end) + 2
+```
+
+- `+ 2` 用于存放每行tmp区域末尾的最终值+索引结果。
+
+## 示例
+
+### 自动（Auto）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, uint32_t, 16, 1, BLayout::ColMajor>;
+  using DstValT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dstIdx;
+  DstValT dstVal;
+  TmpT tmp;
+  TROWARGMIN(dstIdx, src, tmp);
+  TROWARGMIN(dstVal, dstIdx, src, tmp);
+}
+```
+
+### 手动（Manual）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 16>;
+  using DstT = Tile<TileType::Vec, uint32_t, 16, 1, BLayout::ColMajor>;
+  using DstValT = Tile<TileType::Vec, float, 16, 1, BLayout::ColMajor>;
+  using TmpT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dstIdx;
+  DstValT dstVal;
+  TmpT tmp;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dstIdx, 0x2000);
+  TASSIGN(dstVal, 0x3000);
+  TASSIGN(tmp, 0x4000);
+  TROWARGMIN(dstIdx, src, tmp);
+  TROWARGMIN(dstVal, dstIdx, src, tmp);
+}
+```

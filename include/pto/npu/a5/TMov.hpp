@@ -509,7 +509,7 @@ __tf__ PTO_INTERNAL void TMovNdTo2Zz(
 // Iterating over col blocks (cb) along a row advances the source pointer by 16 (cols
 // are contiguous); advancing to the next row-group pair advances it by N. tmp is unused
 // (kept in the signature to match the ND->ZZ TMOV interface).
-// DN->ZZ exponent gather. See docs/isa/TQUANT_DN.md §"Implementation: vlds + vintlv + vsstb".
+// DN->ZZ exponent gather. See docs/en/isa/TQUANT_DN.md §"Implementation: vlds + vintlv + vsstb".
 // Produces the cb-outer ZZ layout from the DN (axis-0-grouped) exponent tile via
 // vlds + vintlv (cb-inner boxes) + vsstb block-strided scatter (cb-outer). No scalar
 // computation, no data-dependent branching, no static predicates.
@@ -649,7 +649,7 @@ __tf__ PTO_INTERNAL void TMovToVecNd2Nz(
     } // end of VF
 }
 
-// ND -> ZN within-fractal transpose. See docs/isa/TMOV.md for full algorithm details.
+// ND -> ZN within-fractal transpose. See docs/en/isa/TMOV.md for full algorithm details.
 template <typename T, typename WorkT, typename GatherDstT, typename IdxT, typename UIdxT>
 PTO_INTERNAL void Nd2ZnGatherOneVL(
     __ubuf__ WorkT* srcFractal, __ubuf__ T* dstFractal, uint16_t g, uint32_t elemsPerVL, uint32_t k0Log2,
@@ -732,7 +732,7 @@ __tf__ PTO_INTERNAL void TMovNdTo2Zn(
             (std::is_same<T, uint8_t>::value) || (std::is_same<T, float8_e4m3_t>::value) ||
             (std::is_same<T, float8_e5m2_t>::value) || (std::is_same<T, hifloat8_t>::value) ||
             (std::is_same<T, float4_e2m1x2_t>::value) || (std::is_same<T, float4_e1m2x2_t>::value),
-        "ND->ZN: unsupported type. See docs/isa/TMOV.md for supported types.");
+        "ND->ZN: unsupported type. See docs/en/isa/TMOV.md for supported types.");
     constexpr uint32_t k0 = BLOCK_BYTE_SIZE / sizeof(T);
     static_assert((SrcTileData::Rows % k0 == 0) || (SrcTileData::Rows == -1), "ND->ZN: Rows must be divisible by K0.");
     static_assert(

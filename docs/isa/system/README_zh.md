@@ -18,4 +18,4 @@
 
 - [指令集总览](../instruction-families/README_zh.md)
 - [Tile ISA 参考](../tile/README_zh.md)
-- [Communication ISA 参考](../comm/README_zh.md)
+- [Communication ISA 参考](../../zh/isa/comm/README.md)

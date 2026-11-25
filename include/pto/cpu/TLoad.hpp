@@ -13,10 +13,10 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 #include <pto/cpu/target_config.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <unistd.h>
 
 #include <pto/common/constants.hpp>
@@ -294,9 +294,8 @@ PTO_INTERNAL void loadA5VecNz(TileData& dst, GlobalData& src)
         for (size_t block = 0; block < blockCount; ++block) {
             const size_t dstOffsetBytes = group * dstGroupStrideBytes + block * DST_BLOCK_STRIDE_BYTES;
             NPUMemoryModel::Instance().CheckAccess(dstBytes, dstOffsetBytes, burstBytes);
-            std::memcpy(
-                dstBytes + dstOffsetBytes, srcBytes + group * srcGroupStrideBytes + block * srcBlockStrideBytes,
-                burstBytes);
+            const auto* srcBegin = srcBytes + group * srcGroupStrideBytes + block * srcBlockStrideBytes;
+            std::copy(srcBegin, srcBegin + burstBytes, dstBytes + dstOffsetBytes);
         }
     }
 }

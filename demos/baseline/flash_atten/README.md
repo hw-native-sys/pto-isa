@@ -1,16 +1,16 @@
-# FA PTO PyTorch Porting Example
+# FA PTO PyTorch 移植示例
 
-## Overview
+## 概述
 
-This example demonstrates how to implement a Flash Attention kernel using PTO (Parallel Template Operators) and expose it as a custom PyTorch operator via `torch_npu`. It showcases high-performance custom kernel integration on Ascend AI Processors with automatic tiling adaptation.
+本示例演示了如何使用 PTO 实现 Flash Attention 内核，并通过 `torch_npu` 将其作为自定义 PyTorch 算子对外暴露。示例展示了在 Ascend AI 处理器上实现高性能自定义内核集成，并具备自动 tile 适配能力。
 
-## Supported AI Processors
+## 支持的 AI 处理器
 
 - A2/A3/A5
 
-## 1. Prepare the Environment
+## 1. 环境准备
 
-Create a virtual environment and install dependencies:
+创建虚拟环境并安装依赖：
 
 ```bash
 python -m venv virEnv
@@ -18,7 +18,7 @@ source virEnv/bin/activate
 python3 -m pip install -r requirements.txt
 ```
 
-Ensure the Ascend Toolkit and PTO library are configured:
+确保已配置 Ascend Toolkit 和 PTO 库：
 
 ```bash
 export ASCEND_HOME_PATH=[YOUR_ASCEND_PATH/SYSTEM_ASCEND_PATH]
@@ -26,37 +26,37 @@ source [YOUR_ASCEND_PATH/SYSTEM_ASCEND_PATH]/latest/bin/setenv.bash
 export PTO_LIB_PATH=[YOUR_PATH]/pto-isa
 ```
 
-## 2. Build the Wheel
+## 2. 构建 Wheel 包
 
-The project supports building for different SOC versions via the `SOC_VERSION` environment variable. The build system automatically configures the correct optimization macros (e.g., `PTO_NPU_ARCH_A2A3` vs `PTO_NPU_ARCH_A5`) based on the target SOC.
+项目支持通过 `SOC_VERSION` 环境变量为不同的 SOC 版本进行构建。构建系统会根据目标 SOC 自动配置正确的优化宏（例如 `PTO_NPU_ARCH_A2A3` 与 `PTO_NPU_ARCH_A5`）。
 
-**Default Build (A2 / A3):**
+**默认构建（A2 / A3）：**
 ```bash
 python3 setup.py bdist_wheel
 ```
 
-**Build for Specific SOC (e.g., A5):**
+**为特定 SOC 构建（例如 A5）：**
 ```bash
-# Example for A5
+# A5 示例
 SOC_VERSION=ascend910_9599 python3 setup.py bdist_wheel
 ```
 
-## 3. Install the Wheel
+## 3. 安装 Wheel 包
 
 ```bash
 pip install dist/*.whl --force-reinstall
 ```
 
-## 4. Run Tests
+## 4. 运行测试
 
-Run the verification script to compare kernel results against the golden reference. The test covers various sequence lengths (1k to 32k) and validates the dynamic tiling logic.
+运行验证脚本，将内核结果与黄金参考值进行比较。测试涵盖多种序列长度（1k 至 32k）并验证动态 tile 逻辑。
 
 ```bash
 cd test
 python3 test.py
 ```
 
-## Features
+## 特性
 
-- **Dynamic Tiling**: Automatically selects the optimal tile size (128 or 256) based on input sequence length.
-- **Cross-Architectural Support**: Unified codebase supporting both A2/A3 and A5 architectures via build-time configuration.
+- **动态 Tiling**：根据输入序列长度自动选择最佳 tile 大小（128 或 256）。
+- **跨架构支持**：通过构建时配置，统一的代码库同时支持 A2/A3 和 A5 架构。

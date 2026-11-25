@@ -24,11 +24,15 @@ tests/npu/a2a3/src/st/build
 tests/npu/a5/src/st/build
 .arts
 docs/mkdocs/src/CONTRIBUTING.md
+docs/mkdocs/src/CONTRIBUTING_en.md
+docs/mkdocs/src/FAQ.md
+docs/mkdocs/src/FAQ_en.md
 docs/mkdocs/src/README.md
-docs/mkdocs/src/README_zh.md
+docs/mkdocs/src/README_en.md
 docs/mkdocs/src/ReleaseNote.md
+docs/mkdocs/src/ReleaseNote_en.md
 docs/mkdocs/src/SECURITY.md
-docs/mkdocs/src/SECURITY_zh.md
+docs/mkdocs/src/SECURITY_en.md
 docs/mkdocs/src/all-pages.md
 docs/mkdocs/src/all-pages_zh.md
 docs/mkdocs/src/lang-map.json
@@ -37,8 +41,6 @@ docs/mkdocs/src/demos/
 docs/mkdocs/src/docs/
 docs/mkdocs/src/include/
 docs/mkdocs/src/kernels/
-docs/mkdocs/src/manual/isa-reference.md
-docs/mkdocs/src/manual/isa-reference_zh.md
 docs/mkdocs/src/scripts/
 docs/mkdocs/src/tests/
 kernels/**/**/**/build/

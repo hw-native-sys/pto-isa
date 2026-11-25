@@ -1,21 +1,21 @@
-# Manual kernels (A2/A3)
+# 手工调优 kernels（A2/A3）
 
-This directory contains manual, performance-oriented kernel examples targeting Ascend A2/A3.
+本目录包含面向 Ascend A2/A3 的手工调优、偏性能的 kernel 示例。
 
-## Examples
+## 示例
 
-- GEMM performance kernel: [gemm_performance/README.md](gemm_performance/README.md)
-- AllGather + GEMM fusion: [allgather_gemm/README.md](allgather_gemm/README.md)
-- Flash-Attention kernel: [../common/flash_atten/README.md](../common/flash_atten/README.md)
-- TOPK performance kernel: [topk/README.md](topk/README.md)
-- TGET bandwidth comparison kernel: [tget_bandwidth/README.md](tget_bandwidth/README.md)
+- GEMM 性能 kernel：[gemm_performance/README.md](gemm_performance/README_en.md)
+- AllGather + GEMM 融合：[allgather_gemm/README.md](allgather_gemm/README_en.md)
+- Flash-Attention kernel：[../common/flash_atten/README.md](../common/flash_atten/README_en.md)
+- TOPK 性能 kernel：[topk/README.md](topk/README_en.md)
+- TGET 带宽对比 kernel：[tget_bandwidth/README.md](tget_bandwidth/README.md)
 
-## Common setup
+## 通用环境准备
 
-These examples typically require a CANN environment to be sourced before building/running. For example:
+这些示例通常需要先 source CANN 环境后再构建/运行，例如：
 
 ```bash
 source ${ASCEND_INSTALL_PATH}/bin/setenv.bash
 ```
 
-Then follow the `run.sh` usage documented in each example directory.
+然后按各示例目录里的 `run.sh`/README 说明执行即可。

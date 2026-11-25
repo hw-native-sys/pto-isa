@@ -72,7 +72,7 @@ at::Tensor run_fa_custom(const at::Tensor& q, const at::Tensor& k, const at::Ten
     size_t p_fifo_float_size = CEIL(kFaCvFifoSize * CUBE_S0 * blockRow * sizeof(float), 512);
     size_t num_tiles = s1 / tile_s1;
     size_t gsum_size = CEIL(s0 * num_tiles * sizeof(float), 512);
-    size_t pvPart_size = s0 * head_size * sizeof(float);
+    size_t pvPart_size = static_cast<size_t>(s0) * head_size * sizeof(float);
     size_t oPartsTotal_size = CEIL(pvPart_size * num_tiles, 512);
     size_t pv_fifo_stride = kFaCvFifoSize * CUBE_S0 * head_size;
     size_t pv_fifo_size = CEIL(pv_fifo_stride * blockRow * sizeof(float), 512);

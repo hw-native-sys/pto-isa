@@ -79,9 +79,10 @@ AICORE inline void runGEMMBASIC(__gm__ T* out, __gm__ U* src0, __gm__ S* src1)
     constexpr uint32_t mIter = M / singleCoreM;
     uint32_t mIterIdx = get_block_idx() % mIter;
     uint32_t nIterIdx = get_block_idx() / mIter;
-    uint64_t currentGmOffsetA = mIterIdx * singleCoreM * K;
-    uint64_t currentGmOffsetB = nIterIdx * K * singleCoreN;
-    uint64_t currentGmOffsetC = mIterIdx * singleCoreM * N + nIterIdx * singleCoreN;
+    uint64_t currentGmOffsetA = static_cast<uint64_t>(mIterIdx) * singleCoreM * K;
+    uint64_t currentGmOffsetB = static_cast<uint64_t>(nIterIdx) * K * singleCoreN;
+    uint64_t currentGmOffsetC =
+        static_cast<uint64_t>(mIterIdx) * singleCoreM * N + static_cast<uint64_t>(nIterIdx) * singleCoreN;
     __gm__ U* currentSrc0 = src0 + currentGmOffsetA;
     __gm__ S* currentSrc1 = src1 + currentGmOffsetB;
     __gm__ T* currentDst = out + currentGmOffsetC;

@@ -1066,12 +1066,23 @@ AICORE void TGather_cmp(
     } else if constexpr (std::is_same_v<typename TileDataS::DType, half> && cmpMode == CmpMode::EQ) {
         TGather_half_eq<TileDataD, TileDataS, TileDataS1, TileDataC, cmpMode>(
             dst, src0, k_value, offset, cdst, srcValidCol, srcValidRow, dstValidCol, dstValidRow);
-    } else if constexpr (std::is_same_v<typename TileDataS::DType, int16_t> && cmpMode == CmpMode::GT) {
+    } else if constexpr (
+        (std::is_same_v<typename TileDataS::DType, int16_t> || std::is_same_v<typename TileDataS::DType, uint16_t>) &&
+        cmpMode == CmpMode::GT) {
+        // b16 GT compares zero-extended lanes in the u32 domain, which is exact for uint16
+        // (issue #13: uint16 GT used to fall into the EQ catch-all and silently return EQ results).
         TGather_b16_gt<TileDataD, TileDataS, TileDataS1, TileDataC, cmpMode>(
             dst, src0, k_value, offset, cdst, srcValidCol, srcValidRow, dstValidCol, dstValidRow);
-    } else {
+    } else if constexpr (
+        (std::is_same_v<typename TileDataS::DType, int16_t> || std::is_same_v<typename TileDataS::DType, uint16_t>) &&
+        cmpMode == CmpMode::EQ) {
         TGather_b16_eq<TileDataD, TileDataS, TileDataS1, TileDataC, cmpMode>(
             dst, src0, k_value, offset, cdst, srcValidCol, srcValidRow, dstValidCol, dstValidRow);
+    } else {
+        // Unreachable for every dtype x cmpMode pair allowed by TGATHER_IMPL's static_asserts; a hard
+        // error here keeps new combinations from silently degrading to EQ again.
+        static_assert(
+            sizeof(typename TileDataS::DType) == 0, "Fix: TGATHER unsupported src dtype x cmpMode combination.");
     }
 }
 

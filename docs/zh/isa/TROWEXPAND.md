@@ -1,0 +1,90 @@
+# TROWEXPAND
+
+## 产品支持情况<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT系列产品：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3系列产品：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2系列产品：支持
+<!-- end id3 -->
+
+
+## 指令示意图
+
+![TROWEXPAND tile operation](../../figures/isa/TROWEXPAND.svg)
+
+## 简介
+
+将每个源行的第一个元素广播到目标行中。
+
+## 数学语义
+
+设 `R = dst.GetValidRow()`，`C = dst.GetValidCol()`。对 `0 <= i < R` 且 `0 <= j < C`：
+
+$$ \mathrm{dst}_{i,j} = \mathrm{src}_{i,0} $$
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+```cpp
+template <typename TileDataDst, typename TileDataSrc, typename... WaitEvents>
+PTO_INST RecordEvent TROWEXPAND(TileDataDst &dst, TileDataSrc &src, WaitEvents &... events);
+```
+
+## 约束
+
+实现检查 (NPU):
+
+- Tile类型：`dst` 和 `src` 必须是 `TileType::Vec`。
+- Tile布局：`dst` 为非分形 RowMajor；`src` 可为非分形 RowMajor 或 ColMajor（`SLayout::NoneBox`）。输入输出元素类型必须相同。
+- A5 的源静态 `ValidCol` 必须为 1 或动态值 -1；单标量行广播应使用有效列数 1。
+- 数据类型（Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品）：元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`half`、`bfloat16_t`、`float`。
+- 数据类型（Ascend 950PR/Ascend 950DT）：元素类型必须是以下之一：`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`int32_t`、`uint32_t`、`int64_t`、`uint64_t`、`half`、`bfloat16_t`、`float`。
+- 运行期有效区域检查：
+    - Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品：若 `dstValidRow`、`dstValidCol`、`srcValidRow`、`srcValidCol` 中任意一个为零则提前返回。
+    - Ascend 950PR/Ascend 950DT：断言 `srcValidRow == dstValidRow`，且断言 `srcValidRow != 0 && srcValidCol != 0`。
+
+- 64 位输入（Ascend 950PR/Ascend 950DT）：ND 源可使用物理 `[64,4]`、有效 `[64,1]`，DN 源可使用紧凑 `[64,1]`。每行广播 `src[i,0]`，地址使用物理 `RowStride`。
+- 与 [TROWEXPANDADD](TROWEXPANDADD.md) 等二元行广播不同，本指令的 ND 源仍提供每行单标量，不重复广播 32 字节块。
+
+## 示例
+
+### 自动（Auto）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  using SrcT = Tile<TileType::Vec, float, 16, 8, BLayout::RowMajor, 16, 1>;
+  using DstT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TROWEXPAND(dst, src);
+}
+```
+
+### 手动（Manual）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using SrcT = Tile<TileType::Vec, float, 16, 8, BLayout::RowMajor, 16, 1>;
+  using DstT = Tile<TileType::Vec, float, 16, 16>;
+  SrcT src;
+  DstT dst;
+  TASSIGN(src, 0x1000);
+  TASSIGN(dst, 0x2000);
+  TROWEXPAND(dst, src);
+}
+```

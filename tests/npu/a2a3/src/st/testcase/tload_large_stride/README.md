@@ -100,7 +100,7 @@ removes `PTO_ASSERT` diagnostics, not the range dispatch; defining `_DEBUG=0` st
 There is no public template option to disable fallback. The cases in this suite use the default L2 hint; they do not
 replace the separate L2-hint tests or cover all padding/data-type combinations.
 
-The [TLOAD interface](../../../../../../../docs/isa/TLOAD.md) documents the distinct gap,
+The [TLOAD interface](../../../../../../../docs/en/isa/TLOAD.md) documents the distinct gap,
 stride and format-conversion constraints.
 
 Use the normal ST runner with `-t tload_large_stride`. GTest filters can select the

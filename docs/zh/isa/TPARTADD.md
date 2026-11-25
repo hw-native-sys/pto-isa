@@ -1,0 +1,100 @@
+# TPARTADD
+
+## 产品支持情况<a name="section73648168211"></a>
+
+<!-- npu="950" id1 -->
+- Ascend 950PR&950DT系列产品：支持
+<!-- end id1 -->
+<!-- npu="A3" id2 -->
+- Atlas A3系列产品：支持
+<!-- end id2 -->
+<!-- npu="910b" id3 -->
+- Atlas A2系列产品：支持
+<!-- end id3 -->
+
+
+## 指令示意图
+
+![TPARTADD tile operation](../../figures/isa/TPARTADD.svg)
+
+## 简介
+
+在目标有效区域内执行逐元素加法。若某个位置上 `src0` 和 `src1` 都有效，则结果为两者之和；若只有一个输入在该位置有效，则结果直接取该输入的值。其余有效区域不匹配的情况由具体实现定义。
+
+## 数学语义
+
+对目标有效区域内的每个元素 `(i, j)`：
+
+$$
+\mathrm{dst}_{i,j} =
+\begin{cases}
+\mathrm{src0}_{i,j} + \mathrm{src1}_{i,j} & \text{若两个输入在 } (i,j) \text{ 处均有定义} \\
+\mathrm{src0}_{i,j} & \text{若仅src0在 } (i,j) \text{ 处有定义} \\
+\mathrm{src1}_{i,j} & \text{若仅src1在 } (i,j) \text{ 处有定义}
+\end{cases}
+$$
+
+## C++内建接口
+
+声明于 `include/pto/common/pto_instr.hpp`：
+> 公共包含头为 `<pto/pto-inst.hpp>`，内部声明位于 `pto/common/pto_instr.hpp`。
+
+```cpp
+template <typename TileDataDst, typename TileDataSrc0, typename TileDataSrc1, typename... WaitEvents>
+PTO_INST RecordEvent TPARTADD(TileDataDst &dst, TileDataSrc0 &src0, TileDataSrc1 &src1, WaitEvents &... events);
+```
+
+## 约束
+
+### 通用约束或检查
+
+- `dst`、`src0` 和 `src1` 的元素类型必须一致。
+- 目标有效区域定义结果的计算范围。
+- 对目标有效区域内的每个元素：
+    - 若两个输入都有效，则执行该指令对应的逐元素运算；
+    - 若只有一个输入有效，则结果直接取该输入的值。
+- 若 `dst` 的有效区域为零，指令直接返回。
+- 支持的部分有效区域模式要求至少有一个源Tile的有效区域与 `dst` 完全一致，另一个源Tile的有效区域在两个维度上都不能超过 `dst`。
+- 上述范围之外的有效区域组合，其行为均由具体实现定义。
+
+### Atlas A2/A3 训练系列产品/Atlas A2/A3 推理系列产品实现检查
+
+- 支持的元素类型：`int32_t`、`int16_t`、`half`、`float`。
+- `dst`、`src0` 和 `src1` 必须全部为行主序（`isRowMajor`）。
+
+### Ascend 950PR/Ascend 950DT实现检查
+
+- 支持的元素类型：`uint8_t`、`int8_t`、`uint16_t`、`int16_t`、`uint32_t`、`int32_t`、`int64_t`、`uint64_t`、`half`、`float`、`bfloat16_t`。
+
+## 示例
+
+### 自动（Auto）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_auto() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT src0, src1, dst;
+  TPARTADD(dst, src0, src1);
+}
+```
+
+### 手动（Manual）
+
+```cpp
+#include <pto/pto-inst.hpp>
+
+using namespace pto;
+
+void example_manual() {
+  using TileT = Tile<TileType::Vec, float, 16, 16>;
+  TileT src0, src1, dst;
+  TASSIGN(src0, 0x1000);
+  TASSIGN(src1, 0x2000);
+  TASSIGN(dst,  0x3000);
+  TPARTADD(dst, src0, src1);
+}
+```

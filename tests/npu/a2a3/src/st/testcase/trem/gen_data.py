@@ -95,7 +95,7 @@ def divisor_pool(dtype):
 
 
 def hp_divisor_pool(dtype):
-    """High precision divisors. Domain notes (see docs/isa/TREMS.md):
+    """High precision divisors. Domain notes (see docs/en/isa/TREMS.md):
     - divisor 0 is outside the HP contract (same as A5) and NaN divisors race
       the unguarded src0==+-0 exception fixup;
     - the remainder sign correction probes r*y, which underflows to +-0 when

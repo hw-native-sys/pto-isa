@@ -21,7 +21,7 @@ baseline 要求：
 
 当不确定 PTO 指令语法、CCE intrinsic 语法、语义、mask、mode 或目标可用性时，按以下顺序查询：
 
-1. 仓库内 PTO-ISA 文档和头文件，尤其是 `docs/isa/`、`docs/coding/`、`docs/machine/` 和 `include/pto/`。
+1. 仓库内 PTO-ISA 文档和头文件，尤其是 `docs/zh/isa/`、`docs/zh/coding/`、`docs/zh/machine/` 和 `include/pto/`。
 2. 仓库中覆盖相同指令或数据流的 tests 和 examples。
 3. 仓库中的 costmodel 文档或头文件，如果存在，例如 `docs/costmodel*` 和 `include/pto/costmodel/`。
 4. 当编写直接 CCE intrinsic 时，查询 Ascend CCE intrinsic 官方 API 文档：

@@ -135,7 +135,7 @@ PTO_INST RecordEvent REDUCE(GroupType& group, GlobalData& src, TileData& staging
 
 ## Navigation
 
-See the [Communication ISA reference](../comm/README.md) for the full per-op reference.
+See the [Communication ISA reference](../../en/isa/comm/README.md) for the full per-op reference.
 
 ## See Also
 

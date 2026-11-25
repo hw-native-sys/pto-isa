@@ -20,7 +20,7 @@ namespace pto {
 // TREM owns the shared HP math here (digit-peeling core, scratch/select
 // machinery, staged loop inversion); TRemS.hpp adds the scalar-divisor
 // variants. All operands are UB buffers with pipe_barrier between dependent
-// ops. Rigorous algorithm notes: docs/isa/TREM.md appendix.
+// ops. Rigorous algorithm notes: docs/en/isa/TREM.md appendix.
 constexpr uint32_t FMOD_ITERATION_NUM_MAX_A2A3 = 11;
 
 constexpr float FMOD_HP_SUBNORMAL = 1.1754944e-38f; // min normal, same threshold as A5
@@ -156,7 +156,7 @@ PTO_INTERNAL void HpRoundToInt(__ubuf__ float* k, unsigned rep)
 // Compensated `state -= k * bTmp` for the FINAL peel iteration (single
 // rounding): exact k*bTmp via a 257-split of bTmp and 8-bit digits of k,
 // Sterbenz subtract, finiteness-guarded with a plain fallback. Details in
-// docs/isa/TREM.md appendix. Needs s.comp (10 vectors) live.
+// docs/en/isa/TREM.md appendix. Needs s.comp (10 vectors) live.
 PTO_INTERNAL void HpFusedSub(
     __ubuf__ float* state, __ubuf__ float* k, __ubuf__ float* bTmp, HpScratchA2A3& s, unsigned rep)
 {
@@ -636,7 +636,7 @@ PTO_INTERNAL void TRemVStagedA2A3(
     unsigned tailCount = validCols - fullPerRow * elementsPerRepeat;
 
     // repeatTimes is 8-bit: one row-batch instruction covers at most 255
-    // full vectors (see docs/isa/TREMS.md for the resulting tiling caps)
+    // full vectors (see docs/en/isa/TREMS.md for the resulting tiling caps)
     PTO_ASSERT(fullPerRow <= 255, "TREM HP staged: validCols exceeds 255 full vectors per row; split the tile.");
 
     HpScratchA2A3 s;
@@ -919,7 +919,7 @@ PTO_INTERNAL void TREM_IMPL(TileDataDst& dst, TileDataSrc0& src0, TileDataSrc1& 
         unsigned capVecs = dst.GetValidCol() / elemsPerRepeatHp;
         PTO_ASSERT(
             tmp.GetValidRow() >= 1 && tmp.GetValidCol() >= HpScratchRequiredColsV(capVecs > 0 ? capVecs : 1),
-            "TREM HP: tmp tile too small for the high precision scratch contract (see docs/isa/TREMS.md).");
+            "TREM HP: tmp tile too small for the high precision scratch contract (see docs/en/isa/TREMS.md).");
     }
     constexpr unsigned blockSizeElem = BLOCK_BYTE_SIZE / sizeof(T);
     constexpr unsigned elementsPerRepeat = REPEAT_BYTE / sizeof(T);

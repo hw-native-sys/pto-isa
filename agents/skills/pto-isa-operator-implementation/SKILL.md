@@ -31,7 +31,7 @@ license: CANN Open Software License Agreement Version 2.0
 
 ### 关键特性
 
-- **ISA指令选择**: 从PTOISA_zh.md文档中分析并选择合适的指令
+- **ISA指令选择**: 从docs/zh/PTOISA.md文档中分析并选择合适的指令
 - **数据流分析**: 按数据处理顺序分析数据流向
   - **Vector计算**: gm → ub → vector → ub → gm
   - **Cube计算(矩阵乘)**: GM → L1 → L0A/L0B → L0C → GM
@@ -45,7 +45,7 @@ license: CANN Open Software License Agreement Version 2.0
 ```
 用户指定算子功能
     ↓
-步骤1: 阅读PTOISA_zh.md
+步骤1: 阅读docs/zh/PTOISA.md
     ↓
 步骤2: 分析算子需求，列举ISA指令
     ↓
@@ -56,12 +56,12 @@ license: CANN Open Software License Agreement Version 2.0
 
 ## 步骤详解
 
-### 步骤1: 阅读PTOISA_zh.md文档
+### 步骤1: 阅读docs/zh/PTOISA.md文档
 
 **目标**: 全面了解PTO-ISA指令集，识别可能与算子相关的指令类别。
 
 **行动**:
-1. 阅读文档路径: `pto-isa/docs/PTOISA_zh.md`
+1. 阅读文档路径: `pto-isa/docs/zh/PTOISA.md`
 2. 重点关注指令索引表，识别以下类别的指令：
    - **内存指令**: TLOAD, TSTORE, TPREFETCH (GM <-> Tile数据搬运)
    - **逐元素计算**: TADD, TSUB, TMUL, TDIV, TMAX, TMIN (Tile-Tile操作)
@@ -1343,7 +1343,7 @@ template void launchMatMul<half, half, half, 16, 16, 16>(half *out, half *src0, 
 
 **回答**:
 1. 分析算子功能，分解为基本操作
-2. 在PTOISA_zh.md中查找对应指令
+2. 在docs/zh/PTOISA.md中查找对应指令
 3. 按数据流顺序排列指令
 4. 检查指令间的依赖关系
 5. 考虑融合指令减少步骤
@@ -1464,11 +1464,11 @@ TMOV在矩阵乘法中用于数据搬运:
 
 ## 参考资料
 
-- **ISA参考**: `pto-isa/docs/PTOISA_zh.md` - PTO指令索引
-- **ISA详细文档**: `pto-isa/docs/isa/` - 各指令详细说明
-  - `docs/isa/TMATMUL_zh.md` - 矩阵乘法指令
-  - `docs/isa/TLOAD_zh.md` - 数据加载指令
-  - `docs/isa/TMOV_zh.md` - 数据搬运指令
+- **ISA参考**: `pto-isa/docs/zh/PTOISA.md` - PTO指令索引
+- **ISA详细文档**: `pto-isa/docs/zh/isa/` - 各指令详细说明
+  - `docs/zh/isa/TMATMUL.md` - 矩阵乘法指令
+  - `docs/zh/isa/TLOAD.md` - 数据加载指令
+  - `docs/zh/isa/TMOV.md` - 数据搬运指令
 - **C++ API**: `include/pto/pto-inst.hpp` - PTO指令C++接口
 - **常量定义**: `include/pto/common/constants.hpp` - 流水线、事件ID等常量
 - **测试示例**: `tests/npu/a2a3/src/st/testcase/` - 算子实现示例
@@ -1478,7 +1478,7 @@ TMOV在矩阵乘法中用于数据搬运:
 
 本skill提供了使用PTO-ISA实现指定算子功能的完整流程：
 
-1. **步骤1**: 阅读PTOISA_zh.md，了解指令集
+1. **步骤1**: 阅读docs/zh/PTOISA.md，了解指令集
 2. **步骤2**: 分析算子需求，列举ISA指令
 3. **步骤3**: 按数据流顺序解释指令功能
    - Vector计算: GM → UB → V → UB → GM

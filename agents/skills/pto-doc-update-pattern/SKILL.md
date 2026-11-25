@@ -19,24 +19,24 @@ license: CANN Open Software License Agreement Version 2.0
 | 类型 | 说明 |
 |------|------|
 | 指令diagrams | `docs/figures/isa/{指令名}.svg` - 指令操作示意图 |
-| 指令文档 | `docs/isa/{指令名}.md` - 详细指令文档（英文） |
-| 指令文档 | `docs/isa/{指令名}_zh.md` - 详细指令文档（中文） |
+| 指令文档 | `docs/en/isa/{指令名}.md` - 详细指令文档（英文） |
+| 指令文档 | `docs/zh/isa/{指令名}.md` - 详细指令文档（中文） |
 
 ### 修改文件（需同步更新）
 
 | 类型 | 说明 |
 |------|------|
-| ISA主索引 | `docs/PTOISA.md` - ISA索引表格 |
-| ISA主索引 | `docs/PTOISA_zh.md` - ISA索引表格（中文） |
-| ISA参考目录 | `docs/isa/README.md` - 按分类排序的指令列表 |
-| ISA参考目录 | `docs/isa/README_zh.md` - 按分类排序的指令列表（中文） |
-| 菜单文档 | `docs/menu_ops_development.md` - 按分类排序的英文链接 |
-| 菜单文档 | `docs/menu_ops_development_zh.md` - 按分类排序的中文链接 |
+| ISA主索引 | `docs/en/PTOISA.md` - ISA索引表格 |
+| ISA主索引 | `docs/zh/PTOISA.md` - ISA索引表格（中文） |
+| ISA参考目录 | `docs/en/isa/README.md` - 按分类排序的指令列表 |
+| ISA参考目录 | `docs/zh/isa/README.md` - 按分类排序的指令列表（中文） |
+| 菜单文档 | `docs/en/menu_ops_development.md` - 按分类排序的英文链接 |
+| 菜单文档 | `docs/zh/menu_ops_development.md` - 按分类排序的中文链接 |
 | 汇编参考 | `docs/assembly/<类别>-ops.md` - 根据指令类型动态选择 |
-| 指令族矩阵 | `docs/mkdocs/src/manual/appendix-d-instruction-family-matrix.md` - 指令族矩阵 |
-| 指令族矩阵 | `docs/mkdocs/src/manual/appendix-d-instruction-family-matrix_zh.md` - 指令族矩阵（中文） |
+| 指令族矩阵 | `docs/en/manual/appendix-d-instruction-family-matrix.md` - 指令族矩阵 |
+| 指令族矩阵 | `docs/zh/manual/appendix-d-instruction-family-matrix.md` - 指令族矩阵（中文） |
 | include索引 | `include/README.md` - 实现状态表格 |
-| include索引 | `include/README_zh.md` - 实现状态表格（中文） |
+| include索引 | `include/README.md` - 实现状态表格（中文） |
 
 ---
 
@@ -73,13 +73,13 @@ license: CANN Open Software License Agreement Version 2.0
 
 ### 1. ISA 主索引文件
 
-#### docs/PTOISA.md / docs/PTOISA_zh.md
+#### docs/en/PTOISA.md / docs/zh/PTOISA.md
 - **位置**: 指令索引表格
 - **分类**:
   - 逐元素（Tile-Tile）指令 → 插在 `TFMOD` 后
   - Tile-标量 / Tile-立即数 → 插在 `TLRELU` 后
 
-#### include/README.md / include/README_zh.md
+#### include/README.md / include/README.md
 - **位置**: 实现状态表格（按字母序）
 - **分类**:
   - TPOW → 插在 `TPRELU` 和 `TPUT` 之间
@@ -87,7 +87,7 @@ license: CANN Open Software License Agreement Version 2.0
 
 ### 2. ISA 参考目录
 
-#### docs/isa/README.md / docs/isa/README_zh.md
+#### docs/en/isa/README.md / docs/zh/isa/README.md
 - **位置**: 按分类排序的指令列表
 - **分类**:
   - Elementwise (Tile-Tile) → 插在 `TFMOD` 后
@@ -95,9 +95,9 @@ license: CANN Open Software License Agreement Version 2.0
 
 ### 3. 菜单文档
 
-#### docs/menu_ops_development.md / docs/menu_ops_development_zh.md
+#### docs/en/menu_ops_development.md / docs/zh/menu_ops_development.md
 - **位置**: 按分类排序的指令链接列表
-- **语言**: 英文菜单链接不带 `_zh` 的文档，中文菜单链接带 `_zh` 的文档；两个菜单同步更新
+- **语言**: 英文菜单链接到 `docs/en/...` 文档，中文菜单链接到 `docs/zh/...` 文档；两个菜单同步更新
 - **同 ISA 参考目录结构**
 
 ### 4. 汇编文档（动态选择）
@@ -117,7 +117,7 @@ license: CANN Open Software License Agreement Version 2.0
 
 ### 5. 指令族矩阵
 
-#### docs/mkdocs/src/manual/appendix-d-instruction-family-matrix.md
+#### docs/en/manual/appendix-d-instruction-family-matrix.md
 - **位置**: D.2 覆盖统计表 + D.4 家族矩阵表
 - **D.2 更新示例**:
   ```
@@ -128,7 +128,7 @@ license: CANN Open Software License Agreement Version 2.0
 - **D.4 更新**:
   - 在对应分类的最后一条目后插入新指令
 
-#### docs/mkdocs/src/manual/appendix-d-instruction-family-matrix_zh.md
+#### docs/zh/manual/appendix-d-instruction-family-matrix.md
 - **同英文版本**
 
 ---
@@ -162,21 +162,21 @@ license: CANN Open Software License Agreement Version 2.0
 
 ### 新增文件（预先创建）
 - [ ] `docs/figures/isa/{新指令}.svg` - 指令操作示意图
-- [ ] `docs/isa/{新指令}.md` - 详细指令文档（英文）
-- [ ] `docs/isa/{新指令}_zh.md` - 详细指令文档（中文）
+- [ ] `docs/en/isa/{新指令}.md` - 详细指令文档（英文）
+- [ ] `docs/zh/isa/{新指令}.md` - 详细指令文档（中文）
 
 ### 修改文件（同步更新）
-- [ ] `docs/PTOISA.md` - ISA主索引
-- [ ] `docs/PTOISA_zh.md` - ISA主索引（中文）
+- [ ] `docs/en/PTOISA.md` - ISA主索引
+- [ ] `docs/zh/PTOISA.md` - ISA主索引（中文）
 - [ ] `include/README.md` - include索引
-- [ ] `include/README_zh.md` - include索引（中文）
-- [ ] `docs/isa/README.md` - ISA参考目录
-- [ ] `docs/isa/README_zh.md` - ISA参考目录（中文）
-- [ ] `docs/menu_ops_development.md` - 菜单文档（英文）
-- [ ] `docs/menu_ops_development_zh.md` - 菜单文档（中文）
+- [ ] `include/README.md` - include索引（中文）
+- [ ] `docs/en/isa/README.md` - ISA参考目录
+- [ ] `docs/zh/isa/README.md` - ISA参考目录（中文）
+- [ ] `docs/en/menu_ops_development.md` - 菜单文档（英文）
+- [ ] `docs/zh/menu_ops_development.md` - 菜单文档（中文）
 - [ ] `docs/assembly/<类别>-ops.md` - 动态选择的汇编文件（英文+中文）
-- [ ] `docs/mkdocs/src/manual/appendix-d-instruction-family-matrix.md` - 指令族矩阵
-- [ ] `docs/mkdocs/src/manual/appendix-d-instruction-family-matrix_zh.md` - 指令族矩阵（中文）
+- [ ] `docs/en/manual/appendix-d-instruction-family-matrix.md` - 指令族矩阵
+- [ ] `docs/zh/manual/appendix-d-instruction-family-matrix.md` - 指令族矩阵（中文）
 
 ---
 

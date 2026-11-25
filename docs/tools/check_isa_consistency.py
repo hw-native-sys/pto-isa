@@ -34,10 +34,10 @@ from typing import Dict, List
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = REPO_ROOT / "docs" / "isa" / "manifest.yaml"
-ISA_DIR = REPO_ROOT / "docs" / "isa"
+ISA_DIR_EN = REPO_ROOT / "docs" / "en" / "isa"
+ISA_DIR_ZH = REPO_ROOT / "docs" / "zh" / "isa"
 SVG_DIR = REPO_ROOT / "docs" / "figures" / "isa"
 PTO_HEADER = REPO_ROOT / "include" / "pto" / "common" / "pto_instr.hpp"
-DOC_ONLY_MANIFEST_INSTRUCTIONS = {"SETHF32MODE", "SETTF32MODE"}
 
 
 def load_manifest(path: Path) -> List[Dict[str, object]]:
@@ -62,25 +62,20 @@ def header_instructions(path: Path) -> List[str]:
 
 
 def docs_instructions(isa_dir: Path) -> set[str]:
-    return {
-        p.stem
-        for p in isa_dir.glob("*.md")
-        if p.name not in {"README.md", "README_zh.md", "conventions.md", "conventions_zh.md"}
-        and not p.stem.endswith("_zh")
-    }
+    return {p.stem for p in isa_dir.glob("*.md") if p.name not in {"README.md", "conventions.md"}}
 
 
 def check_en_page(instr: str, page: Path) -> List[str]:
     errors: List[str] = []
     text = page.read_text(encoding="utf-8", errors="ignore")
-    svg_token = f"../figures/isa/{instr}.svg"
-    if "_zh.md" in text:
+    svg_token = f"../../figures/isa/{instr}.svg"
+    if "/zh/" in text:
         errors.append(f"unexpected zh reference in English page {page}")
     if svg_token not in text:
         errors.append(f"missing svg link in {page}: expected token '{svg_token}'")
-    if "### IR Level 1 (SSA)" not in text and "### AS Level 1 (SSA)" not in text:
+    if "### IR Level 1 (SSA)" not in text:
         errors.append(f"missing IR Level 1 syntax section in {page}")
-    if "### IR Level 2 (DPS)" not in text and "### AS Level 2 (DPS)" not in text:
+    if "### IR Level 2 (DPS)" not in text:
         errors.append(f"missing IR Level 2 syntax section in {page}")
     return errors
 
@@ -88,15 +83,14 @@ def check_en_page(instr: str, page: Path) -> List[str]:
 def check_zh_page(instr: str, page: Path) -> List[str]:
     errors: List[str] = []
     text = page.read_text(encoding="utf-8", errors="ignore")
-    svg_token = f"../figures/isa/{instr}.svg"
-    en_token = f"{instr}.md"
-    if en_token in text:
-        errors.append(f"unexpected en reference in Chinese page {page}: found token '{en_token}'")
+    svg_token = f"../../figures/isa/{instr}.svg"
+    if "/en/" in text:
+        errors.append(f"unexpected en reference in Chinese page {page}")
     if svg_token not in text:
         errors.append(f"missing svg link in {page}: expected token '{svg_token}'")
-    if not any(token in text for token in ("IR Level 1", "AS Level 1", "AS Level 1（SSA）", "IR Level 1（SSA）")):
+    if "IR Level 1" not in text:
         errors.append(f"missing IR Level 1 syntax section in {page}")
-    if not any(token in text for token in ("IR Level 2", "AS Level 2", "AS Level 2（DPS）", "IR Level 2（DPS）")):
+    if "IR Level 2" not in text:
         errors.append(f"missing IR Level 2 syntax section in {page}")
     return errors
 
@@ -137,11 +131,11 @@ def main() -> int:
     if missing_in_manifest:
         errors.append("header instructions missing in manifest: " + ", ".join(missing_in_manifest))
 
-    extra_in_manifest = sorted((manifest_set - header_set) - DOC_ONLY_MANIFEST_INSTRUCTIONS)
+    extra_in_manifest = sorted(manifest_set - header_set)
     if extra_in_manifest:
         errors.append("manifest instructions not in header: " + ", ".join(extra_in_manifest))
 
-    docs_set = docs_instructions(ISA_DIR)
+    docs_set = docs_instructions(ISA_DIR_EN)
     missing_en_pages = sorted(manifest_set - docs_set)
     if missing_en_pages:
         errors.append("manifest instructions missing English pages: " + ", ".join(missing_en_pages))
@@ -151,8 +145,8 @@ def main() -> int:
         errors.append("English pages not in manifest: " + ", ".join(extra_en_pages))
 
     for instr in sorted(manifest_set):
-        en_page = ISA_DIR / f"{instr}.md"
-        zh_page = ISA_DIR / f"{instr}_zh.md"
+        en_page = ISA_DIR_EN / f"{instr}.md"
+        zh_page = ISA_DIR_ZH / f"{instr}.md"
         svg = SVG_DIR / f"{instr}.svg"
 
         if not zh_page.exists():
