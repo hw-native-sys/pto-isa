@@ -32,6 +32,8 @@ def gen_golden_data_tci(case_name, param):
     elif param.reverse == 1:
         # 生成递减索引
         result = [param.begin - i for i in range(0, param.length)]
+    else:
+        raise ValueError(f"reverse must be 0 or 1, but got : {param.reverse}")
     save_to_binary_file(result, "golden.bin", dtype)
     save_to_binary_file(param.begin, "begin_index.bin", dtype)
     save_to_binary_file(param.reverse, "reverse.bin", dtype)
