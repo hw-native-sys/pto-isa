@@ -174,7 +174,7 @@ fi
 if [ -d "${PERF_SIM_ST_DIR}" ]; then
     while IFS= read -r -d '' bin; do
         RUN_ITEMS+=("perf_sim_st:$(basename "${bin}")")
-    done < <(find "${PERF_SIM_ST_DIR}" -mindepth 1 -maxdepth 1 -type f -perm +111 -print0 | sort -z)
+    done < <(find "${PERF_SIM_ST_DIR}" -mindepth 1 -maxdepth 1 -type f \( -perm -100 -o -perm -010 -o -perm -001 \) -print0 | sort -z)
 fi
 
 if [ ${#RUN_ITEMS[@]} -eq 0 ]; then
