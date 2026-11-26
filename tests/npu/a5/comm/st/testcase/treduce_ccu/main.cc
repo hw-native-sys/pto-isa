@@ -23,7 +23,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstdlib>
 #include <vector>
 
-#include <dlfcn.h>
 #include <unistd.h>
 
 #include "acl/acl.h"
@@ -253,53 +252,6 @@ static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor& gateDesc)
     return false;
 }
 
-static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor& gateDesc)
-{
-    constexpr int kRT_PROCESS_CP1 = 0;
-    constexpr int kRT_RES_TYPE_CCU_CKE = 3;
-    struct rtDevResInfo_t {
-        uint32_t dieId;
-        int procType;
-        int resType;
-        uint32_t resId;
-        uint32_t flag;
-    };
-    struct rtDevResAddrInfo_t {
-        uint64_t* resAddress;
-        uint32_t* len;
-    };
-    using rtGetFn = int (*)(rtDevResInfo_t*, rtDevResAddrInfo_t*);
-
-    void* rt = dlopen("libruntime.so", RTLD_NOW | RTLD_GLOBAL);
-    if (!rt) {
-        std::fprintf(stderr, "dlopen libruntime.so: %s\n", dlerror());
-        return false;
-    }
-    auto rtGet = reinterpret_cast<rtGetFn>(dlsym(rt, "rtGetDevResAddress"));
-    if (!rtGet) {
-        std::fprintf(stderr, "dlsym: %s\n", dlerror());
-        return false;
-    }
-
-    rtDevResInfo_t in{};
-    in.dieId = gateDesc.dieId;
-    in.procType = kRT_PROCESS_CP1;
-    in.resType = kRT_RES_TYPE_CCU_CKE;
-    in.resId = gateDesc.ckeId;
-    in.flag = 0;
-    uint64_t addr = 0;
-    uint32_t len = 0;
-    rtDevResAddrInfo_t out{&addr, &len};
-    int qrc = rtGet(&in, &out);
-    if (qrc != 0 || addr == 0) {
-        std::fprintf(stderr, "[TREDUCE_CCU] rank=%d rtGetDevResAddress FAIL rc=%d\n", g_env.rankId, qrc);
-        return false;
-    }
-    g_env.mmioAddr = addr;
-    g_env.gateMask = gateDesc.mask;
-    return true;
-}
-
 bool ResolveGateOnce()
 {
     if (g_env.gateResolved)
@@ -307,8 +259,12 @@ bool ResolveGateOnce()
     pto::comm::ccu::CcuGateDescriptor gateDesc{};
     if (!DiscoverGateDescriptor(gateDesc))
         return false;
-    if (!ResolveCkeMmio(gateDesc))
+    const uint64_t ckeSlotVA = pto::comm::ccu::st::ResolveCkeSlotVa(gateDesc, "TREDUCE_CCU", g_env.rankId);
+    if (ckeSlotVA == 0) {
         return false;
+    }
+    g_env.mmioAddr = ckeSlotVA;
+    g_env.gateMask = gateDesc.mask;
     g_env.gateResolved = true;
     return true;
 }
