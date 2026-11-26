@@ -7,7 +7,7 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, E
 INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 See LICENSE in the root of the software repository for the full text of the License.
 */
-// Arch-agnostic TMatmul/GEMV/MX/BIAS implementation wrappers shared by a5 and a6.
+// Arch-agnostic TMatmul/GEMV/MX/BIAS implementation wrappers shared by a5, a6 and a6r2.
 //
 // These wrappers call the arch-specific TMatmul/TMatmulBias (which select the
 // mad variant) and CheckMadValid/CheckMadMxValid (which encode the per-arch
@@ -97,7 +97,7 @@ PTO_INTERNAL void TMATMUL_MX_IMPL(
     CheckDynamicMmad(m, k, n);
 
     CheckMadMxValid<TileRes, TileLeft, TileLeftScale, TileRight, TileRightScale>();
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
     TMatmulMx<Phase, TileRes, TileLeft, TileLeftScale, TileRight, TileRightScale, false, true, true>(
         cMatrix.data(), aMatrix.data(), aScaleMatrix.data(), bMatrix.data(), bScaleMatrix.data(), m, k, n);
 #else
@@ -122,7 +122,7 @@ PTO_INTERNAL void TMATMUL_MX_IMPL(
     CheckDynamicMmad(m, k, n);
 
     CheckMadMxValid<TileRes, TileLeft, TileLeftScale, TileRight, TileRightScale>();
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
     TMatmulMx<Phase, TileRes, TileLeft, TileLeftScale, TileRight, TileRightScale, false, false, true>(
         cOutMatrix.data(), aMatrix.data(), aScaleMatrix.data(), bMatrix.data(), bScaleMatrix.data(), m, k, n);
 #else
@@ -146,7 +146,7 @@ PTO_INTERNAL void TMATMUL_MX_IMPL(
     uint16_t k = aMatrix.GetValidCol();
     uint16_t n = bMatrix.GetValidCol();
     CheckDynamicMmad(m, k, n);
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
     TMatmulMxBias<Phase, TileRes, TileLeft, TileLeftScale, TileRight, TileRightScale, true, false, true>(
         cMatrix.data(), aMatrix.data(), aScaleMatrix.data(), bMatrix.data(), bScaleMatrix.data(), biasData.data(), m, k,
         n);

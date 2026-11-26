@@ -161,6 +161,9 @@ endfunction()
 set(ALL_TESTCASES
     tadd
     tpushpop_c2v_maxtrack
+    tmatmul
+    tmatmul_mx
+    tmatmul_acc
 )
 
 if (AUTO_MODE)
