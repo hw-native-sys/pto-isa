@@ -100,7 +100,7 @@ def nd2nz_mxfp8(data_fp8, m, n):
     # (the +1 is a UB-internal stride; the GM NZ layout is plain [n_groups, padded_m, 32]).
     padded_m = ((m + 15) // 16) * 16
     n_groups = ((n + 31) // 32) * 32 // 32
-    reshaped = data_fp8.reshape(m, n_groups, 32) if data_fp8.ndim == 1 else data_fp8.reshape(m, n_groups, 32)
+    reshaped = data_fp8.reshape(m, n_groups, 32)
     padded = np.zeros((padded_m, n_groups, 32), dtype=data_fp8.dtype)
     padded[:m, :, :] = reshaped
     return np.transpose(padded, [1, 0, 2]).reshape(-1)
