@@ -34,7 +34,7 @@ def gen_golden_data_tcolsum(case_name, param):
         input1 = NumExt.astype(np.random.randint(
             low=-16, high=16, size=[srcRow, srcCols]), dtype)
     else:
-        input1 = NumExt.astype(np.random.randint(
+        input1 = NumExt.astype(np.random.uniform(
             low=-16, high=16, size=[srcRow, srcCols]), dtype)
 
     # Perform the addbtraction

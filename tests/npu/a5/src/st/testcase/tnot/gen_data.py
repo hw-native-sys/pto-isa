@@ -37,6 +37,8 @@ def gen_golden_data(case_name, param):
         input1 = np.random.randint(-30_000, 30_000, size=[height, width]).astype(dtype)
     elif dtype == np.int32 or dtype == np.uint32:
         input1 = np.random.randint(-1_000_000, 1_000_000, size=[height, width]).astype(dtype)
+    else:
+        raise ValueError(f"Unsupported dtype for tnot: {dtype}")
 
     golden = ~input1
     # Save the golden data to binary files

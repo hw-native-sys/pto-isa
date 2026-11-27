@@ -37,9 +37,9 @@ def gen_golden_data_tpartadd(case_name, param):
         src1 = NumExt.astype(np.random.randint(
             low=-16, high=16, size=(H, W)), dtype)
     else:
-        src0 = NumExt.astype(np.random.randint(
+        src0 = NumExt.astype(np.random.uniform(
             low=-16, high=16, size=(H, W)), dtype)
-        src1 = NumExt.astype(np.random.randint(
+        src1 = NumExt.astype(np.random.uniform(
             low=-16, high=16, size=(H, W)), dtype)
     golden = NumExt.zeros((H, W), dtype)
     golden[:, :] = src0

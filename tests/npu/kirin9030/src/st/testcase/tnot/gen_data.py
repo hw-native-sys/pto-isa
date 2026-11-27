@@ -23,12 +23,22 @@ def gen_golden_data(case_name, param):
     h_valid, w_valid = [param.valid_row, param.valid_col]
 
     # Generate random input arrays
-    if dtype == np.int8 or dtype == np.uint8:
+    if dtype in (np.int64, np.uint64):
+        # Use large values so the high 32-bit half of each 64-bit element is
+        # exercised.
+        rng = np.random.default_rng(5)
+        if dtype == np.int64:
+            input1 = rng.integers(-(2 ** 31), 2 ** 31 - 1, size=[height, width]).astype(dtype)
+        else:
+            input1 = rng.integers(0, 2 ** 32 - 1, size=[height, width]).astype(dtype)
+    elif dtype == np.int8 or dtype == np.uint8:
         input1 = np.random.randint(-100, 100, size=[height, width]).astype(dtype)
     elif dtype == np.int16 or dtype == np.uint16:
         input1 = np.random.randint(-30_000, 30_000, size=[height, width]).astype(dtype)
     elif dtype == np.int32 or dtype == np.uint32: 
         input1 = np.random.randint(-1_000_000, 1_000_000, size=[height, width]).astype(dtype)
+    else:
+        raise ValueError(f"Unsupported dtype for tnot: {dtype}")
 
     golden = ~input1
     # Save the golden data to binary files
@@ -62,7 +72,9 @@ def generate_case_name(param):
         np.int16: 'int16',
         np.uint16: 'uint16',
         np.int32: 'int32',
-        np.uint32: 'uint32'
+        np.uint32: 'uint32',
+        np.int64: 'int64',
+        np.uint64: 'uint64'
     }[param.dtype]
     return (
         f"TNOTTest.case_{dtype_str}_"
