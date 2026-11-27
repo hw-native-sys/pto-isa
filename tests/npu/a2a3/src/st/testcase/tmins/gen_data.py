@@ -39,6 +39,8 @@ def gen_golden_data(case_name, param):
     elif dtype == np.float32:
         input1 = np.random.uniform(-2_000_000_000, 2_000_000_000, size=[src0_tile_row, src0_tile_col]).astype(dtype)
         scalar = np.random.uniform(-2_000_000_000, 2_000_000_000, size=[1]).astype(dtype)
+    else:
+        raise ValueError(f"unsupported dtype {dtype}")
 
     golden = np.zeros([dst_tile_row, dst_tile_col]).astype(dtype)
     for h in range(h_valid):
