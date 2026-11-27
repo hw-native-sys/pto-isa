@@ -300,6 +300,8 @@ def run_binary(testcase, run_mode, args="all", is_comm=False, nranks=2):
             os.makedirs("log/ub_log", exist_ok=True)
             os.makedirs(camodel_log_dir, exist_ok=True)
             os.environ["CAMODEL_LOG_PATH"] = camodel_log_dir
+            # for david122 esl model run , extract config
+            # run_command(["unzip", "-o", "/xx/xx_eslmodel_config.zip"])
 
         cmd = ["./" + testcase]
         if args != "all":

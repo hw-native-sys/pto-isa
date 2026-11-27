@@ -67,6 +67,15 @@ bool CompareResults(const float* result, const float* golden, uint32_t length, f
     const uint32_t max_errors_to_print = 10;
 
     for (uint32_t i = 0; i < length; i++) {
+        // NaN/Inf: fabs(NaN - x) comparisons are always false, so catch non-finite explicitly.
+        if (!std::isfinite(result[i]) || !std::isfinite(golden[i])) {
+            error_count++;
+            if (error_count <= max_errors_to_print) {
+                printf("  [%u] result=%.6f, golden=%.6f (non-finite)\n", i, result[i], golden[i]);
+            }
+            continue;
+        }
+
         float diff = fabs(result[i] - golden[i]);
         if (diff > max_diff) {
             max_diff = diff;
@@ -88,7 +97,7 @@ bool CompareResults(const float* result, const float* golden, uint32_t length, f
         printf("Error count: %u / 0 (N/A)\n", error_count);
     }
 
-    return (max_diff < tolerance);
+    return (error_count == 0);
 }
 
 /**
@@ -111,17 +120,16 @@ static bool AllocateTestMemory(
     uint32_t length, size_t data_size, float** x_host, float** out_host, float** golden_host, uint8_t** x_device,
     uint8_t** out_device)
 {
-    // 分配 Host 内存
-    aclrtMallocHost((void**)x_host, data_size);
-    aclrtMallocHost((void**)out_host, data_size);
-
-    // 校验内存分配大小
-    if (length > 0 && length <= (1u << 30)) {
-        *golden_host = new float[length];
-    } else {
+    // Validate length before any allocation to avoid leaking pinned Host memory.
+    if (!(length > 0 && length <= (1u << 30))) {
         printf("Error: Invalid memory allocation size\n");
         return false;
     }
+
+    // 分配 Host 内存
+    aclrtMallocHost((void**)x_host, data_size);
+    aclrtMallocHost((void**)out_host, data_size);
+    *golden_host = new float[length];
 
     // 分配 Device 内存
     aclrtMalloc((void**)x_device, data_size, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -170,13 +178,17 @@ bool TestKernel(const char* kernel_name, LaunchFunc launch_func, uint32_t length
     aclrtStream stream;
     aclrtCreateStream(&stream);
 
-    // 分配内存
-    float *x_host, *out_host, *golden_host;
-    uint8_t *x_device, *out_device;
+    // 分配内存（校验失败时不会申请，指针保持为空）
+    float *x_host = nullptr, *out_host = nullptr, *golden_host = nullptr;
+    uint8_t *x_device = nullptr, *out_device = nullptr;
 
     if (!AllocateTestMemory(length, data_size, &x_host, &out_host, &golden_host, &x_device, &out_device)) {
-        aclrtFreeHost(x_host);
-        aclrtFreeHost(out_host);
+        if (x_host != nullptr) {
+            aclrtFreeHost(x_host);
+        }
+        if (out_host != nullptr) {
+            aclrtFreeHost(out_host);
+        }
         aclrtDestroyStream(stream);
         aclrtResetDevice(0);
         aclFinalize();

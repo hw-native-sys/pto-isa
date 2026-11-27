@@ -24,7 +24,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstring>
 #include <vector>
 
-#include <dlfcn.h>
 #include <unistd.h>
 
 #include "acl/acl.h"
@@ -90,6 +89,10 @@ struct CcuEnv {
     uint64_t outputVa = 0;
     uint64_t token = 0;
 
+    uint64_t allInputVa[pto::comm::ccu::kMaxBroadcastRanks]{};
+    uint64_t allOutputVa[pto::comm::ccu::kMaxBroadcastRanks]{};
+    uint64_t allToken[pto::comm::ccu::kMaxBroadcastRanks]{};
+
     uint64_t mmioAddr = 0;
     uint32_t gateMask = 0;
 
@@ -144,6 +147,27 @@ bool SetupChannelsForCcu(HcclComm comm, int rankId, int nRanks, std::vector<Chan
     return true;
 }
 
+// TBroadcast: AllGather every rank's (inputVa, outputVa, token) at setup time
+// so the broadcast CCU kernel receives all peer addresses via GeneArgs and can
+// skip the runtime address-exchange PreSync.
+void ExchangePeerAddrs()
+{
+    struct AddrPack {
+        uint64_t inputVa;
+        uint64_t outputVa;
+        uint64_t token;
+    };
+    AddrPack myPack{g_env.inputVa, g_env.outputVa, g_env.token};
+    std::vector<AddrPack> allPacks(g_env.nRanks);
+    CommMpiAllgather(&myPack, sizeof(AddrPack), allPacks.data(), sizeof(AddrPack));
+    for (int i = 0; i < g_env.nRanks && i < static_cast<int>(pto::comm::ccu::kMaxBroadcastRanks); ++i) {
+        g_env.allInputVa[i] = allPacks[i].inputVa;
+        g_env.allOutputVa[i] = allPacks[i].outputVa;
+        g_env.allToken[i] = allPacks[i].token;
+    }
+    std::fprintf(stderr, "[TBROADCAST_CCU] rank=%d AllGather done, %d peers exchanged\n", g_env.rankId, g_env.nRanks);
+}
+
 bool EnsureEnvReady()
 {
     if (g_env.ready)
@@ -191,6 +215,8 @@ bool EnsureEnvReady()
         (g_env.inputVa < g_env.outputVa) ? (g_env.outputVa + kMaxPayload) : (g_env.inputVa + kMaxPayload);
     g_env.token = hcomm::CcuRep::GetTokenInfo(spanBase, spanEnd - spanBase);
 
+    ExchangePeerAddrs();
+
     g_env.ready = true;
     return true;
 }
@@ -225,53 +251,6 @@ static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor& gateDesc)
     return false;
 }
 
-static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor& gateDesc)
-{
-    constexpr int kRT_PROCESS_CP1 = 0;
-    constexpr int kRT_RES_TYPE_CCU_CKE = 3;
-    struct rtDevResInfo_t {
-        uint32_t dieId;
-        int procType;
-        int resType;
-        uint32_t resId;
-        uint32_t flag;
-    };
-    struct rtDevResAddrInfo_t {
-        uint64_t* resAddress;
-        uint32_t* len;
-    };
-    using rtGetFn = int (*)(rtDevResInfo_t*, rtDevResAddrInfo_t*);
-
-    void* rt = dlopen("libruntime.so", RTLD_NOW | RTLD_GLOBAL);
-    if (!rt) {
-        std::fprintf(stderr, "dlopen libruntime.so: %s\n", dlerror());
-        return false;
-    }
-    auto rtGet = reinterpret_cast<rtGetFn>(dlsym(rt, "rtGetDevResAddress"));
-    if (!rtGet) {
-        std::fprintf(stderr, "dlsym: %s\n", dlerror());
-        return false;
-    }
-
-    rtDevResInfo_t in{};
-    in.dieId = gateDesc.dieId;
-    in.procType = kRT_PROCESS_CP1;
-    in.resType = kRT_RES_TYPE_CCU_CKE;
-    in.resId = gateDesc.ckeId;
-    in.flag = 0;
-    uint64_t addr = 0;
-    uint32_t len = 0;
-    rtDevResAddrInfo_t out{&addr, &len};
-    int qrc = rtGet(&in, &out);
-    if (qrc != 0 || addr == 0) {
-        std::fprintf(stderr, "[TBROADCAST_CCU] rank=%d rtGetDevResAddress FAIL rc=%d\n", g_env.rankId, qrc);
-        return false;
-    }
-    g_env.mmioAddr = addr;
-    g_env.gateMask = gateDesc.mask;
-    return true;
-}
-
 bool ResolveGateOnce()
 {
     if (g_env.gateResolved)
@@ -279,8 +258,12 @@ bool ResolveGateOnce()
     pto::comm::ccu::CcuGateDescriptor gateDesc{};
     if (!DiscoverGateDescriptor(gateDesc))
         return false;
-    if (!ResolveCkeMmio(gateDesc))
+    const uint64_t ckeSlotVA = pto::comm::ccu::st::ResolveCkeSlotVa(gateDesc, "TBROADCAST_CCU", g_env.rankId);
+    if (ckeSlotVA == 0) {
         return false;
+    }
+    g_env.mmioAddr = ckeSlotVA;
+    g_env.gateMask = gateDesc.mask;
     g_env.gateResolved = true;
     return true;
 }
@@ -312,6 +295,7 @@ static bool RegisterAndLaunchBroadcastCcu(int rankId, int nRanks, uint32_t rootI
     HCCL_OK(HcclCcuKernelRegisterFinish(g_env.comm));
 
     pto::comm::ccu::CcuBroadcastTaskArg targ{g_env.inputVa, g_env.outputVa, payloadSize, g_env.token};
+    targ.SetPeerAddrs(static_cast<uint32_t>(nRanks), g_env.allInputVa, g_env.allOutputVa, g_env.allToken);
     HCCL_OK(HcclCcuKernelLaunch(g_env.comm, g_env.threadHandle, kHandle, &targ));
     std::fprintf(stderr, "[TBROADCAST_CCU] rank=%d KernelLaunch done\n", rankId);
     return true;

@@ -23,6 +23,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #undef PTO_A6R2_TPUSH_CTOR_ONLY
 
 #include "pto/npu/a6r2/TMov.hpp"
+#include "pto/npu/a6r2/TMatmul.hpp"
 #include "pto/npu/a6r2/TPush.hpp"
 #include "pto/npu/a6r2/TPop.hpp"
 

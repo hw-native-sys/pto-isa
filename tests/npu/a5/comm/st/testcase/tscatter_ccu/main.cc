@@ -24,7 +24,6 @@ See LICENSE in the root of the software repository for the full text of the Lice
 #include <cstring>
 #include <vector>
 
-#include <dlfcn.h>
 #include <unistd.h>
 
 #include "acl/acl.h"
@@ -229,53 +228,6 @@ static bool DiscoverGateDescriptor(pto::comm::ccu::CcuGateDescriptor& gateDesc)
     return false;
 }
 
-static bool ResolveCkeMmio(const pto::comm::ccu::CcuGateDescriptor& gateDesc)
-{
-    constexpr int kRT_PROCESS_CP1 = 0;
-    constexpr int kRT_RES_TYPE_CCU_CKE = 3;
-    struct rtDevResInfo_t {
-        uint32_t dieId;
-        int procType;
-        int resType;
-        uint32_t resId;
-        uint32_t flag;
-    };
-    struct rtDevResAddrInfo_t {
-        uint64_t* resAddress;
-        uint32_t* len;
-    };
-    using rtGetFn = int (*)(rtDevResInfo_t*, rtDevResAddrInfo_t*);
-
-    void* rt = dlopen("libruntime.so", RTLD_NOW | RTLD_GLOBAL);
-    if (!rt) {
-        std::fprintf(stderr, "dlopen libruntime.so: %s\n", dlerror());
-        return false;
-    }
-    auto rtGet = reinterpret_cast<rtGetFn>(dlsym(rt, "rtGetDevResAddress"));
-    if (!rtGet) {
-        std::fprintf(stderr, "dlsym: %s\n", dlerror());
-        return false;
-    }
-
-    rtDevResInfo_t in{};
-    in.dieId = gateDesc.dieId;
-    in.procType = kRT_PROCESS_CP1;
-    in.resType = kRT_RES_TYPE_CCU_CKE;
-    in.resId = gateDesc.ckeId;
-    in.flag = 0;
-    uint64_t addr = 0;
-    uint32_t len = 0;
-    rtDevResAddrInfo_t out{&addr, &len};
-    int qrc = rtGet(&in, &out);
-    if (qrc != 0 || addr == 0) {
-        std::fprintf(stderr, "[TSCATTER_CCU] rank=%d rtGetDevResAddress FAIL rc=%d\n", g_env.rankId, qrc);
-        return false;
-    }
-    g_env.mmioAddr = addr;
-    g_env.gateMask = gateDesc.mask;
-    return true;
-}
-
 bool ResolveGateOnce()
 {
     if (g_env.gateResolved)
@@ -283,8 +235,12 @@ bool ResolveGateOnce()
     pto::comm::ccu::CcuGateDescriptor gateDesc{};
     if (!DiscoverGateDescriptor(gateDesc))
         return false;
-    if (!ResolveCkeMmio(gateDesc))
+    const uint64_t ckeSlotVA = pto::comm::ccu::st::ResolveCkeSlotVa(gateDesc, "TSCATTER_CCU", g_env.rankId);
+    if (ckeSlotVA == 0) {
         return false;
+    }
+    g_env.mmioAddr = ckeSlotVA;
+    g_env.gateMask = gateDesc.mask;
     g_env.gateResolved = true;
     return true;
 }
@@ -330,6 +286,27 @@ static bool RegisterAndLaunchScatterCcu(
     HCCL_OK(HcclCcuKernelRegisterFinish(g_env.comm));
 
     pto::comm::ccu::CcuScatterTaskArg targ{myInputSliceVA, g_env.outputVa, payloadSize, g_env.token};
+
+    // Exchange (inputSliceVa, outputVa, token) across all ranks at launch time
+    // so the CCU kernel can skip runtime PreSync (NotifyRecord/NotifyWait).
+    struct AddrPack {
+        uint64_t inputVa;
+        uint64_t outputVa;
+        uint64_t token;
+    };
+    AddrPack myPack{myInputSliceVA, g_env.outputVa, g_env.token};
+    std::vector<AddrPack> allPacks(nRanks);
+    CommMpiAllgather(&myPack, sizeof(AddrPack), allPacks.data(), sizeof(AddrPack));
+    uint64_t allInputVa[pto::comm::ccu::kMaxScatterRanks]{};
+    uint64_t allOutputVa[pto::comm::ccu::kMaxScatterRanks]{};
+    uint64_t allToken[pto::comm::ccu::kMaxScatterRanks]{};
+    for (int i = 0; i < nRanks && i < static_cast<int>(pto::comm::ccu::kMaxScatterRanks); ++i) {
+        allInputVa[i] = allPacks[i].inputVa;
+        allOutputVa[i] = allPacks[i].outputVa;
+        allToken[i] = allPacks[i].token;
+    }
+    targ.SetPeerAddrs(static_cast<uint32_t>(nRanks), allInputVa, allOutputVa, allToken);
+
     HCCL_OK(HcclCcuKernelLaunch(g_env.comm, g_env.threadHandle, kHandle, &targ));
     std::fprintf(stderr, "[TSCATTER_CCU] rank=%d KernelLaunch done\n", rankId);
     return true;

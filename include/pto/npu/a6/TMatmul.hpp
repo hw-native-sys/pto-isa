@@ -74,6 +74,7 @@ __tf__ AICORE void TMatmulMx(
 
     uint64_t l0aMxBufferStartAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(aScaleMatrix));
     uint64_t l0bMxBufferStartAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(bScaleMatrix));
+
     mad_mx(
         c, 0, a, l0aMxBufferStartAddr, b, l0bMxBufferStartAddr, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl,
         biasBufferCtrl, cmatrixInitVal);
@@ -97,7 +98,6 @@ __tf__ AICORE void TMatmulMxBias(
         c, bias, a, l0aMxBufferStartAddr, b, l0bMxBufferStartAddr, m, k, n, static_cast<uint8_t>(Phase), gemvCtrl,
         biasBufferCtrl, cmatrixInitVal);
 }
-
 #define PTO_A6_DISPATCH_MAD(C_PTR, A_PTR, B_PTR, M_VAL, K_VAL, N_VAL)                                           \
     do {                                                                                                        \
         if constexpr (kIsMmadS8S4<TileRes, TileLeft, TileRight>) {                                              \
@@ -117,7 +117,6 @@ __tf__ AICORE void TMatmulMxBias(
                 cmatrixInitVal);                                                                                \
         }                                                                                                       \
     } while (false)
-
 template <
     AccPhase Phase = AccPhase::Unspecified, typename TileRes, typename TileLeft, typename TileRight, bool cmatrixSource,
     bool cmatrixInitVal, bool gemvCtrl>

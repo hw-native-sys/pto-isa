@@ -955,6 +955,104 @@ PTO_INST RecordEvent TMATMUL_MX(
     return {};
 }
 
+#if defined(PTO_NPU_ARCH_A6R2)
+template <typename TileRes, typename TileLeft, typename TileRight, typename TileAccScale, typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_ACC(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileAccScale& cScaleData,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL(TMATMUL_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix, cScaleData);
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileRight, typename TileAccScale,
+    typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_ACC(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileAccScale& cScaleData,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(TMATMUL_ACC, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, bMatrix, cScaleData);
+    return {};
+}
+
+template <typename TileRes, typename TileLeft, typename TileRight, typename TileAccScale, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_ACC(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileAccScale& cScaleData,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL(TGEMV_ACC, cOutMatrix, cInMatrix, aMatrix, bMatrix, cScaleData);
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileRight, typename TileAccScale,
+    typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_ACC(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileRight& bMatrix, TileAccScale& cScaleData,
+    WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(TGEMV_ACC, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, bMatrix, cScaleData);
+    return {};
+}
+
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename TileAccScale, typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, TileAccScale& cScaleData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL(TMATMUL_MX, cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, cScaleData);
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename TileAccScale, typename... WaitEvents>
+PTO_INST RecordEvent TMATMUL_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, TileAccScale& cScaleData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(
+        TMATMUL_MX, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        cScaleData);
+    return {};
+}
+
+template <
+    typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight, typename TileRightScale,
+    typename TileAccScale, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, TileAccScale& cScaleData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL(TGEMV_MX, cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix, cScaleData);
+    return {};
+}
+
+template <
+    AccPhase Phase, typename TileRes, typename TileLeft, typename TileLeftScale, typename TileRight,
+    typename TileRightScale, typename TileAccScale, typename... WaitEvents>
+PTO_INST RecordEvent TGEMV_MX(
+    TileRes& cOutMatrix, TileRes& cInMatrix, TileLeft& aMatrix, TileLeftScale& aScaleMatrix, TileRight& bMatrix,
+    TileRightScale& bScaleMatrix, TileAccScale& cScaleData, WaitEvents&... events)
+{
+    detail::PtoWaitEvents(events...);
+    MAP_INSTR_IMPL_T(
+        TGEMV_MX, PTO_TEMPLATE_ARGS(Phase), cOutMatrix, cInMatrix, aMatrix, aScaleMatrix, bMatrix, bScaleMatrix,
+        cScaleData);
+    return {};
+}
+#endif
+
 template <uint16_t Rounds = 10, typename DstTile, typename... WaitEvents>
 PTO_INST RecordEvent TRANDOM(DstTile& dst, TRandomKey& key, TRandomCounter& counter, WaitEvents&... events)
 {

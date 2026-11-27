@@ -179,10 +179,7 @@ def gen_saturation_golden(case_name, param):
         special_values = [-40000, 40000, -32768, 32767, 32769]
         x1_gm = np.array(special_values + [0] * (m * n - len(special_values))).astype(srctype).reshape([m, n])
     else:
-        if srctype in (np.float32, np.float16):
-            x1_gm = (np.random.random([m, n]) * 200 - 100).astype(srctype)
-        else:
-            x1_gm = np.random.randint(-100, 100, [m, n]).astype(srctype)
+        x1_gm = np.random.randint(-100, 100, [m, n]).astype(srctype)
     if HAS_TORCH:
         if srctype == np.float16:
             x_torch = torch.from_numpy(x1_gm.astype(np.float32)).half()

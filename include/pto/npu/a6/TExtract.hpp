@@ -21,7 +21,7 @@ constexpr bool is_textract_supported_type = std::disjunction_v<
     std::is_same<T, hifloat8_t>, std::is_same<T, int4b_t>, std::is_same<T, half>, std::is_same<T, bfloat16_t>,
     std::is_same<T, float>, std::is_same<T, float4_e2m1x2_t>, std::is_same<T, float4_e1m2x2_t>,
     std::is_same<T, float8_e8m0_t>
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
     ,
     std::is_same<T, hifloat4x2_t>
 #endif
@@ -40,7 +40,7 @@ PTO_INTERNAL void TExtractToLeft(DstTileData& dst, SrcTileData& src, uint16_t in
     constexpr bool isFp4Type = std::is_same<typename SrcTileData::DType, float4_e2m1x2_t>::value ||
                                std::is_same<typename SrcTileData::DType, float4_e1m2x2_t>::value ||
                                std::is_same<typename SrcTileData::DType, int4b_t>::value
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
                                || std::is_same<typename SrcTileData::DType, hifloat4x2_t>::value
 #endif
         ;
@@ -76,7 +76,7 @@ PTO_INTERNAL void TExtractToRight(DstTileData& dst, SrcTileData& src, uint16_t i
     constexpr bool isFp4Type = std::is_same<typename SrcTileData::DType, float4_e2m1x2_t>::value ||
                                std::is_same<typename SrcTileData::DType, float4_e1m2x2_t>::value ||
                                std::is_same<typename SrcTileData::DType, int4b_t>::value
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
                                || std::is_same<typename SrcTileData::DType, hifloat4x2_t>::value
 #endif
         ;
@@ -300,7 +300,7 @@ PTO_INTERNAL void TExtractVecToVecNDDispatch(DstTileData& dst, SrcTileData& src,
     // for the aligned-stride fast path.
     constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t> ||
                                std::is_same_v<T, int4b_t>
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
                                || std::is_same_v<T, hifloat4x2_t>
 #endif
         ;
@@ -355,7 +355,7 @@ __tf__ PTO_INTERNAL void TExtractVecToVecNZImpl(
     constexpr uint32_t typeSize = sizeof(T);
     constexpr bool isFp4Type = std::is_same_v<T, float4_e2m1x2_t> || std::is_same_v<T, float4_e1m2x2_t> ||
                                std::is_same_v<T, int4b_t>
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
                                || std::is_same_v<T, hifloat4x2_t>
 #endif
         ;
@@ -560,7 +560,7 @@ PTO_INTERNAL void TEXTRACT_IMPL(DstTileData& dst, SrcTileData& src, uint16_t ind
                 (std::is_same<T, hifloat8_t>::value) || (std::is_same<T, float8_e4m3_t>::value) ||
                 (std::is_same<T, float8_e5m2_t>::value) || (std::is_same<T, float8_e8m0_t>::value) ||
                 (std::is_same<T, float4_e2m1x2_t>::value) || (std::is_same<T, float4_e1m2x2_t>::value)
-#if defined(PTO_NPU_ARCH_A6)
+#if defined(PTO_NPU_ARCH_A6) || defined(PTO_NPU_ARCH_A6R2)
                 || (std::is_same<T, hifloat4x2_t>::value)
 #endif
                 ,
