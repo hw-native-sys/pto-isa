@@ -43,6 +43,8 @@ def gen_golden_data_tpow(case_name, param):
         else:
             input1 = np.random.uniform(0.1, 5.0, size=[row, col]).astype(dtype)
             input2 = np.random.uniform(0, 3.0, size=[row, col]).astype(dtype)
+    else:
+        raise ValueError(f"Unsupported dtype for tpow: {dtype}")
 
     golden = NumExt.zeros([row, col], dtype)
     result = np.power(input1[:row_valid, :col_valid], input2[:row_valid, :col_valid])

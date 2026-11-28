@@ -172,8 +172,6 @@ def generate_input_data(param):
 def decode_input_data(data, srctype):
     if srctype in (Float4E2M1, Float4E1M2):
         return decode_fp4(data, srctype)
-    elif srctype is Int4:
-        return data.astype(np.float32)
     else:
         return data.astype(np.float32)
 
@@ -315,7 +313,7 @@ if __name__ == "__main__":
         "TCVTTest.case30",
         "TCVTTest.case31"
     ]
-   
+
     case_params_list = [
         TCvtParams(np.float32, np.int32, 128, 128, "RoundMode::CAST_RINT"),
         TCvtParams(np.int32, np.float32, 256, 64, "RoundMode::CAST_RINT"),

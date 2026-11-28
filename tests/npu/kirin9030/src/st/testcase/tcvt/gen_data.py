@@ -59,11 +59,7 @@ def gen_golden(case_name, param):
         x1_gm = np.random.randint(0, 256, [m, n]).astype(srctype)
     elif srctype == np.int16:
         x1_gm = np.random.randint(-1000, 1000, [m, n]).astype(srctype)
-    elif srctype == np.uint16:
-        x1_gm = np.random.randint(0, 10000, [m, n]).astype(srctype)
-    elif srctype == np.int32:
-        x1_gm = np.random.randint(-10000, 10000, [m, n]).astype(srctype)
-    elif srctype == np.uint32:
+    elif srctype in (np.uint16, np.uint32):
         x1_gm = np.random.randint(0, 10000, [m, n]).astype(srctype)
     else:
         x1_gm = np.random.randint(-10000, 10000, [m, n]).astype(srctype)

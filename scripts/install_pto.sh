@@ -175,7 +175,6 @@ install_pto_isa_run() {
 }
 
 install_gtest() {
-  git config --global http.sslverify false
   git clone https://github.com/google/googletest.git -b v1.14.x
   cd googletest
   mkdir build

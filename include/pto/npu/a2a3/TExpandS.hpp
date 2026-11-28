@@ -121,12 +121,12 @@ __tf__ PTO_INTERNAL void TExpandsMat5HD(
     using U = typename TileData::DType;
     __cbuf__ U* dstPtr = (__cbuf__ U*)__cce_get_tile_ptr(dst);
 
-    uint64_t totalBytes = shape0 * shape1 * shape2 * shape3 * shape4 * sizeof(U);
+    uint64_t totalBytes = static_cast<uint64_t>(shape0) * shape1 * shape2 * shape3 * shape4 * sizeof(U);
     uint64_t repeat = totalBytes / BLOCK_BYTE_SIZE;
-    uint16_t repeatTimes = static_cast<uint16_t>(repeat);
     PTO_ASSERT(
-        repeatTimes >= 1 && repeatTimes <= EXPANDS_MAX_SUPPORT_REPEAT_TIMES,
+        repeat >= 1 && repeat <= EXPANDS_MAX_SUPPORT_REPEAT_TIMES,
         "ERROR: The range of convtile's (shape0 * shape1 * shape2 * shape3) is [1, 32767].");
+    uint16_t repeatTimes = static_cast<uint16_t>(repeat);
     int64_t repeatConfig = 0;
     // [46:32] is the repeat gap between two consecutive repeats
     repeatConfig |= (static_cast<int64_t>(0) & 0x7FFF) << 32;

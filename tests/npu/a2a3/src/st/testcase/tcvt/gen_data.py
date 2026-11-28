@@ -164,18 +164,9 @@ def gen_golden(case_name, param):
     elif srctype == np.int16:
         # int16: reasonable range [-1000, 1000]
         x1_gm = np.random.randint(-1000, 1000, [m, n]).astype(srctype)
-    elif srctype == np.uint16:
-        # uint16: reasonable range [0, 10000]
+    elif srctype in (np.uint16, np.uint32):
+        # uint16, uint32: reasonable range [0, 10000]
         x1_gm = np.random.randint(0, 10000, [m, n]).astype(srctype)
-    elif srctype == np.int32:
-        # int32: reasonable range [-10000, 10000]
-        x1_gm = np.random.randint(-10000, 10000, [m, n]).astype(srctype)
-    elif srctype == np.uint32:
-        # uint32: reasonable range [0, 10000]
-        x1_gm = np.random.randint(0, 10000, [m, n]).astype(srctype)
-    elif srctype == np.int64:
-        # int64: reasonable range [-10000, 10000]
-        x1_gm = np.random.randint(-10000, 10000, [m, n]).astype(srctype)
     else:
         # Default: signed int range
         x1_gm = np.random.randint(-10000, 10000, [m, n]).astype(srctype)

@@ -34,6 +34,8 @@ def gen_golden_data(param):
         dtype_info = np.finfo(dtype)
         base_arr = np.random.uniform(0.1, 5.0, size=[row, col]).astype(dtype)
         exp_arr = np.random.uniform(0, 3.0, size=[row, col]).astype(dtype)
+    else:
+        raise ValueError(f"unsupported dtype {dtype}")
 
     if param.name == "TPOWTest.case12":
         base_arr[:, 0:5] = 1.0
